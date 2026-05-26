@@ -24,11 +24,13 @@ import { NodeDetail } from "../render/node-detail"
 import { PromptTemplate } from "../render/prompt-template"
 import { ToolFilter } from "../render/tool-filter"
 import { PickNext } from "../policy/pick-next"
+import { FreerunBus } from "../observability/bus"
 import {
   ContextNode,
   ExecutionOutcome,
   PlanningOutcome,
   type ExperimentConfig,
+  type NodeMode,
 } from "../types"
 
 export namespace Iterate {
@@ -82,6 +84,8 @@ export namespace Iterate {
     llm: LlmClient
     /** Full tool catalog for this session — iterate.ts filters per-node via ToolFilter. */
     toolCatalog: ToolFilter.ToolRecord[]
+    /** Iteration counter for this session — used for Bus event correlation. Defaults to 0. */
+    iteration?: number
     /** Wall-clock now() in ISO format — injectable for deterministic tests. */
     nowIso?: () => string
   }
@@ -94,10 +98,20 @@ export namespace Iterate {
   /** Run exactly one iteration. Returns the result; does not loop. */
   export async function once(opts: IterateOptions): Promise<IterateResult> {
     const now = opts.nowIso ?? defaultNowIso
+    const iteration = opts.iteration ?? 0
     const tree = await Tree.load(opts.sessionId, opts.dataHome)
     const pick = PickNext.pick(tree, opts.config)
     if (pick.kind === "settled") return { kind: "settled" }
     const node = pick.node
+
+    await FreerunBus.emit.iterationStart({
+      sessionID: opts.sessionId,
+      iteration,
+      nodeID: node.id,
+      nodeMode: node.mode,
+      depth: Tree.depthOf(tree, node.id),
+      pickedByPolicyReason: node.mode === "pending-plan" ? "phaseA-pending-plan" : "phaseB-actionable",
+    })
 
     // Step 1: render context
     const navBand = NavigationBand.render(tree, node.id, {
@@ -106,12 +120,25 @@ export namespace Iterate {
     })
     const detail = NodeDetail.render(node)
 
+    const sectionsPresent: string[] = []
+    if (navBand.text.length > 0) sectionsPresent.push("nav-band")
+    sectionsPresent.push("node-detail")
+
+    await FreerunBus.emit.iterationWorkingSetAssembled({
+      sessionID: opts.sessionId,
+      iteration,
+      navBandTokens: navBand.approxTokens,
+      currentDetailTokens: Math.ceil(detail.text.length / 4),
+      totalTokens: navBand.approxTokens + Math.ceil(detail.text.length / 4),
+      sectionsPresent,
+    })
+
     // Step 2-4: mode dispatch
     if (node.mode === "pending-plan") {
-      return runPlanning(opts, node, navBand.text, detail.text, now)
+      return runPlanning(opts, node, navBand.text, detail.text, now, iteration)
     }
     // pending-exec / doing → execution path
-    return runExecution(opts, node, navBand.text, detail.text, now)
+    return runExecution(opts, node, navBand.text, detail.text, now, iteration)
   }
 
   // ============================================================================
@@ -124,6 +151,7 @@ export namespace Iterate {
     navBandText: string,
     detailText: string,
     now: () => string,
+    iteration: number,
   ): Promise<IterateResult> {
     const tpl = PromptTemplate.render({
       navBandText,
@@ -131,6 +159,15 @@ export namespace Iterate {
       mode: "planning",
       strictness: opts.config.prompt_strictness,
     })
+
+    await FreerunBus.emit.iterationPromptBuilt({
+      sessionID: opts.sessionId,
+      iteration,
+      schemaName: tpl.responseSchemaName,
+      schemaSizeBytes: JSON.stringify(tpl.responseSchema).length,
+      messagesLength: 2, // system + user
+    })
+
     const req: PlanningRequest = {
       systemPrompt: tpl.systemPrompt,
       userMessage: tpl.userMessage,
@@ -139,19 +176,30 @@ export namespace Iterate {
       temperature: opts.config.mode_dispatch_temperature_plan,
     }
     let outcome: PlanningOutcome
+    const t0 = Date.now()
     try {
       const raw = await opts.llm.callPlanning(req)
       outcome = PlanningOutcome.parse(raw) // belt-and-suspenders even though server enforced schema
     } catch (err) {
-      return blockNode(opts, node, now, `planning LLM call failed: ${formatError(err)}`)
+      const reason = `planning LLM call failed: ${formatError(err)}`
+      await FreerunBus.emit.iterationHalted({
+        sessionID: opts.sessionId,
+        iteration,
+        nodeID: node.id,
+        reason,
+        errors: [formatError(err)],
+      })
+      return blockNode(opts, node, now, reason, iteration)
     }
 
     // Persist children
     const updatedAt = now()
     const newChildIds: string[] = []
+    const childTitles: string[] = []
     for (const child of outcome.children) {
       const id = ensureNamespacedChildId(node.id, child.id)
       newChildIds.push(id)
+      childTitles.push(child.title)
       const childNode: ContextNode = {
         id,
         parent_id: node.id,
@@ -182,6 +230,22 @@ export namespace Iterate {
     }
     await NodeFS.write(opts.sessionId, updatedNode, opts.dataHome)
 
+    await FreerunBus.emit.childrenPlanned({
+      sessionID: opts.sessionId,
+      iteration,
+      parentNodeID: node.id,
+      childIDs: newChildIds,
+      childTitles,
+    })
+    await emitTransition(opts.sessionId, iteration, node.id, node.mode, "decomposed", "planning iteration emitted children")
+    await FreerunBus.emit.iterationCompleted({
+      sessionID: opts.sessionId,
+      iteration,
+      nodeID: node.id,
+      latencyMs: Date.now() - t0,
+      validationResult: "ok",
+    })
+
     return { kind: "advanced", nodeId: node.id, mode: "planning" }
   }
 
@@ -195,6 +259,7 @@ export namespace Iterate {
     navBandText: string,
     detailText: string,
     now: () => string,
+    iteration: number,
   ): Promise<IterateResult> {
     const filtered = ToolFilter.filter(opts.toolCatalog, { relevantTools: node.relevant_tools })
 
@@ -205,6 +270,14 @@ export namespace Iterate {
       strictness: opts.config.prompt_strictness,
     })
 
+    await FreerunBus.emit.iterationPromptBuilt({
+      sessionID: opts.sessionId,
+      iteration,
+      schemaName: tpl.responseSchemaName,
+      schemaSizeBytes: JSON.stringify(tpl.responseSchema).length,
+      messagesLength: 2,
+    })
+
     const baseReq: ExecutionRequest = {
       systemPrompt: tpl.systemPrompt,
       userMessage: tpl.userMessage,
@@ -213,9 +286,12 @@ export namespace Iterate {
       temperature: opts.config.mode_dispatch_temperature_exec,
     }
 
+    const t0 = Date.now()
+
     // First attempt
     let outcome: ExecutionOutcome | null = null
     let failures: string[] = []
+    let validationResult: "ok" | "retry-succeeded" | "blocked" = "ok"
     try {
       const raw = await opts.llm.callExecution(baseReq)
       outcome = parseExecutionOutcome(raw.finalContent)
@@ -225,6 +301,13 @@ export namespace Iterate {
 
     // One retry with stricter framing if first attempt failed Zod
     if (outcome === null) {
+      await FreerunBus.emit.llmValidationRetry({
+        sessionID: opts.sessionId,
+        iteration,
+        attemptNumber: 1,
+        validationErrors: failures.length > 0 ? failures : ["unparseable output"],
+      })
+      validationResult = "retry-succeeded"
       const retryReq: ExecutionRequest = {
         ...baseReq,
         userMessage:
@@ -242,12 +325,16 @@ export namespace Iterate {
     }
 
     if (outcome === null) {
-      return blockNode(
-        opts,
-        node,
-        now,
-        `execution output did not parse after 1 retry — ${failures.join("; ")}`,
-      )
+      validationResult = "blocked"
+      const reason = `execution output did not parse after 1 retry — ${failures.join("; ")}`
+      await FreerunBus.emit.iterationHalted({
+        sessionID: opts.sessionId,
+        iteration,
+        nodeID: node.id,
+        reason,
+        errors: failures,
+      })
+      return blockNode(opts, node, now, reason, iteration)
     }
 
     // Persist outcome
@@ -268,6 +355,52 @@ export namespace Iterate {
       next_intent: outcome.next_intent,
     }
     await NodeFS.write(opts.sessionId, merged, opts.dataHome)
+
+    // Emit per-element cognitive events.
+    for (const obs of outcome.observations) {
+      await FreerunBus.emit.observationRecorded({
+        sessionID: opts.sessionId,
+        iteration,
+        nodeID: node.id,
+        observationText: obs,
+      })
+    }
+    for (const d of outcome.decisions) {
+      await FreerunBus.emit.decisionEmitted({
+        sessionID: opts.sessionId,
+        iteration,
+        nodeID: node.id,
+        decisionID: `${node.id}-${node.iteration_count + 1}-d${outcome.decisions.indexOf(d)}`,
+        decisionText: d.decision,
+        rationale: d.rationale,
+      })
+    }
+    for (const b of outcome.blockers) {
+      await FreerunBus.emit.blockerRaised({
+        sessionID: opts.sessionId,
+        iteration,
+        nodeID: node.id,
+        blockerText: b,
+        severity: nextMode === "blocked" ? "hard" : "soft",
+      })
+    }
+    if (nextMode === "pending-plan") {
+      await FreerunBus.emit.replanTriggered({
+        sessionID: opts.sessionId,
+        iteration,
+        nodeID: node.id,
+        triggerReason: "execution outcome next_mode=pending-plan",
+        invalidatedAssumptions: [],
+      })
+    }
+    await emitTransition(opts.sessionId, iteration, node.id, node.mode, nextMode, "execution iteration outcome")
+    await FreerunBus.emit.iterationCompleted({
+      sessionID: opts.sessionId,
+      iteration,
+      nodeID: node.id,
+      latencyMs: Date.now() - t0,
+      validationResult,
+    })
 
     return { kind: "advanced", nodeId: node.id, mode: "execution" }
   }
@@ -314,6 +447,7 @@ export namespace Iterate {
     node: ContextNode,
     now: () => string,
     reason: string,
+    iteration: number,
   ): Promise<IterateResult> {
     const updatedAt = now()
     const blocked: ContextNode = {
@@ -324,7 +458,27 @@ export namespace Iterate {
       blockers: [...node.blockers, reason],
     }
     await NodeFS.write(opts.sessionId, blocked, opts.dataHome)
+    await emitTransition(opts.sessionId, iteration, node.id, node.mode, "blocked", reason)
     return { kind: "blocked", nodeId: node.id, reason }
+  }
+
+  async function emitTransition(
+    sessionID: string,
+    iteration: number,
+    nodeId: string,
+    fromMode: NodeMode,
+    toMode: NodeMode,
+    reason: string,
+  ): Promise<void> {
+    if (fromMode === toMode) return
+    await FreerunBus.emit.nodeStateTransition({
+      sessionID,
+      iteration,
+      nodeID: nodeId,
+      fromMode,
+      toMode,
+      reason,
+    })
   }
 
   function defaultNowIso(): string {

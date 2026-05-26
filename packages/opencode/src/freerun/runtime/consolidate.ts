@@ -17,9 +17,11 @@
  * owns NO HTTP.
  */
 
+import * as path from "path"
 import { Tree } from "../storage/tree"
 import { NodeFS } from "../storage/node-fs"
-import type { ContextNode, ExperimentConfig } from "../types"
+import { FreerunBus } from "../observability/bus"
+import { sessionStorageDir, type ContextNode, type ExperimentConfig } from "../types"
 
 export namespace Consolidate {
   // ============================================================================
@@ -50,6 +52,8 @@ export namespace Consolidate {
     llm: SummarizeClient
     /** Node id just modified — consolidation walks UP from here. */
     seedNodeId: string
+    /** Iteration counter (for Bus event correlation). Defaults to 0. */
+    iteration?: number
     /** ISO timestamp source — injectable for tests. */
     nowIso?: () => string
   }
@@ -106,7 +110,7 @@ export namespace Consolidate {
         return { consolidatedCount, archiveStamp: consolidatedCount > 0 ? archiveStamp : undefined }
       }
 
-      await Tree.archiveSubtree(tree, candidate.id, archiveStamp, opts.dataHome)
+      const archivedIds = await Tree.archiveSubtree(tree, candidate.id, archiveStamp, opts.dataHome)
       const consolidated: ContextNode = {
         ...candidate,
         children_ids: [],
@@ -116,6 +120,16 @@ export namespace Consolidate {
       }
       await NodeFS.write(opts.sessionId, consolidated, opts.dataHome)
       consolidatedCount++
+
+      const archivePath = path.join(sessionStorageDir(opts.sessionId, opts.dataHome), "tree", ".archive", archiveStamp)
+      await FreerunBus.emit.consolidationPerformed({
+        sessionID: opts.sessionId,
+        iteration: opts.iteration,
+        parentNodeID: candidate.id,
+        childrenArchived: archivedIds,
+        summaryTokens: Math.ceil(summary.length / 4),
+        archivePath,
+      })
 
       // Recurse upward.
       candidateId = candidate.parent_id
