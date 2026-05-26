@@ -24,11 +24,14 @@ import { Engine } from "../freerun/runtime/engine"
 import { FreerunLlmClient } from "../freerun/provider/llm-client"
 import { NodeFS } from "../freerun/storage/node-fs"
 import { Tree } from "../freerun/storage/tree"
+import { MetaFS } from "../freerun/storage/meta-fs"
+import { PickNext } from "../freerun/policy/pick-next"
 import {
   ExperimentConfig,
   hashExperimentConfig,
   type ContextNode,
   type TriggerMode,
+  type FreerunFinalStatus,
 } from "../freerun/types"
 
 const log = Log.create({ service: "session.freerun-bridge" })
@@ -87,6 +90,48 @@ export namespace FreerunBridge {
     } catch {
       void treeDir
       return false
+    }
+  }
+
+  /**
+   * Higher-level gate for the autonomous-loop dispatcher. Combines provider
+   * detection + meta.json status + pickNext-virtual into a single classifier.
+   *   - "active": engine should drive one iteration on this session next
+   *   - "paused": freerun-pause set; loop should stop with reason="paused"
+   *   - "settled": no actionable node remains; loop should stop with
+   *                reason="freerun_settled"
+   *   - "none": not a freerun session at all
+   *   - "blocked": engine self-blocked (no progress possible)
+   */
+  export type SessionState =
+    | { kind: "active"; info: FreerunSessionInfo }
+    | { kind: "paused"; status: FreerunFinalStatus }
+    | { kind: "settled"; status: FreerunFinalStatus }
+    | { kind: "blocked"; status: FreerunFinalStatus }
+    | { kind: "none" }
+
+  export async function classify(sessionID: string): Promise<SessionState> {
+    const info = await detect(sessionID)
+    if (info === null) return { kind: "none" }
+    if (!(await hasActiveRoot(sessionID))) return { kind: "none" }
+
+    const meta = await MetaFS.read(sessionID, Global.Path.data).catch(() => null)
+    const status = meta?.final_status ?? "in_progress"
+    if (status === "paused") return { kind: "paused", status }
+    if (status === "blocked") return { kind: "blocked", status }
+    if (status === "done" || status === "cap_reached" || status === "user_interrupted" || status === "error") {
+      return { kind: "settled", status }
+    }
+
+    // status === in_progress — verify pickNext still finds something actionable.
+    try {
+      const cfg = ExperimentConfig.parse({})
+      const tree = await Tree.load(sessionID, Global.Path.data)
+      const pick = PickNext.pick(tree, cfg)
+      if (pick.kind === "settled") return { kind: "settled", status: "done" }
+      return { kind: "active", info }
+    } catch {
+      return { kind: "none" }
     }
   }
 

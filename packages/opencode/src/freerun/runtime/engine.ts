@@ -22,6 +22,7 @@ import { Iterate } from "./iterate"
 import { Consolidate } from "./consolidate"
 import { FreerunBus } from "../observability/bus"
 import { BusSink } from "../observability/bus-sink"
+import { MetaFS } from "../storage/meta-fs"
 import type { ExperimentConfig, FreerunFinalStatus, TriggerMode } from "../types"
 
 export namespace Engine {
@@ -58,10 +59,41 @@ export namespace Engine {
     const blockedNodeIds: string[] = []
     let iterations = 0
     let finalStatus: FreerunFinalStatus = "in_progress"
+    const startedAt = new Date().toISOString()
+
+    // Pre-flight: respect a paused state. The CLI freerun-pause writes
+    // final_status="paused"; the daemon-side autonomous loop relies on
+    // bridge.detect short-circuiting before reaching here, but for direct
+    // callers (CLI / scripts) we also bail at the engine boundary.
+    const priorMeta = await MetaFS.read(opts.sessionId, opts.dataHome).catch(() => null)
+    if (priorMeta?.final_status === "paused") {
+      return { totalIterations: priorMeta.total_iterations, finalStatus: "paused", blockedNodeIds: [] }
+    }
 
     // Install per-session JSONL sink so the behavior timeline lands on disk
     // alongside the ContextNode tree. Cleaned up at session end.
     const sink = BusSink.install({ dataHome: opts.dataHome, sessionId: opts.sessionId })
+
+    // Write or refresh meta.json at session start (idempotent across resumes).
+    if (priorMeta === null) {
+      await MetaFS.write(opts.sessionId, {
+        session_id: opts.sessionId,
+        trigger_mode: opts.triggerMode,
+        provider_id: opts.providerId,
+        user_id: opts.userId,
+        root_node_id: opts.rootNodeId,
+        started_at: startedAt,
+        final_status: "in_progress",
+        total_iterations: 0,
+        experiment_config: opts.config,
+        experiment_config_id: opts.experimentConfigId,
+        protocol_version: "v0",
+      }, opts.dataHome).catch(() => undefined)
+    } else if (priorMeta.final_status !== "in_progress") {
+      // Resuming a terminal session: flip back to in_progress so the engine
+      // can continue (and the next-iteration loop can see new actionable work).
+      await MetaFS.patch(opts.sessionId, opts.dataHome, { final_status: "in_progress" }).catch(() => undefined)
+    }
 
     await FreerunBus.emit.sessionStarted({
       sessionID: opts.sessionId,
@@ -125,6 +157,12 @@ export namespace Engine {
       totalIterations: iterations,
       pathMetricsSummary: { blockedNodeIds, sinkWriteCount: sink.writeCount() },
     })
+
+    await MetaFS.patch(opts.sessionId, opts.dataHome, {
+      final_status: finalStatus,
+      total_iterations: (priorMeta?.total_iterations ?? 0) + iterations,
+      ended_at: new Date().toISOString(),
+    }).catch(() => undefined)
 
     sink.dispose()
     return { totalIterations: iterations, finalStatus, blockedNodeIds }

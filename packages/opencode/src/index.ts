@@ -19,6 +19,8 @@ import { FreerunGoalCommand } from "./cli/cmd/freerun-goal"
 import { FreerunCronCommand } from "./cli/cmd/freerun-cron"
 import { FreerunStatusCommand } from "./cli/cmd/freerun-status"
 import { FreerunTreeCommand } from "./cli/cmd/freerun-tree"
+import { FreerunPauseCommand } from "./cli/cmd/freerun-pause"
+import { FreerunResumeCommand } from "./cli/cmd/freerun-resume"
 import { UI } from "./cli/ui"
 import { Installation } from "./installation"
 import { NamedError } from "@opencode-ai/util/error"
@@ -153,6 +155,8 @@ const cli = yargs(hideBin(process.argv))
   .command(FreerunCronCommand)
   .command(FreerunStatusCommand)
   .command(FreerunTreeCommand)
+  .command(FreerunPauseCommand)
+  .command(FreerunResumeCommand)
   .command(StatsCommand)
   .command(ExportCommand)
   .command(ImportCommand)

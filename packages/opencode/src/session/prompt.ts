@@ -1192,11 +1192,35 @@ export namespace SessionPrompt {
     const enqueueContinue = input.enqueueContinue ?? enqueueAutonomousContinue
     const nextRoundCount = input.autonomousRounds + 1
 
+    // 1.17 — freerun_iterate: drive one engine iteration directly, then let
+    // the loop's next decideAutonomousContinuation call decide whether
+    // there's more work. No synthetic user message is enqueued — the engine
+    // already pulled and wrote state via its own iterate.once + consolidate.
+    if (input.decision.reason === "freerun_iterate") {
+      try {
+        const { FreerunBridge } = await import("./freerun-bridge")
+        await FreerunBridge.drive({
+          sessionID: input.sessionID,
+          iterationCapOverride: 1,
+        })
+      } catch (err) {
+        log.warn("freerun drive failed", {
+          sessionID: input.sessionID,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+      return {
+        halted: false as const,
+        nextRoundCount,
+        narration: undefined,
+      }
+    }
+
     await enqueueContinue({
       sessionID: input.sessionID,
       user: input.user,
       roundCount: nextRoundCount,
-      text: input.decision.text,
+      text: (input.decision as { text?: string }).text ?? "",
     })
     return {
       halted: false as const,

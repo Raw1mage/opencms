@@ -666,25 +666,32 @@ export async function decideAutonomousContinuation(input: {
 }) {
   const session = await Session.get(input.sessionID)
 
-  // 1.17 — freerun mode short-circuit. When the session's provider is freerun-tagged
-  // AND an active root ContextNode exists, defer todo logic and signal that the
-  // dispatcher should drive a freerun iteration. Dispatchers that don't yet
-  // know how to handle freerun_continue treat it as a noop continue; that
-  // remains backward-compatible with the existing turn-mode loop.
+  // 1.17 — freerun mode short-circuit. classify() collapses provider detection,
+  // meta.json final_status (paused / settled / blocked), and pickNext-virtual
+  // into one of {active, paused, settled, blocked, none}.
   try {
     const { FreerunBridge } = await import("./freerun-bridge")
-    const freerunInfo = await FreerunBridge.detect(input.sessionID)
-    if (freerunInfo !== null && (await FreerunBridge.hasActiveRoot(input.sessionID))) {
-      debugCheckpoint("workflow", "freerun_continuation_decision", {
-        sessionID: input.sessionID,
-        providerID: freerunInfo.providerId,
-        modelID: freerunInfo.modelId,
-      })
+    const state = await FreerunBridge.classify(input.sessionID)
+    debugCheckpoint("workflow", "freerun_continuation_decision", {
+      sessionID: input.sessionID,
+      kind: state.kind,
+    })
+    if (state.kind === "active") {
       return { continue: true as const, reason: "freerun_iterate" as ContinuationDecisionReason }
     }
+    if (state.kind === "settled" || state.kind === "blocked") {
+      return { continue: false as const, reason: "freerun_settled" as ContinuationDecisionReason }
+    }
+    if (state.kind === "paused") {
+      // Map paused to a stop reason the existing dispatcher understands;
+      // semantically "not armed" is the closest (autonomous opt-in is cold
+      // while paused).
+      return { continue: false as const, reason: "not_armed" as ContinuationDecisionReason }
+    }
+    // state.kind === "none" → fall through to turn-mode below.
   } catch (err) {
     // Bridge detection failure must not block the regular path.
-    log.warn("freerun-bridge detect failed; falling through to turn-mode logic", {
+    log.warn("freerun-bridge classify failed; falling through to turn-mode logic", {
       sessionID: input.sessionID,
       error: err instanceof Error ? err.message : String(err),
     })
