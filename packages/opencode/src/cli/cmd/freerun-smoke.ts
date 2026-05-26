@@ -73,110 +73,110 @@ export const FreerunSmokeCommand = cmd({
         describe: "drive engine without any tool catalog (think-only execution mode)",
       }),
   async handler(args) {
-    await bootstrap({ directory: process.cwd() })
+    await bootstrap(process.cwd(), async () => {
+      const sessionId = args.session ?? `freerun-smoke-${Date.now()}`
+      const dataHome = args.dataHome ?? Global.Path.data
 
-    const sessionId = args.session ?? `freerun-smoke-${Date.now()}`
-    const dataHome = args.dataHome ?? Global.Path.data
-
-    // Look up provider config.
-    const cfg = await Config.get()
-    const providerCfg = (cfg.provider as Record<
-      string,
-      { mode?: "full" | "lite" | "freerun"; options?: { baseURL?: string; apiKey?: string } }
-    > | undefined)?.[args.provider]
-    if (!providerCfg) {
-      UI.error(`provider '${args.provider}' not found in opencode.json`)
-      process.exit(2)
-    }
-    if (providerCfg.mode !== "freerun") {
-      UI.error(`provider '${args.provider}' has mode='${providerCfg.mode ?? "(unset)"}'; must be 'freerun'`)
-      process.exit(2)
-    }
-    if (!providerCfg.options?.baseURL) {
-      UI.error(`provider '${args.provider}' has no options.baseURL`)
-      process.exit(2)
-    }
-
-    UI.println(`session: ${sessionId}`)
-    UI.println(`provider: ${args.provider}  model: ${args.model}`)
-    UI.println(`baseURL: ${providerCfg.options.baseURL}`)
-    UI.println(`iterations cap: ${args.iterations}`)
-    UI.println(`goal: ${args.goal}`)
-    UI.println("")
-
-    // Seed root ContextNode (idempotent — only seeds if no root exists).
-    const ids = await NodeFS.list(sessionId, dataHome).catch(() => [] as string[])
-    if (ids.length === 0) {
-      const root: ContextNode = {
-        id: "root",
-        parent_id: null,
-        children_ids: [],
-        title: args.title ?? args.goal.slice(0, 80),
-        body: args.goal,
-        mode: "pending-plan",
-        created_at: new Date().toISOString(),
-        iteration_count: 0,
-        observations: [],
-        decisions: [],
-        blockers: [],
-        results: null,
-        next_intent: "",
-        consolidated_summary: null,
+      // Look up provider config.
+      const cfg = await Config.get()
+      const providerCfg = (cfg.provider as Record<
+        string,
+        { mode?: "full" | "lite" | "freerun"; options?: { baseURL?: string; apiKey?: string } }
+      > | undefined)?.[args.provider]
+      if (!providerCfg) {
+        UI.error(`provider '${args.provider}' not found in opencode.json`)
+        process.exit(2)
       }
-      await NodeFS.write(sessionId, root, dataHome)
-      UI.println("  ✓ seeded root ContextNode")
-    } else {
-      UI.println(`  ↻ resuming existing session (${ids.length} nodes on disk)`)
-    }
+      if (providerCfg.mode !== "freerun") {
+        UI.error(`provider '${args.provider}' has mode='${providerCfg.mode ?? "(unset)"}'; must be 'freerun'`)
+        process.exit(2)
+      }
+      if (!providerCfg.options?.baseURL) {
+        UI.error(`provider '${args.provider}' has no options.baseURL`)
+        process.exit(2)
+      }
 
-    const expCfg = ExperimentConfig.parse({})
-    const client = FreerunLlmClient.create({
-      baseUrl: providerCfg.options.baseURL,
-      modelId: args.model,
-      apiKey: providerCfg.options.apiKey,
-      sessionId: sessionId,
-      // v1 smoke: no tool dispatcher → execution rounds run think-only.
-      // When workflow-runner integration lands, opencode's real tool dispatch
-      // will plug in here.
-      toolDispatcher: undefined,
-    })
+      UI.println(`session: ${sessionId}`)
+      UI.println(`provider: ${args.provider}  model: ${args.model}`)
+      UI.println(`baseURL: ${providerCfg.options.baseURL}`)
+      UI.println(`iterations cap: ${args.iterations}`)
+      UI.println(`goal: ${args.goal}`)
+      UI.println("")
 
-    UI.println("")
-    UI.println("=== driving engine ===")
-    const summary = await Engine.run({
-      sessionId,
-      dataHome,
-      config: expCfg,
-      llm: client,
-      toolCatalog: args["no-tools"] ? [] : [],
-      providerId: args.provider,
-      userId: process.env.USER ?? "unknown",
-      triggerMode: "goal",
-      rootNodeId: "root",
-      experimentConfigId: hashExperimentConfig(expCfg),
-      iterationCapOverride: args.iterations,
-    })
-    UI.println(`finalStatus: ${summary.finalStatus}`)
-    UI.println(`totalIterations: ${summary.totalIterations}`)
-    if (summary.blockedNodeIds.length > 0) {
-      UI.println(`blockedNodeIds: ${summary.blockedNodeIds.join(", ")}`)
-    }
-    UI.println("")
+      // Seed root ContextNode (idempotent — only seeds if no root exists).
+      const ids = await NodeFS.list(sessionId, dataHome).catch(() => [] as string[])
+      if (ids.length === 0) {
+        const root: ContextNode = {
+          id: "root",
+          parent_id: null,
+          children_ids: [],
+          title: args.title ?? args.goal.slice(0, 80),
+          body: args.goal,
+          mode: "pending-plan",
+          created_at: new Date().toISOString(),
+          iteration_count: 0,
+          observations: [],
+          decisions: [],
+          blockers: [],
+          results: null,
+          next_intent: "",
+          consolidated_summary: null,
+        }
+        await NodeFS.write(sessionId, root, dataHome)
+        UI.println("  ✓ seeded root ContextNode")
+      } else {
+        UI.println(`  ↻ resuming existing session (${ids.length} nodes on disk)`)
+      }
 
-    // Dump final tree as nested markdown for inspection.
-    const tree = await Tree.load(sessionId, dataHome).catch(() => null)
-    if (tree !== null) {
-      UI.println("=== final tree ===")
-      for (const { node, depth } of Tree.walkBFS(tree)) {
-        const indent = "  ".repeat(depth)
-        UI.println(`${indent}- [${node.mode}] ${node.id} — ${node.title}`)
-        if (node.consolidated_summary) {
-          UI.println(`${indent}  summary: ${node.consolidated_summary.slice(0, 120)}`)
+      const expCfg = ExperimentConfig.parse({})
+      const client = FreerunLlmClient.create({
+        baseUrl: providerCfg.options.baseURL,
+        modelId: args.model,
+        apiKey: providerCfg.options.apiKey,
+        sessionId: sessionId,
+        // v1 smoke: no tool dispatcher → execution rounds run think-only.
+        // When workflow-runner integration lands, opencode's real tool dispatch
+        // will plug in here.
+        toolDispatcher: undefined,
+      })
+
+      UI.println("")
+      UI.println("=== driving engine ===")
+      const summary = await Engine.run({
+        sessionId,
+        dataHome,
+        config: expCfg,
+        llm: client,
+        toolCatalog: args["no-tools"] ? [] : [],
+        providerId: args.provider,
+        userId: process.env.USER ?? "unknown",
+        triggerMode: "goal",
+        rootNodeId: "root",
+        experimentConfigId: hashExperimentConfig(expCfg),
+        iterationCapOverride: args.iterations,
+      })
+      UI.println(`finalStatus: ${summary.finalStatus}`)
+      UI.println(`totalIterations: ${summary.totalIterations}`)
+      if (summary.blockedNodeIds.length > 0) {
+        UI.println(`blockedNodeIds: ${summary.blockedNodeIds.join(", ")}`)
+      }
+      UI.println("")
+
+      // Dump final tree as nested markdown for inspection.
+      const tree = await Tree.load(sessionId, dataHome).catch(() => null)
+      if (tree !== null) {
+        UI.println("=== final tree ===")
+        for (const { node, depth } of Tree.walkBFS(tree)) {
+          const indent = "  ".repeat(depth)
+          UI.println(`${indent}- [${node.mode}] ${node.id} — ${node.title}`)
+          if (node.consolidated_summary) {
+            UI.println(`${indent}  summary: ${node.consolidated_summary.slice(0, 120)}`)
+          }
         }
       }
-    }
 
-    UI.println("")
-    UI.println(`storage: ${dataHome}/storage/freerun/${sessionId}/tree/`)
+      UI.println("")
+      UI.println(`storage: ${dataHome}/storage/freerun/${sessionId}/tree/`)
+    })
   },
 })
