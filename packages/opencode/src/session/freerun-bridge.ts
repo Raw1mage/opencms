@@ -201,11 +201,18 @@ export namespace FreerunBridge {
     }
 
     const config = ExperimentConfig.parse({})
+
+    // Default tool surface: opencode's existing tools via the bridge.
+    // Caller can override by supplying their own catalog + dispatcher.
+    const { OpencodeToolBridge } = await import("../freerun/provider/opencode-tool-bridge")
+    const toolCatalog = opts.toolCatalog ?? (await OpencodeToolBridge.buildCatalog())
+    const toolDispatcher = opts.toolDispatcher ?? OpencodeToolBridge.buildDispatcher({ sessionID: opts.sessionID })
+
     const client = FreerunLlmClient.create({
       baseUrl: info.baseUrl,
       modelId: info.modelId,
       apiKey: info.apiKey,
-      toolDispatcher: opts.toolDispatcher,
+      toolDispatcher,
       sessionId: opts.sessionID,
     })
 
@@ -218,7 +225,7 @@ export namespace FreerunBridge {
       dataHome: Global.Path.data,
       config,
       llm: client,
-      toolCatalog: opts.toolCatalog ?? [],
+      toolCatalog,
       providerId: info.providerId,
       userId: (await Session.get(opts.sessionID).catch(() => null) as any)?.userID ?? "default",
       triggerMode: opts.triggerMode ?? "goal",

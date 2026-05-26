@@ -12,6 +12,7 @@ import { UI } from "../ui"
 import { Config } from "../../config/config"
 import { Global } from "../../global"
 import { GoalTrigger } from "../../freerun/trigger/goal"
+import { OpencodeToolBridge } from "../../freerun/provider/opencode-tool-bridge"
 import { Tree } from "../../freerun/storage/tree"
 
 export const FreerunGoalCommand = cmd({
@@ -51,6 +52,9 @@ export const FreerunGoalCommand = cmd({
         process.exit(2)
       }
 
+      const toolCatalog = await OpencodeToolBridge.buildCatalog()
+      const toolDispatcher = OpencodeToolBridge.buildDispatcher({ sessionID: sessionId })
+
       const result = await GoalTrigger.start({
         sessionId,
         dataHome: Global.Path.data,
@@ -62,6 +66,8 @@ export const FreerunGoalCommand = cmd({
         apiKey: providerCfg.options.apiKey,
         userId: process.env.USER ?? "unknown",
         iterationCapOverride: args.iterations,
+        toolCatalog,
+        toolDispatcher,
       })
 
       if (args.quiet) {
