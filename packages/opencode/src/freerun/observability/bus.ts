@@ -369,7 +369,7 @@ export namespace FreerunBus {
    */
   async function safe<D extends Parameters<typeof Bus.publish>[0]>(def: D, props: any): Promise<void> {
     try {
-      await safe(def, props)
+      await Bus.publish(def, props)
     } catch {
       // no Instance context (tests, or pre-init); drop silently
     }
