@@ -1539,8 +1539,19 @@ export namespace LLM {
     // that zombie-sweep can't touch because the runloop is still live.
     // Reset on every chunk so legitimate long reasoning pauses are tolerated.
     const STREAM_IDLE_TIMEOUT_MS = 90_000
+    // First-chunk watchdog. The chunk-idle timer above only re-arms on chunk
+    // arrival, so "stream opened but never produced any chunk" falls through
+    // to the provider-level 300_000ms AbortSignal.timeout (provider.ts:2296).
+    // 6 turns in one warroom session died at ~280s on the tool-result→codex
+    // continuation request (post-runloop hang investigation 2026-05-26).
+    // 60_000ms is conservative for long reasoning models that may take >30s
+    // before emitting their first token.
+    const STREAM_FIRST_CHUNK_TIMEOUT_MS = 60_000
+    const streamStartedAt = Date.now()
+    let firstChunkReceived = false
     const idleController = new AbortController()
     let idleTimer: ReturnType<typeof setTimeout> | undefined
+    let firstChunkTimer: ReturnType<typeof setTimeout> | undefined
     const armIdleWatchdog = () => {
       if (idleTimer) clearTimeout(idleTimer)
       idleTimer = setTimeout(() => {
@@ -1559,12 +1570,38 @@ export namespace LLM {
         clearTimeout(idleTimer)
         idleTimer = undefined
       }
+      if (firstChunkTimer) {
+        clearTimeout(firstChunkTimer)
+        firstChunkTimer = undefined
+      }
     }
+    firstChunkTimer = setTimeout(() => {
+      if (firstChunkReceived) return
+      const elapsed = Date.now() - streamStartedAt
+      l.warn("stream first-chunk timeout — aborting", {
+        sessionID: input.sessionID,
+        providerId: input.model.providerId,
+        modelID: input.model.id,
+        accountId,
+        firstChunkTimeoutMs: STREAM_FIRST_CHUNK_TIMEOUT_MS,
+        elapsedMs: elapsed,
+      })
+      idleController.abort(new Error(`stream first-chunk timeout after ${STREAM_FIRST_CHUNK_TIMEOUT_MS}ms`))
+    }, STREAM_FIRST_CHUNK_TIMEOUT_MS)
     armIdleWatchdog()
     const composedAbortSignal = AbortSignal.any([input.abort, idleController.signal])
 
     return streamText({
-      onChunk: () => armIdleWatchdog(),
+      onChunk: () => {
+        if (!firstChunkReceived) {
+          firstChunkReceived = true
+          if (firstChunkTimer) {
+            clearTimeout(firstChunkTimer)
+            firstChunkTimer = undefined
+          }
+        }
+        armIdleWatchdog()
+      },
       onFinish: async (event) => {
         disarmIdleWatchdog()
         const usage = event.usage as any

@@ -181,6 +181,23 @@ export namespace MessageV2 {
     "ContextOverflowError",
     z.object({ message: z.string(), responseBody: z.string().optional() }),
   )
+  // Upstream streaming connection opened but produced no usable response —
+  // either the underlying fetch's AbortSignal.timeout fired (source=fetch-timeout),
+  // or our own first-chunk / between-chunks idle watchdogs aborted it
+  // (source=first-chunk / stream-idle). Previously all three boxed as
+  // NamedError.Unknown with `debug.name=TimeoutError`, making client retry
+  // logic blind to the "0 chunks ever received" case. See codex post-runloop
+  // stream hang investigation 2026-05-26.
+  export const UpstreamIdleClose = NamedError.create(
+    "UpstreamIdleClose",
+    z.object({
+      message: z.string(),
+      providerId: z.string(),
+      source: z.enum(["fetch-timeout", "first-chunk", "stream-idle"]),
+      elapsedMs: z.number().optional(),
+      isRetryable: z.boolean(),
+    }),
+  )
   export const ParalysisDetectedError = NamedError.create(
     "ParalysisDetectedError",
     z.object({
@@ -663,6 +680,7 @@ export namespace MessageV2 {
         ContextOverflowError.Schema,
         APIError.Schema,
         ParalysisDetectedError.Schema,
+        UpstreamIdleClose.Schema,
       ])
       .optional(),
     parentID: z.string(),
@@ -1453,6 +1471,36 @@ export namespace MessageV2 {
     }
   }
 
+  // Recognize the three distinct "upstream opened a stream and gave us nothing"
+  // failure modes that all currently surface as plain Error/DOMException and
+  // get swallowed into NamedError.Unknown. Keeping them as one normalized
+  // shape (UpstreamIdleClose) lets retry policy and UI treat them uniformly
+  // without losing the source signal.
+  //  - fetch-timeout : DOMException name=TimeoutError from AbortSignal.timeout
+  //                    wrapped around the provider fetch (provider.ts:2296,
+  //                    default 300_000ms).
+  //  - first-chunk   : llm.ts watchdog fires when stream opens but no chunk
+  //                    arrives within STREAM_FIRST_CHUNK_TIMEOUT_MS.
+  //  - stream-idle   : llm.ts watchdog fires when stream goes quiet between
+  //                    chunks for STREAM_IDLE_TIMEOUT_MS.
+  function classifyUpstreamIdle(
+    e: Error,
+  ): { source: "fetch-timeout" | "first-chunk" | "stream-idle"; message: string; elapsedMs?: number } | undefined {
+    if (typeof DOMException !== "undefined" && e instanceof DOMException && e.name === "TimeoutError") {
+      return { source: "fetch-timeout", message: e.message || "The operation timed out." }
+    }
+    const msg = typeof e.message === "string" ? e.message : ""
+    const firstChunkMatch = msg.match(/stream first-chunk timeout after (\d+)ms/)
+    if (firstChunkMatch) {
+      return { source: "first-chunk", message: msg, elapsedMs: Number(firstChunkMatch[1]) }
+    }
+    const idleMatch = msg.match(/stream idle timeout after (\d+)ms/)
+    if (idleMatch) {
+      return { source: "stream-idle", message: msg, elapsedMs: Number(idleMatch[1]) }
+    }
+    return undefined
+  }
+
   export function fromError(e: unknown, ctx: { providerId: string }) {
     switch (true) {
       case e instanceof DOMException && e.name === "AbortError":
@@ -1525,6 +1573,21 @@ export namespace MessageV2 {
             },
             { cause: e },
           ).toObject()
+        }
+        {
+          const idle = classifyUpstreamIdle(e)
+          if (idle) {
+            return new MessageV2.UpstreamIdleClose(
+              {
+                message: idle.message,
+                providerId: ctx.providerId,
+                source: idle.source,
+                elapsedMs: idle.elapsedMs,
+                isRetryable: true,
+              },
+              { cause: e },
+            ).toObject()
+          }
         }
         return new NamedError.Unknown(unknownErrorData(e, ctx), { cause: e }).toObject()
       default:
