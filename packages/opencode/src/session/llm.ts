@@ -20,6 +20,7 @@ import { Config } from "@/config/config"
 import { Instance } from "@/project/instance"
 import type { Agent } from "@/agent/agent"
 import type { MessageV2 } from "./message-v2"
+import { Todo } from "./todo"
 import { Plugin } from "@/plugin"
 import { SystemPrompt } from "./system"
 import { Flag } from "@/flag/flag"
@@ -232,23 +233,24 @@ export namespace LLM {
     sessionID: string,
     messages: MessageV2.WithParts[],
   ): Promise<MessageV2.WithParts[]> {
-    // Find the latest user message (typically the last entry).
+    process.stderr.write(`[freerun-debug] build:entry msgCount=${messages.length}\n`)
+
     let lastUserIdx = -1
     for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].info.role === "user") {
+      if (messages[i]?.info?.role === "user") {
         lastUserIdx = i
         break
       }
     }
+    process.stderr.write(`[freerun-debug] build:lastUserIdx=${lastUserIdx}\n`)
     if (lastUserIdx === -1) return messages
 
-    const { Todo: TodoModule } = await import("./todo")
-    const todos = await TodoModule.get(sessionID).catch(() => [])
-    const stateBlock = renderFreerunStateSnapshot(todos)
+    const todos = await Todo.get(sessionID).catch(() => [] as any[])
+    process.stderr.write(`[freerun-debug] build:todosLoaded count=${todos.length}\n`)
+
+    const stateBlock = renderFreerunStateSnapshot(todos as any)
 
     const latest = messages[lastUserIdx]
-    // Prepend a synthetic text part carrying the state snapshot. Existing
-    // user-supplied parts (text / images / file attachments) follow.
     const synthesizedPart = {
       id: `prt_freerun_state_${Date.now()}`,
       messageID: latest.info.id,
@@ -258,12 +260,14 @@ export namespace LLM {
       synthetic: true,
       metadata: { freerunStateSnapshot: true },
       time: { start: Date.now(), end: Date.now() },
-    } as unknown as MessageV2.TextPart
+    } as unknown as MessageV2.Part
 
-    return [{
+    const rebuilt: MessageV2.WithParts = {
       info: latest.info,
       parts: [synthesizedPart, ...latest.parts],
-    }]
+    }
+    process.stderr.write(`[freerun-debug] build:returning 1 rebuilt msg with ${rebuilt.parts.length} parts\n`)
+    return [rebuilt]
   }
 
   function renderFreerunStateSnapshot(todos: ReadonlyArray<{
