@@ -67,6 +67,11 @@ export namespace FreerunLlmClient {
     opts: ClientOptions,
   ): Iterate.LlmClient & Consolidate.SummarizeClient {
     const baseUrl = opts.baseUrl.replace(/\/$/, "")
+    // Some user configs include `/v1` in baseURL; some don't. Normalize so the
+    // final URL is always `<root>/v1/chat/completions`.
+    const chatUrl = baseUrl.endsWith("/v1")
+      ? `${baseUrl}/chat/completions`
+      : `${baseUrl}/v1/chat/completions`
     const timeout = opts.httpTimeoutMs ?? 120_000
     const maxRounds = opts.maxToolRounds ?? 8
 
@@ -84,7 +89,7 @@ export namespace FreerunLlmClient {
       const t = setTimeout(() => ac.abort(new Error(`HTTP timeout after ${timeout}ms`)), timeout)
       try {
         const t0 = Date.now()
-        const resp = await fetch(`${baseUrl}/v1/chat/completions`, {
+        const resp = await fetch(chatUrl, {
           method: "POST",
           headers,
           body: JSON.stringify(body),
