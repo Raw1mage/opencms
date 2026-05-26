@@ -286,12 +286,27 @@ function renderContextBudget(input: { lastFinished: MessageV2.Assistant; model: 
   ].join("\n")
 }
 
-function withContextBudgetEnvelope(input: {
+async function withContextBudgetEnvelope(input: {
   messages: MessageV2.WithParts[]
   lastFinished?: MessageV2.Assistant
   model: Provider.Model
-}): MessageV2.WithParts[] {
+}): Promise<MessageV2.WithParts[]> {
   if (!input.lastFinished) return input.messages
+  // Skip envelope for lite/freerun providers (DD-5 / freerun Phase 0).
+  // Small local models in lite/freerun mode tend to parrot the <context_budget>
+  // block back as the user-visible response. The envelope is a turn-based-mode
+  // optimization that does not apply to lite (basic system prompt only) or
+  // freerun (per-iteration ContextNode rendering supplies its own state).
+  try {
+    const cfg = await Config.get()
+    const providerCfg = (cfg.provider as Record<string, { mode?: "full" | "lite" | "freerun"; lite?: boolean }> | undefined)?.[
+      input.model.providerId
+    ]
+    const effectiveMode = providerCfg?.mode ?? (providerCfg?.lite === true ? "lite" : "full")
+    if (effectiveMode === "lite" || effectiveMode === "freerun") return input.messages
+  } catch {
+    // Config read failure → fall through to envelope (preserve existing behaviour).
+  }
   const budget = renderContextBudget({ lastFinished: input.lastFinished, model: input.model })
   if (!budget) return input.messages
   const lastUserIndex = input.messages.findLastIndex((msg) => msg.info.role === "user")
@@ -3071,7 +3086,7 @@ export namespace SessionPrompt {
         }).catch(() => undefined)
       }
 
-      const sessionMessagesForModel = withContextBudgetEnvelope({
+      const sessionMessagesForModel = await withContextBudgetEnvelope({
         messages: sessionMessages,
         lastFinished: contextBudgetSource,
         model: activeModel,
