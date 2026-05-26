@@ -1601,9 +1601,15 @@ export namespace LLM {
     //   displays the full dialog history; only the LLM payload is stateless.
     //   This is the "context structure is no longer turn-based" invariant.
     let llmMessages: typeof input.messages = input.messages
+    process.stderr.write(
+      `[freerun-debug] LLM.stream effectiveMode=${effectiveMode} sessionID=${input.sessionID} inputMsgCount=${input.messages.length}\n`,
+    )
     if (effectiveMode === "freerun") {
       try {
         llmMessages = await buildFreerunStatelessMessages(input.sessionID, input.messages)
+        process.stderr.write(
+          `[freerun-debug] stateless rewrite: ${input.messages.length} → ${llmMessages.length}\n`,
+        )
       } catch (err) {
         log.warn("freerun stateless rewrite failed; falling through to full history", {
           sessionID: input.sessionID,
