@@ -52,7 +52,7 @@
       },
       {
         "name": "apply_patch",
-        "capability": "Patch files safely using structured diffs; do not patch an existing file unless the immediately previous action was reading that exact file"
+        "capability": "Patch files safely using structured diffs; read files before patching so context matches current bytes (batch-read+patch is fine); on verification failure, re-read and produce a fresh patch rather than retrying blindly"
       }
     ],
     "system_manager_mcp": [

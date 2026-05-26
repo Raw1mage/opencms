@@ -47466,7 +47466,7 @@
           },
           "id": {
             "description": "Unique identifier for the todo item (auto-generated if omitted)",
-            "default": "todo_mplq2jee_is85na",
+            "default": "todo_mpm4g8om_7tqazi",
             "type": "string"
           },
           "action": {
@@ -52170,6 +52170,7 @@
             }
           },
           "snapshot": {
+            "description": "Per-round git snapshot tracking for session diff/revert UX. Default false. Set to true to enable; cost is one `git add .` walk of the worktree per session round. Recommended off for data-heavy projects (logs, monitoring dumps, anything >1GB).",
             "type": "boolean"
           },
           "share": {

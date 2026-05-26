@@ -1,4 +1,4 @@
-Use the `apply_patch` tool to edit files. HARD REQUIREMENT: Do NOT call `apply_patch` on an existing file unless your immediately previous action was `read` on that exact file. If the last action was not reading that file, stop and read it first. This is mandatory because stale context causes match failures, bad hunks, and slow retries.
+Use the `apply_patch` tool to edit files. Best practice: read a file before patching it so your patch context matches the current bytes — batch-reading multiple files in one turn and then patching them is fine. If a patch fails with `verification failed: Failed to find expected lines` or similar, immediately `read` the file again and produce a new patch with the exact current spacing; do not retry blindly with the same hunks.
 
 Your patch language is a stripped‑down, file‑oriented diff format designed to be easy to parse and safe to apply. You can think of it as a high‑level envelope:
 

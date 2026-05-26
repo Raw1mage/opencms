@@ -13,8 +13,28 @@ import { Env } from "@/env"
 export namespace Snapshot {
   const log = Log.create({ service: "snapshot" })
   const hour = 60 * 60 * 1000
-  const prune = "7.days"
   const gitCompatFlags = ["-c", "core.autocrlf=false", "-c", "core.longpaths=true", "-c", "core.symlinks=true"] as const
+
+  // Per-gitdir serialization. Without this, the hourly cleanup() can race
+  // a concurrent track() / patch() / restore() / diff() — git gc and
+  // git add . on the same dir produces cruft packs that never get
+  // reclaimed. 2026-05-26 warroom incident: snapshot dir ballooned to
+  // 305GB of orphan packs because gc and track were perpetually fighting
+  // for the same index.
+  const opLocks = new Map<string, Promise<unknown>>()
+
+  async function withGitLock<T>(git: string, fn: () => Promise<T>): Promise<T> {
+    const prev = opLocks.get(git) ?? Promise.resolve()
+    const next = prev.then(
+      () => fn(),
+      () => fn(),
+    )
+    opLocks.set(
+      git,
+      next.catch(() => {}),
+    )
+    return next
+  }
 
   export function init() {
     Scheduler.register({
@@ -28,57 +48,86 @@ export namespace Snapshot {
   export async function cleanup() {
     if (Instance.project.vcs !== "git" || Flag.OPENCODE_CLIENT === "acp") return
     const cfg = await Config.get()
-    if (cfg.snapshot === false) return
+    // 2026-05-26: snapshot is now opt-in. Daemon-side git snapshot is UX-only
+    // (powers session diff/revert/per-message diff panel in UI) and has no
+    // effect on agent capability. For data-heavy projects the per-round
+    // `git add .` walk + accumulating pack files becomes a tax with no value.
+    // Pre-fix default behavior is preserved by adding `"snapshot": true` to
+    // the project's opencode.json.
+    if (cfg.snapshot !== true) return
     const git = gitdir()
     const exists = await fs
       .stat(git)
       .then(() => true)
       .catch(() => false)
     if (!exists) return
-    const result = await $`git --git-dir ${git} --work-tree ${Instance.worktree} gc --prune=${prune}`
-      .quiet()
-      .cwd(Instance.directory)
-      .nothrow()
-    if (result.exitCode !== 0) {
-      log.warn("cleanup failed", {
-        exitCode: result.exitCode,
-        stderr: result.stderr.toString(),
-        stdout: result.stdout.toString(),
-      })
-      return
-    }
-    log.info("cleanup", { prune })
+
+    await withGitLock(git, async () => {
+      // 2026-05-26 fix: the snapshot system never creates refs (track()
+      // only does write-tree, returning the hash; nothing ever points to
+      // it). Every blob/tree is unreachable from day one. The previous
+      // `--prune=7.days` grace period was therefore pointless — it just
+      // delayed inevitable cleanup by a week. Explicitly expire reflog
+      // (defense in depth) and prune immediately.
+      const expireResult =
+        await $`git --git-dir ${git} reflog expire --expire=now --expire-unreachable=now --all`
+          .quiet()
+          .cwd(Instance.directory)
+          .nothrow()
+      if (expireResult.exitCode !== 0) {
+        log.warn("reflog expire failed (continuing to gc)", {
+          exitCode: expireResult.exitCode,
+          stderr: expireResult.stderr.toString(),
+        })
+      }
+      const result = await $`git --git-dir ${git} --work-tree ${Instance.worktree} gc --prune=now`
+        .quiet()
+        .cwd(Instance.directory)
+        .nothrow()
+      if (result.exitCode !== 0) {
+        log.warn("cleanup failed", {
+          exitCode: result.exitCode,
+          stderr: result.stderr.toString(),
+          stdout: result.stdout.toString(),
+        })
+        return
+      }
+      log.info("cleanup", { prune: "now" })
+    })
   }
 
   export async function track() {
     if (Instance.project.vcs !== "git" || Flag.OPENCODE_CLIENT === "acp") return
     const cfg = await Config.get()
-    if (cfg.snapshot === false) return
+    // Opt-in. See cleanup() for rationale.
+    if (cfg.snapshot !== true) return
     const git = gitdir()
-    if (await fs.mkdir(git, { recursive: true })) {
-      await $`git init`
-        .env({
-          ...Env.all(),
-          GIT_DIR: git,
-          GIT_WORK_TREE: Instance.worktree,
-        })
+    return withGitLock(git, async () => {
+      if (await fs.mkdir(git, { recursive: true })) {
+        await $`git init`
+          .env({
+            ...Env.all(),
+            GIT_DIR: git,
+            GIT_WORK_TREE: Instance.worktree,
+          })
+          .quiet()
+          .nothrow()
+        // Configure git to not convert line endings on Windows
+        await $`git --git-dir ${git} config core.autocrlf false`.quiet().nothrow()
+        await $`git --git-dir ${git} config core.longpaths true`.quiet().nothrow()
+        await $`git --git-dir ${git} config core.symlinks true`.quiet().nothrow()
+        await $`git --git-dir ${git} config core.fsmonitor false`.quiet().nothrow()
+        log.info("initialized")
+      }
+      await add(git)
+      const hash = await $`git --git-dir ${git} --work-tree ${Instance.worktree} write-tree`
         .quiet()
+        .cwd(Instance.directory)
         .nothrow()
-      // Configure git to not convert line endings on Windows
-      await $`git --git-dir ${git} config core.autocrlf false`.quiet().nothrow()
-      await $`git --git-dir ${git} config core.longpaths true`.quiet().nothrow()
-      await $`git --git-dir ${git} config core.symlinks true`.quiet().nothrow()
-      await $`git --git-dir ${git} config core.fsmonitor false`.quiet().nothrow()
-      log.info("initialized")
-    }
-    await add(git)
-    const hash = await $`git --git-dir ${git} --work-tree ${Instance.worktree} write-tree`
-      .quiet()
-      .cwd(Instance.directory)
-      .nothrow()
-      .text()
-    log.info("tracking", { hash, cwd: Instance.directory, git })
-    return hash.trim()
+        .text()
+      log.info("tracking", { hash, cwd: Instance.directory, git })
+      return hash.trim()
+    })
   }
 
   export const Patch = z.object({
@@ -89,103 +138,111 @@ export namespace Snapshot {
 
   export async function patch(hash: string): Promise<Patch> {
     const git = gitdir()
-    await add(git)
-    const result =
-      await $`git ${gitCompatFlags} -c core.quotepath=false --git-dir ${git} --work-tree ${Instance.worktree} diff --no-ext-diff --name-only ${hash} -- .`
-        .quiet()
-        .cwd(Instance.directory)
-        .nothrow()
+    return withGitLock(git, async () => {
+      await add(git)
+      const result =
+        await $`git ${gitCompatFlags} -c core.quotepath=false --git-dir ${git} --work-tree ${Instance.worktree} diff --no-ext-diff --name-only ${hash} -- .`
+          .quiet()
+          .cwd(Instance.directory)
+          .nothrow()
 
-    // If git diff fails, return empty patch
-    if (result.exitCode !== 0) {
-      log.warn("failed to get diff", { hash, exitCode: result.exitCode })
-      return { hash, files: [] }
-    }
+      // If git diff fails, return empty patch
+      if (result.exitCode !== 0) {
+        log.warn("failed to get diff", { hash, exitCode: result.exitCode })
+        return { hash, files: [] }
+      }
 
-    const files = result.text()
-    return {
-      hash,
-      files: files
-        .trim()
-        .split("\n")
-        .map((x) => x.trim())
-        .filter(Boolean)
-        .map((x) => path.join(Instance.worktree, x).replaceAll("\\", "/")),
-    }
+      const files = result.text()
+      return {
+        hash,
+        files: files
+          .trim()
+          .split("\n")
+          .map((x) => x.trim())
+          .filter(Boolean)
+          .map((x) => path.join(Instance.worktree, x).replaceAll("\\", "/")),
+      }
+    })
   }
 
   export async function restore(snapshot: string) {
     log.info("restore", { commit: snapshot })
     const git = gitdir()
-    const result =
-      await $`git ${gitCompatFlags} --git-dir ${git} --work-tree ${Instance.worktree} read-tree ${snapshot} && git ${gitCompatFlags} --git-dir ${git} --work-tree ${Instance.worktree} checkout-index -a -f`
-        .quiet()
-        .cwd(Instance.worktree)
-        .nothrow()
+    await withGitLock(git, async () => {
+      const result =
+        await $`git ${gitCompatFlags} --git-dir ${git} --work-tree ${Instance.worktree} read-tree ${snapshot} && git ${gitCompatFlags} --git-dir ${git} --work-tree ${Instance.worktree} checkout-index -a -f`
+          .quiet()
+          .cwd(Instance.worktree)
+          .nothrow()
 
-    if (result.exitCode !== 0) {
-      log.error("failed to restore snapshot", {
-        snapshot,
-        exitCode: result.exitCode,
-        stderr: result.stderr.toString(),
-        stdout: result.stdout.toString(),
-      })
-    }
+      if (result.exitCode !== 0) {
+        log.error("failed to restore snapshot", {
+          snapshot,
+          exitCode: result.exitCode,
+          stderr: result.stderr.toString(),
+          stdout: result.stdout.toString(),
+        })
+      }
+    })
   }
 
   export async function revert(patches: Patch[]) {
     const files = new Set<string>()
     const git = gitdir()
-    for (const item of patches) {
-      for (const file of item.files) {
-        if (files.has(file)) continue
-        log.info("reverting", { file, hash: item.hash })
-        const result =
-          await $`git ${gitCompatFlags} --git-dir ${git} --work-tree ${Instance.worktree} checkout ${item.hash} -- ${file}`
-            .quiet()
-            .cwd(Instance.worktree)
-            .nothrow()
-        if (result.exitCode !== 0) {
-          const relativePath = path.relative(Instance.worktree, file)
-          const checkTree =
-            await $`git ${gitCompatFlags} --git-dir ${git} --work-tree ${Instance.worktree} ls-tree ${item.hash} -- ${relativePath}`
+    await withGitLock(git, async () => {
+      for (const item of patches) {
+        for (const file of item.files) {
+          if (files.has(file)) continue
+          log.info("reverting", { file, hash: item.hash })
+          const result =
+            await $`git ${gitCompatFlags} --git-dir ${git} --work-tree ${Instance.worktree} checkout ${item.hash} -- ${file}`
               .quiet()
               .cwd(Instance.worktree)
               .nothrow()
-          if (checkTree.exitCode === 0 && checkTree.text().trim()) {
-            log.info("file existed in snapshot but checkout failed, keeping", {
-              file,
-            })
-          } else {
-            log.info("file did not exist in snapshot, deleting", { file })
-            await fs.unlink(file).catch(() => {})
+          if (result.exitCode !== 0) {
+            const relativePath = path.relative(Instance.worktree, file)
+            const checkTree =
+              await $`git ${gitCompatFlags} --git-dir ${git} --work-tree ${Instance.worktree} ls-tree ${item.hash} -- ${relativePath}`
+                .quiet()
+                .cwd(Instance.worktree)
+                .nothrow()
+            if (checkTree.exitCode === 0 && checkTree.text().trim()) {
+              log.info("file existed in snapshot but checkout failed, keeping", {
+                file,
+              })
+            } else {
+              log.info("file did not exist in snapshot, deleting", { file })
+              await fs.unlink(file).catch(() => {})
+            }
           }
+          files.add(file)
         }
-        files.add(file)
       }
-    }
+    })
   }
 
   export async function diff(hash: string) {
     const git = gitdir()
-    await add(git)
-    const result =
-      await $`git ${gitCompatFlags} -c core.quotepath=false --git-dir ${git} --work-tree ${Instance.worktree} diff --no-ext-diff ${hash} -- .`
-        .quiet()
-        .cwd(Instance.worktree)
-        .nothrow()
+    return withGitLock(git, async () => {
+      await add(git)
+      const result =
+        await $`git ${gitCompatFlags} -c core.quotepath=false --git-dir ${git} --work-tree ${Instance.worktree} diff --no-ext-diff ${hash} -- .`
+          .quiet()
+          .cwd(Instance.worktree)
+          .nothrow()
 
-    if (result.exitCode !== 0) {
-      log.warn("failed to get diff", {
-        hash,
-        exitCode: result.exitCode,
-        stderr: result.stderr.toString(),
-        stdout: result.stdout.toString(),
-      })
-      return ""
-    }
+      if (result.exitCode !== 0) {
+        log.warn("failed to get diff", {
+          hash,
+          exitCode: result.exitCode,
+          stderr: result.stderr.toString(),
+          stdout: result.stdout.toString(),
+        })
+        return ""
+      }
 
-    return result.text().trim()
+      return result.text().trim()
+    })
   }
 
   // mobile-session-restructure (2026-04-23): before/after removed.

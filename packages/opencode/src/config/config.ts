@@ -1368,7 +1368,14 @@ export namespace Config {
         })
         .optional(),
       plugin: z.string().array().optional(),
-      snapshot: z.boolean().optional(),
+      snapshot: z
+        .boolean()
+        .optional()
+        .describe(
+          "Per-round git snapshot tracking for session diff/revert UX. Default false. " +
+            "Set to true to enable; cost is one `git add .` walk of the worktree per session round. " +
+            "Recommended off for data-heavy projects (logs, monitoring dumps, anything >1GB).",
+        ),
       share: z
         .enum(["manual", "auto", "disabled"])
         .optional()

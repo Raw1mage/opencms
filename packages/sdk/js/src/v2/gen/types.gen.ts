@@ -2946,6 +2946,9 @@ export type Config = {
     ignore?: Array<string>
   }
   plugin?: Array<string>
+  /**
+   * Per-round git snapshot tracking for session diff/revert UX. Default false. Set to true to enable; cost is one `git add .` walk of the worktree per session round. Recommended off for data-heavy projects (logs, monitoring dumps, anything >1GB).
+   */
   snapshot?: boolean
   /**
    * Control sharing behavior:'manual' allows manual sharing via commands, 'auto' enables automatic sharing, 'disabled' disables all sharing
