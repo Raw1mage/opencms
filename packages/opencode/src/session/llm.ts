@@ -261,30 +261,21 @@ export namespace LLM {
    *   [user: <todo snapshot> + <latest directive text>]
    * No prior assistant turns leak in — each round is fresh context.
    */
+  /**
+   * Stateless rewrite for ModelMessage[] (AI-SDK flat form, what LLM.stream
+   * actually carries). Walks back to find the latest "user" role message,
+   * builds a new array containing ONLY that message with a state snapshot
+   * prepended into its content.
+   */
   async function buildFreerunStatelessMessages(
     sessionID: string,
-    messages: MessageV2.WithParts[],
-  ): Promise<MessageV2.WithParts[]> {
+    messages: ModelMessage[],
+  ): Promise<ModelMessage[]> {
     process.stderr.write(`[freerun-debug] build:entry msgCount=${messages.length}\n`)
-    // One-shot structural dump — what shape do we ACTUALLY have?
-    if (messages.length > 0) {
-      const first = messages[0] as any
-      const last = messages[messages.length - 1] as any
-      const dump = (m: any) => {
-        const topKeys = Object.keys(m ?? {})
-        const role = m?.info?.role ?? m?.role ?? "??"
-        const infoKeys = m?.info ? Object.keys(m.info).slice(0, 6) : []
-        return `topKeys=[${topKeys.join(",")}] role=${role} infoKeys=[${infoKeys.join(",")}]`
-      }
-      process.stderr.write(`[freerun-debug] build:firstMsg ${dump(first)}\n`)
-      process.stderr.write(`[freerun-debug] build:lastMsg ${dump(last)}\n`)
-    }
 
     let lastUserIdx = -1
     for (let i = messages.length - 1; i >= 0; i--) {
-      const m = messages[i] as any
-      const role = m?.info?.role ?? m?.role
-      if (role === "user") {
+      if ((messages[i] as any)?.role === "user") {
         lastUserIdx = i
         break
       }
@@ -294,26 +285,26 @@ export namespace LLM {
 
     const todos = await Todo.get(sessionID).catch(() => [] as any[])
     process.stderr.write(`[freerun-debug] build:todosLoaded count=${todos.length}\n`)
-
     const stateBlock = renderFreerunStateSnapshot(todos as any)
 
-    const latest = messages[lastUserIdx]
-    const synthesizedPart = {
-      id: `prt_freerun_state_${Date.now()}`,
-      messageID: latest.info.id,
-      sessionID,
-      type: "text" as const,
-      text: stateBlock,
-      synthetic: true,
-      metadata: { freerunStateSnapshot: true },
-      time: { start: Date.now(), end: Date.now() },
-    } as unknown as MessageV2.Part
-
-    const rebuilt: MessageV2.WithParts = {
-      info: latest.info,
-      parts: [synthesizedPart, ...latest.parts],
+    const latest = messages[lastUserIdx] as any
+    // ModelMessage content is either a string or an array of content parts.
+    let newContent: any
+    if (typeof latest.content === "string") {
+      newContent = stateBlock + "\n\n# Latest directive\n" + latest.content
+    } else if (Array.isArray(latest.content)) {
+      newContent = [
+        { type: "text", text: stateBlock + "\n\n# Latest directive" },
+        ...latest.content,
+      ]
+    } else {
+      // unknown shape — fall back to original
+      process.stderr.write(`[freerun-debug] build:unknown content shape, fallback\n`)
+      return messages
     }
-    process.stderr.write(`[freerun-debug] build:returning 1 rebuilt msg with ${rebuilt.parts.length} parts\n`)
+
+    const rebuilt: ModelMessage = { ...latest, content: newContent }
+    process.stderr.write(`[freerun-debug] build:returning 1 rebuilt msg\n`)
     return [rebuilt]
   }
 
