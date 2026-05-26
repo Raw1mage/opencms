@@ -121,6 +121,23 @@
           }
         }
       }
+    },
+    "_example-freerun-provider-DISABLED": {
+      "_doc": "Example freerun-mode provider entry. Rename the key (drop the leading underscore + DISABLED suffix) and adjust baseURL + model id to enable. See plans/harness_freerun-mode/ for design + spec, or `opencode freerun-goal --help`.",
+      "name": "Example Freerun Provider",
+      "npm": "@ai-sdk/openai-compatible",
+      "mode": "freerun",
+      "options": {
+        "baseURL": "http://127.0.0.1:7731/v1",
+        "apiKey": "not-needed-for-local"
+      },
+      "models": {
+        "qwen3.6-35b-a3b-q4_k_m": {
+          "name": "Qwen3.6 35B A3B (local llama.cpp via sidecar)",
+          "limit": { "context": 131072, "output": 16384 },
+          "modalities": { "input": ["text"], "output": ["text"] }
+        }
+      }
     }
   },
   "mcp": {

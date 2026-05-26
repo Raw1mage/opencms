@@ -542,8 +542,20 @@ export namespace LLM {
       Auth.get(executionModel.providerId, currentAccountId ?? undefined),
     ])
     const billingMode = resolveProviderBillingMode(cfg, executionModel.providerId)
-    const isLiteProvider =
-      (cfg.provider as Record<string, { lite?: boolean }> | undefined)?.[executionModel.providerId]?.lite === true
+    // Resolve effective prompt-injection mode for this provider.
+    // New: `mode: "full" | "lite" | "freerun"`. Legacy: `lite: true` → "lite".
+    // freerun-mode treats prompt injection as lite-equivalent (no skill injection,
+    // no heavy system prompt) because per-iteration ContextNode rendering replaces them.
+    const providerCfg = (cfg.provider as Record<string, { lite?: boolean; mode?: "full" | "lite" | "freerun" }> | undefined)?.[
+      executionModel.providerId
+    ]
+    const effectiveMode: "full" | "lite" | "freerun" =
+      providerCfg?.mode ?? (providerCfg?.lite === true ? "lite" : "full")
+    // Phase 0 decision: freerun is an INERT flag until the engine (Phase 1) is built.
+    // Engine will override prompt/tool/loop assembly in its own path. Pre-engine,
+    // freerun-mode sessions must behave identically to full-mode (keep skills,
+    // tools, full system prompt). Only `lite` strips capabilities deliberately.
+    const isLiteProvider = effectiveMode === "lite"
     const skillLayerEntries = isLiteProvider
       ? []
       : SkillLayerRegistry.listForInjection(input.sessionID, {
@@ -1244,6 +1256,17 @@ export namespace LLM {
 
     const tools = isLiteProvider ? {} : await resolveTools(input)
 
+    // DD-20 (single-agent serial-only invariant): freerun mode must NEVER
+    // dispatch subagents. The `task` tool is the subagent-fan-out vector;
+    // strip it (and its cancellation companion) when effectiveMode is
+    // freerun, regardless of whether the call originates from the freerun
+    // engine's own LlmClient or from opencode's regular session path
+    // (TUI / API) against a freerun-tagged provider.
+    if (effectiveMode === "freerun") {
+      delete tools["task"]
+      delete tools["cancel_task"]
+    }
+
     // LiteLLM and some Anthropic proxies require the tools parameter to be present
     // when message history contains tool calls, even if no tools are being used.
     // Add a dummy tool that is never called to satisfy this validation.
@@ -1831,6 +1854,16 @@ export namespace LLM {
                   "User-Agent": `opencode/${Installation.VERSION}`,
                 }
               : undefined),
+        ...(effectiveMode === "freerun"
+          ? {
+              "x-opencode-mode": "freerun",
+              "x-opencode-session-id": input.sessionID,
+              // DD-14 / R12: iteration + node coords are injected by the freerun
+              // engine's own LlmClient (provider/llm-client.ts) when it dispatches
+              // engine-driven calls. From opencode's session/llm.ts path the only
+              // freerun-relevant signal is "this provider is freerun-tagged".
+            }
+          : undefined),
         ...input.model.headers,
         ...headers,
       },

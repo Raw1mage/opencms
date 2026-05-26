@@ -1167,7 +1167,12 @@ export namespace Provider {
             temperature: model.temperature ?? existingModel?.capabilities.temperature ?? false,
             reasoning: model.reasoning ?? existingModel?.capabilities.reasoning ?? false,
             attachment: model.attachment ?? existingModel?.capabilities.attachment ?? false,
-            toolcall: provider.lite ? false : (model.tool_call ?? existingModel?.capabilities.toolcall ?? true),
+            // Phase 0: only `lite` mode strips toolcall capability. freerun is
+            // an inert flag pre-engine — full toolcall capability advertised so
+            // sessions behave like full mode until Phase 1 engine takes over.
+            toolcall: ((provider as any).mode === "lite" || ((provider as any).mode === undefined && provider.lite))
+              ? false
+              : (model.tool_call ?? existingModel?.capabilities.toolcall ?? true),
             input: {
               text: model.modalities?.input?.includes("text") ?? existingModel?.capabilities.input.text ?? true,
               audio: model.modalities?.input?.includes("audio") ?? existingModel?.capabilities.input.audio ?? false,

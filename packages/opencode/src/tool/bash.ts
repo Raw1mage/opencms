@@ -57,6 +57,43 @@ export function matchDaemonSpawnDenylist(command: string): { rule: string; argvH
   return null
 }
 
+/**
+ * Privileged-command patterns that are forbidden in freerun-mode sessions.
+ * Defensive: caught before reaching shell parser. The check applies only
+ * when isFreerunSessionForBash returns true (turn-mode sessions retain
+ * existing permissionMode-driven gating).
+ */
+const FREERUN_FORBIDDEN_PATTERNS: RegExp[] = [
+  /(?:^|[\s;|&])sudo\b/,
+  /(?:^|[\s;|&])su\b\s+-?/,
+  /(?:^|[\s;|&])pkexec\b/,
+  /(?:^|[\s;|&])doas\b/,
+]
+
+export function matchFreerunForbidden(command: string): boolean {
+  return FREERUN_FORBIDDEN_PATTERNS.some((p) => p.test(command))
+}
+
+/**
+ * Cheap check: does this session use a provider with mode="freerun"?
+ * Imported lazily to avoid bash.ts ↔ config.ts circular concerns.
+ */
+async function isFreerunSessionForBash(sessionID: string): Promise<boolean> {
+  try {
+    const { Session } = await import("../session")
+    const { Config } = await import("../config/config")
+    const session = await Session.get(sessionID).catch(() => null)
+    if (!session) return false
+    const providerId = session.execution?.providerId
+    if (!providerId) return false
+    const cfg = await Config.get()
+    const providerCfg = (cfg.provider as Record<string, { mode?: string }> | undefined)?.[providerId]
+    return providerCfg?.mode === "freerun"
+  } catch {
+    return false
+  }
+}
+
 const resolveWasm = (asset: string) => {
   if (asset.startsWith("file://")) return fileURLToPath(asset)
   if (asset.startsWith("/") || /^[a-z]:/i.test(asset)) return asset
@@ -134,6 +171,26 @@ export const BashTool = Tool.define("bash", async () => {
             `AI must not spawn, kill, or restart the opencode daemon or gateway directly. ` +
             `Use the system-manager restart_self tool — it calls the sanctioned /api/v2/global/web/restart endpoint which handles rebuild + restart via webctl.sh.`,
         )
+      }
+
+      // DD-20 (freerun safety): freerun-mode sessions must NEVER execute
+      // privileged commands. AI in freerun loop has historically chosen
+      // `sudo kill <pid>` as a "reset" path when stuck, killing its own
+      // daemon. Block any sudo invocation outright when this session's
+      // provider is freerun-tagged; AI sees the denial as a tool result,
+      // marks the node blocked, and the engine halts on the next iteration.
+      if (matchFreerunForbidden(params.command)) {
+        const isFreerun = await isFreerunSessionForBash(ctx.sessionID).catch(() => false)
+        if (isFreerun) {
+          log.warn("freerun-block: privileged command", {
+            sessionID: ctx.sessionID,
+            argvHash: hashArgv(params.command),
+          })
+          throw new Error(
+            `FORBIDDEN_FREERUN_SUDO: freerun-mode sessions cannot execute privileged commands (sudo / su / pkexec). ` +
+              `If this step legitimately requires elevation, mark the node blocked with a clear reason — a human will resume after authorizing.`,
+          )
+        }
       }
       const cwd = params.workdir || Instance.directory
       if (params.timeout !== undefined && params.timeout < 0) {

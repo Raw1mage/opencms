@@ -186,6 +186,18 @@ export const dict = {
   "provider.custom.field.lite.label": "Lite mode (small local models)",
   "provider.custom.field.lite.description":
     "Bypasses tools, MCP, agents, and heavy system prompts. Only injects a minimal system prompt. Ideal for small local models used for simple Q&A tasks.",
+  "provider.custom.field.mode.label": "Prompt injection mode",
+  "provider.custom.field.mode.description":
+    "How sessions on this provider receive context. Per-session override available via /freerun slash command.",
+  "provider.custom.field.mode.option.full.label": "Full",
+  "provider.custom.field.mode.option.full.description":
+    "Standard system prompt + skills + tools + project context + conversation history.",
+  "provider.custom.field.mode.option.lite.label": "Lite",
+  "provider.custom.field.mode.option.lite.description":
+    "Basic system prompt only. Bypasses tools, MCP, agents, heavy prompts. For small local models on simple Q&A.",
+  "provider.custom.field.mode.option.freerun.label": "Freerun (research mode)",
+  "provider.custom.field.mode.option.freerun.description":
+    "Per-iteration ContextNode rendering for stateless autonomous task pursuit. No message history; each loop reads fresh structured context from disk. Long-running goal-oriented work.",
   "provider.custom.field.apiKey.label": "API key",
   "provider.custom.field.apiKey.placeholder": "API key",
   "provider.custom.field.apiKey.description": "Optional. Leave empty if you manage auth via headers.",

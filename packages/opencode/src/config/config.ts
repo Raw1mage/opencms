@@ -1290,7 +1290,13 @@ export namespace Config {
         .boolean()
         .optional()
         .describe(
-          "Lite mode for small local models. Bypasses tool calls, MCP, agents, enablement, and heavy system prompts. Only injects a minimal system prompt suitable for simple Q&A tasks.",
+          "[DEPRECATED — use `mode: 'lite'` instead] Lite mode for small local models. Bypasses tool calls, MCP, agents, enablement, and heavy system prompts. When `mode` is unset, lite=true is interpreted as mode='lite' for backward compatibility.",
+        ),
+      mode: z
+        .enum(["full", "lite", "freerun"])
+        .optional()
+        .describe(
+          "Prompt injection mode for this provider. 'full' (default): standard prompt + skills + tools + context. 'lite': basic system prompt only (suitable for small local models). 'freerun': per-iteration ContextNode rendering for stateless autonomous research mode (harness/freerun-mode). Sessions on this provider start in the declared mode by default; slash command `/freerun on|off` can override per-session.",
         ),
       whitelist: z.array(z.string()).optional(),
       blacklist: z.array(z.string()).optional(),
