@@ -1843,6 +1843,16 @@ export namespace LLM {
                   "User-Agent": `opencode/${Installation.VERSION}`,
                 }
               : undefined),
+        ...(effectiveMode === "freerun"
+          ? {
+              "x-opencode-mode": "freerun",
+              "x-opencode-session-id": input.sessionID,
+              // DD-14 / R12: iteration + node coords are injected by the freerun
+              // engine's own LlmClient (provider/llm-client.ts) when it dispatches
+              // engine-driven calls. From opencode's session/llm.ts path the only
+              // freerun-relevant signal is "this provider is freerun-tagged".
+            }
+          : undefined),
         ...input.model.headers,
         ...headers,
       },

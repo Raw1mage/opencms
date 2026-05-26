@@ -401,12 +401,31 @@ export namespace SessionCompaction {
     }
   }
 
+  /**
+   * DD-10 / R11 — freerun sessions bypass all compaction triggers.
+   * The engine manages context via per-iteration tree rendering + subtree
+   * consolidation; opencode's message-history compaction would defeat the
+   * stateless-iteration invariant.
+   */
+  async function isFreerunProvider(model: Provider.Model): Promise<boolean> {
+    try {
+      const cfg = await Config.get()
+      const providerCfg = (cfg.provider as Record<string, { lite?: boolean; mode?: "full" | "lite" | "freerun" }> | undefined)?.[
+        model.providerId
+      ]
+      return providerCfg?.mode === "freerun"
+    } catch {
+      return false
+    }
+  }
+
   export async function isOverflow(input: {
     tokens: MessageV2.Assistant["tokens"]
     model: Provider.Model
     sessionID?: string
     currentRound?: number
   }) {
+    if (await isFreerunProvider(input.model)) return false
     const budget = await inspectBudget(input)
     if (!budget.overflow) return false
 
@@ -442,6 +461,7 @@ export namespace SessionCompaction {
     sessionID?: string
     currentRound?: number
   }): Promise<boolean> {
+    if (await isFreerunProvider(input.model)) return false
     const budget = await inspectBudget(input)
     if (!budget.auto || !budget.byToken) return false
 

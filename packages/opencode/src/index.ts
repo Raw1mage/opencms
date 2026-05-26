@@ -14,6 +14,7 @@ import { UninstallCommand } from "./cli/cmd/uninstall"
 import { ModelsCommand } from "./cli/cmd/models"
 import { ModelCheckCommand } from "./cli/cmd/model-check"
 import { ModelSmokeCommand } from "./cli/cmd/model-smoke"
+import { FreerunSmokeCommand } from "./cli/cmd/freerun-smoke"
 import { UI } from "./cli/ui"
 import { Installation } from "./installation"
 import { NamedError } from "@opencode-ai/util/error"
@@ -143,6 +144,7 @@ const cli = yargs(hideBin(process.argv))
   .command(ModelsCommand)
   .command(ModelCheckCommand)
   .command(ModelSmokeCommand)
+  .command(FreerunSmokeCommand)
   .command(StatsCommand)
   .command(ExportCommand)
   .command(ImportCommand)

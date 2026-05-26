@@ -50,17 +50,28 @@ export type ContinuationDecisionReason =
   | "todo_complete"
   | "todo_in_progress"
   | "todo_pending"
+  | "freerun_iterate"
+  | "freerun_settled"
 
 export type AutonomousNextAction =
   | {
       type: "stop"
-      reason: Exclude<ContinuationDecisionReason, "todo_pending" | "todo_in_progress">
+      reason: Exclude<ContinuationDecisionReason, "todo_pending" | "todo_in_progress" | "freerun_iterate">
     }
   | {
       type: "continue"
       reason: "todo_pending" | "todo_in_progress"
       text: string
       todo: Todo.Info
+    }
+  | {
+      // Freerun-mode session: instead of nudging a todo, the dispatcher should
+      // call FreerunBridge.drive(...) for one iteration of the engine.
+      // Reserved for workflow-runner-side integration; current dispatchers
+      // ignore this variant and fall through to "stop" semantics until the
+      // integration is fully wired (see plans/harness_freerun-mode/tasks.md 1.17).
+      type: "freerun_continue"
+      reason: "freerun_iterate"
     }
 
 export type AutonomousNarration = {
@@ -617,6 +628,13 @@ export function describeAutonomousNextAction(action: AutonomousNextAction): Auto
     }
   }
 
+  if (action.type === "freerun_continue") {
+    return {
+      kind: "continue",
+      text: "Freerun engine iteration ready — driving next ContextNode step.",
+    }
+  }
+
   switch (action.reason) {
     case "todo_complete":
       return { kind: "complete", text: "Runner complete: the current planned todo set is done." }
@@ -624,6 +642,8 @@ export function describeAutonomousNextAction(action: AutonomousNextAction): Auto
       return { kind: "pause", text: "Autonomous continuation only runs for root sessions." }
     case "not_armed":
       return { kind: "pause", text: "Autonomous continuation is not armed for this session." }
+    case "freerun_settled":
+      return { kind: "complete", text: "Freerun engine: ContextNode tree fully settled." }
   }
 }
 
@@ -645,6 +665,31 @@ export async function decideAutonomousContinuation(input: {
   lastDecisionReason?: ContinuationDecisionReason
 }) {
   const session = await Session.get(input.sessionID)
+
+  // 1.17 — freerun mode short-circuit. When the session's provider is freerun-tagged
+  // AND an active root ContextNode exists, defer todo logic and signal that the
+  // dispatcher should drive a freerun iteration. Dispatchers that don't yet
+  // know how to handle freerun_continue treat it as a noop continue; that
+  // remains backward-compatible with the existing turn-mode loop.
+  try {
+    const { FreerunBridge } = await import("./freerun-bridge")
+    const freerunInfo = await FreerunBridge.detect(input.sessionID)
+    if (freerunInfo !== null && (await FreerunBridge.hasActiveRoot(input.sessionID))) {
+      debugCheckpoint("workflow", "freerun_continuation_decision", {
+        sessionID: input.sessionID,
+        providerID: freerunInfo.providerId,
+        modelID: freerunInfo.modelId,
+      })
+      return { continue: true as const, reason: "freerun_iterate" as ContinuationDecisionReason }
+    }
+  } catch (err) {
+    // Bridge detection failure must not block the regular path.
+    log.warn("freerun-bridge detect failed; falling through to turn-mode logic", {
+      sessionID: input.sessionID,
+      error: err instanceof Error ? err.message : String(err),
+    })
+  }
+
   let todos = await Todo.get(input.sessionID)
   let decision = evaluateAutonomousContinuation({
     session,
