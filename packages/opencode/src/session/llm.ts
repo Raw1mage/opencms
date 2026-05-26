@@ -266,10 +266,25 @@ export namespace LLM {
     messages: MessageV2.WithParts[],
   ): Promise<MessageV2.WithParts[]> {
     process.stderr.write(`[freerun-debug] build:entry msgCount=${messages.length}\n`)
+    // One-shot structural dump — what shape do we ACTUALLY have?
+    if (messages.length > 0) {
+      const first = messages[0] as any
+      const last = messages[messages.length - 1] as any
+      const dump = (m: any) => {
+        const topKeys = Object.keys(m ?? {})
+        const role = m?.info?.role ?? m?.role ?? "??"
+        const infoKeys = m?.info ? Object.keys(m.info).slice(0, 6) : []
+        return `topKeys=[${topKeys.join(",")}] role=${role} infoKeys=[${infoKeys.join(",")}]`
+      }
+      process.stderr.write(`[freerun-debug] build:firstMsg ${dump(first)}\n`)
+      process.stderr.write(`[freerun-debug] build:lastMsg ${dump(last)}\n`)
+    }
 
     let lastUserIdx = -1
     for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i]?.info?.role === "user") {
+      const m = messages[i] as any
+      const role = m?.info?.role ?? m?.role
+      if (role === "user") {
         lastUserIdx = i
         break
       }
