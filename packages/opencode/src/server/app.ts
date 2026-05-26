@@ -176,9 +176,7 @@ export function createApp(app: Hono): Hono {
       // route to the correct per-user daemon instead of falling back to the
       // web-service user's stale storage.
       if (UserDaemonManager.enabled()) {
-        const explicit = LinuxUserExec.sanitizeUsername(
-          process.env.OPENCODE_TRUSTED_LOOPBACK_USER,
-        )
+        const explicit = LinuxUserExec.sanitizeUsername(process.env.OPENCODE_TRUSTED_LOOPBACK_USER)
         if (explicit) return proceed(explicit)
         const daemons = UserDaemonManager.list()
         if (daemons.length === 1) return proceed(daemons[0].username)
@@ -423,7 +421,7 @@ export function createApp(app: Hono): Hono {
   api.route("/accounts", AccountRoutes())
   api.route("/rotation", RotationRoutes())
   api.route("/model", ModelRoutes())
-api.route("/admin/kill-switch", KillSwitchRoutes())
+  api.route("/admin/kill-switch", KillSwitchRoutes())
   api.route("/cron", CronRoutes())
   api.route("/google-binding", GoogleBindingRoutes())
   api.route("/web-route", WebRouteRoutes())
@@ -784,8 +782,27 @@ api.route("/admin/kill-switch", KillSwitchRoutes())
     return xdgFrontendPath
   }
 
-  // Frontend catch-all
+  // Frontend catch-all — skip for registered web-route prefixes
   app.get("/*", async (c, next) => {
+    // Check web-route registry: if any registered prefix matches, pass through
+    // so the gateway proxy layer can handle it (Hono's :param routes take precedence over /*).
+    try {
+      const xdgConfig = process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), ".config")
+      const registryPath = path.join(xdgConfig, "web_registry.json")
+      const raw = await fs.promises.readFile(registryPath, "utf-8")
+      const registry = JSON.parse(raw) as { entries: { prefix?: string; publicBasePath?: string }[] }
+      const reqPath = c.req.path.replace(/\/$/, "") || "/"
+      const matched = registry.entries.find((entry: { prefix?: string; publicBasePath?: string }) => {
+        const routePrefix = entry.prefix ?? entry.publicBasePath
+        if (!routePrefix) return false
+        const pfx = routePrefix.replace(/\/$/, "")
+        return reqPath === pfx || reqPath.startsWith(pfx + "/")
+      })
+      if (matched) return next()
+    } catch {
+      /* registry unavailable, fall through to static serve */
+    }
+
     // Resolve frontend path: explicit env > XDG data dir
     const frontendPath = Env.get("OPENCODE_FRONTEND_PATH") ?? (await resolveXdgFrontend())
     if (!frontendPath) {
