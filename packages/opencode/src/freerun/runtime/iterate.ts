@@ -88,6 +88,10 @@ export namespace Iterate {
     iteration?: number
     /** Wall-clock now() in ISO format — injectable for deterministic tests. */
     nowIso?: () => string
+    /** Project conventions (AGENTS.md) — passed through to PromptTemplate. */
+    agentsMdContent?: string
+    /** Operational rules (SYSTEM.md) — passed through to PromptTemplate. */
+    systemMdContent?: string
   }
 
   export type IterateResult =
@@ -158,6 +162,8 @@ export namespace Iterate {
       nodeDetailText: detailText,
       mode: "planning",
       strictness: opts.config.prompt_strictness,
+      agentsMdContent: opts.agentsMdContent,
+      systemMdContent: opts.systemMdContent,
     })
 
     await FreerunBus.emit.iterationPromptBuilt({
@@ -268,6 +274,8 @@ export namespace Iterate {
       nodeDetailText: detailText,
       mode: "execution",
       strictness: opts.config.prompt_strictness,
+      agentsMdContent: opts.agentsMdContent,
+      systemMdContent: opts.systemMdContent,
     })
 
     await FreerunBus.emit.iterationPromptBuilt({

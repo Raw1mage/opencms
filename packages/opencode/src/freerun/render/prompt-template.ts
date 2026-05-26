@@ -31,6 +31,22 @@ export namespace PromptTemplate {
     mode: IterationMode
     /** ExperimentConfig.prompt_strictness — adjusts wording strictness. */
     strictness: "loose" | "medium" | "strict"
+    /**
+     * Project conventions text (typically from AGENTS.md). Injected near
+     * the top of the user message so the model sees it before navigation
+     * band. Empty/undefined skips the block. Engine.run loads
+     * ~/.config/opencode/AGENTS.md + <project>/AGENTS.md and concatenates.
+     */
+    agentsMdContent?: string
+    /**
+     * Master operational rules (typically SYSTEM.md). Injected into the
+     * SYSTEM prompt itself, after the role+mode header. Critical for
+     * freerun-mode sessions: AGENTS.md is project rules, SYSTEM.md is
+     * red-light rules / tool governance / autorun discipline. Empty
+     * skips. Engine.run loads from user override
+     * (~/.config/opencode/prompts/SYSTEM.md) with installed fallback.
+     */
+    systemMdContent?: string
   }
 
   export interface RenderOutput {
@@ -48,8 +64,8 @@ export namespace PromptTemplate {
   const EXECUTION_JSON_SCHEMA = z.toJSONSchema(ExecutionOutcome)
 
   export function render(input: RenderInput): RenderOutput {
-    const systemPrompt = buildSystemPrompt(input.mode, input.strictness)
-    const userMessage = buildUserMessage(input.navBandText, input.nodeDetailText, input.mode)
+    const systemPrompt = buildSystemPrompt(input.mode, input.strictness, input.systemMdContent)
+    const userMessage = buildUserMessage(input.navBandText, input.nodeDetailText, input.mode, input.agentsMdContent)
     const responseSchema = input.mode === "planning" ? PLANNING_JSON_SCHEMA : EXECUTION_JSON_SCHEMA
     const responseSchemaName = input.mode === "planning" ? "PlanningOutcome" : "ExecutionOutcome"
     return { systemPrompt, userMessage, responseSchema, responseSchemaName }
@@ -59,7 +75,11 @@ export namespace PromptTemplate {
   // System prompt
   // ============================================================================
 
-  function buildSystemPrompt(mode: IterationMode, strictness: "loose" | "medium" | "strict"): string {
+  function buildSystemPrompt(
+    mode: IterationMode,
+    strictness: "loose" | "medium" | "strict",
+    systemMdContent?: string,
+  ): string {
     const role = [
       "You are one iteration of an autonomous freerun-mode agent.",
       "Each iteration is independent — you do NOT see your own previous prompts or responses.",
@@ -92,22 +112,38 @@ export namespace PromptTemplate {
         ? "Return a JSON object matching the response schema. Extra prose outside JSON is ignored."
         : "Return ONLY a JSON object matching the response schema. No prose before or after the JSON. The transport enforces this via json_schema response_format."
 
-    return [role, "", modeCharge, "", schemaCharge].join("\n")
+    const parts = [role, "", modeCharge, "", schemaCharge]
+    if (systemMdContent && systemMdContent.trim().length > 0) {
+      parts.push("")
+      parts.push("# Operational rules (binding — apply to every action)")
+      parts.push(systemMdContent.trim())
+    }
+    return parts.join("\n")
   }
 
   // ============================================================================
   // User message
   // ============================================================================
 
-  function buildUserMessage(navBandText: string, nodeDetailText: string, mode: IterationMode): string {
+  function buildUserMessage(
+    navBandText: string,
+    nodeDetailText: string,
+    mode: IterationMode,
+    agentsMdContent?: string,
+  ): string {
     const parts: string[] = []
+    if (agentsMdContent && agentsMdContent.trim().length > 0) {
+      parts.push("# Project conventions (AGENTS.md — read carefully, applies to every action)")
+      parts.push(agentsMdContent.trim())
+      parts.push("")
+    }
     if (navBandText.length > 0) {
       parts.push(navBandText.trimEnd())
       parts.push("")
     }
     parts.push(nodeDetailText.trimEnd())
     parts.push("")
-    parts.push(mode === "planning" ? "# Your task" : "# Your task")
+    parts.push("# Your task")
     parts.push(
       mode === "planning"
         ? "Decompose the current node into actionable children. Emit a PlanningOutcome JSON."

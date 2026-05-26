@@ -18,12 +18,69 @@
  * them for free.
  */
 
+import * as fs from "fs/promises"
+import * as path from "path"
 import { Iterate } from "./iterate"
 import { Consolidate } from "./consolidate"
 import { FreerunBus } from "../observability/bus"
 import { BusSink } from "../observability/bus-sink"
 import { MetaFS } from "../storage/meta-fs"
 import type { ExperimentConfig, FreerunFinalStatus, TriggerMode } from "../types"
+
+/**
+ * Load project conventions + operational rules from disk. Both are optional;
+ * a missing file is silently skipped (the engine still runs, just without
+ * that block in the prompt). Resolution order:
+ *
+ *   AGENTS.md:
+ *     1. ~/.config/opencode/AGENTS.md     (user global)
+ *     2. <Instance.directory>/AGENTS.md   (per-project)
+ *   Concatenated with a "## ---" separator if both present.
+ *
+ *   SYSTEM.md:
+ *     1. ~/.config/opencode/prompts/SYSTEM.md  (user override)
+ *     2. /usr/local/share/opencode/templates/prompts/SYSTEM.md  (installed default)
+ *
+ * Read once per session at Engine.run start; cached for the session's lifetime.
+ */
+async function loadRulesContent(opts: { directory?: string }): Promise<{
+  agentsMdContent?: string
+  systemMdContent?: string
+}> {
+  const home = process.env.HOME ?? "/home/pkcs12"
+  const projectDir = opts.directory ?? process.cwd()
+
+  async function readIfPresent(p: string): Promise<string | null> {
+    try {
+      return await fs.readFile(p, "utf-8")
+    } catch {
+      return null
+    }
+  }
+
+  const [userAgents, projectAgents] = await Promise.all([
+    readIfPresent(path.join(home, ".config", "opencode", "AGENTS.md")),
+    readIfPresent(path.join(projectDir, "AGENTS.md")),
+  ])
+  const agentsParts: string[] = []
+  if (userAgents) agentsParts.push(userAgents.trim())
+  if (projectAgents) agentsParts.push(projectAgents.trim())
+  const agentsMdContent = agentsParts.length > 0 ? agentsParts.join("\n\n---\n\n") : undefined
+
+  let systemMdContent: string | undefined
+  for (const p of [
+    path.join(home, ".config", "opencode", "prompts", "SYSTEM.md"),
+    "/usr/local/share/opencode/templates/prompts/SYSTEM.md",
+  ]) {
+    const t = await readIfPresent(p)
+    if (t) {
+      systemMdContent = t.trim()
+      break
+    }
+  }
+
+  return { agentsMdContent, systemMdContent }
+}
 
 export namespace Engine {
   export interface RunOptions {
@@ -105,6 +162,12 @@ export namespace Engine {
       protocolVersion: "v0",
     })
 
+    // Load AGENTS.md / SYSTEM.md once per session and pass through to every
+    // iteration. These supply project conventions + operational rules to the
+    // model so the freerun engine inherits the same safety/governance
+    // language the turn-mode pipeline uses.
+    const rules = await loadRulesContent({ directory: process.cwd() }).catch(() => ({}))
+
     try {
       while (iterations < cap) {
         const iter = await Iterate.once({
@@ -114,6 +177,8 @@ export namespace Engine {
           llm: opts.llm,
           toolCatalog: opts.toolCatalog as any,
           iteration: iterations,
+          agentsMdContent: rules.agentsMdContent,
+          systemMdContent: rules.systemMdContent,
         })
 
         if (iter.kind === "settled") {
