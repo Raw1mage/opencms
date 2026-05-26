@@ -218,6 +218,88 @@ export namespace LLM {
   export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
 
   /**
+   * Freerun stateless context regeneration — strip dialog history from the
+   * LLM payload, replace with a freshly synthesized snapshot of structured
+   * state (todos) + the latest user/directive message. UI continues to
+   * show full history; only the LLM input gets compacted to current-state.
+   *
+   * The model thus sees per turn:
+   *   [system + FREERUN.md]
+   *   [user: <todo snapshot> + <latest directive text>]
+   * No prior assistant turns leak in — each round is fresh context.
+   */
+  async function buildFreerunStatelessMessages(
+    sessionID: string,
+    messages: MessageV2.WithParts[],
+  ): Promise<MessageV2.WithParts[]> {
+    // Find the latest user message (typically the last entry).
+    let lastUserIdx = -1
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].info.role === "user") {
+        lastUserIdx = i
+        break
+      }
+    }
+    if (lastUserIdx === -1) return messages
+
+    const { Todo: TodoModule } = await import("./todo")
+    const todos = await TodoModule.get(sessionID).catch(() => [])
+    const stateBlock = renderFreerunStateSnapshot(todos)
+
+    const latest = messages[lastUserIdx]
+    // Prepend a synthetic text part carrying the state snapshot. Existing
+    // user-supplied parts (text / images / file attachments) follow.
+    const synthesizedPart = {
+      id: `prt_freerun_state_${Date.now()}`,
+      messageID: latest.info.id,
+      sessionID,
+      type: "text" as const,
+      text: stateBlock,
+      synthetic: true,
+      metadata: { freerunStateSnapshot: true },
+      time: { start: Date.now(), end: Date.now() },
+    } as unknown as MessageV2.TextPart
+
+    return [{
+      info: latest.info,
+      parts: [synthesizedPart, ...latest.parts],
+    }]
+  }
+
+  function renderFreerunStateSnapshot(todos: ReadonlyArray<{
+    id: string
+    content: string
+    status: "pending" | "in_progress" | "completed" | "blocked"
+  }>): string {
+    if (todos.length === 0) {
+      return [
+        "# Freerun state snapshot",
+        "(no todos yet — when you decide on a plan, use TodoWrite to record it; the next turn will see your todos here.)",
+        "",
+      ].join("\n")
+    }
+    const lines = ["# Freerun state snapshot", "## Todos (the single source of truth for what you're doing)"]
+    const groups: Record<string, typeof todos> = {}
+    for (const t of todos) {
+      ;(groups[t.status] ??= [] as any).push(t)
+    }
+    const order: Array<"in_progress" | "pending" | "blocked" | "completed"> = [
+      "in_progress",
+      "pending",
+      "blocked",
+      "completed",
+    ]
+    for (const status of order) {
+      const items = groups[status]
+      if (!items || items.length === 0) continue
+      lines.push(`### ${status} (${items.length})`)
+      for (const t of items) lines.push(`- [${status}] ${t.content}`)
+    }
+    lines.push("")
+    return lines.join("\n")
+  }
+
+  /**
    * Load FREERUN.md from user-override → installed-default. Returns the file
    * content trimmed, or undefined on miss. Cheap to call per-request — file
    * is ~2KB and OS page cache handles re-reads.
@@ -1512,7 +1594,24 @@ export namespace LLM {
             }),
           )
 
-    const streamMessages = [...systemMessages, ...input.messages]
+    // Freerun stateless context regeneration:
+    //   In freerun mode, dialog history is NOT accumulated for the LLM —
+    //   each turn the model sees a freshly synthesized snapshot of structured
+    //   state (current todos) + the latest user/directive message. UI still
+    //   displays the full dialog history; only the LLM payload is stateless.
+    //   This is the "context structure is no longer turn-based" invariant.
+    let llmMessages: typeof input.messages = input.messages
+    if (effectiveMode === "freerun") {
+      try {
+        llmMessages = await buildFreerunStatelessMessages(input.sessionID, input.messages)
+      } catch (err) {
+        log.warn("freerun stateless rewrite failed; falling through to full history", {
+          sessionID: input.sessionID,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+    }
+    const streamMessages = [...systemMessages, ...llmMessages]
 
     const finalMessages = normalizeMessages(streamMessages, tools)
 
