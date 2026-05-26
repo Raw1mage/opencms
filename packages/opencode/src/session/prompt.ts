@@ -1129,12 +1129,20 @@ export namespace SessionPrompt {
    * Returns the synthesized assistant message, or null if not freerun.
    */
   async function maybeHandleFreerunPrompt(
-    input: { sessionID: string; parts?: ReadonlyArray<{ type: string; text?: string; synthetic?: boolean }> },
+    input: {
+      sessionID: string
+      parts?: ReadonlyArray<{ type: string; text?: string; synthetic?: boolean }>
+      model?: { providerId: string; modelID: string }
+    },
     userMessage: MessageV2.WithParts,
   ): Promise<MessageV2.WithParts | null> {
+    // Resolve providerId from multiple sources — execution may not be set
+    // on a fresh session yet, so fall back to the incoming model / the user
+    // message's model field.
     const session = await Session.get(input.sessionID).catch(() => null)
     if (!session) return null
-    const providerId = (session as any).provider?.id ?? (session as any).providerID
+    const providerId =
+      session.execution?.providerId ?? input.model?.providerId ?? userMessage.info.model?.providerId
     if (!providerId) return null
     const cfg = await Config.get()
     const providerCfg = (cfg.provider as Record<

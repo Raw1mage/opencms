@@ -84,7 +84,7 @@ async function isFreerunSessionForBash(sessionID: string): Promise<boolean> {
     const { Config } = await import("../config/config")
     const session = await Session.get(sessionID).catch(() => null)
     if (!session) return false
-    const providerId = (session as any).provider?.id ?? (session as any).providerID
+    const providerId = session.execution?.providerId
     if (!providerId) return false
     const cfg = await Config.get()
     const providerCfg = (cfg.provider as Record<string, { mode?: string }> | undefined)?.[providerId]

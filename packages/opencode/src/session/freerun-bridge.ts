@@ -59,9 +59,13 @@ export namespace FreerunBridge {
     const cfg = await Config.get().catch(() => null)
     if (!cfg) return null
 
-    // Walk: session.model → provider config in opencode.json → mode field.
-    const providerId = (session as any).provider?.id ?? (session as any).providerID
-    const modelId = (session as any).model?.id ?? (session as any).modelID
+    // Walk: session.execution → provider config in opencode.json → mode field.
+    // Note: execution is set lazily after the first LLM bind, so detect()
+    // returns null on a brand-new session before its first turn. That's
+    // intentional — the prompt.ts freerun branch handles fresh sessions
+    // using the incoming message's model field directly.
+    const providerId = session.execution?.providerId
+    const modelId = session.execution?.modelID
     if (!providerId || !modelId) return null
 
     const providerCfg = (cfg.provider as Record<
