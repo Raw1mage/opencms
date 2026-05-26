@@ -21,6 +21,7 @@
 import { Iterate } from "./iterate"
 import { Consolidate } from "./consolidate"
 import { FreerunBus } from "../observability/bus"
+import { BusSink } from "../observability/bus-sink"
 import type { ExperimentConfig, FreerunFinalStatus, TriggerMode } from "../types"
 
 export namespace Engine {
@@ -57,6 +58,10 @@ export namespace Engine {
     const blockedNodeIds: string[] = []
     let iterations = 0
     let finalStatus: FreerunFinalStatus = "in_progress"
+
+    // Install per-session JSONL sink so the behavior timeline lands on disk
+    // alongside the ContextNode tree. Cleaned up at session end.
+    const sink = BusSink.install({ dataHome: opts.dataHome, sessionId: opts.sessionId })
 
     await FreerunBus.emit.sessionStarted({
       sessionID: opts.sessionId,
@@ -118,9 +123,10 @@ export namespace Engine {
       sessionID: opts.sessionId,
       finalStatus,
       totalIterations: iterations,
-      pathMetricsSummary: { blockedNodeIds },
+      pathMetricsSummary: { blockedNodeIds, sinkWriteCount: sink.writeCount() },
     })
 
+    sink.dispose()
     return { totalIterations: iterations, finalStatus, blockedNodeIds }
   }
 }
