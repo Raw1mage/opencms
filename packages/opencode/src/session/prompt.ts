@@ -303,7 +303,10 @@ async function withContextBudgetEnvelope(input: {
       input.model.providerId
     ]
     const effectiveMode = providerCfg?.mode ?? (providerCfg?.lite === true ? "lite" : "full")
-    if (effectiveMode === "lite" || effectiveMode === "freerun") return input.messages
+    // Phase 0: freerun flag is inert pre-engine; envelope applies to freerun
+    // sessions same as full. Engine (Phase 1) will render its own prompt that
+    // doesn't carry envelope; until then leave full-mode behavior intact.
+    if (effectiveMode === "lite") return input.messages
   } catch {
     // Config read failure → fall through to envelope (preserve existing behaviour).
   }

@@ -1167,10 +1167,10 @@ export namespace Provider {
             temperature: model.temperature ?? existingModel?.capabilities.temperature ?? false,
             reasoning: model.reasoning ?? existingModel?.capabilities.reasoning ?? false,
             attachment: model.attachment ?? existingModel?.capabilities.attachment ?? false,
-            // freerun mode shares lite's "no aggressive tool injection" property at provider capability level;
-            // tool calls themselves still work via the freerun iteration driver's own tool dispatch.
-            // For the static capability advertised to upstream/UI: both lite and freerun signal "do not pre-inject".
-            toolcall: ((provider as any).mode === "lite" || (provider as any).mode === "freerun" || ((provider as any).mode === undefined && provider.lite))
+            // Phase 0: only `lite` mode strips toolcall capability. freerun is
+            // an inert flag pre-engine — full toolcall capability advertised so
+            // sessions behave like full mode until Phase 1 engine takes over.
+            toolcall: ((provider as any).mode === "lite" || ((provider as any).mode === undefined && provider.lite))
               ? false
               : (model.tool_call ?? existingModel?.capabilities.toolcall ?? true),
             input: {
