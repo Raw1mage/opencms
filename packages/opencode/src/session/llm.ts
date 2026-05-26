@@ -1509,8 +1509,41 @@ export namespace LLM {
       }
     }
 
+    // Chunk-idle watchdog. The codex provider (and occasionally others) can
+    // wedge a stream at 0 bytes: no tokens, no error, no close. Without a
+    // watchdog the runloop awaits forever and only the client's own fetch
+    // timeout surfaces it — leaving an empty assistant shell + state=running
+    // that zombie-sweep can't touch because the runloop is still live.
+    // Reset on every chunk so legitimate long reasoning pauses are tolerated.
+    const STREAM_IDLE_TIMEOUT_MS = 90_000
+    const idleController = new AbortController()
+    let idleTimer: ReturnType<typeof setTimeout> | undefined
+    const armIdleWatchdog = () => {
+      if (idleTimer) clearTimeout(idleTimer)
+      idleTimer = setTimeout(() => {
+        l.warn("stream idle timeout — aborting", {
+          sessionID: input.sessionID,
+          providerId: input.model.providerId,
+          modelID: input.model.id,
+          accountId,
+          idleTimeoutMs: STREAM_IDLE_TIMEOUT_MS,
+        })
+        idleController.abort(new Error(`stream idle timeout after ${STREAM_IDLE_TIMEOUT_MS}ms`))
+      }, STREAM_IDLE_TIMEOUT_MS)
+    }
+    const disarmIdleWatchdog = () => {
+      if (idleTimer) {
+        clearTimeout(idleTimer)
+        idleTimer = undefined
+      }
+    }
+    armIdleWatchdog()
+    const composedAbortSignal = AbortSignal.any([input.abort, idleController.signal])
+
     return streamText({
+      onChunk: () => armIdleWatchdog(),
       onFinish: async (event) => {
+        disarmIdleWatchdog()
         const usage = event.usage as any
         const totalTokens = usage
           ? (usage.promptTokens || usage.inputTokens || 0) + (usage.completionTokens || usage.outputTokens || 0)
@@ -1608,6 +1641,7 @@ export namespace LLM {
         }
       },
       async onError(error) {
+        disarmIdleWatchdog()
         l.error("stream error", { error: serializeError(error) })
 
         debugCheckpoint("rotation.error", "LLM onError received provider error", {
@@ -1771,7 +1805,7 @@ export namespace LLM {
       tools,
       toolChoice: input.toolChoice,
       maxOutputTokens,
-      abortSignal: input.abort,
+      abortSignal: composedAbortSignal,
       headers: {
         ...(accountId ? { "x-opencode-account-id": accountId } : {}),
         ...(input.model.providerId.startsWith("opencode")
