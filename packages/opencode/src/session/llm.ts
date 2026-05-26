@@ -551,7 +551,11 @@ export namespace LLM {
     ]
     const effectiveMode: "full" | "lite" | "freerun" =
       providerCfg?.mode ?? (providerCfg?.lite === true ? "lite" : "full")
-    const isLiteProvider = effectiveMode === "lite" || effectiveMode === "freerun"
+    // Phase 0 decision: freerun is an INERT flag until the engine (Phase 1) is built.
+    // Engine will override prompt/tool/loop assembly in its own path. Pre-engine,
+    // freerun-mode sessions must behave identically to full-mode (keep skills,
+    // tools, full system prompt). Only `lite` strips capabilities deliberately.
+    const isLiteProvider = effectiveMode === "lite"
     const skillLayerEntries = isLiteProvider
       ? []
       : SkillLayerRegistry.listForInjection(input.sessionID, {
