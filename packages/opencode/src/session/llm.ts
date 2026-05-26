@@ -742,15 +742,19 @@ export namespace LLM {
 
       system.push(staticText)
 
-      // Freerun mode addendum — appended AFTER the static block so it
-      // supplements (not replaces) SYSTEM.md + AGENTS.md. FREERUN.md is
-      // short and only states freerun-specific behavior (autonomous on,
-      // no task/sudo, don't ask user). Everything else carries over from
-      // the normal pipeline.
+      // Freerun mode addendum — concatenated INTO the existing system[0]
+      // (not pushed as a separate system message). Many model chat
+      // templates (notably llama.cpp's strict Jinja for Qwen3.6) raise
+      // "System message must be at the beginning" if there are multiple
+      // system entries. Single-system invariant respected by joining.
       if (effectiveMode === "freerun") {
         try {
           const freerunMd = await loadFreerunMd()
-          if (freerunMd) system.push(freerunMd)
+          if (freerunMd && system.length > 0) {
+            system[0] = system[0] + "\n\n---\n\n" + freerunMd
+          } else if (freerunMd) {
+            system.push(freerunMd)
+          }
         } catch {
           // Loading failure is non-fatal — freerun toggle still works
           // (task strip + sudo gate + compaction bypass) without the
