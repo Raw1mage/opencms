@@ -1208,6 +1208,12 @@ export namespace SessionPrompt {
       }
     }
 
+    // Mark session busy so UI shows the same thinking indicator it does
+    // for any normal LLM-streaming turn. No custom narration / pill flow —
+    // freerun reuses opencode's existing busy → idle transition. Cleared
+    // in the finally block below.
+    SessionStatus.set(input.sessionID, { type: "busy" })
+
     // Drive the engine. No iterationCapOverride — ExperimentConfig's
     // iteration_cap (default 500) governs. Per user direction: planning
     // takes as many iterations as it needs; the engine stops on its own
@@ -1221,6 +1227,8 @@ export namespace SessionPrompt {
       })
     } catch (err) {
       driveError = err instanceof Error ? err.message : String(err)
+    } finally {
+      SessionStatus.set(input.sessionID, { type: "idle" })
     }
 
     // Read back the final tree for the assistant message body.
