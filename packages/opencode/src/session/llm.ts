@@ -1256,6 +1256,17 @@ export namespace LLM {
 
     const tools = isLiteProvider ? {} : await resolveTools(input)
 
+    // DD-20 (single-agent serial-only invariant): freerun mode must NEVER
+    // dispatch subagents. The `task` tool is the subagent-fan-out vector;
+    // strip it (and its cancellation companion) when effectiveMode is
+    // freerun, regardless of whether the call originates from the freerun
+    // engine's own LlmClient or from opencode's regular session path
+    // (TUI / API) against a freerun-tagged provider.
+    if (effectiveMode === "freerun") {
+      delete tools["task"]
+      delete tools["cancel_task"]
+    }
+
     // LiteLLM and some Anthropic proxies require the tools parameter to be present
     // when message history contains tool calls, even if no tools are being used.
     // Add a dummy tool that is never called to satisfy this validation.
