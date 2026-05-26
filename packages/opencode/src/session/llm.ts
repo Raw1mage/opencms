@@ -21,6 +21,9 @@ import { Instance } from "@/project/instance"
 import type { Agent } from "@/agent/agent"
 import type { MessageV2 } from "./message-v2"
 import { Todo } from "./todo"
+import { BusSink } from "../freerun/observability/bus-sink"
+import { FreerunBus } from "../freerun/observability/bus"
+import { Global } from "@/global"
 import { Plugin } from "@/plugin"
 import { SystemPrompt } from "./system"
 import { Flag } from "@/flag/flag"
@@ -217,6 +220,35 @@ export namespace LLM {
   const log = Log.create({ service: "llm" })
 
   export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
+
+  // ============================================================================
+  // Freerun paper-data sink registry (per-session BusSink + per-session turn counter)
+  // ============================================================================
+  //
+  // events.jsonl is the canonical structured paper-data store. We lazily
+  // install a BusSink per session on first LLM.stream call in freerun mode
+  // and keep it installed for the daemon's lifetime — there's no clean
+  // "session end" hook in opencode's runloop path. Cost is negligible
+  // (one global Bus subscriber per active freerun session).
+  //
+  // Turn counter increments each time LLM.stream fires for a freerun session.
+  // (One opencode "turn" = one freerun "iteration" in this architecture.)
+  const _freerunSinks = new Map<string, BusSink.InstallHandle>()
+  const _freerunTurnIndex = new Map<string, number>()
+
+  function ensureFreerunSink(sessionID: string): BusSink.InstallHandle {
+    let h = _freerunSinks.get(sessionID)
+    if (!h) {
+      h = BusSink.install({ dataHome: Global.Path.data, sessionId: sessionID })
+      _freerunSinks.set(sessionID, h)
+    }
+    return h
+  }
+  function nextFreerunTurn(sessionID: string): number {
+    const n = (_freerunTurnIndex.get(sessionID) ?? -1) + 1
+    _freerunTurnIndex.set(sessionID, n)
+    return n
+  }
 
   /**
    * Freerun stateless context regeneration — strip dialog history from the
@@ -1623,6 +1655,30 @@ export namespace LLM {
           error: err instanceof Error ? err.message : String(err),
         })
       }
+
+      // Paper-data sink: install per-session BusSink (idempotent) + emit
+      // turn-start event so events.jsonl gets one record per opencode turn
+      // in this freerun session. Sibling Bus emissions (decisions/observations/
+      // etc.) come from any code path that publishes a FreerunBus.* event;
+      // the sink picks them up and writes to the same events.jsonl.
+      try {
+        ensureFreerunSink(input.sessionID)
+        const turnIdx = nextFreerunTurn(input.sessionID)
+        ;(input as any).__freerunTurnIdx = turnIdx
+        ;(input as any).__freerunTurnT0 = Date.now()
+        await FreerunBus.emit.iterationStart({
+          sessionID: input.sessionID,
+          iteration: turnIdx,
+          nodeID: "session-root", // runloop architecture: no node tree; session itself is the unit
+          nodeMode: "pending-exec",
+          depth: 0,
+          pickedByPolicyReason: "runloop-turn",
+        })
+      } catch (err) {
+        process.stderr.write(
+          `[freerun-debug] paper sink install/emit THREW: ${err instanceof Error ? err.message : err}\n`,
+        )
+      }
     }
     const streamMessages = [...systemMessages, ...llmMessages]
 
@@ -1775,6 +1831,30 @@ export namespace LLM {
           : 0
         const cacheReadTokens = usage?.cacheReadTokens ?? usage?.cache?.read ?? 0
         const cacheWriteTokens = usage?.cacheWriteTokens ?? usage?.cache?.write ?? 0
+
+        // Paper-data sink: emit per-turn completion event for freerun sessions.
+        // Pairs with the freerun.iteration.start emitted at LLM.stream entry;
+        // BusSink writes both to <dataHome>/storage/freerun/<id>/events.jsonl.
+        if (effectiveMode === "freerun") {
+          try {
+            const turnIdx = (input as any).__freerunTurnIdx ?? 0
+            const t0 = (input as any).__freerunTurnT0 ?? Date.now()
+            await FreerunBus.emit.iterationCompleted({
+              sessionID: input.sessionID,
+              iteration: turnIdx,
+              nodeID: "session-root",
+              latencyMs: Date.now() - t0,
+              tokensIn: usage?.promptTokens ?? usage?.inputTokens,
+              tokensOut: usage?.completionTokens ?? usage?.outputTokens,
+              finishReason: event.finishReason ?? undefined,
+              validationResult: "ok",
+            })
+          } catch (err) {
+            process.stderr.write(
+              `[freerun-debug] paper sink iterationCompleted THREW: ${err instanceof Error ? err.message : err}\n`,
+            )
+          }
+        }
         debugCheckpoint("llm.packet", "LLM inbound packet observed", {
           sessionID: input.sessionID,
           providerId: input.model.providerId,
