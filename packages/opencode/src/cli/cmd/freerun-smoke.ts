@@ -72,7 +72,7 @@ export const FreerunSmokeCommand = cmd({
         default: false,
         describe: "drive engine without any tool catalog (think-only execution mode)",
       }),
-  async handler(args) {
+  handler: async (args) => {
     await bootstrap(process.cwd(), async () => {
       const sessionId = args.session ?? `freerun-smoke-${Date.now()}`
       const dataHome = args.dataHome ?? Global.Path.data

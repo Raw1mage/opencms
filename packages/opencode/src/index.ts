@@ -15,6 +15,10 @@ import { ModelsCommand } from "./cli/cmd/models"
 import { ModelCheckCommand } from "./cli/cmd/model-check"
 import { ModelSmokeCommand } from "./cli/cmd/model-smoke"
 import { FreerunSmokeCommand } from "./cli/cmd/freerun-smoke"
+import { FreerunGoalCommand } from "./cli/cmd/freerun-goal"
+import { FreerunCronCommand } from "./cli/cmd/freerun-cron"
+import { FreerunStatusCommand } from "./cli/cmd/freerun-status"
+import { FreerunTreeCommand } from "./cli/cmd/freerun-tree"
 import { UI } from "./cli/ui"
 import { Installation } from "./installation"
 import { NamedError } from "@opencode-ai/util/error"
@@ -145,6 +149,10 @@ const cli = yargs(hideBin(process.argv))
   .command(ModelCheckCommand)
   .command(ModelSmokeCommand)
   .command(FreerunSmokeCommand)
+  .command(FreerunGoalCommand)
+  .command(FreerunCronCommand)
+  .command(FreerunStatusCommand)
+  .command(FreerunTreeCommand)
   .command(StatsCommand)
   .command(ExportCommand)
   .command(ImportCommand)
