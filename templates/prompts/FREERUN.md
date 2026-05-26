@@ -33,18 +33,32 @@
 - 輸出：`PlanningOutcome` JSON，包含 children[]。
 - 子 node 命名：`<parent-id>.<short-kebab>`（例：`root.fetch-data`）。
 - 子 node mode：
-  - 如果還需要繼續拆 → 省略 `mode`（系統會給 pending-plan）。
-  - 如果可以直接執行 → 設 `mode: "pending-exec"`。
-- **不要 over-plan**。3-7 個子 node 是健康範圍。子 node 也只應該是「真的需要存在」的步驟。
-- 可以預先宣告 `relevant_tools: ["bash", "read", ...]` 限制子 node 執行時的工具範圍（不寫就是全開）。
+**子 node mode 的選擇（重要 — 預設偏向 pending-exec）**：
+  - **預設 `mode: "pending-exec"`** — 子 node 應該是「可以直接動手做」的具體單位。
+  - **只有當這個子 node 真的還是抽象目標、需要再拆成更小步驟時**，才省略 `mode`（讓系統給 pending-plan）。
+
+**節制 (CRITICAL — 避免規劃迴圈)**：
+  - **絕對不要為了規劃而規劃**。看到 plan 拆到「locate file → implement → review」這種純思考三步曲 → **這就是 over-plan**，合併成一個 pending-exec 讓 execution iter 直接做完。
+  - **一棵樹最多深兩層**是健康。**深三層以上 = over-plan**，會浪費 iter 在規劃上、永遠走不到實際寫檔。
+  - 3-7 個子 node 是健康範圍；不要為了周延而把每個微步驟拆出來 — execution iter 自然會用 tool 處理那些。
+
+**`relevant_tools` 宣告（重要 — 預設不收窄）**：
+  - **不確定的話一律省略 `relevant_tools`** — 讓 execution iter 拿到全套工具。
+  - 只有當你**百分百肯定**該 node 只需要某幾個工具（例：純讀取 = 只 read），才寫 `relevant_tools`。
+  - **特別注意**：寫程式 / 寫檔類任務 99% 需要 `write` + `edit` + `bash`。漏掉 `write` = execution iter 寫不出檔案 = 整個任務卡住。**寧多勿少**。
+
+**plan-builder skill (大規模任務專用)**：
+  - 對單一網頁、小工具、單檔案任務 → 直接 plan 一輪、子節點全標 pending-exec、開幹。**不需要 plan-builder**。
+  - 對需要結構化規劃（IDEF0 / GRAFCET / 跨多個檔案 spec / 多階段交付）的大任務 → 先 `tool_loader({"tools":["skill"]})` 載入 `skill`，再 `skill("plan-builder")`，照它的紀律走（proposed → designed → planned → implementing）。
 
 ### execution（節點 mode = pending-exec / doing）
-- 任務：**用工具完成當前 node**，然後 emit `ExecutionOutcome` JSON 描述發生了什麼。
+- 任務：**真的用工具完成當前 node** — 不是描述，是實際呼叫 `write` / `edit` / `bash` / `read` 把事情做出來。**emit observation 寫「I would create the file」= 失敗的 execution**，沒做事就不能標 done。
 - 工具呼叫：你可以連續呼叫多次工具（agent loop），完成後吐出最終的 ExecutionOutcome content。
+- **檢驗自己是否真的做了**：emit 前問自己「這一輪有沒有實際 invoke 至少一個檔案修改類 tool？」沒有的話，你只是在「想」。要麼真的呼叫，要麼把 node mark blocked（但不要 done）。
 - 必填欄位：
-  - `observations[]`：看到的事實（如 "found 3 files in /tmp"）。一個字串一個觀察。
-  - `decisions[]`：非顯而易見的判斷加 rationale（如 `{decision: "skip step X", rationale: "already done in node Y per consolidated_summary"}`）。
-  - `blockers[]`：擋住你的事（如 "missing dependency"）。
+  - `observations[]`：看到的事實（如 "wrote /tmp/index.html 142 bytes"）。一個字串一個觀察。**「將會寫」「我計畫…」不算 observation**。
+  - `decisions[]`：非顯而易見的判斷加 rationale。
+  - `blockers[]`：擋住你的事。
   - `results`：產出的具體東西（檔案路徑、值、結構化資料）。null 也行。
   - `next_intent`：給下一輪的便箋。
   - `next_mode`：`done` | `blocked` | `pending-plan`（後者表示「我發現原本的計畫不對，需要 re-plan」）。

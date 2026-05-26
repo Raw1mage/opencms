@@ -235,7 +235,7 @@ export namespace FreerunBridge {
       triggerMode: opts.triggerMode ?? "goal",
       rootNodeId: rootId,
       experimentConfigId: expCfgId,
-      iterationCapOverride: opts.iterationCapOverride ?? 1,
+      iterationCapOverride: opts.iterationCapOverride, // undefined → Engine.run uses ExperimentConfig.iteration_cap (default 500)
     })
   }
 

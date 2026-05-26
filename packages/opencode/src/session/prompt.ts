@@ -1208,13 +1208,16 @@ export namespace SessionPrompt {
       }
     }
 
-    // Drive the engine. Iteration cap kept small for responsive TUI feedback.
+    // Drive the engine. No iterationCapOverride — ExperimentConfig's
+    // iteration_cap (default 500) governs. Per user direction: planning
+    // takes as many iterations as it needs; the engine stops on its own
+    // when the tree settles or the legitimate cap is reached. No task-
+    // specific tuning here.
     let summary: { totalIterations: number; finalStatus: string; blockedNodeIds: string[] } | null = null
     let driveError: string | null = null
     try {
       summary = await FreerunBridge.drive({
         sessionID: input.sessionID,
-        iterationCapOverride: 10,
       })
     } catch (err) {
       driveError = err instanceof Error ? err.message : String(err)
