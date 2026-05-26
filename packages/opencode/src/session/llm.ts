@@ -217,6 +217,39 @@ export namespace LLM {
 
   export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
 
+  /**
+   * Load FREERUN.md from user-override → installed-default. Returns the file
+   * content trimmed, or undefined on miss. Cheap to call per-request — file
+   * is ~2KB and OS page cache handles re-reads.
+   */
+  let _freerunMdCache: { content: string; loadedAt: number } | undefined
+  async function loadFreerunMd(): Promise<string | undefined> {
+    // 30-second cache to avoid one fs.readFile per LLM call.
+    const FRESH_MS = 30_000
+    if (_freerunMdCache && Date.now() - _freerunMdCache.loadedAt < FRESH_MS) {
+      return _freerunMdCache.content
+    }
+    const { promises: fs } = await import("fs")
+    const path = await import("path")
+    const home = process.env.HOME ?? "/home/pkcs12"
+    const candidates = [
+      path.join(home, ".config", "opencode", "prompts", "FREERUN.md"),
+      "/usr/local/share/opencode/templates/prompts/FREERUN.md",
+    ]
+    for (const p of candidates) {
+      try {
+        const text = (await fs.readFile(p, "utf-8")).trim()
+        if (text) {
+          _freerunMdCache = { content: text, loadedAt: Date.now() }
+          return text
+        }
+      } catch {
+        continue
+      }
+    }
+    return undefined
+  }
+
   // Toast debouncing for rotation notifications
   const TOAST_DEBOUNCE_MS = 15_000
 
@@ -708,6 +741,22 @@ export namespace LLM {
       }
 
       system.push(staticText)
+
+      // Freerun mode addendum — appended AFTER the static block so it
+      // supplements (not replaces) SYSTEM.md + AGENTS.md. FREERUN.md is
+      // short and only states freerun-specific behavior (autonomous on,
+      // no task/sudo, don't ask user). Everything else carries over from
+      // the normal pipeline.
+      if (effectiveMode === "freerun") {
+        try {
+          const freerunMd = await loadFreerunMd()
+          if (freerunMd) system.push(freerunMd)
+        } catch {
+          // Loading failure is non-fatal — freerun toggle still works
+          // (task strip + sudo gate + compaction bypass) without the
+          // prompt addendum.
+        }
+      }
 
       // Plugin transform on the static-only system array (DD-11).
       const original = clone(system)

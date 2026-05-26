@@ -1089,17 +1089,16 @@ export namespace SessionPrompt {
       return message
     }
 
-    // ── Freerun mode short-circuit ────────────────────────────────────
-    // When this session's provider is freerun-tagged, the user's message
-    // is the goal/directive — NOT a turn-mode chat utterance. Seed (or
-    // append-to) the ContextNode tree and drive the engine instead of
-    // taking the normal LLM round-trip. The assistant message we return
-    // is a synthesized summary of what the engine did.
+    // ── Freerun mode auto-arm autonomous ──────────────────────────────
+    // When this session's provider is freerun-tagged, autonomous-opt-in is
+    // ON by default. The user's message is treated like any other prompt;
+    // the runloop just doesn't stop between turns. Everything else (system
+    // prompt FREERUN.md addendum, task tool strip, sudo gate, compaction
+    // bypass) lives at the layers that already see the provider mode.
     try {
-      const handled = await maybeHandleFreerunPrompt(input, message)
-      if (handled !== null) return handled
+      await maybeArmFreerunAutonomous(input)
     } catch (err) {
-      log.warn("freerun prompt branch failed; falling through to turn-mode", {
+      log.warn("freerun auto-arm failed; continuing in normal mode", {
         sessionID: input.sessionID,
         error: err instanceof Error ? err.message : String(err),
       })
@@ -1121,193 +1120,45 @@ export namespace SessionPrompt {
   })
 
   /**
-   * If the session's provider is freerun-tagged, intercept the prompt:
-   *   - seed the freerun root with user text if no tree yet, otherwise
-   *     append it as an observation + flip root to pending-plan
-   *   - drive the engine for N iterations
-   *   - synthesize an assistant message summarizing what happened
-   * Returns the synthesized assistant message, or null if not freerun.
+   * If the session's provider is freerun-tagged, ensure autonomous-opt-in
+   * is on. Freerun's only operational difference from a normal session is
+   * "doesn't stop between turns" — the existing autonomous-continuation
+   * machinery drives that; we just auto-arm it on first prompt.
+   *
+   * Everything else (FREERUN.md system-prompt addendum, task tool strip,
+   * sudo gate, compaction bypass) is applied at the layers that already
+   * detect freerun mode (session/llm.ts, tool/bash.ts, session/compaction.ts).
    */
-  async function maybeHandleFreerunPrompt(
-    input: {
-      sessionID: string
-      parts?: ReadonlyArray<{ type: string; text?: string; synthetic?: boolean }>
-      model?: { providerId: string; modelID: string }
-    },
-    userMessage: MessageV2.WithParts,
-  ): Promise<MessageV2.WithParts | null> {
-    // Resolve providerId from multiple sources — execution may not be set
-    // on a fresh session yet, so fall back to the incoming model / the user
-    // message's model field.
+  async function maybeArmFreerunAutonomous(input: {
+    sessionID: string
+    model?: { providerId: string; modelID: string }
+  }): Promise<void> {
     const session = await Session.get(input.sessionID).catch(() => null)
-    if (!session) return null
+    if (!session) return
     const providerId =
-      session.execution?.providerId ?? input.model?.providerId ?? userMessage.info.model?.providerId
-    if (!providerId) return null
+      session.execution?.providerId ?? input.model?.providerId
+    if (!providerId) return
     const cfg = await Config.get()
     const providerCfg = (cfg.provider as Record<
       string,
       { mode?: "full" | "lite" | "freerun" }
     > | undefined)?.[providerId]
-    if (providerCfg?.mode !== "freerun") return null
+    if (providerCfg?.mode !== "freerun") return
 
-    const userText = extractUserText(
-      (input.parts ?? []) as ReadonlyArray<{ type: string; text?: string; synthetic?: boolean }>,
-    ).trim()
-    if (userText.length === 0) return null
+    // Already armed? Leave it. (User may have explicitly disarmed mid-session.)
+    if (session.workflow?.autonomous.enabled === true) return
 
-    const { Global } = await import("@/global")
-    const { NodeFS } = await import("../freerun/storage/node-fs")
-    const { Tree: FreerunTree } = await import("../freerun/storage/tree")
-    const { FreerunBridge } = await import("./freerun-bridge")
-
-    const dataHome = Global.Path.data
-    const existing = await NodeFS.list(input.sessionID, dataHome).catch(() => [] as string[])
-    const now = new Date().toISOString()
-
-    if (existing.length === 0) {
-      // First user message in this session → seed root.
-      await NodeFS.write(
-        input.sessionID,
-        {
-          id: "root",
-          parent_id: null,
-          children_ids: [],
-          title: userText.slice(0, 80),
-          body: userText,
-          mode: "pending-plan",
-          created_at: now,
-          iteration_count: 0,
-          observations: [],
-          decisions: [],
-          blockers: [],
-          results: null,
-          next_intent: "",
-          consolidated_summary: null,
-        },
-        dataHome,
-      )
-    } else {
-      // Subsequent message → append as observation on root + flip to pending-plan
-      // so the next iteration re-plans around the new directive.
-      try {
-        const tree = await FreerunTree.load(input.sessionID, dataHome)
-        const root = FreerunTree.get(tree, tree.rootId)
-        await NodeFS.write(
-          input.sessionID,
-          {
-            ...root,
-            mode: "pending-plan",
-            updated_at: now,
-            observations: [...root.observations, `user said: ${userText}`],
-          },
-          dataHome,
-        )
-      } catch {
-        // tree load failure — silently skip; engine will fail next call and surface.
-      }
-    }
-
-    // Mark session busy so UI shows the same thinking indicator it does
-    // for any normal LLM-streaming turn. No custom narration / pill flow —
-    // freerun reuses opencode's existing busy → idle transition. Cleared
-    // in the finally block below.
-    SessionStatus.set(input.sessionID, { type: "busy" })
-
-    // Drive the engine. No iterationCapOverride — ExperimentConfig's
-    // iteration_cap (default 500) governs. Per user direction: planning
-    // takes as many iterations as it needs; the engine stops on its own
-    // when the tree settles or the legitimate cap is reached. No task-
-    // specific tuning here.
-    let summary: { totalIterations: number; finalStatus: string; blockedNodeIds: string[] } | null = null
-    let driveError: string | null = null
-    try {
-      summary = await FreerunBridge.drive({
+    await Session.updateAutonomous({
+      sessionID: input.sessionID,
+      policy: { enabled: true },
+    }).catch((err) => {
+      log.warn("freerun auto-arm failed", {
         sessionID: input.sessionID,
+        error: err instanceof Error ? err.message : String(err),
       })
-    } catch (err) {
-      driveError = err instanceof Error ? err.message : String(err)
-    } finally {
-      SessionStatus.set(input.sessionID, { type: "idle" })
-    }
-
-    // Read back the final tree for the assistant message body.
-    let treeRender = ""
-    try {
-      const snap = await FreerunTree.load(input.sessionID, dataHome)
-      const lines: string[] = []
-      for (const { node, depth } of FreerunTree.walkBFS(snap)) {
-        const indent = "  ".repeat(depth)
-        lines.push(`${indent}- [${node.mode}] ${node.id} — ${node.title}`)
-        if (node.consolidated_summary) {
-          const trimmed = node.consolidated_summary.replace(/\s+/g, " ").slice(0, 140)
-          lines.push(`${indent}  ↳ ${trimmed}`)
-        }
-        if (node.blockers.length > 0) {
-          lines.push(`${indent}  ⚠ blockers: ${node.blockers.slice(0, 2).join("; ")}`)
-        }
-      }
-      treeRender = lines.join("\n")
-    } catch {
-      treeRender = "(tree load failed)"
-    }
-
-    const summaryText = [
-      driveError !== null
-        ? `Freerun engine drive failed: ${driveError}`
-        : `Freerun engine drove ${summary?.totalIterations ?? 0} iterations (final status: ${summary?.finalStatus ?? "?"}).`,
-      summary?.blockedNodeIds.length
-        ? `Blocked nodes: ${summary.blockedNodeIds.join(", ")}`
-        : "",
-      "",
-      "## ContextNode tree",
-      treeRender || "(empty)",
-      "",
-      `Inspect: \`opencode freerun-tree ${input.sessionID}\` · pause: \`opencode freerun-pause ${input.sessionID}\``,
-    ]
-      .filter(Boolean)
-      .join("\n")
-
-    // Synthesize an assistant MessageV2.WithParts and persist via Session
-    // helpers so the TUI sees it like any other assistant turn.
-    const created = Date.now()
-    const assistantInfo: MessageV2.Assistant = {
-      id: Identifier.ascending("message"),
-      role: "assistant",
-      parentID: userMessage.info.id,
-      sessionID: input.sessionID,
-      mode: userMessage.info.agent,
-      agent: userMessage.info.agent,
-      variant: userMessage.info.variant,
-      path: { cwd: Instance.directory, root: Instance.worktree },
-      cost: 0,
-      tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-      modelID: userMessage.info.model?.modelID ?? "",
-      providerId: userMessage.info.model?.providerId ?? providerId,
-      accountId: userMessage.info.model?.accountId,
-      finish: "stop",
-      time: { created, completed: created },
-    }
-    await Session.updateMessage(assistantInfo)
-    const textPart: MessageV2.TextPart = {
-      id: Identifier.ascending("part"),
-      messageID: assistantInfo.id,
-      sessionID: input.sessionID,
-      type: "text",
-      text: summaryText,
-      synthetic: true,
-      metadata: {
-        autonomousNarration: true,
-        narrationKind: "freerun" as any,
-        excludeFromModel: true,
-        freerunSummary: true,
-      } as any,
-      time: { start: created, end: created },
-    }
-    await Session.updatePart(textPart)
-
-    return { info: assistantInfo, parts: [textPart] }
+    })
   }
+
 
   export async function resolvePromptParts(template: string): Promise<PromptInput["parts"]> {
     return (await resolvePromptPartsInner(template)) as PromptInput["parts"]
@@ -1397,35 +1248,11 @@ export namespace SessionPrompt {
     const enqueueContinue = input.enqueueContinue ?? enqueueAutonomousContinue
     const nextRoundCount = input.autonomousRounds + 1
 
-    // 1.17 — freerun_iterate: drive one engine iteration directly, then let
-    // the loop's next decideAutonomousContinuation call decide whether
-    // there's more work. No synthetic user message is enqueued — the engine
-    // already pulled and wrote state via its own iterate.once + consolidate.
-    if (input.decision.reason === "freerun_iterate") {
-      try {
-        const { FreerunBridge } = await import("./freerun-bridge")
-        await FreerunBridge.drive({
-          sessionID: input.sessionID,
-          iterationCapOverride: 1,
-        })
-      } catch (err) {
-        log.warn("freerun drive failed", {
-          sessionID: input.sessionID,
-          error: err instanceof Error ? err.message : String(err),
-        })
-      }
-      return {
-        halted: false as const,
-        nextRoundCount,
-        narration: undefined,
-      }
-    }
-
     await enqueueContinue({
       sessionID: input.sessionID,
       user: input.user,
       roundCount: nextRoundCount,
-      text: (input.decision as { text?: string }).text ?? "",
+      text: input.decision.text,
     })
     return {
       halted: false as const,
