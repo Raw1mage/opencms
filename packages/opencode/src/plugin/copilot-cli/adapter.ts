@@ -294,6 +294,42 @@ async function toolsToResponses(tools: LanguageModelV2CallOptions["tools"]): Pro
 // The Adapter
 // ---------------------------------------------------------------------------
 
+/**
+ * Extract Copilot-specific options that the runtime threads in via
+ * providerOptions["copilot-cli"]. ProviderTransform.options() (transform.ts L875+)
+ * sets reasoningEffort="medium" / reasoningSummary="auto" / textVerbosity="low"
+ * for gpt-5.* models; without forwarding them onto the wire, the CAPI fell back
+ * to a weaker default (likely minimal/low) and the model emitted preamble-only
+ * turns with no tool_calls (ses_1970097b4ffeZYJnoYNxGojywm, 2026-05-28).
+ */
+function readCopilotOptions(options: LanguageModelV2CallOptions): {
+  reasoningEffort?: string
+  reasoningSummary?: string
+  textVerbosity?: string
+} {
+  const raw = (options.providerOptions?.["copilot-cli"] ?? {}) as Record<string, unknown>
+  return {
+    reasoningEffort: typeof raw.reasoningEffort === "string" ? raw.reasoningEffort : undefined,
+    reasoningSummary: typeof raw.reasoningSummary === "string" ? raw.reasoningSummary : undefined,
+    textVerbosity: typeof raw.textVerbosity === "string" ? raw.textVerbosity : undefined,
+  }
+}
+
+/** Responses API nested shape: `reasoning: { effort, summary }` — only emit when at least one field is set. */
+function buildReasoningField(opts: { reasoningEffort?: string; reasoningSummary?: string }): any {
+  if (opts.reasoningEffort == null && opts.reasoningSummary == null) return undefined
+  const r: Record<string, string> = {}
+  if (opts.reasoningEffort != null) r.effort = opts.reasoningEffort
+  if (opts.reasoningSummary != null) r.summary = opts.reasoningSummary
+  return r
+}
+
+/** Responses API verbosity sits under `text: { verbosity }`. Omit when unset. */
+function buildTextField(opts: { textVerbosity?: string }): any {
+  if (opts.textVerbosity == null) return undefined
+  return { verbosity: opts.textVerbosity }
+}
+
 export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
   return {
     specificationVersion: "v2",
@@ -304,6 +340,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
     async doGenerate(options: LanguageModelV2CallOptions) {
       const warnings: LanguageModelV2CallWarning[] = []
       const useResponses = shouldUseResponsesApi(modelId)
+      const copilotOpts = readCopilotOptions(options)
 
       if (useResponses) {
         const input = promptToResponsesInput(options.prompt)
@@ -315,7 +352,15 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
         const toolCalls: any[] = []
 
         for await (const chunk of streamResponses(
-          { model: modelId, input, tools, temperature: options.temperature ?? undefined, max_output_tokens: options.maxOutputTokens ?? undefined },
+          {
+            model: modelId,
+            input,
+            tools,
+            temperature: options.temperature ?? undefined,
+            max_output_tokens: options.maxOutputTokens ?? undefined,
+            reasoning: buildReasoningField(copilotOpts),
+            text: buildTextField(copilotOpts),
+          },
           { model: modelId },
         )) {
           if (chunk.type === "response.output_text.delta") text += chunk.delta ?? ""
@@ -344,7 +389,15 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
       const messages = promptToMessages(options.prompt)
       const tools = await toolsToCompletions(options.tools)
       const result = await callCompletions(
-        { model: modelId, messages, tools, temperature: options.temperature ?? undefined, max_tokens: options.maxOutputTokens ?? undefined },
+        {
+          model: modelId,
+          messages,
+          tools,
+          temperature: options.temperature ?? undefined,
+          max_tokens: options.maxOutputTokens ?? undefined,
+          reasoning_effort: copilotOpts.reasoningEffort,
+          verbosity: copilotOpts.textVerbosity,
+        },
         { model: modelId },
       )
 
@@ -365,6 +418,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
     async doStream(options: LanguageModelV2CallOptions) {
       const warnings: LanguageModelV2CallWarning[] = []
       const useResponses = shouldUseResponsesApi(modelId)
+      const copilotOpts = readCopilotOptions(options)
 
       // no-op (debug removed)
 
@@ -373,7 +427,15 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
         const input = promptToResponsesInput(options.prompt)
         const tools = await toolsToResponses(options.tools)
         const chunks = streamResponses(
-          { model: modelId, input, tools, temperature: options.temperature ?? undefined, max_output_tokens: options.maxOutputTokens ?? undefined },
+          {
+            model: modelId,
+            input,
+            tools,
+            temperature: options.temperature ?? undefined,
+            max_output_tokens: options.maxOutputTokens ?? undefined,
+            reasoning: buildReasoningField(copilotOpts),
+            text: buildTextField(copilotOpts),
+          },
           { model: modelId },
         )
 
@@ -466,7 +528,15 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
       const messages = promptToMessages(options.prompt)
       const tools = await toolsToCompletions(options.tools)
       const chunks = streamCompletions(
-        { model: modelId, messages, tools, temperature: options.temperature ?? undefined, max_tokens: options.maxOutputTokens ?? undefined },
+        {
+          model: modelId,
+          messages,
+          tools,
+          temperature: options.temperature ?? undefined,
+          max_tokens: options.maxOutputTokens ?? undefined,
+          reasoning_effort: copilotOpts.reasoningEffort,
+          verbosity: copilotOpts.textVerbosity,
+        },
         { model: modelId },
       )
 
