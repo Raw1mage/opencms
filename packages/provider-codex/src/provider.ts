@@ -403,10 +403,18 @@ class CodexLanguageModel implements LanguageModelV2 {
       body: JSON.stringify(body),
       signal: callOptions.abortSignal,
     }).catch((err) => {
-      console.error(`[CODEX-ENTRY] http_fallback:fetch_err session=${wsSessionId} elapsedMs=${Date.now() - _httpStart} errName=${(err as any)?.name} errMsg=${(err as any)?.message}`)
+      const sig = callOptions.abortSignal as { reason?: { message?: string; name?: string } } | undefined
+      const abortReason = sig?.reason?.message ?? sig?.reason?.name ?? "none"
+      console.error(`[CODEX-ENTRY] http_fallback:fetch_err session=${wsSessionId} elapsedMs=${Date.now() - _httpStart} errName=${(err as any)?.name} errMsg=${(err as any)?.message} abortReason=${abortReason}`)
       throw err
     })
-    console.error(`[CODEX-ENTRY] http_fallback:after_fetch session=${wsSessionId} elapsedMs=${Date.now() - _httpStart} status=${response.status}`)
+    // Headers-on-response observability for first-chunk hang RCA. After-fetch
+    // means TCP+TLS+HTTP handshake completed and codex returned response head;
+    // a hang past this point means body bytes never streamed.
+    const xRequestId = response.headers.get("x-request-id") ?? "none"
+    const xCodexTurn = response.headers.get("x-codex-turn-state") ?? "none"
+    const ctype = response.headers.get("content-type") ?? "none"
+    console.error(`[CODEX-ENTRY] http_fallback:after_fetch session=${wsSessionId} elapsedMs=${Date.now() - _httpStart} status=${response.status} xRequestId=${xRequestId} turnState=${xCodexTurn} contentType=${ctype}`)
 
     // Capture turn state from response
     const newTurnState = response.headers.get("x-codex-turn-state")
@@ -438,8 +446,26 @@ class CodexLanguageModel implements LanguageModelV2 {
       throw new Error("Codex API returned no response body")
     }
 
+    // First-body-byte tap. Pairs with the llm.ts first-chunk watchdog to
+    // RCA the "codex returned 200 + headers but body never streamed" hang.
+    // If after_fetch logs but first_body_byte does not before abort, upstream
+    // truly sent zero body bytes — distinct from SSE-parsed-but-no-events.
+    let firstByteAt: number | null = null
+    const bodyTap = new TransformStream<Uint8Array, Uint8Array>({
+      transform: (chunk, controller) => {
+        if (firstByteAt === null) {
+          firstByteAt = Date.now()
+          console.error(
+            `[CODEX-ENTRY] http_fallback:first_body_byte session=${wsSessionId} elapsedMs=${firstByteAt - _httpStart} bytes=${chunk.byteLength} xRequestId=${xRequestId}`,
+          )
+        }
+        controller.enqueue(chunk)
+      },
+    })
+    const tappedBody = response.body.pipeThrough(bodyTap)
+
     // Parse SSE → events → LMv2 stream
-    const sseEvents = parseSSEStream(response.body)
+    const sseEvents = parseSSEStream(tappedBody)
     const { stream, responseIdPromise } = mapResponseStream(sseEvents, { logContext })
     responseIdPromise.then((id) => {
       if (id) (this as any)._lastResponseId = id
