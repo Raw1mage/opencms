@@ -328,6 +328,46 @@ export const SessionRoutes = lazy(() =>
       },
     )
     .get(
+      "/active-child",
+      describeRoute({
+        summary: "Get active child sessions",
+        description:
+          "Retrieve the currently dispatched fire-and-forget child agents, keyed by parent session ID. Used by the frontend to rehydrate the active-child dock indicator after a web reload (the in-memory `session.active-child.updated` event is event-driven only and is lost across page loads).",
+        operationId: "session.activeChild",
+        responses: {
+          200: {
+            description: "Active child snapshot",
+            content: {
+              "application/json": {
+                schema: resolver(z.record(z.string(), z.unknown())),
+              },
+            },
+          },
+          ...errors(400),
+        },
+      }),
+      async (c) => {
+        const username = RequestUser.username()
+        if (username && UserDaemonManager.routeSessionActiveChildEnabled()) {
+          const response = await UserDaemonManager.callSessionActiveChild<Record<string, unknown>>(username)
+          if (response.ok && response.data && typeof response.data === "object") {
+            return c.json(response.data)
+          }
+          return c.json(
+            {
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok
+                ? "daemon session.active-child payload is not an object"
+                : response.error.message,
+            },
+            503,
+          )
+        }
+        const { SessionActiveChild } = await import("@/tool/task")
+        return c.json(SessionActiveChild.list())
+      },
+    )
+    .get(
       "/top",
       describeRoute({
         summary: "Get session monitor snapshot",

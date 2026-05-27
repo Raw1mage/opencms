@@ -4511,6 +4511,48 @@
         }
       }
     },
+    "/api/v2/session/active-child": {
+      "get": {
+        "operationId": "session.activeChild",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Get active child sessions",
+        "description": "Retrieve the currently dispatched fire-and-forget child agents, keyed by parent session ID. Used by the frontend to rehydrate the active-child dock indicator after a web reload (the in-memory `session.active-child.updated` event is event-driven only and is lost across page loads).",
+        "responses": {
+          "200": {
+            "description": "Active child snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/session/top": {
       "get": {
         "operationId": "session.top",
@@ -19253,11 +19295,22 @@
                           "alive": {
                             "type": "boolean"
                           },
+                          "type": {
+                            "default": "tcp",
+                            "type": "string",
+                            "enum": [
+                              "tcp",
+                              "uds"
+                            ]
+                          },
                           "host": {
                             "type": "string"
                           },
                           "port": {
                             "type": "number"
+                          },
+                          "socketPath": {
+                            "type": "string"
                           },
                           "webctlPath": {
                             "type": "string"
@@ -19265,8 +19318,6 @@
                         },
                         "required": [
                           "alive",
-                          "host",
-                          "port",
                           "webctlPath"
                         ]
                       }
@@ -19338,7 +19389,8 @@
                     "type": "string",
                     "enum": [
                       "start",
-                      "stop"
+                      "stop",
+                      "restart"
                     ]
                   }
                 },
@@ -25871,6 +25923,48 @@
                   "additionalProperties": {
                     "$ref": "#/components/schemas/SessionStatus"
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/session/active-child": {
+      "get": {
+        "operationId": "session.activeChild",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Get active child sessions",
+        "description": "Retrieve the currently dispatched fire-and-forget child agents, keyed by parent session ID. Used by the frontend to rehydrate the active-child dock indicator after a web reload (the in-memory `session.active-child.updated` event is event-driven only and is lost across page loads).",
+        "responses": {
+          "200": {
+            "description": "Active child snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
                 }
               }
             }
@@ -40630,11 +40724,22 @@
                           "alive": {
                             "type": "boolean"
                           },
+                          "type": {
+                            "default": "tcp",
+                            "type": "string",
+                            "enum": [
+                              "tcp",
+                              "uds"
+                            ]
+                          },
                           "host": {
                             "type": "string"
                           },
                           "port": {
                             "type": "number"
+                          },
+                          "socketPath": {
+                            "type": "string"
                           },
                           "webctlPath": {
                             "type": "string"
@@ -40642,8 +40747,6 @@
                         },
                         "required": [
                           "alive",
-                          "host",
-                          "port",
                           "webctlPath"
                         ]
                       }
@@ -40715,7 +40818,8 @@
                     "type": "string",
                     "enum": [
                       "start",
-                      "stop"
+                      "stop",
+                      "restart"
                     ]
                   }
                 },
@@ -43942,6 +44046,50 @@
           "data"
         ]
       },
+      "UpstreamIdleClose": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "const": "UpstreamIdleClose"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "providerId": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "fetch-timeout",
+                  "first-chunk",
+                  "stream-idle"
+                ]
+              },
+              "elapsedMs": {
+                "type": "number"
+              },
+              "isRetryable": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "message",
+              "providerId",
+              "source",
+              "isRetryable"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "data"
+        ]
+      },
       "AssistantMessage": {
         "type": "object",
         "properties": {
@@ -43994,6 +44142,9 @@
               },
               {
                 "$ref": "#/components/schemas/ParalysisDetectedError"
+              },
+              {
+                "$ref": "#/components/schemas/UpstreamIdleClose"
               }
             ]
           },
@@ -47466,7 +47617,7 @@
           },
           "id": {
             "description": "Unique identifier for the todo item (auto-generated if omitted)",
-            "default": "todo_mpm4g8om_7tqazi",
+            "default": "todo_mpoadejq_h747xi",
             "type": "string"
           },
           "action": {
@@ -48016,6 +48167,1240 @@
             "required": [
               "parentSessionID",
               "activeChild"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.session.started": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.session.started"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "triggerMode": {
+                "type": "string",
+                "enum": [
+                  "cron",
+                  "watchdog",
+                  "goal"
+                ]
+              },
+              "providerID": {
+                "type": "string"
+              },
+              "userID": {
+                "type": "string"
+              },
+              "rootNodeID": {
+                "type": "string"
+              },
+              "experimentConfigID": {
+                "type": "string"
+              },
+              "protocolVersion": {
+                "type": "string",
+                "const": "v0"
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "triggerMode",
+              "providerID",
+              "userID",
+              "rootNodeID",
+              "experimentConfigID",
+              "protocolVersion",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.session.paused": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.session.paused"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "atIteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "by": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "atIteration",
+              "by",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.session.resumed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.session.resumed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "atIteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "atIteration",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.session.terminated": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.session.terminated"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "finalStatus": {
+                "type": "string",
+                "enum": [
+                  "in_progress",
+                  "done",
+                  "blocked",
+                  "cap_reached",
+                  "paused",
+                  "user_interrupted",
+                  "error"
+                ]
+              },
+              "totalIterations": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "pathMetricsSummary": {},
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "finalStatus",
+              "totalIterations",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.session.refused": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.session.refused"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "providerID": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "providerID",
+              "reason",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.iteration.start": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.iteration.start"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "nodeID": {
+                "type": "string"
+              },
+              "nodeMode": {
+                "type": "string",
+                "enum": [
+                  "pending-plan",
+                  "pending-exec",
+                  "doing",
+                  "decomposed",
+                  "done",
+                  "blocked"
+                ]
+              },
+              "depth": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "pickedByPolicyReason": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "nodeID",
+              "nodeMode",
+              "depth",
+              "pickedByPolicyReason",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.iteration.workingSetAssembled": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.iteration.workingSetAssembled"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "navBandTokens": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "currentDetailTokens": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalTokens": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "sectionsPresent": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "navBandTokens",
+              "currentDetailTokens",
+              "totalTokens",
+              "sectionsPresent",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.iteration.promptBuilt": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.iteration.promptBuilt"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "schemaName": {
+                "type": "string"
+              },
+              "schemaSizeBytes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "messagesLength": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "schemaName",
+              "schemaSizeBytes",
+              "messagesLength",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.iteration.completed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.iteration.completed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "nodeID": {
+                "type": "string"
+              },
+              "latencyMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "tokensIn": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "tokensOut": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "finishReason": {
+                "type": "string"
+              },
+              "validationResult": {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "retry-succeeded",
+                  "blocked"
+                ]
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "nodeID",
+              "latencyMs",
+              "validationResult",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.iteration.halted": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.iteration.halted"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "nodeID": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "errors": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "reason",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.llm.requestSent": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.llm.requestSent"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "nodeID": {
+                "type": "string"
+              },
+              "nodeMode": {
+                "type": "string",
+                "enum": [
+                  "pending-plan",
+                  "pending-exec",
+                  "doing",
+                  "decomposed",
+                  "done",
+                  "blocked"
+                ]
+              },
+              "modelID": {
+                "type": "string"
+              },
+              "requestBodyHash": {
+                "type": "string"
+              },
+              "headersHash": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "nodeID",
+              "nodeMode",
+              "modelID",
+              "requestBodyHash",
+              "headersHash",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.llm.responseReceived": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.llm.responseReceived"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "latencyMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "tokensIn": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "tokensOut": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "schemaValidationResult": {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "fail",
+                  "skipped"
+                ]
+              },
+              "finishReason": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "latencyMs",
+              "schemaValidationResult",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.llm.validationRetry": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.llm.validationRetry"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "attemptNumber": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "validationErrors": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "attemptNumber",
+              "validationErrors",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.decision.emitted": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.decision.emitted"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "nodeID": {
+                "type": "string"
+              },
+              "decisionID": {
+                "type": "string"
+              },
+              "decisionText": {
+                "type": "string"
+              },
+              "rationale": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "nodeID",
+              "decisionID",
+              "decisionText",
+              "rationale",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.children.planned": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.children.planned"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "parentNodeID": {
+                "type": "string"
+              },
+              "childIDs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "childTitles": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "parentNodeID",
+              "childIDs",
+              "childTitles",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.observation.recorded": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.observation.recorded"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "nodeID": {
+                "type": "string"
+              },
+              "observationText": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "nodeID",
+              "observationText",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.tool.invoked": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.tool.invoked"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "nodeID": {
+                "type": "string"
+              },
+              "toolName": {
+                "type": "string"
+              },
+              "args": {},
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "nodeID",
+              "toolName",
+              "args",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.tool.completed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.tool.completed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "nodeID": {
+                "type": "string"
+              },
+              "toolName": {
+                "type": "string"
+              },
+              "latencyMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "success": {
+                "type": "boolean"
+              },
+              "resultExcerpt": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "nodeID",
+              "toolName",
+              "latencyMs",
+              "success",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.skill.triggered": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.skill.triggered"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "nodeID": {
+                "type": "string"
+              },
+              "skillName": {
+                "type": "string"
+              },
+              "triggerPatternMatch": {
+                "type": "string"
+              },
+              "usedInIteration": {
+                "type": "boolean"
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "nodeID",
+              "skillName",
+              "triggerPatternMatch",
+              "usedInIteration",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.node.stateTransition": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.node.stateTransition"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "nodeID": {
+                "type": "string"
+              },
+              "fromMode": {
+                "type": "string",
+                "enum": [
+                  "pending-plan",
+                  "pending-exec",
+                  "doing",
+                  "decomposed",
+                  "done",
+                  "blocked"
+                ]
+              },
+              "toMode": {
+                "type": "string",
+                "enum": [
+                  "pending-plan",
+                  "pending-exec",
+                  "doing",
+                  "decomposed",
+                  "done",
+                  "blocked"
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "nodeID",
+              "fromMode",
+              "toMode",
+              "reason",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.blocker.raised": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.blocker.raised"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "nodeID": {
+                "type": "string"
+              },
+              "blockerText": {
+                "type": "string"
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "soft",
+                  "hard"
+                ]
+              },
+              "firstSeen": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "nodeID",
+              "blockerText",
+              "severity",
+              "firstSeen",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.blocker.resolved": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.blocker.resolved"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "nodeID": {
+                "type": "string"
+              },
+              "blockerText": {
+                "type": "string"
+              },
+              "resolvedByNodeID": {
+                "type": "string"
+              },
+              "resolutionAction": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "nodeID",
+              "blockerText",
+              "resolvedByNodeID",
+              "resolutionAction",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.replan.triggered": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.replan.triggered"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "nodeID": {
+                "type": "string"
+              },
+              "triggerReason": {
+                "type": "string"
+              },
+              "invalidatedAssumptions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "iteration",
+              "nodeID",
+              "triggerReason",
+              "invalidatedAssumptions",
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.freerun.consolidation.performed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "freerun.consolidation.performed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "iteration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "parentNodeID": {
+                "type": "string"
+              },
+              "childrenArchived": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "summaryTokens": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "archivePath": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionID",
+              "parentNodeID",
+              "childrenArchived",
+              "summaryTokens",
+              "archivePath",
+              "at"
             ]
           }
         },
@@ -48815,6 +50200,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/ParalysisDetectedError"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpstreamIdleClose"
                   }
                 ]
               }
@@ -50798,6 +52186,78 @@
             "$ref": "#/components/schemas/Event.session.active-child.updated"
           },
           {
+            "$ref": "#/components/schemas/Event.freerun.session.started"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.session.paused"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.session.resumed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.session.terminated"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.session.refused"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.iteration.start"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.iteration.workingSetAssembled"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.iteration.promptBuilt"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.iteration.completed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.iteration.halted"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.llm.requestSent"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.llm.responseReceived"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.llm.validationRetry"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.decision.emitted"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.children.planned"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.observation.recorded"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.tool.invoked"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.tool.completed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.skill.triggered"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.node.stateTransition"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.blocker.raised"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.blocker.resolved"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.replan.triggered"
+          },
+          {
+            "$ref": "#/components/schemas/Event.freerun.consolidation.performed"
+          },
+          {
             "$ref": "#/components/schemas/Event.ratelimit.detected"
           },
           {
@@ -51865,8 +53325,17 @@
             "type": "boolean"
           },
           "lite": {
-            "description": "Lite mode for small local models. Bypasses tool calls, MCP, agents, enablement, and heavy system prompts. Only injects a minimal system prompt suitable for simple Q&A tasks.",
+            "description": "[DEPRECATED — use `mode: 'lite'` instead] Lite mode for small local models. Bypasses tool calls, MCP, agents, enablement, and heavy system prompts. When `mode` is unset, lite=true is interpreted as mode='lite' for backward compatibility.",
             "type": "boolean"
+          },
+          "mode": {
+            "description": "Prompt injection mode for this provider. 'full' (default): standard prompt + skills + tools + context. 'lite': basic system prompt only (suitable for small local models). 'freerun': per-iteration ContextNode rendering for stateless autonomous research mode (harness/freerun-mode). Sessions on this provider start in the declared mode by default; slash command `/freerun on|off` can override per-session.",
+            "type": "string",
+            "enum": [
+              "full",
+              "lite",
+              "freerun"
+            ]
           },
           "whitelist": {
             "type": "array",

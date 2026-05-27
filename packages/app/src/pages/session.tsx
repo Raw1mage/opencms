@@ -829,6 +829,19 @@ export default function Page() {
       for (const [sid, status] of Object.entries(x.data)) stamped[sid] = { ...status, receivedAt: now }
       ;(sync.set as any)("session_status", stamped)
     }).catch(() => {})
+    // Re-fetch active_child for the same reason: events emitted while SSE was
+    // dead never reach the reducer, leaving the active-child dock indicator
+    // empty until the subagent terminates and publishes the cleanup event.
+    sdk.client.session.activeChild().then((x) => {
+      if (!x.data) return
+      const now = Date.now()
+      const stamped: Record<string, any> = {}
+      for (const [parentID, child] of Object.entries(x.data)) {
+        if (!child || typeof child !== "object") continue
+        stamped[parentID] = { ...child, receivedAt: now }
+      }
+      ;(sync.set as any)("active_child", stamped)
+    }).catch(() => {})
     // Force-reload messages so the user sees the current conversation
     // state, not stale data from before SSE died. SSE reconnect means
     // events were missed — the only way to recover is a full pull.

@@ -14,7 +14,7 @@ import { retry } from "@opencode-ai/util/retry"
 import { getFilename } from "@opencode-ai/util/path"
 import { showToast } from "@opencode-ai/ui/toast"
 import { cmp, normalizeProviderList } from "./utils"
-import type { State, StoreSessionStatusEntry, VcsCache } from "./types"
+import type { State, StoreActiveChildEntry, StoreSessionStatusEntry, VcsCache } from "./types"
 import { formatServerError } from "@/utils/server-errors"
 
 const SILENT_SENTINEL = "__OPENCODE_SILENT_UNAUTHORIZED__"
@@ -276,6 +276,20 @@ export async function bootstrapDirectory(input: {
       const stamped: Record<string, StoreSessionStatusEntry> = {}
       for (const [sid, status] of Object.entries(x.data!)) stamped[sid] = { ...status, receivedAt: now }
       input.setStore("session_status", stamped)
+    }),
+    input.sdk.session.activeChild().then((x) => {
+      // Bug fix: SessionActiveChild was previously event-only (session.active-child.updated),
+      // so a web reload lost the active-child dock indicator until the subagent finished.
+      // Bootstrap now hydrates from the daemon's in-memory state.
+      const now = Date.now()
+      const stamped: Record<string, StoreActiveChildEntry> = {}
+      for (const [parentID, child] of Object.entries(x.data ?? {})) {
+        if (!child || typeof child !== "object") continue
+        stamped[parentID] = { ...(child as Omit<StoreActiveChildEntry, "receivedAt">), receivedAt: now }
+      }
+      input.setStore("active_child", stamped)
+    }).catch(() => {
+      // Endpoint may not exist on older daemons — don't break bootstrap.
     }),
     input.loadSessions(input.directory),
     input.sdk.mcp.status().then((x) => input.setStore("mcp", x.data!)),

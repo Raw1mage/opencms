@@ -306,21 +306,21 @@ const TaskActiveChildTodoSchema = z.object({
   action: Todo.Info.shape.action.optional(),
 })
 
+export const SessionActiveChildStateSchema = z.object({
+  sessionID: Identifier.schema("session"),
+  parentMessageID: Identifier.schema("message"),
+  toolCallID: z.string(),
+  workerID: z.string(),
+  title: z.string(),
+  agent: z.string(),
+  status: z.enum(["running", "handoff"]),
+  dispatchedAt: z.number().optional(),
+  todo: TaskActiveChildTodoSchema.optional(),
+})
+
 const SessionActiveChildPayloadSchema = z.object({
   parentSessionID: Identifier.schema("session"),
-  activeChild: z
-    .object({
-      sessionID: Identifier.schema("session"),
-      parentMessageID: Identifier.schema("message"),
-      toolCallID: z.string(),
-      workerID: z.string(),
-      title: z.string(),
-      agent: z.string(),
-      status: z.enum(["running", "handoff"]),
-      dispatchedAt: z.number().optional(),
-      todo: TaskActiveChildTodoSchema.optional(),
-    })
-    .nullable(),
+  activeChild: SessionActiveChildStateSchema.nullable(),
 })
 
 export const SessionActiveChildEvent = BusEvent.define("session.active-child.updated", SessionActiveChildPayloadSchema)
@@ -478,6 +478,15 @@ function activeChildState() {
 export namespace SessionActiveChild {
   export function get(parentSessionID: string) {
     return activeChildState()[parentSessionID]
+  }
+
+  export function list(): Record<string, SessionActiveChildState> {
+    const state = activeChildState()
+    const out: Record<string, SessionActiveChildState> = {}
+    for (const [parentID, value] of Object.entries(state)) {
+      if (value) out[parentID] = value
+    }
+    return out
   }
 
   export async function set(parentSessionID: string, activeChild: SessionActiveChildState | null) {

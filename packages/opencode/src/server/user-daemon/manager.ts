@@ -100,6 +100,14 @@ export namespace UserDaemonManager {
     return enabled() && process.env.OPENCODE_PER_USER_DAEMON_ROUTE_SESSION_STATUS === "1"
   }
 
+  // Active-child rehydration follows the same per-user routing as session.status
+  // because both serve the bootstrap path that recovers daemon in-memory state
+  // after a frontend reload. Gated by the same env flag to avoid splitting
+  // operational toggles for a single hydration surface.
+  export function routeSessionActiveChildEnabled() {
+    return routeSessionStatusEnabled()
+  }
+
   export function routeSessionReadEnabled() {
     return enabled() && process.env.OPENCODE_PER_USER_DAEMON_ROUTE_SESSION_READ === "1"
   }
@@ -729,6 +737,35 @@ export namespace UserDaemonManager {
       entry,
       method: "GET",
       path: "/session/status",
+    })
+  }
+
+  export async function callSessionActiveChild<T>(username: string) {
+    observe(username)
+    const safe = LinuxUserExec.sanitizeUsername(username)
+    if (!safe) {
+      return {
+        ok: false,
+        error: {
+          code: "DAEMON_INVALID_USER",
+          message: "invalid username",
+        },
+      } satisfies DaemonCallResult<T>
+    }
+    const entry = daemons.get(safe)
+    if (!entry) {
+      return {
+        ok: false,
+        error: {
+          code: "DAEMON_NOT_OBSERVED",
+          message: "daemon not observed",
+        },
+      } satisfies DaemonCallResult<T>
+    }
+    return callJSON<T>({
+      entry,
+      method: "GET",
+      path: "/session/active-child",
     })
   }
 

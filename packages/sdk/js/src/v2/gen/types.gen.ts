@@ -348,6 +348,17 @@ export type ParalysisDetectedError = {
   }
 }
 
+export type UpstreamIdleClose = {
+  name: "UpstreamIdleClose"
+  data: {
+    message: string
+    providerId: string
+    source: "fetch-timeout" | "first-chunk" | "stream-idle"
+    elapsedMs?: number
+    isRetryable: boolean
+  }
+}
+
 export type AssistantMessage = {
   id: string
   sessionID: string
@@ -365,6 +376,7 @@ export type AssistantMessage = {
     | ContextOverflowError
     | ApiError
     | ParalysisDetectedError
+    | UpstreamIdleClose
   parentID: string
   modelID: string
   providerId: string
@@ -1499,6 +1511,303 @@ export type EventSessionActiveChildUpdated = {
   }
 }
 
+export type EventFreerunSessionStarted = {
+  type: "freerun.session.started"
+  properties: {
+    sessionID: string
+    triggerMode: "cron" | "watchdog" | "goal"
+    providerID: string
+    userID: string
+    rootNodeID: string
+    experimentConfigID: string
+    protocolVersion: "v0"
+    at: string
+  }
+}
+
+export type EventFreerunSessionPaused = {
+  type: "freerun.session.paused"
+  properties: {
+    sessionID: string
+    atIteration: number
+    by: string
+    at: string
+  }
+}
+
+export type EventFreerunSessionResumed = {
+  type: "freerun.session.resumed"
+  properties: {
+    sessionID: string
+    atIteration: number
+    at: string
+  }
+}
+
+export type EventFreerunSessionTerminated = {
+  type: "freerun.session.terminated"
+  properties: {
+    sessionID: string
+    finalStatus: "in_progress" | "done" | "blocked" | "cap_reached" | "paused" | "user_interrupted" | "error"
+    totalIterations: number
+    pathMetricsSummary?: unknown
+    at: string
+  }
+}
+
+export type EventFreerunSessionRefused = {
+  type: "freerun.session.refused"
+  properties: {
+    sessionID: string
+    providerID: string
+    reason: string
+    at: string
+  }
+}
+
+export type EventFreerunIterationStart = {
+  type: "freerun.iteration.start"
+  properties: {
+    sessionID: string
+    iteration: number
+    nodeID: string
+    nodeMode: "pending-plan" | "pending-exec" | "doing" | "decomposed" | "done" | "blocked"
+    depth: number
+    pickedByPolicyReason: string
+    at: string
+  }
+}
+
+export type EventFreerunIterationWorkingSetAssembled = {
+  type: "freerun.iteration.workingSetAssembled"
+  properties: {
+    sessionID: string
+    iteration: number
+    navBandTokens: number
+    currentDetailTokens: number
+    totalTokens: number
+    sectionsPresent: Array<string>
+    at: string
+  }
+}
+
+export type EventFreerunIterationPromptBuilt = {
+  type: "freerun.iteration.promptBuilt"
+  properties: {
+    sessionID: string
+    iteration: number
+    schemaName: string
+    schemaSizeBytes: number
+    messagesLength: number
+    at: string
+  }
+}
+
+export type EventFreerunIterationCompleted = {
+  type: "freerun.iteration.completed"
+  properties: {
+    sessionID: string
+    iteration: number
+    nodeID: string
+    latencyMs: number
+    tokensIn?: number
+    tokensOut?: number
+    finishReason?: string
+    validationResult: "ok" | "retry-succeeded" | "blocked"
+    at: string
+  }
+}
+
+export type EventFreerunIterationHalted = {
+  type: "freerun.iteration.halted"
+  properties: {
+    sessionID: string
+    iteration: number
+    nodeID?: string
+    reason: string
+    errors?: Array<string>
+    at: string
+  }
+}
+
+export type EventFreerunLlmRequestSent = {
+  type: "freerun.llm.requestSent"
+  properties: {
+    sessionID: string
+    iteration: number
+    nodeID: string
+    nodeMode: "pending-plan" | "pending-exec" | "doing" | "decomposed" | "done" | "blocked"
+    modelID: string
+    requestBodyHash: string
+    headersHash: string
+    at: string
+  }
+}
+
+export type EventFreerunLlmResponseReceived = {
+  type: "freerun.llm.responseReceived"
+  properties: {
+    sessionID: string
+    iteration: number
+    latencyMs: number
+    tokensIn?: number
+    tokensOut?: number
+    schemaValidationResult: "ok" | "fail" | "skipped"
+    finishReason?: string
+    at: string
+  }
+}
+
+export type EventFreerunLlmValidationRetry = {
+  type: "freerun.llm.validationRetry"
+  properties: {
+    sessionID: string
+    iteration: number
+    attemptNumber: number
+    validationErrors: Array<string>
+    at: string
+  }
+}
+
+export type EventFreerunDecisionEmitted = {
+  type: "freerun.decision.emitted"
+  properties: {
+    sessionID: string
+    iteration: number
+    nodeID: string
+    decisionID: string
+    decisionText: string
+    rationale: string
+    at: string
+  }
+}
+
+export type EventFreerunChildrenPlanned = {
+  type: "freerun.children.planned"
+  properties: {
+    sessionID: string
+    iteration: number
+    parentNodeID: string
+    childIDs: Array<string>
+    childTitles: Array<string>
+    at: string
+  }
+}
+
+export type EventFreerunObservationRecorded = {
+  type: "freerun.observation.recorded"
+  properties: {
+    sessionID: string
+    iteration: number
+    nodeID: string
+    observationText: string
+    at: string
+  }
+}
+
+export type EventFreerunToolInvoked = {
+  type: "freerun.tool.invoked"
+  properties: {
+    sessionID: string
+    iteration: number
+    nodeID: string
+    toolName: string
+    args: unknown
+    at: string
+  }
+}
+
+export type EventFreerunToolCompleted = {
+  type: "freerun.tool.completed"
+  properties: {
+    sessionID: string
+    iteration: number
+    nodeID: string
+    toolName: string
+    latencyMs: number
+    success: boolean
+    resultExcerpt?: string
+    at: string
+  }
+}
+
+export type EventFreerunSkillTriggered = {
+  type: "freerun.skill.triggered"
+  properties: {
+    sessionID: string
+    iteration: number
+    nodeID: string
+    skillName: string
+    triggerPatternMatch: string
+    usedInIteration: boolean
+    at: string
+  }
+}
+
+export type EventFreerunNodeStateTransition = {
+  type: "freerun.node.stateTransition"
+  properties: {
+    sessionID: string
+    iteration: number
+    nodeID: string
+    fromMode: "pending-plan" | "pending-exec" | "doing" | "decomposed" | "done" | "blocked"
+    toMode: "pending-plan" | "pending-exec" | "doing" | "decomposed" | "done" | "blocked"
+    reason: string
+    at: string
+  }
+}
+
+export type EventFreerunBlockerRaised = {
+  type: "freerun.blocker.raised"
+  properties: {
+    sessionID: string
+    iteration: number
+    nodeID: string
+    blockerText: string
+    severity: "soft" | "hard"
+    firstSeen: string
+    at: string
+  }
+}
+
+export type EventFreerunBlockerResolved = {
+  type: "freerun.blocker.resolved"
+  properties: {
+    sessionID: string
+    iteration: number
+    nodeID: string
+    blockerText: string
+    resolvedByNodeID: string
+    resolutionAction: string
+    at: string
+  }
+}
+
+export type EventFreerunReplanTriggered = {
+  type: "freerun.replan.triggered"
+  properties: {
+    sessionID: string
+    iteration: number
+    nodeID: string
+    triggerReason: string
+    invalidatedAssumptions: Array<string>
+    at: string
+  }
+}
+
+export type EventFreerunConsolidationPerformed = {
+  type: "freerun.consolidation.performed"
+  properties: {
+    sessionID: string
+    iteration?: number
+    parentNodeID: string
+    childrenArchived: Array<string>
+    summaryTokens: number
+    archivePath: string
+    at: string
+  }
+}
+
 export type EventRatelimitDetected = {
   type: "ratelimit.detected"
   properties: {
@@ -1709,6 +2018,7 @@ export type EventSessionError = {
       | ContextOverflowError
       | ApiError
       | ParalysisDetectedError
+      | UpstreamIdleClose
   }
 }
 
@@ -2149,6 +2459,30 @@ export type Event =
   | EventTaskWorkerOrphanRecovered
   | EventTaskCompleted
   | EventSessionActiveChildUpdated
+  | EventFreerunSessionStarted
+  | EventFreerunSessionPaused
+  | EventFreerunSessionResumed
+  | EventFreerunSessionTerminated
+  | EventFreerunSessionRefused
+  | EventFreerunIterationStart
+  | EventFreerunIterationWorkingSetAssembled
+  | EventFreerunIterationPromptBuilt
+  | EventFreerunIterationCompleted
+  | EventFreerunIterationHalted
+  | EventFreerunLlmRequestSent
+  | EventFreerunLlmResponseReceived
+  | EventFreerunLlmValidationRetry
+  | EventFreerunDecisionEmitted
+  | EventFreerunChildrenPlanned
+  | EventFreerunObservationRecorded
+  | EventFreerunToolInvoked
+  | EventFreerunToolCompleted
+  | EventFreerunSkillTriggered
+  | EventFreerunNodeStateTransition
+  | EventFreerunBlockerRaised
+  | EventFreerunBlockerResolved
+  | EventFreerunReplanTriggered
+  | EventFreerunConsolidationPerformed
   | EventRatelimitDetected
   | EventRatelimitCleared
   | EventRatelimitAuthFailed
@@ -2776,9 +3110,13 @@ export type ProviderConfig = {
    */
   freeToUse?: boolean
   /**
-   * Lite mode for small local models. Bypasses tool calls, MCP, agents, enablement, and heavy system prompts. Only injects a minimal system prompt suitable for simple Q&A tasks.
+   * [DEPRECATED — use `mode: 'lite'` instead] Lite mode for small local models. Bypasses tool calls, MCP, agents, enablement, and heavy system prompts. When `mode` is unset, lite=true is interpreted as mode='lite' for backward compatibility.
    */
   lite?: boolean
+  /**
+   * Prompt injection mode for this provider. 'full' (default): standard prompt + skills + tools + context. 'lite': basic system prompt only (suitable for small local models). 'freerun': per-iteration ContextNode rendering for stateless autonomous research mode (harness/freerun-mode). Sessions on this provider start in the declared mode by default; slash command `/freerun on|off` can override per-session.
+   */
+  mode?: "full" | "lite" | "freerun"
   whitelist?: Array<string>
   blacklist?: Array<string>
   options?: {
@@ -5617,6 +5955,35 @@ export type SessionStatusResponses = {
 }
 
 export type SessionStatusResponse = SessionStatusResponses[keyof SessionStatusResponses]
+
+export type SessionActiveChildData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/session/active-child"
+}
+
+export type SessionActiveChildErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type SessionActiveChildError = SessionActiveChildErrors[keyof SessionActiveChildErrors]
+
+export type SessionActiveChildResponses = {
+  /**
+   * Active child snapshot
+   */
+  200: {
+    [key: string]: unknown
+  }
+}
+
+export type SessionActiveChildResponse = SessionActiveChildResponses[keyof SessionActiveChildResponses]
 
 export type SessionTopData = {
   body?: never
@@ -11104,8 +11471,10 @@ export type WebRouteHealthResponses = {
     status: {
       [key: string]: {
         alive: boolean
-        host: string
-        port: number
+        type?: "tcp" | "uds"
+        host?: string
+        port?: number
+        socketPath?: string
         webctlPath: string
       }
     }
@@ -11117,7 +11486,7 @@ export type WebRouteHealthResponse = WebRouteHealthResponses[keyof WebRouteHealt
 export type WebRouteToggleData = {
   body: {
     entryName: string
-    action: "start" | "stop"
+    action: "start" | "stop" | "restart"
   }
   path?: never
   query?: {
@@ -13781,6 +14150,35 @@ export type SessionStatus2Responses = {
 }
 
 export type SessionStatus2Response = SessionStatus2Responses[keyof SessionStatus2Responses]
+
+export type SessionActiveChild2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/session/active-child"
+}
+
+export type SessionActiveChild2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type SessionActiveChild2Error = SessionActiveChild2Errors[keyof SessionActiveChild2Errors]
+
+export type SessionActiveChild2Responses = {
+  /**
+   * Active child snapshot
+   */
+  200: {
+    [key: string]: unknown
+  }
+}
+
+export type SessionActiveChild2Response = SessionActiveChild2Responses[keyof SessionActiveChild2Responses]
 
 export type SessionTop2Data = {
   body?: never
@@ -19270,8 +19668,10 @@ export type WebRouteHealth2Responses = {
     status: {
       [key: string]: {
         alive: boolean
-        host: string
-        port: number
+        type?: "tcp" | "uds"
+        host?: string
+        port?: number
+        socketPath?: string
         webctlPath: string
       }
     }
@@ -19283,7 +19683,7 @@ export type WebRouteHealth2Response = WebRouteHealth2Responses[keyof WebRouteHea
 export type WebRouteToggle2Data = {
   body: {
     entryName: string
-    action: "start" | "stop"
+    action: "start" | "stop" | "restart"
   }
   path?: never
   query?: {

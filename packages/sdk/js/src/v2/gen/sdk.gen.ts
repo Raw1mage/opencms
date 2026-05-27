@@ -411,6 +411,10 @@ import type {
   SessionAbortAllResponses,
   SessionAbortErrors,
   SessionAbortResponses,
+  SessionActiveChild2Errors,
+  SessionActiveChild2Responses,
+  SessionActiveChildErrors,
+  SessionActiveChildResponses,
   SessionAutonomous2Errors,
   SessionAutonomous2Responses,
   SessionAutonomousErrors,
@@ -4219,6 +4223,25 @@ export class Session2 extends HeyApiClient {
   }
 
   /**
+   * Get active child sessions
+   *
+   * Retrieve the currently dispatched fire-and-forget child agents, keyed by parent session ID. Used by the frontend to rehydrate the active-child dock indicator after a web reload (the in-memory `session.active-child.updated` event is event-driven only and is lost across page loads).
+   */
+  public activeChild<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<SessionActiveChildResponses, SessionActiveChildErrors, ThrowOnError>({
+      url: "/api/v2/session/active-child",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
    * Get session monitor snapshot
    *
    * Retrieve the latest top-like session monitor snapshot for active sessions.
@@ -5427,6 +5450,25 @@ export class Session2 extends HeyApiClient {
     const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
     return (options?.client ?? this.client).get<SessionStatus2Responses, SessionStatus2Errors, ThrowOnError>({
       url: "/session/status",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get active child sessions
+   *
+   * Retrieve the currently dispatched fire-and-forget child agents, keyed by parent session ID. Used by the frontend to rehydrate the active-child dock indicator after a web reload (the in-memory `session.active-child.updated` event is event-driven only and is lost across page loads).
+   */
+  public activeChild2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<SessionActiveChild2Responses, SessionActiveChild2Errors, ThrowOnError>({
+      url: "/session/active-child",
       ...options,
       ...params,
     })
@@ -12287,7 +12329,7 @@ export class WebRoute extends HeyApiClient {
     parameters?: {
       directory?: string
       entryName?: string
-      action?: "start" | "stop"
+      action?: "start" | "stop" | "restart"
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -12442,7 +12484,7 @@ export class WebRoute extends HeyApiClient {
     parameters?: {
       directory?: string
       entryName?: string
-      action?: "start" | "stop"
+      action?: "start" | "stop" | "restart"
     },
     options?: Options<never, ThrowOnError>,
   ) {
