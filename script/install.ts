@@ -71,7 +71,12 @@ const ensureDir = (dir: string) => {
 const fsPromises = fs.promises
 const templatesDir = path.join(repoRoot, "templates")
 const manifestPath = path.join(templatesDir, "manifest.json")
-const TEMPLATE_SENSITIVE_FILES = new Set(["accounts.json", "mcp-auth.json"])
+// opencode.json is a user-mutable config: templates/opencode.json seeds initial
+// install but must never overwrite a user's edits (RCA 2026-05-28: example
+// provider entry with unknown `_doc` field landed in user config via mtime
+// overwrite, corrupting user's `custom-provider-work` + billing overrides and
+// triggering daemon-side schema validation toast).
+const TEMPLATE_SENSITIVE_FILES = new Set(["accounts.json", "mcp-auth.json", "opencode.json"])
 const LEGACY_OPENCODE_DIR = path.join(os.homedir(), ".opencode")
 
 type TemplateTarget = "config" | "state" | "data"
