@@ -9,6 +9,14 @@ function routeUrl(route: WebRoute): string {
   return `${window.location.origin}${route.prefix}${route.prefix.endsWith("/") ? "" : "/"}`
 }
 
+function routeTarget(route: WebRoute): string {
+  if (route.type === "uds" && route.socketPath) {
+    const name = route.socketPath.split("/").pop() || route.socketPath
+    return `uds: ${name}`
+  }
+  return `${route.host}:${route.port}`
+}
+
 function groupRoutes(routes: WebRoute[]): WebRoute[] {
   const stems = new Map<string, WebRoute>()
   for (const r of routes) {
@@ -61,6 +69,10 @@ export const DialogPublishedWeb: Component = () => {
 
   async function handleToggle(entryName: string, alive: boolean) {
     const action = alive ? "stop" : "start"
+    await runAction(entryName, action)
+  }
+
+  async function runAction(entryName: string, action: "start" | "stop" | "restart") {
     setToggling(entryName)
     try {
       await api().toggle(entryName, action)
@@ -119,7 +131,7 @@ export const DialogPublishedWeb: Component = () => {
       </Show>
 
       <Show when={!loading() && grouped().length > 0}>
-        <div class="flex flex-col gap-1 py-1">
+        <div class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1 py-1 px-1">
           <For each={grouped()}>
             {(route) => {
               const url = () => routeUrl(route)
@@ -149,7 +161,7 @@ export const DialogPublishedWeb: Component = () => {
                     class="flex-1 min-w-0 no-underline cursor-pointer"
                   >
                     <div class="text-14-medium text-text-strong truncate">{label()}</div>
-                    <div class="text-12-regular text-text-weak truncate">{route.host}:{route.port}</div>
+                    <div class="text-12-regular text-text-weak truncate">{routeTarget(route)}</div>
                   </a>
                   {/* Toggle button */}
                   <Show when={health()}>
@@ -180,6 +192,11 @@ export const DialogPublishedWeb: Component = () => {
                       <DropdownMenu.Item onSelect={() => void navigator.clipboard.writeText(url())}>
                         <DropdownMenu.ItemLabel>Copy URL</DropdownMenu.ItemLabel>
                       </DropdownMenu.Item>
+                      <Show when={health()}>
+                        <DropdownMenu.Item onSelect={() => void runAction(entryName(), "restart")}>
+                          <DropdownMenu.ItemLabel>Restart service</DropdownMenu.ItemLabel>
+                        </DropdownMenu.Item>
+                      </Show>
                       <DropdownMenu.Separator />
                       <DropdownMenu.Item onSelect={() => void handleRemove(route)}>
                         <DropdownMenu.ItemLabel>Remove route</DropdownMenu.ItemLabel>

@@ -5,15 +5,19 @@
 
 export type WebRoute = {
   prefix: string
+  type?: "tcp" | "uds"
   host: string
   port: number
+  socketPath?: string
   uid: number
 }
 
 export type ServiceHealth = {
   alive: boolean
-  host: string
-  port: number
+  type?: "tcp" | "uds"
+  host?: string
+  port?: number
+  socketPath?: string
   webctlPath: string
 }
 
@@ -59,7 +63,7 @@ export function createWebRouteApi(baseUrl: string, fetchFn: typeof fetch) {
       return data.status
     },
 
-    async toggle(entryName: string, action: "start" | "stop"): Promise<{ ok: boolean; output?: string; error?: string }> {
+    async toggle(entryName: string, action: "start" | "stop" | "restart"): Promise<{ ok: boolean; output?: string; error?: string }> {
       const res = await fetchFn(`${base}/toggle`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

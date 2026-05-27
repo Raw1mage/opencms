@@ -413,7 +413,14 @@ export const WebRouteRoutes = lazy(() =>
                     ok: z.boolean(),
                     status: z.record(
                       z.string(),
-                      z.object({ alive: z.boolean(), host: z.string(), port: z.number(), webctlPath: z.string() }),
+                      z.object({
+                        alive: z.boolean(),
+                        type: z.enum(["tcp", "uds"]).default("tcp"),
+                        host: z.string().optional(),
+                        port: z.number().optional(),
+                        socketPath: z.string().optional(),
+                        webctlPath: z.string(),
+                      }),
                     ),
                   }),
                 ),
@@ -472,11 +479,11 @@ export const WebRouteRoutes = lazy(() =>
         "json",
         z.object({
           entryName: z.string().min(1),
-          action: z.enum(["start", "stop"]),
+          action: z.enum(["start", "stop", "restart"]),
         }),
       ),
       async (c) => {
-        const body = c.req.valid("json" as never) as { entryName: string; action: "start" | "stop" }
+        const body = c.req.valid("json" as never) as { entryName: string; action: "start" | "stop" | "restart" }
         try {
           const registry = await readRegistry()
           const entry = registry.entries.find((e) => e.entryName === body.entryName)
@@ -498,8 +505,8 @@ export const WebRouteRoutes = lazy(() =>
             log.warn("webctl.sh failed", { entry: body.entryName, action: body.action, output: result.output })
           }
 
-          // Persist autostart state: start → autostart: true, stop → autostart: false
-          entry.autostart = body.action === "start"
+          // Persist autostart state: start/restart → autostart: true, stop → autostart: false
+          entry.autostart = body.action !== "stop"
           writeRegistry(registry).catch((err) =>
             log.warn("failed to persist autostart flag", { error: err instanceof Error ? err.message : String(err) }),
           )
