@@ -18,7 +18,13 @@ import { Installation } from "@/installation"
  * System-level: /etc/opencode/mcp-apps.json  (managed by sudo wrapper)
  * User-level:   ~/.config/opencode/mcp-apps.json  (managed by per-user daemon)
  *
- * Merge rule: system-level wins on id collision.
+ * Merge rule (layered, per plans/mcp_per_user_socket_rca DD-1):
+ *   - System tier owns app identity: `path`, `command`, `source`, `tools`,
+ *     `settingsSchema`, `modelProcess`, `installedAt`, `transport`.
+ *   - User tier may override runtime fields: `url`, `enabled`, `config`.
+ *   - User-only / system-only apps pass through unchanged.
+ *   - User-tier attempts to override system-immutable fields are dropped
+ *     silently with a debug log (error class E2 — `mcp_app_user_override_rejected`).
  */
 export namespace McpAppStore {
   const log = Log.create({ service: "mcp-app-store" })
@@ -71,10 +77,46 @@ export namespace McpAppStore {
   })
   export type AppsConfig = z.infer<typeof AppsConfig>
 
+  /**
+   * Structured cause for install / persistence failures.
+   * Per plans/mcp_per_user_socket_rca DD-8 / errors.md E4.
+   *
+   * `fs_permission`       — chosen tier file not writable / readable by daemon.
+   * `json_parse`          — existing tier file is corrupt JSON.
+   * `schema_validation`   — new entry violates `AppsConfig` schema.
+   * `tier_conflict`       — operation requires a tier-incompatible field set.
+   * `unknown`             — fallback when no specific cause can be inferred.
+   */
+  export const StoreErrorCause = z.enum([
+    "fs_permission",
+    "json_parse",
+    "schema_validation",
+    "tier_conflict",
+    "unknown",
+  ])
+  export type StoreErrorCause = z.infer<typeof StoreErrorCause>
+
   export const StoreError = NamedError.create(
     "McpAppStoreError",
-    z.object({ operation: z.string(), reason: z.string() }),
+    z.object({
+      operation: z.string(),
+      reason: z.string(),
+      cause: StoreErrorCause.optional(),
+      tier: z.enum(["system", "user"]).optional(),
+    }),
   )
+
+  /**
+   * Classify a low-level error into a structured cause. Best-effort; defaults
+   * to `unknown` when the error shape is opaque.
+   */
+  export function classifyStoreError(err: unknown): StoreErrorCause {
+    if (err instanceof SyntaxError) return "json_parse"
+    const code = (err as NodeJS.ErrnoException | undefined)?.code
+    if (code === "EACCES" || code === "EPERM" || code === "EROFS") return "fs_permission"
+    if (err instanceof z.ZodError) return "schema_validation"
+    return "unknown"
+  }
 
   // ── Read ────────────────────────────────────────────────────────────
 
@@ -98,30 +140,92 @@ export namespace McpAppStore {
   }
 
   /**
-   * Load and merge two-tier config. System-level wins on id collision.
+   * Fields a user-tier entry may override on a system-declared app.
+   * Per plans/mcp_per_user_socket_rca DD-1 / DD-4.
+   *
+   * `url` — per-user socket path (templated tokens resolved at dial time).
+   * `enabled` — per-user opt-in.
+   * `config` — per-user settings values.
+   *
+   * Everything else (`path`, `command`, `source`, `tools`, `settingsSchema`,
+   * `modelProcess`, `installedAt`, `transport`) is system-owned.
+   * `transport` stays system-owned per DD-4 (OQ-1 resolved 2026-05-28).
+   */
+  const USER_OVERRIDABLE_FIELDS = ["url", "enabled", "config"] as const
+  type UserOverridableField = (typeof USER_OVERRIDABLE_FIELDS)[number]
+
+  /**
+   * Pure layered merge of two-tier registry. Exported for testability.
+   *
+   * - System-only apps pass through.
+   * - User-only apps pass through.
+   * - On id collision: system identity wins, user runtime fields
+   *   (`url`, `enabled`, `config`) override; user-tier attempts to set
+   *   immutable fields are dropped silently with a debug log.
+   */
+  export function mergeAppsConfigs(system: AppsConfig, user: AppsConfig): AppsConfig {
+    const apps: Record<string, AppEntry> = {}
+
+    for (const [id, sysEntry] of Object.entries(system.apps)) {
+      const usrEntry = user.apps[id]
+      if (!usrEntry) {
+        apps[id] = sysEntry
+        continue
+      }
+      const rejected: string[] = []
+      for (const key of Object.keys(usrEntry)) {
+        if (!(USER_OVERRIDABLE_FIELDS as readonly string[]).includes(key)) {
+          rejected.push(key)
+        }
+      }
+      if (rejected.length > 0) {
+        log.debug("mcp_app.user_override_rejected", { appId: id, fields: rejected })
+      }
+      const overrides: Partial<AppEntry> = {}
+      for (const field of USER_OVERRIDABLE_FIELDS) {
+        if (usrEntry[field as UserOverridableField] !== undefined) {
+          ;(overrides as Record<string, unknown>)[field] = usrEntry[field as UserOverridableField]
+        }
+      }
+      apps[id] = { ...sysEntry, ...overrides }
+    }
+
+    for (const [id, usrEntry] of Object.entries(user.apps)) {
+      if (id in apps) continue
+      apps[id] = usrEntry
+    }
+
+    return { version: 1, apps }
+  }
+
+  /**
+   * Load and merge two-tier config using the layered merge.
+   * See `mergeAppsConfigs` for the rule; see plans/mcp_per_user_socket_rca/design.md DD-1.
    */
   export async function loadConfig(): Promise<AppsConfig> {
     const [system, user] = await Promise.all([
       readConfigFile(SYSTEM_CONFIG_PATH),
       readConfigFile(userConfigPath()),
     ])
-
-    // System takes priority: start with user, then overwrite with system
-    const merged: AppsConfig = {
-      version: 1,
-      apps: { ...user.apps, ...system.apps },
-    }
-
-    return merged
+    return mergeAppsConfigs(system, user)
   }
 
   // ── User-level write (daemon direct write) ──────────────────────────
 
   async function saveUserConfig(config: AppsConfig): Promise<void> {
     const filePath = userConfigPath()
-    await fs.mkdir(path.dirname(filePath), { recursive: true })
-    await fs.writeFile(filePath, JSON.stringify(config, null, 2))
-    await fs.chmod(filePath, 0o644).catch(() => {})
+    try {
+      await fs.mkdir(path.dirname(filePath), { recursive: true })
+      await fs.writeFile(filePath, JSON.stringify(config, null, 2))
+      await fs.chmod(filePath, 0o644).catch(() => {})
+    } catch (err) {
+      throw new StoreError({
+        operation: "saveUserConfig",
+        reason: err instanceof Error ? err.message : String(err),
+        cause: classifyStoreError(err),
+        tier: "user",
+      })
+    }
   }
 
   // ── System-level write (via sudo wrapper) ───────────────────────────
@@ -133,7 +237,12 @@ export namespace McpAppStore {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       log.warn("sudo wrapper failed", { args, error: msg })
-      throw new StoreError({ operation: args[0] ?? "unknown", reason: msg })
+      throw new StoreError({
+        operation: args[0] ?? "unknown",
+        reason: msg,
+        cause: classifyStoreError(err),
+        tier: "system",
+      })
     }
   }
 
@@ -270,7 +379,11 @@ export namespace McpAppStore {
     // to bring up the container first which is out of band).
     if (manifest.transport === "streamable-http" || manifest.transport === "sse") {
       if (!manifest.url) {
-        throw new StoreError({ operation: "buildEntry", reason: "transport=streamable-http requires url" })
+        throw new StoreError({
+          operation: "buildEntry",
+          reason: "transport=streamable-http requires url",
+          cause: "schema_validation",
+        })
       }
       return {
         path: appPath,
@@ -295,6 +408,7 @@ export namespace McpAppStore {
         reason:
           `bind_mount_forbidden: ${violations.length} violation(s) — ${violations.join("; ")}` +
           ` (policy: specs/docxmcp-http-transport)`,
+        cause: "schema_validation",
       })
     }
 
@@ -406,13 +520,13 @@ export namespace McpAppStore {
       // Read current entry, flip enabled, write back via write-entry
       const config = await readConfigFile(SYSTEM_CONFIG_PATH)
       const entry = config.apps[id]
-      if (!entry) throw new StoreError({ operation: "setEnabled", reason: `App not found: ${id}` })
+      if (!entry) throw new StoreError({ operation: "setEnabled", reason: `App not found: ${id}`, cause: "tier_conflict", tier: "system" })
       entry.enabled = enabled
       await writeSystemEntry(id, entry)
     } else {
       const config = await readConfigFile(userConfigPath())
       const entry = config.apps[id]
-      if (!entry) throw new StoreError({ operation: "setEnabled", reason: `App not found in user config: ${id}` })
+      if (!entry) throw new StoreError({ operation: "setEnabled", reason: `App not found in user config: ${id}`, cause: "tier_conflict", tier: "user" })
       entry.enabled = enabled
       await saveUserConfig(config)
     }
@@ -430,7 +544,7 @@ export namespace McpAppStore {
     const configPath = target === "system" ? SYSTEM_CONFIG_PATH : userConfigPath()
     const config = await readConfigFile(configPath)
     const entry = config.apps[id]
-    if (!entry) throw new StoreError({ operation: "setConfig", reason: `App not found: ${id}` })
+    if (!entry) throw new StoreError({ operation: "setConfig", reason: `App not found: ${id}`, cause: "tier_conflict", tier: target })
 
     // Validate required fields if schema exists
     if (entry.settingsSchema) {
@@ -438,7 +552,11 @@ export namespace McpAppStore {
         .filter((f) => f.required && !(f.key in values) && values[f.key] === undefined)
         .map((f) => f.key)
       if (missing.length > 0) {
-        throw new StoreError({ operation: "setConfig", reason: `Missing required settings: ${missing.join(", ")}` })
+        throw new StoreError({
+          operation: "setConfig",
+          reason: `Missing required settings: ${missing.join(", ")}`,
+          cause: "schema_validation",
+        })
       }
     }
 
@@ -454,6 +572,11 @@ export namespace McpAppStore {
 
   /**
    * List all registered Apps with their manifest metadata.
+   *
+   * Uses the same layered-merge rule as `loadConfig` — entry shown is the
+   * post-merge view (system identity + user runtime overrides). `tier` is
+   * `system` when the app's identity comes from the system tier, even if
+   * runtime fields were user-overridden; `user` when the app is user-only.
    */
   export async function listApps(): Promise<
     Array<{
@@ -467,6 +590,7 @@ export namespace McpAppStore {
       readConfigFile(SYSTEM_CONFIG_PATH),
       readConfigFile(userConfigPath()),
     ])
+    const merged = mergeAppsConfigs(system, user)
 
     const result: Array<{
       id: string
@@ -475,27 +599,15 @@ export namespace McpAppStore {
       tier: "system" | "user"
     }> = []
 
-    // System entries first
-    for (const [id, entry] of Object.entries(system.apps)) {
+    for (const [id, entry] of Object.entries(merged.apps)) {
+      const tier: "system" | "user" = id in system.apps ? "system" : "user"
       let manifest: McpAppManifest.Manifest | null = null
       try {
         manifest = await McpAppManifest.load(entry.path)
       } catch {
         log.warn("failed to load manifest for registered app", { id, path: entry.path })
       }
-      result.push({ id, entry, manifest, tier: "system" })
-    }
-
-    // User entries (skip if already in system)
-    for (const [id, entry] of Object.entries(user.apps)) {
-      if (system.apps[id]) continue // system takes priority
-      let manifest: McpAppManifest.Manifest | null = null
-      try {
-        manifest = await McpAppManifest.load(entry.path)
-      } catch {
-        log.warn("failed to load manifest for registered app", { id, path: entry.path })
-      }
-      result.push({ id, entry, manifest, tier: "user" })
+      result.push({ id, entry, manifest, tier })
     }
 
     return result

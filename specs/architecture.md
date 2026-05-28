@@ -889,6 +889,79 @@ Both Google apps share a single OAuth token stored at `~/.config/opencode/gauth.
 - `~/.config/opencode/gauth.json` — Shared Google OAuth token storage
 - `~/.config/opencode/managed-apps.json` — App install/config state persistence
 
+## MCP App Store (User-Installable Apps)
+
+`McpAppStore` (`packages/opencode/src/mcp/app-store.ts`) is the
+**user-installable** MCP App registry, sibling to the
+`ManagedAppRegistry` above. Built-ins (google-calendar, gmail) live in
+`ManagedAppRegistry`; arbitrary local-path or GitHub-cloned apps
+(docxmcp, etc.) live in `McpAppStore`.
+
+### Two-tier registry
+
+| Tier   | File                               | Writer                                                    |
+| ------ | ---------------------------------- | --------------------------------------------------------- |
+| System | `/etc/opencode/mcp-apps.json`      | `install_mcp_app` via sudo wrapper (`target: "system"`)   |
+| User   | `~/.config/opencode/mcp-apps.json` | `install_mcp_app` direct (`target: "user"`)               |
+
+### Layered merge (per plans/mcp_per_user_socket_rca, 2026-05-28)
+
+`McpAppStore.loadConfig()` and `listApps()` apply the same layered merge
+via the pure `mergeAppsConfigs(system, user)`:
+
+| Field                                                                            | Owned by    | Notes                                                       |
+| -------------------------------------------------------------------------------- | ----------- | ----------------------------------------------------------- |
+| `path`, `command`, `source`, `tools`, `settingsSchema`, `modelProcess`, `installedAt`, `transport` | System tier | Immutable identity; user attempts to override are dropped (logged at debug as `mcp_app.user_override_rejected`) |
+| `url`, `enabled`, `config`                                                       | User tier   | Per-machine runtime overrides; system-tier values used only when user tier absent |
+
+System-only and user-only apps pass through unchanged. The previous
+`{ ...user.apps, ...system.apps }` (system-wins) rule was a load-bearing
+bug: it made any per-user runtime override impossible whenever the
+system tier had the same app id.
+
+### URL template resolver (forward-looking)
+
+`packages/opencode/src/mcp/url-resolver.ts` exposes
+`resolveRuntimeUrl(url, ctx)` with a **closed** token catalogue:
+
+- `${UID}` — `process.getuid()` (authoritative, never from headers per INV-5)
+- `${USER}` — `os.userInfo().username` or `process.env.USER`
+- `${HOME}` — `os.homedir()`
+- `${XDG_RUNTIME_DIR}` — `process.env.XDG_RUNTIME_DIR` (fallback `/run/user/${UID}`)
+
+Literal URLs pass through untouched; unknown `${...}` tokens preserved
+for forward compatibility. Both consumers — `connectMcpApps()` and
+`incoming/dispatcher.ts` upload path — call the resolver before
+dialling. docxmcp uses a literal `unix:///...:/mcp/` URL and is
+unaffected by templating today; the resolver is wiring for future apps
+that need per-machine-portable paths.
+
+### Structured install error
+
+`McpAppStoreError` carries structured `cause` and `tier` fields:
+
+| Cause                | Source                                                |
+| -------------------- | ----------------------------------------------------- |
+| `fs_permission`      | `EACCES` / `EPERM` / `EROFS` on tier file             |
+| `json_parse`         | `SyntaxError` reading existing tier file              |
+| `schema_validation`  | `ZodError` validating `AppsConfig` or manifest fields |
+| `tier_conflict`      | App not present in expected tier (setEnabled/setConfig) |
+| `unknown`            | Default fallback                                      |
+
+`classifyStoreError(err)` is the structured classifier; POST
+`/mcp/store/apps` returns `{ error, cause, tier, operation }` on
+failure; the `install_mcp_app` system-manager tool surfaces these in
+its text response.
+
+### Key Files
+
+- `packages/opencode/src/mcp/app-store.ts` — Schema, layered merge, persistence, structured error
+- `packages/opencode/src/mcp/url-resolver.ts` — Closed-token URL template expansion
+- `packages/opencode/src/mcp/index.ts` — `connectMcpApps()` consumer
+- `packages/opencode/src/incoming/dispatcher.ts` — HTTP upload route consumer
+- `packages/mcp/system-manager/src/index.ts` — `install_mcp_app` tool with `target` parameter
+- `packages/opencode/src/server/routes/mcp.ts` — POST `/mcp/store/apps` (accepts `target`, returns structured error)
+
 ## Account Bus Events
 
 - **Event Types**: `account.added`, `account.removed`, `account.activated` — defined in `src/bus/index.ts`.

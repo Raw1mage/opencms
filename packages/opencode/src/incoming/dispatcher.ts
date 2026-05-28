@@ -51,6 +51,7 @@ import { Bus } from "@/bus"
 import { BusEvent } from "../bus/bus-event"
 import { IncomingPaths } from "./paths"
 import { McpAppStore } from "../mcp/app-store"
+import { McpAppUrlResolver } from "../mcp/url-resolver"
 import { MCP } from "../mcp"
 import z from "zod"
 
@@ -209,7 +210,10 @@ export namespace IncomingDispatcher {
     const entry = config.apps[appId]
     if (!entry || entry.transport !== "streamable-http" || !entry.url) return null
 
-    const url = entry.url
+    // plans/mcp_per_user_socket_rca DD-2 / DD-3: expand template tokens
+    // (${UID}, ${USER}, ${HOME}, ${XDG_RUNTIME_DIR}) before extracting
+    // the socket path or parsing as a plain URL.
+    const url = McpAppUrlResolver.resolveForApp(appId, entry.url, "dispatcher")
     if (url.startsWith("unix://")) {
       const rest = url.slice("unix://".length)
       const idx = rest.indexOf(":/")

@@ -774,7 +774,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "install_mcp_app",
         description:
-          "Install an MCP App from a GitHub URL or local path. Clones the repo (if GitHub), reads/infers mcp.json manifest, installs dependencies, probes via stdio tools/list, and registers in mcp-apps.json. The App becomes available in the session tool pool.",
+          "Install an MCP App from a GitHub URL or local path. Clones the repo (if GitHub), reads/infers mcp.json manifest, installs dependencies, probes via stdio tools/list, and registers in mcp-apps.json. The App becomes available in the session tool pool. " +
+          "Use `target: \"user\"` to register the App in the per-user registry (~/.config/opencode/mcp-apps.json) instead of the system-wide one — required when the App's runtime endpoint is per-user (e.g. a Unix socket under $XDG_RUNTIME_DIR). GitHub installs always go to system tier; only local-path installs honour `target`.",
         inputSchema: {
           type: "object",
           properties: {
@@ -786,6 +787,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             id: {
               type: "string",
               description: "App identifier (optional — inferred from repo name or mcp.json if omitted)",
+            },
+            target: {
+              type: "string",
+              enum: ["system", "user"],
+              description:
+                "Registry tier to install into. 'system' (default) writes to /etc/opencode/mcp-apps.json via sudo wrapper; 'user' writes to ~/.config/opencode/mcp-apps.json directly. Ignored for GitHub installs (always 'system').",
             },
           },
           required: ["source"],
@@ -1846,7 +1853,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     // ── MCP App Store handlers (Layer 3) ─────────────────────────────
 
     if (name === "install_mcp_app") {
-      const { source, id: providedId } = args as { source: string; id?: string }
+      const {
+        source,
+        id: providedId,
+        target,
+      } = args as { source: string; id?: string; target?: "system" | "user" }
 
       const isGithub = source.startsWith("https://github.com/") || source.startsWith("git@")
       const inferredId =
@@ -1859,18 +1870,43 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           : source.split("/").pop()) ??
         "unknown"
 
+      if (target !== undefined && target !== "system" && target !== "user") {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Install error: invalid target '${target}' (must be 'system' or 'user')`,
+            },
+          ],
+          isError: true,
+        }
+      }
+
       try {
         const baseUrl = await getServerApiBaseUrl()
+        const body: Record<string, unknown> = isGithub
+          ? { githubUrl: source, id: inferredId }
+          : { path: source, id: inferredId }
+        // plans/mcp_per_user_socket_rca DD-7: only local-path installs honour
+        // `target`; GitHub installs always clone under /opt and stay system.
+        if (!isGithub && target) body.target = target
         const res = await serverFetch(`${baseUrl}/mcp/store/apps`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(isGithub ? { githubUrl: source, id: inferredId } : { path: source, id: inferredId }),
+          body: JSON.stringify(body),
         })
 
         if (!res.ok) {
-          const err = (await res.json().catch(() => ({ error: `HTTP ${res.status}` }))) as { error?: string }
+          const err = (await res.json().catch(() => ({ error: `HTTP ${res.status}` }))) as {
+            error?: string
+            cause?: string
+            tier?: string
+          }
+          const detail = [err.error ?? res.statusText, err.cause ? `cause=${err.cause}` : null, err.tier ? `tier=${err.tier}` : null]
+            .filter(Boolean)
+            .join(" — ")
           return {
-            content: [{ type: "text", text: `Installation failed: ${err.error ?? res.statusText}` }],
+            content: [{ type: "text", text: `Installation failed: ${detail}` }],
             isError: true,
           }
         }
@@ -1887,6 +1923,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           result.manifest.description ? `  Description: ${result.manifest.description}` : null,
           `  Command: ${result.manifest.command.join(" ")}`,
           `  Status: ${result.status}`,
+          `  Tier: ${isGithub ? "system" : target ?? "system"}`,
         ].filter(Boolean)
         return { content: [{ type: "text", text: lines.join("\n") }] }
       } catch (e: any) {

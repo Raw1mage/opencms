@@ -867,6 +867,21 @@ export const McpRoutes = lazy(() =>
       async (c) => {
         const body = c.req.valid("json")
 
+        // plans/mcp_per_user_socket_rca DD-8 / errors.md E4: surface structured
+        // McpAppStoreError fields (`cause`, `tier`) so the MCP tool can display them.
+        const errorPayload = (err: unknown) => {
+          if (err instanceof McpAppStore.StoreError) {
+            const data = err.data as { reason: string; cause?: string; tier?: string; operation: string }
+            return {
+              error: data.reason,
+              cause: data.cause,
+              tier: data.tier,
+              operation: data.operation,
+            }
+          }
+          return { error: err instanceof Error ? err.message : String(err) }
+        }
+
         if (body.githubUrl) {
           const id =
             body.id ??
@@ -879,7 +894,7 @@ export const McpRoutes = lazy(() =>
             const manifest = await McpAppStore.cloneAndRegister(body.githubUrl, id)
             return c.json({ id, manifest, status: "installed" })
           } catch (err) {
-            return c.json({ error: err instanceof Error ? err.message : String(err) }, 400)
+            return c.json(errorPayload(err), 400)
           }
         }
 
@@ -889,7 +904,7 @@ export const McpRoutes = lazy(() =>
             const manifest = await McpAppStore.addApp(id, body.path, body.target)
             return c.json({ id, manifest, status: "registered" })
           } catch (err) {
-            return c.json({ error: err instanceof Error ? err.message : String(err) }, 400)
+            return c.json(errorPayload(err), 400)
           }
         }
 

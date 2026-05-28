@@ -6,6 +6,7 @@ import { McpAppManifest } from "./manifest"
 import { dynamicTool, type Tool, jsonSchema, type JSONSchema7 } from "ai"
 import { ManagedAppRegistry } from "./app-registry"
 import { McpAppStore } from "./app-store"
+import { McpAppUrlResolver } from "./url-resolver"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js"
@@ -1316,21 +1317,30 @@ export namespace MCP {
                 recordAppFailure(id)
                 return
               }
+              // plans/mcp_per_user_socket_rca DD-2 / DD-3: expand template
+              // tokens at dial time so per-user sockets resolve correctly.
+              const resolvedUrl = McpAppUrlResolver.resolveForApp(id, entry.url, "connectMcpApps")
               const result = await add(`mcpapp-${id}`, {
                 type: "remote",
-                url: entry.url,
+                url: resolvedUrl,
                 enabled: true,
               })
               const statusMap = result?.status as Record<string, Status> | undefined
               const addedStatus = statusMap?.[`mcpapp-${id}`]
               if (addedStatus?.status === "failed") {
                 const errorMsg = "error" in addedStatus ? addedStatus.error : "unknown"
-                log.warn("mcp-apps.json http app failed to start", { id, url: entry.url, error: errorMsg })
+                log.warn("mcp-apps.json http app failed to start", {
+                  id,
+                  urlTemplate: entry.url,
+                  urlResolved: resolvedUrl,
+                  error: errorMsg,
+                })
                 recordAppFailure(id)
               } else {
                 log.info("mcp-apps.json http app connected", {
                   id,
-                  url: entry.url,
+                  urlTemplate: entry.url,
+                  urlResolved: resolvedUrl,
                   transport: entry.transport,
                   recovered: isRetry,
                 })
