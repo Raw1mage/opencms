@@ -1,0 +1,42 @@
+{
+  "diagram_title": "MCP App registry contract hardening",
+  "node_reference": "A0",
+  "description": "Harden the MCP App registry contract: layered tier merge (system identity + user runtime override), structured install error, target-tier install API, and a forward-looking URL template resolver. docxmcp deployment is out of scope; it is the trigger that exposed the registry bugs, not a target of change.",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Layered merge of MCP App registry",
+      "description": "Replace system-wins with layered merge: system tier owns identity (path/source/tools/schema), user tier overrides runtime endpoint fields (url, enabled, config)."
+    },
+    {
+      "id": "A2",
+      "title": "Resolve runtime URL template",
+      "description": "Expand ${UID}, ${USER}, ${HOME}, ${XDG_RUNTIME_DIR} in the per-user daemon. Closed token set; process.getuid() is the only uid source."
+    },
+    {
+      "id": "A3",
+      "title": "Dial MCP App endpoint",
+      "description": "connectMcpApps() and incoming/dispatcher.ts both pass through the resolver before dialing the Unix socket or HTTP-over-unix endpoint."
+    },
+    {
+      "id": "A4",
+      "title": "Install with explicit target tier",
+      "description": "system-manager_install_mcp_app accepts target: 'system' | 'user'; McpAppStoreError surfaces the underlying cause."
+    },
+    {
+      "id": "A5",
+      "title": "Verify docxmcp routes under the new merge",
+      "description": "docxmcp deployment is out of scope (host-shared `.run/` socket is canonical per docxmcp's own 2026-05-28 decision). This activity verifies the existing user-tier entry routes correctly under the layered merge and that the resolver passes the literal URL through untouched."
+    }
+  ],
+  "arrows": [
+    {"id": "a0i1", "source": "EXTERNAL", "target": "A1:input", "label": "system + user mcp-apps.json"},
+    {"id": "a0m1", "source": "A1:output", "target": "A2:input", "label": "merged app entry with templated url"},
+    {"id": "a0m2", "source": "A2:output", "target": "A3:input", "label": "resolved per-user url"},
+    {"id": "a0i2", "source": "EXTERNAL", "target": "A4:input", "label": "install_mcp_app request (target=system|user)"},
+    {"id": "a0m3", "source": "A4:output", "target": "A1:input", "label": "persisted entry on chosen tier"},
+    {"id": "a0i3", "source": "EXTERNAL", "target": "A5:input", "label": "existing docxmcp user-tier entry + live .run/ socket"},
+    {"id": "a0m4", "source": "A5:output", "target": "A2:input", "label": "literal URL routed through resolver untouched"},
+    {"id": "a0o1", "source": "A3:output", "target": "EXTERNAL", "label": "MCP initialize / HTTP upload to docxmcp"}
+  ]
+}

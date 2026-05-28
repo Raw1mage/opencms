@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-05-28T22:50:00.000Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "promoted legacy rca.md+tasks.md folder into plan-builder package"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-05-28T14:47:41.574Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "all designed-stage artifacts authored: proposal/design/spec/sequence/data-schema/idef0/grafcet; 3 open questions surfaced as PENDING DDs with default-if-undecided positions"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-05-28T15:16:57.595Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "handoff.md + errors.md + observability.md + test-vectors.json authored; 14 test vectors cover all 7 AC; 8 error classes catalogued; 6 checkpoints + 9 metrics defined"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-05-28T15:54:15.848Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Phases 2-5 code shipped and ticked: layered merge + URL resolver + install-target + structured error + Phase 5 verification. 30 tests pass, no regression, zero typecheck errors in changed files. Phase 6 smoke (requires restart_self + user consent) and Phase 7 sync remain."
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-05-28T16:20:39.432Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "All Phase 0-7 tasks ticked; smoke green; architecture.md updated; validation event logged"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-05-28T16:46:44.243Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "user-confirmed graduation after e2e validation + commit b2c78e215 landed on main"
+    }
+  ]
+}

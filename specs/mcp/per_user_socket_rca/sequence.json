@@ -1,0 +1,67 @@
+[
+  {
+    "id": "SEQ-1",
+    "title": "Per-user daemon resolves and dials an MCP App socket",
+    "description": "On daemon boot or restart_self, McpAppStore loads both tiers, layered-merges them, and connectMcpApps resolves each entry's url template before opening the Unix socket.",
+    "participants": [
+      { "id": "boot", "name": "Daemon boot", "kind": "external" },
+      { "id": "store", "name": "McpAppStore", "kind": "component" },
+      { "id": "sys", "name": "/etc/opencode/mcp-apps.json", "kind": "datastore" },
+      { "id": "usr", "name": "~/.config/opencode/mcp-apps.json", "kind": "datastore" },
+      { "id": "resolver", "name": "resolveRuntimeUrl", "kind": "component" },
+      { "id": "conn", "name": "connectMcpApps", "kind": "component" },
+      { "id": "sock", "name": "docxmcp Unix socket", "kind": "external" }
+    ],
+    "messages": [
+      { "from": "boot", "to": "store", "label": "loadConfig()" },
+      { "from": "store", "to": "sys", "label": "read system tier" },
+      { "from": "store", "to": "usr", "label": "read user tier" },
+      { "from": "store", "to": "store", "label": "layered merge (identity from system, runtime from user)" },
+      { "from": "store", "to": "conn", "label": "return merged apps" },
+      { "from": "conn", "to": "resolver", "label": "resolveRuntimeUrl(app.url, ctx)" },
+      { "from": "resolver", "to": "conn", "label": "resolved unix:// path" },
+      { "from": "conn", "to": "sock", "label": "MCP initialize over resolved socket" },
+      { "from": "sock", "to": "conn", "label": "serverInfo.name=docxmcp" }
+    ]
+  },
+  {
+    "id": "SEQ-2",
+    "title": "HTTP upload routes through resolved MCP App endpoint",
+    "description": "incoming/dispatcher receives an HTTP upload bound for an MCP App and routes it through the resolver before forwarding.",
+    "participants": [
+      { "id": "client", "name": "HTTP client", "kind": "external" },
+      { "id": "disp", "name": "incoming/dispatcher", "kind": "component" },
+      { "id": "store", "name": "McpAppStore", "kind": "component" },
+      { "id": "resolver", "name": "resolveRuntimeUrl", "kind": "component" },
+      { "id": "sock", "name": "docxmcp Unix socket", "kind": "external" }
+    ],
+    "messages": [
+      { "from": "client", "to": "disp", "label": "POST /upload (target=docxmcp)" },
+      { "from": "disp", "to": "store", "label": "loadConfig()" },
+      { "from": "disp", "to": "resolver", "label": "resolveRuntimeUrl(app.url, ctx)" },
+      { "from": "resolver", "to": "disp", "label": "resolved endpoint" },
+      { "from": "disp", "to": "sock", "label": "forward upload" },
+      { "from": "sock", "to": "disp", "label": "200 OK" },
+      { "from": "disp", "to": "client", "label": "200 OK" }
+    ]
+  },
+  {
+    "id": "SEQ-3",
+    "title": "install_mcp_app persists to the targeted tier",
+    "description": "system-manager_install_mcp_app accepts a target parameter and the store writes only to the chosen tier; errors surface a structured cause.",
+    "participants": [
+      { "id": "agent", "name": "Agent / automation", "kind": "external" },
+      { "id": "sm", "name": "system-manager install_mcp_app", "kind": "component" },
+      { "id": "store", "name": "McpAppStore", "kind": "component" },
+      { "id": "tier", "name": "chosen tier file", "kind": "datastore" }
+    ],
+    "messages": [
+      { "from": "agent", "to": "sm", "label": "install_mcp_app({ target: 'user' | 'system', ... })" },
+      { "from": "sm", "to": "store", "label": "/mcp/store/apps?target=<tier>" },
+      { "from": "store", "to": "tier", "label": "write entry" },
+      { "from": "tier", "to": "store", "label": "ok | fs_permission | json_parse | schema_validation" },
+      { "from": "store", "to": "sm", "label": "ok | McpAppStoreError{cause}" },
+      { "from": "sm", "to": "agent", "label": "result" }
+    ]
+  }
+]

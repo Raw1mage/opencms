@@ -1,0 +1,66 @@
+{
+  "McpAppEntry": {
+    "id": "string",
+    "transport": "stdio|streamable-http|sse",
+    "url": "string (may contain templated tokens: ${UID} ${USER} ${HOME} ${XDG_RUNTIME_DIR})",
+    "enabled": "boolean",
+    "path": "string (system-owned; immutable from user tier)",
+    "source": "string (system-owned)",
+    "tools": "array (system-owned)",
+    "settingsSchema": "object (system-owned)",
+    "modelProcess": "object|null (system-owned)",
+    "config": "object (user-overridable)"
+  },
+  "McpAppRegistryFile": {
+    "$schemaVersion": "number",
+    "apps": "record<string, McpAppEntry>"
+  },
+  "MergedMcpAppEntry": {
+    "id": "string",
+    "tierOrigin": {
+      "identity": "system|user",
+      "runtime": "system|user"
+    },
+    "transport": "string",
+    "urlTemplate": "string",
+    "enabled": "boolean",
+    "path": "string",
+    "source": "string",
+    "tools": "array",
+    "settingsSchema": "object",
+    "modelProcess": "object|null",
+    "config": "object"
+  },
+  "ResolveRuntimeUrlContext": {
+    "uid": "number",
+    "user": "string",
+    "home": "string",
+    "xdgRuntimeDir": "string"
+  },
+  "ResolveRuntimeUrlResult": {
+    "templatedUrl": "string",
+    "resolvedUrl": "string",
+    "expandedTokens": "array<string>",
+    "unknownTokens": "array<string>"
+  },
+  "InstallMcpAppRequest": {
+    "id": "string",
+    "transport": "stdio|streamable-http|sse",
+    "url": "string",
+    "target": "system|user (optional; default=system)",
+    "config": "object (optional)"
+  },
+  "McpAppStoreError": {
+    "code": "string",
+    "cause": "fs_permission|json_parse|schema_validation|tier_conflict|unknown",
+    "tier": "system|user|null",
+    "detail": "string"
+  },
+  "ListMcpAppsRow": {
+    "id": "string",
+    "urlTemplate": "string",
+    "urlResolved": "string|null",
+    "enabled": "boolean",
+    "tierOrigin": "object"
+  }
+}

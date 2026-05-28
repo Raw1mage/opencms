@@ -1,0 +1,195 @@
+[
+  {
+    "id": "TV-1-merge-system-only",
+    "description": "App declared only in system tier passes through with system identity + system runtime fields.",
+    "given": {
+      "systemTier": { "foo": { "id": "foo", "url": "unix:///etc/foo.sock:/mcp/", "transport": "streamable-http", "enabled": true, "path": "/opt/foo", "source": "system", "tools": ["a"], "settingsSchema": {}, "modelProcess": null, "config": {} } },
+      "userTier": {}
+    },
+    "expect": [
+      "merged.foo.url == 'unix:///etc/foo.sock:/mcp/'",
+      "merged.foo.tierOrigin.identity == 'system'",
+      "merged.foo.tierOrigin.runtime == 'system'"
+    ],
+    "acceptance": ["AC-1"]
+  },
+  {
+    "id": "TV-2-merge-user-only",
+    "description": "App declared only in user tier passes through with user identity + user runtime.",
+    "given": {
+      "systemTier": {},
+      "userTier": { "bar": { "id": "bar", "url": "unix:///home/me/.bar.sock:/mcp/", "transport": "streamable-http", "enabled": true, "config": {} } }
+    },
+    "expect": [
+      "merged.bar.url == 'unix:///home/me/.bar.sock:/mcp/'",
+      "merged.bar.tierOrigin.identity == 'user'",
+      "merged.bar.tierOrigin.runtime == 'user'"
+    ],
+    "acceptance": ["AC-1"]
+  },
+  {
+    "id": "TV-3-merge-collision-runtime-override",
+    "description": "Same id in both tiers: system identity wins, user runtime fields (url/enabled/config) override.",
+    "given": {
+      "systemTier": { "docxmcp": { "id": "docxmcp", "url": "unix:///stale/path:/mcp/", "transport": "streamable-http", "enabled": true, "path": "/opt/docxmcp", "source": "system", "tools": ["doc.read","doc.write"], "settingsSchema": {}, "modelProcess": null, "config": {} } },
+      "userTier": { "docxmcp": { "id": "docxmcp", "url": "unix://${XDG_RUNTIME_DIR}/opencode/sockets/docxmcp/docxmcp.sock:/mcp/", "enabled": true, "config": {"timeout": 30000} } }
+    },
+    "expect": [
+      "merged.docxmcp.url == 'unix://${XDG_RUNTIME_DIR}/opencode/sockets/docxmcp/docxmcp.sock:/mcp/'",
+      "merged.docxmcp.path == '/opt/docxmcp'",
+      "merged.docxmcp.tools == ['doc.read','doc.write']",
+      "merged.docxmcp.config.timeout == 30000",
+      "merged.docxmcp.tierOrigin.identity == 'system'",
+      "merged.docxmcp.tierOrigin.runtime == 'user'"
+    ],
+    "acceptance": ["AC-1"]
+  },
+  {
+    "id": "TV-4-merge-collision-immutable-rejected",
+    "description": "User tier attempts to override `path` / `tools`: drop silently with debug log; system wins.",
+    "given": {
+      "systemTier": { "docxmcp": { "id": "docxmcp", "url": "unix:///stale:/mcp/", "transport": "streamable-http", "enabled": true, "path": "/opt/docxmcp", "source": "system", "tools": ["doc.read"], "settingsSchema": {}, "modelProcess": null, "config": {} } },
+      "userTier": { "docxmcp": { "id": "docxmcp", "path": "/tmp/evil", "tools": ["pwn"], "url": "unix:///home/me/.sock:/mcp/" } }
+    },
+    "expect": [
+      "merged.docxmcp.path == '/opt/docxmcp'",
+      "merged.docxmcp.tools == ['doc.read']",
+      "merged.docxmcp.url == 'unix:///home/me/.sock:/mcp/'",
+      "debugLog.event == 'mcp_app.user_override_rejected'",
+      "debugLog.fields includes ['path','tools']"
+    ],
+    "acceptance": ["AC-1"]
+  },
+  {
+    "id": "TV-5-resolver-all-tokens",
+    "description": "Resolver expands every token in a single string.",
+    "given": {
+      "url": "unix://${HOME}/${USER}-${UID}/${XDG_RUNTIME_DIR}/sock:/mcp/",
+      "ctx": { "uid": 1000, "user": "pkcs12", "home": "/home/pkcs12", "xdgRuntimeDir": "/run/user/1000" }
+    },
+    "expect": [
+      "resolved == 'unix:///home/pkcs12/pkcs12-1000//run/user/1000/sock:/mcp/'",
+      "expandedTokens == ['${HOME}','${USER}','${UID}','${XDG_RUNTIME_DIR}']",
+      "unknownTokens == []"
+    ],
+    "acceptance": ["AC-2"]
+  },
+  {
+    "id": "TV-6-resolver-xdg-fallback",
+    "description": "`${XDG_RUNTIME_DIR}` falls back to `/run/user/${UID}` when env is empty.",
+    "given": {
+      "url": "unix://${XDG_RUNTIME_DIR}/opencode/sockets/docxmcp/docxmcp.sock:/mcp/",
+      "ctx": { "uid": 1000, "user": "pkcs12", "home": "/home/pkcs12", "xdgRuntimeDir": null }
+    },
+    "expect": [
+      "resolved == 'unix:///run/user/1000/opencode/sockets/docxmcp/docxmcp.sock:/mcp/'"
+    ],
+    "acceptance": ["AC-2"]
+  },
+  {
+    "id": "TV-7-resolver-unknown-token-preserved",
+    "description": "Unknown `${...}` tokens are left intact (forward compatibility).",
+    "given": {
+      "url": "unix://${HOME}/foo/${UNKNOWN_FUTURE_VAR}/sock:/mcp/",
+      "ctx": { "uid": 1000, "user": "pkcs12", "home": "/home/pkcs12", "xdgRuntimeDir": "/run/user/1000" }
+    },
+    "expect": [
+      "resolved == 'unix:///home/pkcs12/foo/${UNKNOWN_FUTURE_VAR}/sock:/mcp/'",
+      "unknownTokens == ['${UNKNOWN_FUTURE_VAR}']"
+    ],
+    "acceptance": ["AC-2"]
+  },
+  {
+    "id": "TV-8-connect-resolves-before-dial",
+    "description": "`connectMcpApps()` calls the resolver and dials the resolved path; MCP `initialize` succeeds.",
+    "given": {
+      "registry": { "docxmcp": { "url": "unix://${XDG_RUNTIME_DIR}/opencode/sockets/docxmcp/docxmcp.sock:/mcp/", "transport": "streamable-http" } },
+      "fixtureSocket": "/run/user/1000/opencode/sockets/docxmcp/docxmcp.sock"
+    },
+    "expect": [
+      "dialedPath == '/run/user/1000/opencode/sockets/docxmcp/docxmcp.sock'",
+      "initializeResult.serverInfo.name == 'docxmcp'"
+    ],
+    "acceptance": ["AC-3", "AC-4"]
+  },
+  {
+    "id": "TV-9-dispatcher-resolves-before-upload",
+    "description": "HTTP upload dispatcher resolves the templated `url` before forwarding upstream.",
+    "given": {
+      "registry": { "docxmcp": { "url": "unix://${XDG_RUNTIME_DIR}/opencode/sockets/docxmcp/docxmcp.sock:/mcp/" } },
+      "uploadRequest": { "target": "docxmcp", "body": "fixture" }
+    },
+    "expect": [
+      "upstreamSocket == '/run/user/1000/opencode/sockets/docxmcp/docxmcp.sock'",
+      "responseStatus == 200"
+    ],
+    "acceptance": ["AC-5"]
+  },
+  {
+    "id": "TV-10-install-target-user",
+    "description": "`install_mcp_app({ target: 'user' })` writes only to user-tier file.",
+    "given": {
+      "request": { "id": "baz", "url": "unix:///home/me/.baz.sock:/mcp/", "transport": "streamable-http", "target": "user" }
+    },
+    "expect": [
+      "userTierFile.baz.url == 'unix:///home/me/.baz.sock:/mcp/'",
+      "systemTierFile.mtime_unchanged == true"
+    ],
+    "acceptance": ["AC-6"]
+  },
+  {
+    "id": "TV-11-install-target-system-default",
+    "description": "`install_mcp_app` without `target` writes to system tier (backward compatibility).",
+    "given": {
+      "request": { "id": "qux", "url": "unix:///etc/qux.sock:/mcp/", "transport": "streamable-http" }
+    },
+    "expect": [
+      "systemTierFile.qux.url == 'unix:///etc/qux.sock:/mcp/'",
+      "userTierFile.mtime_unchanged == true"
+    ],
+    "acceptance": ["AC-6"]
+  },
+  {
+    "id": "TV-12-install-error-cause-surfaces",
+    "description": "`McpAppStoreError` exposes structured `cause` instead of generic message.",
+    "given": {
+      "request": { "id": "ro", "url": "unix:///etc/ro.sock:/mcp/", "transport": "streamable-http", "target": "system" },
+      "systemTierFile": "read_only"
+    },
+    "expect": [
+      "error.code == 'mcp_app_install_failed'",
+      "error.cause == 'fs_permission'",
+      "error.tier == 'system'"
+    ],
+    "acceptance": ["AC-6"]
+  },
+  {
+    "id": "TV-13-stale-system-url-superseded",
+    "description": "Stale system-tier URL stays in `/etc/opencode/mcp-apps.json` but layered merge makes it dead text.",
+    "given": {
+      "systemTier": { "docxmcp": { "url": "unix:///stale/path:/mcp/", "path": "/opt/docxmcp", "tools": ["a"] } },
+      "userTier": { "docxmcp": { "url": "unix://${XDG_RUNTIME_DIR}/opencode/sockets/docxmcp/docxmcp.sock:/mcp/" } },
+      "fixtureSocket": "/run/user/1000/opencode/sockets/docxmcp/docxmcp.sock"
+    },
+    "expect": [
+      "dialedPath == '/run/user/1000/opencode/sockets/docxmcp/docxmcp.sock'",
+      "systemTierFile.docxmcp.url == 'unix:///stale/path:/mcp/' (unchanged on disk)",
+      "list_mcp_apps.docxmcp.urlTemplate == 'unix://${XDG_RUNTIME_DIR}/opencode/sockets/docxmcp/docxmcp.sock:/mcp/'"
+    ],
+    "acceptance": ["AC-7"]
+  },
+  {
+    "id": "TV-14-uid-from-process-not-header",
+    "description": "Resolver uses `process.getuid()`; header-supplied uid is ignored.",
+    "given": {
+      "url": "unix:///run/user/${UID}/sock:/mcp/",
+      "processGetuid": 1000,
+      "requestHeader.x_uid": "9999"
+    },
+    "expect": [
+      "resolved == 'unix:///run/user/1000/sock:/mcp/'",
+      "uidSource == 'process.getuid'"
+    ],
+    "acceptance": ["AC-2"]
+  }
+]
