@@ -2045,11 +2045,41 @@ export namespace LLM {
               toolID: toolName,
             })
 
-            // Don't execute the LLM's first call — it was constructed from a
-            // 200-char summary without the full schema/description. Redirect
-            // to `invalid` with a short retry signal. The tool is now in the
-            // active set, so the LLM will see the full schema on its next turn
-            // and can construct a correct call.
+            // The tool is now registered with its full schema, so execute the
+            // LLM's original call directly instead of taxing every first use
+            // with a forced retry. This is safe because the AI SDK does NOT
+            // structurally validate tool args here — tools are registered via
+            // `jsonSchema(schema)` with no `validate` fn (resolve-tools.ts), so
+            // `safeValidateTypes` short-circuits to success. The real check is
+            // the tool's own zod parse at execute time (tool.ts), which carries
+            // `Question.normalize`-style preprocess + `formatValidationError`.
+            // Net effect: args that are already correct (the common case, since
+            // the lazy catalog exposes a param signature) run on the first call
+            // with no wasted round-trip; wrong args still fail at execute and
+            // surface the tool's rich `[schema-miss:]` hint while the model
+            // retries — now with the full schema in the active set. Same safety
+            // net as the old forced-retry, minus the mandatory tax.
+            //
+            // Guard: only pass through when the model's input is valid JSON (or
+            // empty — the SDK coerces "" → {}). Malformed JSON falls back to the
+            // `invalid` redirect so it self-heals via our InvalidTool rather
+            // than the AI SDK's native invalid-tool-call path.
+            const rawInput = failed.toolCall.input
+            const inputParseable =
+              typeof rawInput !== "string" || rawInput.trim() === "" || (() => {
+                try {
+                  JSON.parse(rawInput)
+                  return true
+                } catch {
+                  return false
+                }
+              })()
+            if (inputParseable) {
+              return {
+                ...failed.toolCall,
+                toolName,
+              }
+            }
             return {
               ...failed.toolCall,
               input: JSON.stringify({
