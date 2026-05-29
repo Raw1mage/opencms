@@ -532,6 +532,20 @@ export async function deriveObservedCondition(input: {
       ) {
         plannedSources.push("continuation_invalidated_event")
       }
+      // Prompt-cache TTL expiry: a provider's ephemeral prompt cache (Anthropic
+      // default 5min) lapses on its own while the user is idle between turns.
+      // The next turn's cache_read legitimately collapses to the re-cached
+      // prefix — an expected lapse, not a server-side eviction under load. The
+      // identity/compaction signals above only model *what we changed*, never
+      // wall-clock; without this, any idle gap longer than the TTL reads as an
+      // unplanned cliff. On Anthropic that is pure telemetry noise (the
+      // invalidate below is a codex-only no-op); on codex the chain
+      // (previous_response_id) is still valid after a TTL lapse, so falling
+      // through without a chain reset is also the cheaper, correct response.
+      // prev.ts is refreshed every turn that clears the cooldown gate, so the
+      // gap is a good proxy for inter-turn idle time (≤30s cooldown skew).
+      const PROMPT_CACHE_TTL_MS = 5 * 60_000
+      if (Date.now() - prev.ts > PROMPT_CACHE_TTL_MS) plannedSources.push("prompt_cache_ttl_expiry")
       // Anchor drift: the line-549 identity-drift handler may have run on
       // a prior turn (which itself returns null and updates our prev to
       // the new accountId) — but the anchor still carries the old account
