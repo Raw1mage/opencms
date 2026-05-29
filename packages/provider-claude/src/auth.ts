@@ -3,9 +3,6 @@
  *
  * Phase 3: Extracted from anthropic.ts, compatible with existing credentials.
  */
-import { readFileSync } from "node:fs"
-import { homedir } from "node:os"
-import { join } from "node:path"
 import {
   CLIENT_ID,
   OAUTH,
@@ -255,43 +252,6 @@ export async function refreshTokenWithMutex(
     })
 
   return _refreshPromise
-}
-
-// ---------------------------------------------------------------------------
-// § 3.5b  Import from the official Claude Code CLI credential store
-// ---------------------------------------------------------------------------
-
-export interface LocalClaudeCredentials {
-  access: string
-  refresh: string
-  expires: number
-  scopes?: string[]
-  subscriptionType?: string
-}
-
-/**
- * Read the official Claude Code CLI's stored OAuth credential
- * (`~/.claude/.credentials.json` → `claudeAiOauth`). opencode's claude provider
- * shares the same OAuth client_id, scopes and endpoints, so this token is
- * directly reusable — letting users import an existing local login instead of
- * re-running the OAuth flow. Returns null if absent / unreadable / malformed.
- */
-export function readLocalClaudeCredentials(
-  path = join(homedir(), ".claude", ".credentials.json"),
-): LocalClaudeCredentials | null {
-  try {
-    const oauth = JSON.parse(readFileSync(path, "utf8"))?.claudeAiOauth
-    if (!oauth?.accessToken || !oauth?.refreshToken || !oauth?.expiresAt) return null
-    return {
-      access: oauth.accessToken,
-      refresh: oauth.refreshToken,
-      expires: oauth.expiresAt,
-      scopes: oauth.scopes,
-      subscriptionType: oauth.subscriptionType,
-    }
-  } catch {
-    return null
-  }
 }
 
 // ---------------------------------------------------------------------------

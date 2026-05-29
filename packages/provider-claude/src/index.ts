@@ -76,10 +76,9 @@ export {
   refreshTokenWithMutex,
   fetchProfile,
   isClaudeCredentials,
-  readLocalClaudeCredentials,
   TokenRefreshError,
 } from "./auth.js"
-export type { ClaudeCredentials, TokenSet, Profile, LocalClaudeCredentials } from "./auth.js"
+export type { ClaudeCredentials, TokenSet, Profile } from "./auth.js"
 
 // Provider (main entry)
 export { createClaudeCode } from "./provider.js"
