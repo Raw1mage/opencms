@@ -225,21 +225,30 @@ export function Markdown(
   props: ComponentProps<"div"> & {
     text: string
     cacheKey?: string
+    // When true, parse via the streaming-lite path (no Shiki/KaTeX) so each
+    // mid-stream re-parse is cheap. Cached separately from the full render;
+    // once the caller flips this back to false the full parser runs once and
+    // the DOM upgrades to syntax-highlighted output. See marked.tsx.
+    streaming?: boolean
     class?: string
     classList?: Record<string, boolean>
   },
 ) {
-  const [local, others] = splitProps(props, ["text", "cacheKey", "class", "classList"])
+  const [local, others] = splitProps(props, ["text", "cacheKey", "streaming", "class", "classList"])
   const marked = useMarked()
   const i18n = useI18n()
   const [root, setRoot] = createSignal<HTMLDivElement>()
   const [html] = createResource(
-    () => local.text,
-    async (markdown) => {
+    () => ({ markdown: local.text, streaming: !!local.streaming }),
+    async ({ markdown, streaming }) => {
       if (isServer) return ""
 
       const hash = checksum(markdown)
-      const key = local.cacheKey ?? hash
+      // Suffix the cache key while streaming so the lite (un-highlighted) HTML
+      // never satisfies the post-completion full render of the same text — the
+      // completed parse must miss and re-run with Shiki/KaTeX.
+      const baseKey = local.cacheKey ?? hash
+      const key = streaming ? baseKey + ":stream" : baseKey
 
       if (key && hash) {
         const cached = cache.get(key)
@@ -249,7 +258,7 @@ export function Markdown(
         }
       }
 
-      const next = await marked.parse(markdown)
+      const next = streaming ? await marked.parseStreaming(markdown) : await marked.parse(markdown)
       const safe = sanitize(next)
       if (key && hash) touch(key, { hash, html: safe })
       return safe

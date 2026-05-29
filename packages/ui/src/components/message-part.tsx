@@ -145,7 +145,7 @@ function FoldableMarkdown(props: {
         >
           streaming 中，暫顯示最後 {cfg().tailWindowKb} KB（截斷前段 {Math.round((props.truncatedPrefix ?? 0) / 1024)} KB）
         </div>
-        <Markdown text={props.text} cacheKey={props.cacheKey + ":tail"} />
+        <Markdown text={props.text} cacheKey={props.cacheKey + ":tail"} streaming={streaming()} />
       </Match>
 
       <Match when={mode() === "folded"}>
@@ -179,7 +179,7 @@ function FoldableMarkdown(props: {
       </Match>
 
       <Match when={mode() === "full"}>
-        <Markdown text={props.text} cacheKey={props.cacheKey} />
+        <Markdown text={props.text} cacheKey={props.cacheKey} streaming={streaming()} />
       </Match>
     </Switch>
   )
@@ -348,6 +348,12 @@ export type PartComponent = Component<MessagePartProps>
 export const PART_MAPPING: Record<string, PartComponent | undefined> = {}
 
 const TEXT_RENDER_THROTTLE_MS = 100
+// While a message is still streaming, text re-parses go through the cheap
+// lite Markdown path (no Shiki/KaTeX — see marked.tsx), so we can afford a
+// much tighter cadence (~30fps) for smooth, continuous reveal instead of the
+// chunky 10fps steps the 100ms throttle produced. Completed messages keep the
+// coarser 100ms throttle (text no longer changes, so it's effectively moot).
+const TEXT_RENDER_STREAMING_THROTTLE_MS = 33
 
 function same<T>(a: readonly T[], b: readonly T[]) {
   if (a === b) return true
@@ -355,7 +361,7 @@ function same<T>(a: readonly T[], b: readonly T[]) {
   return a.every((x, i) => x === b[i])
 }
 
-function createThrottledValue(getValue: () => string) {
+function createThrottledValue(getValue: () => string, getIntervalMs?: () => number) {
   const [value, setValue] = createSignal(getValue())
   let timeout: ReturnType<typeof setTimeout> | undefined
   let last = 0
@@ -363,7 +369,8 @@ function createThrottledValue(getValue: () => string) {
   createEffect(() => {
     const next = getValue()
     const now = Date.now()
-    const remaining = TEXT_RENDER_THROTTLE_MS - (now - last)
+    const interval = getIntervalMs?.() ?? TEXT_RENDER_THROTTLE_MS
+    const remaining = interval - (now - last)
     if (remaining <= 0) {
       if (timeout) {
         clearTimeout(timeout)
@@ -1116,8 +1123,11 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
   const data = useData()
   const i18n = useI18n()
   const part = props.part as TextPart
+  const streaming = () => isMessageStreaming(props.message)
   const displayText = () => linkifyFileReferences((part.text ?? "").trim(), data.directory)
-  const throttledText = createThrottledValue(displayText)
+  const throttledText = createThrottledValue(displayText, () =>
+    streaming() ? TEXT_RENDER_STREAMING_THROTTLE_MS : TEXT_RENDER_THROTTLE_MS,
+  )
   const [copied, setCopied] = createSignal(false)
   const truncatedPrefix = () => (part as unknown as { truncatedPrefix?: number }).truncatedPrefix ?? 0
 
@@ -1163,10 +1173,12 @@ PART_MAPPING["reasoning"] = function ReasoningPartDisplay(props) {
   const data = useData()
   const i18n = useI18n()
   const part = props.part as ReasoningPart
-  const text = () => part.text.trim()
-  const throttledText = createThrottledValue(text)
-  const truncatedPrefix = () => (part as unknown as { truncatedPrefix?: number }).truncatedPrefix ?? 0
   const streaming = () => isMessageStreaming(props.message)
+  const text = () => part.text.trim()
+  const throttledText = createThrottledValue(text, () =>
+    streaming() ? TEXT_RENDER_STREAMING_THROTTLE_MS : TEXT_RENDER_THROTTLE_MS,
+  )
+  const truncatedPrefix = () => (part as unknown as { truncatedPrefix?: number }).truncatedPrefix ?? 0
   const charCount = () => throttledText().length
   const formatCount = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n))
 

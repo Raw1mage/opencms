@@ -1,4 +1,4 @@
-import { marked } from "marked"
+import { marked, Marked, type RendererObject } from "marked"
 import markedKatex from "marked-katex-extension"
 import markedShiki from "marked-shiki"
 import katex from "katex"
@@ -464,9 +464,11 @@ export type NativeMarkdownParser = (markdown: string) => Promise<string>
 export const { use: useMarked, provider: MarkedProvider } = createSimpleContext({
   name: "Marked",
   init: (props: { nativeParser?: NativeMarkdownParser }) => {
-    const jsParser = marked.use(
-      {
-        renderer: {
+    // Renderer overrides shared by the full and the streaming-lite parsers.
+    // Only link/image are customized (file-view routing); both parsers need
+    // identical anchor/image behavior so the DOM doesn't reshuffle when the
+    // stream completes and the full (shiki/katex) parse takes over.
+    const renderer: RendererObject = {
           link(token) {
             const { href, title, text, tokens } = token as {
               href: string
@@ -516,8 +518,13 @@ export const { use: useMarked, provider: MarkedProvider } = createSimpleContext(
             const altAttr = text ? ` alt="${text}"` : ""
             return `<img src="${href}"${altAttr}${titleAttr} />`
           },
-        },
-      },
+    }
+
+    // Full parser: link/image renderer + KaTeX + Shiki. Used for completed
+    // messages (and any non-streaming render). Shiki highlighting is the
+    // expensive step (tens of ms per code block) and runs once per parse.
+    const jsParser = marked.use(
+      { renderer },
       markedKatex({
         throwOnError: false,
         nonStandard: true,
@@ -540,6 +547,15 @@ export const { use: useMarked, provider: MarkedProvider } = createSimpleContext(
       }),
     )
 
+    // Streaming-lite parser: same renderer, NO KaTeX / NO Shiki. An isolated
+    // `Marked` instance (not the global `marked` singleton, whose `.use`
+    // mutates it) so the heavy plugins never leak into this path. During a
+    // live stream the text re-parses every frame; skipping the throwaway
+    // syntax-highlight work is what makes a higher render cadence affordable.
+    // Code blocks fall back to marked's default escaped <pre><code>; math
+    // stays literal until the stream completes and the full parser runs.
+    const jsParserLite = new Marked({ renderer })
+
     if (props.nativeParser) {
       const nativeParser = props.nativeParser
       return {
@@ -548,9 +564,17 @@ export const { use: useMarked, provider: MarkedProvider } = createSimpleContext(
           const withMath = renderMathExpressions(html)
           return highlightCodeBlocks(withMath)
         },
+        // Streaming path skips math + code highlighting for the same reason
+        // as the JS lite parser above.
+        async parseStreaming(markdown: string): Promise<string> {
+          return nativeParser(markdown)
+        },
       }
     }
 
-    return jsParser
+    return {
+      parse: (markdown: string) => jsParser.parse(markdown),
+      parseStreaming: (markdown: string) => jsParserLite.parse(markdown),
+    }
   },
 })
