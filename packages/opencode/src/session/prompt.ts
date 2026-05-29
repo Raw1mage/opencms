@@ -3191,6 +3191,14 @@ export namespace SessionPrompt {
           ...(gatedLazyCatalogPrompt ? [gatedLazyCatalogPrompt] : []),
           ...(format.type === "json_schema" ? [STRUCTURED_OUTPUT_SYSTEM_PROMPT] : []),
           ...noticeAddenda,
+          // Max-steps directive is instruction-style ("tools disabled, respond
+          // text only, overrides all instructions"), so it belongs in the
+          // system tier — NOT as a trailing {role:assistant} message. Anthropic
+          // models reject a conversation ending with an assistant message
+          // ("does not support assistant message prefill"); injecting it here is
+          // provider-agnostic and avoids that 400.
+          // issues/bug_20260529_claude_assistant_prefill_400.md
+          ...(isLastStep ? [MAX_STEPS] : []),
         ],
         messages: SessionCompaction.sanitizeOrphanedToolCalls([
           // Context Sharing v2: prepend parent messages as stable prefix for child sessions.
@@ -3211,14 +3219,6 @@ export namespace SessionPrompt {
               ]
             : []),
           ...MessageV2.toModelMessages(sessionMessagesForModel, activeModel),
-          ...(isLastStep
-            ? [
-                {
-                  role: "assistant" as const,
-                  content: MAX_STEPS,
-                },
-              ]
-            : []),
         ]),
         tools: gatedTools,
         lazyTools: gatedLazyTools,
