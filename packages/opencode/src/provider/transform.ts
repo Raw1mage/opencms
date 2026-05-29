@@ -669,6 +669,36 @@ export namespace ProviderTransform {
           return anthropicVariants
         }
 
+      case "@opencode-ai/provider-claude":
+        // Native claude-cli provider: it serializes `thinking` straight onto the
+        // Anthropic Messages API wire (provider.ts JSON.stringify(body), no AI-SDK
+        // translation layer), so it needs snake_case `budget_tokens` — NOT the
+        // camelCase `budgetTokens` the @ai-sdk/anthropic case above emits. Levels
+        // mirror that case: low=1k, medium=8k, high=16k; opus-4-7+ adds xhigh=32k.
+        // Without this case the switch fell through to `return {}`, leaving the
+        // model with zero variants → UI only ever offered "None".
+        {
+          const claudeVariants: Record<string, Record<string, any>> = {
+            low: {
+              thinking: { type: "enabled", budget_tokens: Math.min(1_024, model.limit.output - 1) },
+            },
+            medium: {
+              thinking: { type: "enabled", budget_tokens: Math.min(8_000, Math.floor(model.limit.output / 2 - 1)) },
+            },
+            high: {
+              thinking: { type: "enabled", budget_tokens: Math.min(16_000, model.limit.output - 1) },
+            },
+          }
+          const opusMatch = /claude-opus-4-(\d+)/.exec(id)
+          const isOpus47Plus = opusMatch ? Number(opusMatch[1]) >= 7 : false
+          if (isOpus47Plus) {
+            claudeVariants.xhigh = {
+              thinking: { type: "enabled", budget_tokens: Math.min(32_000, model.limit.output - 1) },
+            }
+          }
+          return claudeVariants
+        }
+
       case "@ai-sdk/amazon-bedrock":
         // https://v5.ai-sdk.dev/providers/ai-sdk-providers/amazon-bedrock
         // For Anthropic models on Bedrock, use reasoningConfig with budgetTokens
