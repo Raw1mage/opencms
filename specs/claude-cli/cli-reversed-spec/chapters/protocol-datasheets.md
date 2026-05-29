@@ -56,6 +56,22 @@ user:file_upload
 
 **Delta from 2.1.126**: `user:mcp_servers` and `user:file_upload` are new. `user:sessions` became `user:sessions:claude_code`.
 
+**Authorize vs refresh scope sets (clarified 2026-05-30)** — three upstream vars:
+
+| Var | Members | Used by |
+|-----|---------|---------|
+| `$3q` (console) | `org:create_api_key`, `user:profile` | — (component of `bx8`) |
+| `zR$` (claude.ai) | `user:profile`, `user:inference`, `user:sessions:claude_code`, `user:mcp_servers`, `user:file_upload` | **refresh_token grant** |
+| `bx8` = union(`$3q`,`zR$`) | all 6 above | **authorize** (both login types) |
+
+The authorize request sends the full union `bx8` for **both** subscription and
+console flows (only `inferenceOnly` narrows it to `[user:inference]`) — it does
+**not** vary scope by login type. The `refresh_token` grant uses the narrower
+`zR$` (no `org:create_api_key`; including it there → `invalid_scope`). A
+subscription account can't act on `org:create_api_key`; the AS grants the
+subset. (Stripping `org:create_api_key` from the subscription *authorize* was a
+past workaround for the wrong-host bug, not a real requirement.)
+
 ---
 
 ## §3 Request Headers
