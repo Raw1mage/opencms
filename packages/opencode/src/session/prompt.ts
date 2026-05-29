@@ -8,6 +8,8 @@ import { SessionRevert } from "./revert"
 import { Session } from "."
 import { Agent } from "../agent/agent"
 import { Provider } from "../provider/provider"
+import { classifyProvider } from "../provider/chain-semantics"
+import { isSupportedProviderKey } from "../provider/supported-provider-registry"
 import { SessionCompaction } from "./compaction"
 import { detectIdentityChange } from "./identity-change"
 import { transformPostAnchorTail, LayerPurityViolation } from "./post-anchor-transform"
@@ -299,9 +301,9 @@ async function withContextBudgetEnvelope(input: {
   // freerun (per-iteration ContextNode rendering supplies its own state).
   try {
     const cfg = await Config.get()
-    const providerCfg = (cfg.provider as Record<string, { mode?: "full" | "lite" | "freerun"; lite?: boolean }> | undefined)?.[
-      input.model.providerId
-    ]
+    const providerCfg = (
+      cfg.provider as Record<string, { mode?: "full" | "lite" | "freerun"; lite?: boolean }> | undefined
+    )?.[input.model.providerId]
     const effectiveMode = providerCfg?.mode ?? (providerCfg?.lite === true ? "lite" : "full")
     // Phase 0: freerun flag is inert pre-engine; envelope applies to freerun
     // sessions same as full. Engine (Phase 1) will render its own prompt that
@@ -507,7 +509,8 @@ export async function deriveObservedCondition(input: {
   // full resend with new anchor → server evicts again → 37 cascading
   // compactions in 2 hours (ses_1c875cc15ffe5ds18JVdNAT4e6).
   if (input.lastFinished) {
-    const currentCache = input.lastFinished.tokens.cache.read ?? 0
+    const finished = input.lastFinished
+    const currentCache = finished.tokens.cache.read ?? 0
     const prev = lastCacheReadState.get(input.sessionID)
     const nextState: CacheReadState = {
       cacheRead: currentCache,
@@ -518,7 +521,52 @@ export async function deriveObservedCondition(input: {
       selfInvalidated: false,
     }
 
-    if (prev !== undefined && prev.cacheRead > 50_000 && currentCache < prev.cacheRead * 0.5) {
+    // The cache_read-drop predicate below is a *stateful-chain* (SS) concept.
+    // codex/OpenAI report a single cached-vs-uncached axis, so a >50% drop in
+    // cache_read from a substantial prior turn means the server silently dropped
+    // the chain and is reprocessing at full rate — a real cliff. Anthropic and
+    // the rest of the SL (stateless prompt-cache) family bill cache in two parts
+    // — read (0.1x) and write/creation (1.25x) — so a low-read/high-write turn
+    // is just the prefix being (re)written while it is STILL fully cached, not a
+    // loss. Measuring cache_read alone there cried wolf on every re-cache turn.
+    // For SL the real "cache gave us nothing" signal is the uncached `input`
+    // share, which getUsage already isolates (Anthropic reports inputTokens
+    // EXCLUDING cached). classifyProvider throws on unknown ids (DD-11), so gate
+    // on the supported-key check; unknown providers keep the SS predicate.
+    const providerClass = isSupportedProviderKey(input.pinnedProviderId)
+      ? classifyProvider(input.pinnedProviderId)
+      : undefined
+
+    if (providerClass === "SL") {
+      // read + write ≈ total ⇒ input ≈ 0 ⇒ the whole prompt was served from or
+      // written to cache: no cliff, however the read/write split moved this turn.
+      // Only a genuinely large uncached share (cache_control didn't cover the
+      // prompt) is worth surfacing. The invalidate path below is a codex-only
+      // no-op for SL, so this branch is telemetry-only — never return null.
+      const t = finished.tokens
+      const promptTotal = t.input + t.cache.read + t.cache.write
+      const uncachedFraction = promptTotal > 0 ? t.input / promptTotal : 0
+      if (promptTotal > 50_000 && uncachedFraction > 0.5) {
+        debugCheckpoint("prompt", "cache_miss_detected", {
+          sessionID: input.sessionID,
+          step: input.step,
+          promptTotal,
+          uncachedInput: t.input,
+          cacheRead: t.cache.read,
+          cacheWrite: t.cache.write,
+          uncachedFraction,
+        })
+        void Session.appendRecentEvent(input.sessionID, {
+          ts: Date.now(),
+          kind: "cache-cliff",
+          cacheCliff: {
+            prevCacheRead: promptTotal,
+            currentCacheRead: t.cache.read + t.cache.write,
+          },
+        }).catch(() => {})
+      }
+      lastCacheReadState.set(input.sessionID, nextState)
+    } else if (prev !== undefined && prev.cacheRead > 50_000 && currentCache < prev.cacheRead * 0.5) {
       // Classify: did WE cause this drop? If yes it's planned — telemetry
       // only, fall through to remaining triggers. If no it's a real
       // unplanned server-side eviction — invalidate as before.
@@ -532,20 +580,6 @@ export async function deriveObservedCondition(input: {
       ) {
         plannedSources.push("continuation_invalidated_event")
       }
-      // Prompt-cache TTL expiry: a provider's ephemeral prompt cache (Anthropic
-      // default 5min) lapses on its own while the user is idle between turns.
-      // The next turn's cache_read legitimately collapses to the re-cached
-      // prefix — an expected lapse, not a server-side eviction under load. The
-      // identity/compaction signals above only model *what we changed*, never
-      // wall-clock; without this, any idle gap longer than the TTL reads as an
-      // unplanned cliff. On Anthropic that is pure telemetry noise (the
-      // invalidate below is a codex-only no-op); on codex the chain
-      // (previous_response_id) is still valid after a TTL lapse, so falling
-      // through without a chain reset is also the cheaper, correct response.
-      // prev.ts is refreshed every turn that clears the cooldown gate, so the
-      // gap is a good proxy for inter-turn idle time (≤30s cooldown skew).
-      const PROMPT_CACHE_TTL_MS = 5 * 60_000
-      if (Date.now() - prev.ts > PROMPT_CACHE_TTL_MS) plannedSources.push("prompt_cache_ttl_expiry")
       // Anchor drift: the line-549 identity-drift handler may have run on
       // a prior turn (which itself returns null and updates our prev to
       // the new accountId) — but the anchor still carries the old account
@@ -1149,14 +1183,12 @@ export namespace SessionPrompt {
   }): Promise<void> {
     const session = await Session.get(input.sessionID).catch(() => null)
     if (!session) return
-    const providerId =
-      session.execution?.providerId ?? input.model?.providerId
+    const providerId = session.execution?.providerId ?? input.model?.providerId
     if (!providerId) return
     const cfg = await Config.get()
-    const providerCfg = (cfg.provider as Record<
-      string,
-      { mode?: "full" | "lite" | "freerun" }
-    > | undefined)?.[providerId]
+    const providerCfg = (cfg.provider as Record<string, { mode?: "full" | "lite" | "freerun" }> | undefined)?.[
+      providerId
+    ]
     if (providerCfg?.mode !== "freerun") return
 
     // Already armed? Leave it. (User may have explicitly disarmed mid-session.)
@@ -1172,7 +1204,6 @@ export namespace SessionPrompt {
       })
     })
   }
-
 
   export async function resolvePromptParts(template: string): Promise<PromptInput["parts"]> {
     return (await resolvePromptPartsInner(template)) as PromptInput["parts"]
@@ -2815,6 +2846,14 @@ export namespace SessionPrompt {
       const lastUserMsg = msgs.findLast((m) => m.info.role === "user")
       const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
 
+      // Stream-idle watchdog rendezvous box (plans/question-tool_idle-watchdog-false-kill DD-1).
+      // Created here, shared by reference with both resolveTools (which
+      // wires it into per-tool ctx via lazy lookup) and LLM.stream via
+      // processor.process below (which populates `.pause` once the
+      // watchdog exists). Same reference on both sides — that's what
+      // makes the lazy lookup in resolve-tools.ts see the live function.
+      const idleWatchdogBox: { pause?: () => () => void } = {}
+
       const resolvedToolsOutput = await resolveTools({
         agent,
         session,
@@ -2823,6 +2862,7 @@ export namespace SessionPrompt {
         processor,
         bypassAgentCheck,
         messages: msgs,
+        idleWatchdogBox,
       })
 
       const tools = resolvedToolsOutput.tools
@@ -3239,6 +3279,7 @@ export namespace SessionPrompt {
         model: activeModel,
         contextBudget,
         toolChoice: gatedToolChoice,
+        idleWatchdogBox,
       })
 
       if (structuredOutput !== undefined) {

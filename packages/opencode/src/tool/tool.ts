@@ -50,6 +50,37 @@ export namespace Tool {
      * a guaranteed value.
      */
     outputBudget?: number
+    /**
+     * Interactive-tool pause hook for the stream-idle watchdog
+     * (plans/question-tool_idle-watchdog-false-kill, DD-1).
+     *
+     * Taxonomy:
+     * - Name: `pauseIdleWatchdog`
+     * - Is: a hook an interactive tool calls to suspend the stream-idle
+     *   countdown while it legitimately awaits human input.
+     * - Input: none.
+     * - Output: a `resume: () => void` closure that re-arms the idle
+     *   watchdog (idempotent — calling it twice is safe).
+     * - MUST NOT be read as:
+     *   • cancelling the whole stream's abort signal,
+     *   • disabling `ctx.abort` for killswitch / manual-stop /
+     *     session-switch / instance-dispose,
+     *   • pausing the first-chunk watchdog (which fires before any
+     *     tool runs, so it is out of scope of this hook).
+     * - Done when: the idle timer does not fire between
+     *   `pauseIdleWatchdog()` and `resume()`; after `resume()` the
+     *   timer counts down from full again.
+     *
+     * Tools MUST call this inside a `try { ... } finally { resume?.() }`
+     * so a throw from the inner await does not leave the watchdog
+     * disarmed for the rest of the stream (which would silently disable
+     * wedge detection for the whole turn — see design.md R1).
+     *
+     * Optional: when absent (e.g. small-model path or LLM.stream caller
+     * that did not supply an idleWatchdogBox), the call falls through
+     * via optional-chaining and the tool behaves as before the fix.
+     */
+    pauseIdleWatchdog?: () => () => void
   }
   export interface Info<Parameters extends z.ZodType = z.ZodType, M extends Metadata = Metadata> {
     id: string

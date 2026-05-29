@@ -267,10 +267,7 @@ export namespace LLM {
    * builds a new array containing ONLY that message with a state snapshot
    * prepended into its content.
    */
-  async function buildFreerunStatelessMessages(
-    sessionID: string,
-    messages: ModelMessage[],
-  ): Promise<ModelMessage[]> {
+  async function buildFreerunStatelessMessages(sessionID: string, messages: ModelMessage[]): Promise<ModelMessage[]> {
     process.stderr.write(`[freerun-debug] build:entry msgCount=${messages.length}\n`)
 
     let lastUserIdx = -1
@@ -293,10 +290,7 @@ export namespace LLM {
     if (typeof latest.content === "string") {
       newContent = stateBlock + "\n\n# Latest directive\n" + latest.content
     } else if (Array.isArray(latest.content)) {
-      newContent = [
-        { type: "text", text: stateBlock + "\n\n# Latest directive" },
-        ...latest.content,
-      ]
+      newContent = [{ type: "text", text: stateBlock + "\n\n# Latest directive" }, ...latest.content]
     } else {
       // unknown shape — fall back to original
       process.stderr.write(`[freerun-debug] build:unknown content shape, fallback\n`)
@@ -308,11 +302,13 @@ export namespace LLM {
     return [rebuilt]
   }
 
-  function renderFreerunStateSnapshot(todos: ReadonlyArray<{
-    id: string
-    content: string
-    status: "pending" | "in_progress" | "completed" | "blocked"
-  }>): string {
+  function renderFreerunStateSnapshot(
+    todos: ReadonlyArray<{
+      id: string
+      content: string
+      status: "pending" | "in_progress" | "completed" | "blocked"
+    }>,
+  ): string {
     if (todos.length === 0) {
       return [
         "# Freerun state snapshot",
@@ -408,6 +404,33 @@ export namespace LLM {
     messages: ModelMessage[]
     small?: boolean
     tools: Record<string, Tool>
+    /**
+     * Mutable rendezvous for the stream-idle watchdog pause hook
+     * (plans/question-tool_idle-watchdog-false-kill, DD-1).
+     *
+     * Lifecycle:
+     *   1. prompt.ts creates a fresh `{}` per stream and passes the same
+     *      reference to both resolveTools(...) and LLM.stream(...).
+     *   2. LLM.stream constructs its watchdog, then assigns
+     *      `idleWatchdogBox.pause = pauseIdleWatchdog`. The assignment is
+     *      what makes it reachable from inside tool ctx.
+     *   3. resolve-tools.ts's per-tool wrapper closes over the same box and
+     *      reads `idleWatchdogBox.pause` at tool-call time (lazy lookup —
+     *      resolveTools runs BEFORE LLM.stream builds the watchdog, so
+     *      eager capture would always be undefined).
+     *   4. ToolInvoker forwards the function into Tool.Context.pauseIdleWatchdog.
+     *   5. Interactive tools (question / permission) call ctx.pauseIdleWatchdog?.()
+     *      to disarm the 90s wedge timer while awaiting human input, and
+     *      MUST call the returned resume() in a finally block.
+     *   6. disarmIdleWatchdog drops the published reference on stream end
+     *      so straggler calls cannot revive a dead stream's watchdog.
+     *
+     * Optional — if absent, the question tool gracefully no-ops via
+     * optional-chaining and behaves as before. This is acceptable per
+     * design.md DD-2 because the omission path is the pre-fix behavior
+     * (no silent masking of a defect).
+     */
+    idleWatchdogBox?: { pause?: () => () => void }
     lazyTools?: Map<string, Tool>
     toolChoice?: "auto" | "required" | "none"
     contextBudget?: {
@@ -703,9 +726,9 @@ export namespace LLM {
     // New: `mode: "full" | "lite" | "freerun"`. Legacy: `lite: true` → "lite".
     // freerun-mode treats prompt injection as lite-equivalent (no skill injection,
     // no heavy system prompt) because per-iteration ContextNode rendering replaces them.
-    const providerCfg = (cfg.provider as Record<string, { lite?: boolean; mode?: "full" | "lite" | "freerun" }> | undefined)?.[
-      executionModel.providerId
-    ]
+    const providerCfg = (
+      cfg.provider as Record<string, { lite?: boolean; mode?: "full" | "lite" | "freerun" }> | undefined
+    )?.[executionModel.providerId]
     const effectiveMode: "full" | "lite" | "freerun" =
       providerCfg?.mode ?? (providerCfg?.lite === true ? "lite" : "full")
     // Phase 0 decision: freerun is an INERT flag until the engine (Phase 1) is built.
@@ -1649,9 +1672,7 @@ export namespace LLM {
     if (effectiveMode === "freerun") {
       try {
         llmMessages = await buildFreerunStatelessMessages(input.sessionID, input.messages)
-        process.stderr.write(
-          `[freerun-debug] stateless rewrite: ${input.messages.length} → ${llmMessages.length}\n`,
-        )
+        process.stderr.write(`[freerun-debug] stateless rewrite: ${input.messages.length} → ${llmMessages.length}\n`)
       } catch (err) {
         process.stderr.write(
           `[freerun-debug] stateless rewrite THREW: ${err instanceof Error ? err.message : err}\n${err instanceof Error && err.stack ? err.stack.split("\n").slice(0, 5).join("\n") : ""}\n`,
@@ -1779,7 +1800,14 @@ export namespace LLM {
     const idleController = new AbortController()
     let idleTimer: ReturnType<typeof setTimeout> | undefined
     let firstChunkTimer: ReturnType<typeof setTimeout> | undefined
+    // pause flag (spec DD-1): when true, armIdleWatchdog is a no-op and any
+    // pending timer is cleared. Interactive tools (question/permission) that
+    // legitimately await human input flip this on for the duration of the
+    // wait so the 90s wedge watchdog doesn't false-kill the stream while no
+    // chunks flow. See plans/question-tool_idle-watchdog-false-kill/.
+    let idleWatchdogPaused = false
     const armIdleWatchdog = () => {
+      if (idleWatchdogPaused) return
       if (idleTimer) clearTimeout(idleTimer)
       idleTimer = setTimeout(() => {
         l.warn("stream idle timeout — aborting", {
@@ -1801,6 +1829,44 @@ export namespace LLM {
         clearTimeout(firstChunkTimer)
         firstChunkTimer = undefined
       }
+      // Drop the published pause function so any late-arriving tool calls
+      // (e.g. straggler from a cancelled step) don't hold a reference to
+      // a dead stream's watchdog. Idempotent.
+      if (input.idleWatchdogBox) {
+        delete input.idleWatchdogBox.pause
+      }
+    }
+    /**
+     * Interactive-tool pause hook (spec DD-1, plans/question-tool_idle-watchdog-false-kill).
+     * Disarms the idle timer and flips `idleWatchdogPaused` so re-arm calls
+     * (from onChunk) become no-ops. Returns an idempotent resume closure
+     * that clears the pause flag and re-arms the timer. The first-chunk
+     * watchdog is NOT affected (it fires before any tool runs).
+     *
+     * Idempotency: calling resume() twice is safe (second call is a no-op).
+     * Concurrent pause is NOT ref-counted (only one interactive tool at a
+     * time today — question/permission are exclusive); if multiple ever
+     * become concurrent this should be revisited.
+     */
+    const pauseIdleWatchdog = (): (() => void) => {
+      if (idleTimer) {
+        clearTimeout(idleTimer)
+        idleTimer = undefined
+      }
+      idleWatchdogPaused = true
+      let resumed = false
+      return () => {
+        if (resumed) return
+        resumed = true
+        idleWatchdogPaused = false
+        armIdleWatchdog()
+      }
+    }
+    // Publish to the per-stream box so tool ctx can reach it via the
+    // wrapper in resolve-tools.ts. The box is created by prompt.ts and
+    // flows through ResolveToolsInput → InvokeOptions → Tool.Context.
+    if (input.idleWatchdogBox) {
+      input.idleWatchdogBox.pause = pauseIdleWatchdog
     }
     firstChunkTimer = setTimeout(() => {
       if (firstChunkReceived) return
@@ -2066,7 +2132,9 @@ export namespace LLM {
             // than the AI SDK's native invalid-tool-call path.
             const rawInput = failed.toolCall.input
             const inputParseable =
-              typeof rawInput !== "string" || rawInput.trim() === "" || (() => {
+              typeof rawInput !== "string" ||
+              rawInput.trim() === "" ||
+              (() => {
                 try {
                   JSON.parse(rawInput)
                   return true

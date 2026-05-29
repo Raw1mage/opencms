@@ -32,26 +32,43 @@ export const QuestionTool = Tool.define("question", {
   ),
   formatValidationError: () => SCHEMA_HINT,
   async execute(params, ctx) {
-    const answers = await Question.ask({
-      sessionID: ctx.sessionID,
-      questions: params.questions,
-      tool: ctx.callID ? { messageID: ctx.messageID, callID: ctx.callID } : undefined,
-      abort: ctx.abort,
-    })
+    // Pause the stream-idle watchdog while we await a human answer.
+    // Without this, the 90s STREAM_IDLE_TIMEOUT_MS in llm.ts fires
+    // because no token chunks flow during the wait, aborts the
+    // composedAbortSignal, and retracts the question mid-typing
+    // (issues/bug_20260530_question_tool_retracted_treated_as_answered.md,
+    //  plans/question-tool_idle-watchdog-false-kill DD-1).
+    //
+    // try/finally is MANDATORY (design.md R1): if Question.ask throws
+    // without resume(), the watchdog stays disarmed for the rest of
+    // the stream and wedge detection is silently disabled for the turn.
+    // Genuine input.abort (killswitch / manual-stop / session-switch)
+    // still rejects normally — pause only suspends the idle branch.
+    const resume = ctx.pauseIdleWatchdog?.()
+    try {
+      const answers = await Question.ask({
+        sessionID: ctx.sessionID,
+        questions: params.questions,
+        tool: ctx.callID ? { messageID: ctx.messageID, callID: ctx.callID } : undefined,
+        abort: ctx.abort,
+      })
 
-    function format(answer: Question.Answer | undefined) {
-      if (!answer?.length) return "Unanswered"
-      return answer.join(", ")
-    }
+      function format(answer: Question.Answer | undefined) {
+        if (!answer?.length) return "Unanswered"
+        return answer.join(", ")
+      }
 
-    const formatted = params.questions.map((q, i) => `"${q.question}"="${format(answers[i])}"`).join(", ")
+      const formatted = params.questions.map((q, i) => `"${q.question}"="${format(answers[i])}"`).join(", ")
 
-    return {
-      title: `Asked ${params.questions.length} question${params.questions.length > 1 ? "s" : ""}`,
-      output: `User has answered your questions: ${formatted}. You can now continue with the user's answers in mind.`,
-      metadata: {
-        answers,
-      },
+      return {
+        title: `Asked ${params.questions.length} question${params.questions.length > 1 ? "s" : ""}`,
+        output: `User has answered your questions: ${formatted}. You can now continue with the user's answers in mind.`,
+        metadata: {
+          answers,
+        },
+      }
+    } finally {
+      resume?.()
     }
   },
 })

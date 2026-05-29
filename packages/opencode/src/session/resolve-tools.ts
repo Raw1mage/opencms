@@ -205,6 +205,16 @@ export interface ResolveToolsInput {
   processor: SessionProcessor.Info
   bypassAgentCheck: boolean
   messages: MessageV2.WithParts[]
+  /**
+   * Stream-idle watchdog rendezvous box (plans/question-tool_idle-watchdog-false-kill DD-1).
+   * Created by prompt.ts before resolveTools(); shared by reference with
+   * LLM.stream(input.idleWatchdogBox). resolveTools runs BEFORE the
+   * watchdog exists, so the per-tool wrappers below read
+   * `idleWatchdogBox.pause` lazily at tool-call time — by then
+   * LLM.stream has populated it. See StreamInput.idleWatchdogBox in
+   * llm.ts for the full lifecycle.
+   */
+  idleWatchdogBox?: { pause?: () => () => void }
 }
 
 export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToolsOutput> {
@@ -253,7 +263,7 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
       description: item.description,
       inputSchema: jsonSchema(schema as Record<string, unknown>),
       async execute(args, options) {
-        const stateInput = args && typeof args === "object" && !Array.isArray(args) ? args as Record<string, any> : {}
+        const stateInput = args && typeof args === "object" && !Array.isArray(args) ? (args as Record<string, any>) : {}
         return ToolInvoker.execute(item, {
           sessionID: input.session.id,
           messageID: input.processor.message.id,
@@ -264,6 +274,10 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
           messages: input.messages,
           extra: { model: input.model, bypassAgentCheck: input.bypassAgentCheck },
           callID: options.toolCallId,
+          // Lazy read: LLM.stream populates idleWatchdogBox.pause AFTER
+          // resolveTools returns. By reading it here (at tool-call time)
+          // we get the live function, not the empty initial state.
+          pauseIdleWatchdog: input.idleWatchdogBox?.pause,
           onMetadata: async (val) => {
             const match = input.processor.partFromToolCall(options.toolCallId)
             if (match && match.state.status === "running") {
@@ -351,6 +365,8 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
             messages: input.messages,
             extra: { model: input.model, bypassAgentCheck: input.bypassAgentCheck },
             callID: opts.toolCallId,
+            // Lazy read; see native-tools wrapper above for rationale.
+            pauseIdleWatchdog: input.idleWatchdogBox?.pause,
             onAsk: async (req) => {
               await PermissionNext.ask({
                 ...req,

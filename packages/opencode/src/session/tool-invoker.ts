@@ -160,6 +160,12 @@ export namespace ToolInvoker {
     callID?: string // External callID (e.g. from AI SDK or TaskTool loop)
     onMetadata?: (input: ToolMetadataInput) => void | Promise<void>
     onAsk?: (input: ToolAskInput) => Promise<void>
+    /**
+     * Stream-idle watchdog pause hook. Forwarded as-is into
+     * Tool.Context.pauseIdleWatchdog. See tool.ts for the full taxonomy
+     * (plans/question-tool_idle-watchdog-false-kill DD-1).
+     */
+    pauseIdleWatchdog?: () => () => void
   }
 
   /**
@@ -184,6 +190,7 @@ export namespace ToolInvoker {
       callID: providedCallID,
       onMetadata,
       onAsk,
+      pauseIdleWatchdog,
     } = options
     const callID = providedCallID ?? ulid()
 
@@ -218,9 +225,7 @@ export namespace ToolInvoker {
         })
         const firstOutput = (result as any)?.output ?? ""
         const isExploration = Tool.kind(toolID) === "exploration"
-        const prefixed = isExploration
-          ? firstOutput
-          : `[already executed — reusing result]\n` + firstOutput
+        const prefixed = isExploration ? firstOutput : `[already executed — reusing result]\n` + firstOutput
         return {
           title: (result as any)?.title ?? "",
           output: prefixed,
@@ -258,9 +263,7 @@ export namespace ToolInvoker {
           siblingCallID: dup.callID,
         })
         const isExploration = Tool.kind(toolID) === "exploration"
-        const prefixed = isExploration
-          ? dupOutput
-          : `[already executed — reusing result]\n` + dupOutput
+        const prefixed = isExploration ? dupOutput : `[already executed — reusing result]\n` + dupOutput
         return {
           title: "",
           output: prefixed,
@@ -322,6 +325,7 @@ export namespace ToolInvoker {
           await onAsk(input)
         }
       },
+      pauseIdleWatchdog,
     }
 
     try {

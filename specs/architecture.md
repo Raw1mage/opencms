@@ -219,9 +219,9 @@ when the proposal is drafted.
 - **Unified Backend**: All interfaces communicate with a shared Node/Bun backend via the `@opencode-ai/sdk` or direct function calls.
 - **Provider Abstraction**: Model interactions are abstracted through the `Provider` module. Product-visible provider universe is now registry-first: a repo-owned supported provider registry defines which canonical providers cms officially supports and may show in `/provider` or UI lists, while runtime/config/accounts/models sources only enrich those supported providers with state and model metadata.
 - **Runloop modes (peer abstractions)**:
-  - *Turn-based mode* (default): dialog history accumulates; compaction triggers when context fills; single-agent + optional subagent dispatch via `task` tool.
-  - *Lite mode*: strips skill injection + heavy system prompt for weak / low-cost providers; tool catalog still available.
-  - *Freerun mode* (`harness/freerun-mode`): stateless iteration runloop driven by a structured `ContextNode` tree at `<dataHome>/storage/freerun/<sessionId>/`. No dialog history persisted between iterations — each prompt is re-synthesized from current tree state. Compaction is bypassed (DD-10). Subagent dispatch is forbidden (DD-20 — `task` tool stripped). Engine, triggers (goal / cron / watchdog), and telemetry sink (`events.jsonl` per session) live under `packages/opencode/src/freerun/`. Opt-in per-provider via `provider.<id>.mode = "freerun"` in `opencode.json`. See `plans/harness_freerun-mode/` for design + spec.
+  - _Turn-based mode_ (default): dialog history accumulates; compaction triggers when context fills; single-agent + optional subagent dispatch via `task` tool.
+  - _Lite mode_: strips skill injection + heavy system prompt for weak / low-cost providers; tool catalog still available.
+  - _Freerun mode_ (`harness/freerun-mode`): stateless iteration runloop driven by a structured `ContextNode` tree at `<dataHome>/storage/freerun/<sessionId>/`. No dialog history persisted between iterations — each prompt is re-synthesized from current tree state. Compaction is bypassed (DD-10). Subagent dispatch is forbidden (DD-20 — `task` tool stripped). Engine, triggers (goal / cron / watchdog), and telemetry sink (`events.jsonl` per session) live under `packages/opencode/src/freerun/`. Opt-in per-provider via `provider.<id>.mode = "freerun"` in `opencode.json`. See `plans/harness_freerun-mode/` for design + spec.
 
 Architecture Sync (2026-04-08, webapp voice input MVP): Verified (No doc changes). 依據：變更僅限 `packages/app/src/components/prompt-input.tsx` 既有前端互動接線，未新增或改寫模組邊界、跨層資料流、server/API contract 或 runtime state authority。
 
@@ -355,6 +355,20 @@ Variable-size tools cap their own output to a per-invocation token budget before
 - **Out of scope for Phase 1**: per-tool plumbing of `ctx.outputBudget` from the runtime (model.contextWindow → ratio computation) is deferred. Until that lands, `ToolBudget.resolve` falls back to `tweaks.toolOutputBudgetSync().absoluteCap` per tool, which gives the safe upper-bound default. Tools written today against `ToolBudget.resolve` will pick up the model-aware budget transparently when it's wired.
 
 Layers 1 (hybrid-llm compaction), 3 (context visibility), 4 (`compact_now` tool), and 5 (pin/drop/recall override) ship in subsequent phases of the same spec.
+
+### Interactive-Tool Pause Hook (stream-idle watchdog, 2026-05-30)
+
+`LLM.stream` arms a 90s chunk-idle watchdog (`STREAM_IDLE_TIMEOUT_MS = 90_000`, `packages/opencode/src/session/llm.ts`) to detect 0-byte provider wedge — re-armed on every `onChunk`. The watchdog cannot distinguish "stream wedged" from "an interactive tool legitimately awaits a human"; before this hook, a `question` (or `permission`) tool taking longer than 90s to receive a human reply was aborted by `composedAbortSignal`, retracting the question mid-typing. Spec: `plans/question-tool_idle-watchdog-false-kill/` (DD-1).
+
+The fix is a typed cross-layer contract:
+
+- **`packages/opencode/src/tool/tool.ts`** adds optional `pauseIdleWatchdog?: () => () => void` to `Tool.Context`. Taxonomy is inlined as a doc-comment: input none; output is an idempotent `resume` closure. MUST NOT be read as cancelling the stream abort, disabling `ctx.abort`, or pausing the first-chunk watchdog.
+- **`packages/opencode/src/session/llm.ts`** owns the watchdog state. `pauseIdleWatchdog` is a closure that clears `idleTimer`, sets a `paused` flag (so subsequent `armIdleWatchdog` calls from `onChunk` become no-ops), and returns a `resume` closure that clears the flag + re-arms. `disarmIdleWatchdog` (called on `onFinish` / `onError`) also drops the published pause reference so straggler tool calls cannot revive a dead stream's watchdog.
+- **Rendezvous via mutable box** (`{ pause?: () => () => void }`): created by `prompt.ts` before `resolveTools()` and shared by reference with `LLM.stream` via a new `StreamInput.idleWatchdogBox` field. `resolveTools` runs strictly before the watchdog exists, so the per-tool wrappers in `resolve-tools.ts` read `idleWatchdogBox.pause` **lazily at tool-call time** rather than eagerly capturing it (eager capture would always see `undefined`).
+- **Wiring path**: `prompt.ts` → `ResolveToolsInput.idleWatchdogBox` (`resolve-tools.ts`) → `ToolInvoker.InvokeOptions.pauseIdleWatchdog` (`tool-invoker.ts`) → `Tool.Context.pauseIdleWatchdog` → `tool/question.ts` `execute` wraps `Question.ask` in `const resume = ctx.pauseIdleWatchdog?.(); try { ... } finally { resume?.() }`. The mandatory `try/finally` prevents a thrown ask from leaving the watchdog disarmed for the rest of the stream (which would silently disable wedge detection for the turn — design.md R1).
+- **No silent fallback** (AGENTS.md天條): the hook is explicit; the optional-chaining fall-through is acceptable because the no-hook path is the pre-fix behavior and does not mask a defect.
+
+Regression tests in `packages/opencode/test/tool/question.test.ts` (TV-1..TV-4) cover pause-before-ask, resume-on-throw, optional no-op for back-compat, and resume idempotency. The fix is provider-agnostic: claude / codex / openai paths all benefit, and `input.abort` (killswitch / manual-stop / session-switch / instance-dispose) still rejects a pending question normally — only the idle branch is suspended.
 
 ## Builder-Native Beta Workflow Surfaces
 
@@ -899,20 +913,20 @@ Both Google apps share a single OAuth token stored at `~/.config/opencode/gauth.
 
 ### Two-tier registry
 
-| Tier   | File                               | Writer                                                    |
-| ------ | ---------------------------------- | --------------------------------------------------------- |
-| System | `/etc/opencode/mcp-apps.json`      | `install_mcp_app` via sudo wrapper (`target: "system"`)   |
-| User   | `~/.config/opencode/mcp-apps.json` | `install_mcp_app` direct (`target: "user"`)               |
+| Tier   | File                               | Writer                                                  |
+| ------ | ---------------------------------- | ------------------------------------------------------- |
+| System | `/etc/opencode/mcp-apps.json`      | `install_mcp_app` via sudo wrapper (`target: "system"`) |
+| User   | `~/.config/opencode/mcp-apps.json` | `install_mcp_app` direct (`target: "user"`)             |
 
 ### Layered merge (per plans/mcp_per_user_socket_rca, 2026-05-28)
 
 `McpAppStore.loadConfig()` and `listApps()` apply the same layered merge
 via the pure `mergeAppsConfigs(system, user)`:
 
-| Field                                                                            | Owned by    | Notes                                                       |
-| -------------------------------------------------------------------------------- | ----------- | ----------------------------------------------------------- |
+| Field                                                                                              | Owned by    | Notes                                                                                                           |
+| -------------------------------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------- |
 | `path`, `command`, `source`, `tools`, `settingsSchema`, `modelProcess`, `installedAt`, `transport` | System tier | Immutable identity; user attempts to override are dropped (logged at debug as `mcp_app.user_override_rejected`) |
-| `url`, `enabled`, `config`                                                       | User tier   | Per-machine runtime overrides; system-tier values used only when user tier absent |
+| `url`, `enabled`, `config`                                                                         | User tier   | Per-machine runtime overrides; system-tier values used only when user tier absent                               |
 
 System-only and user-only apps pass through unchanged. The previous
 `{ ...user.apps, ...system.apps }` (system-wins) rule was a load-bearing
@@ -940,13 +954,13 @@ that need per-machine-portable paths.
 
 `McpAppStoreError` carries structured `cause` and `tier` fields:
 
-| Cause                | Source                                                |
-| -------------------- | ----------------------------------------------------- |
-| `fs_permission`      | `EACCES` / `EPERM` / `EROFS` on tier file             |
-| `json_parse`         | `SyntaxError` reading existing tier file              |
-| `schema_validation`  | `ZodError` validating `AppsConfig` or manifest fields |
-| `tier_conflict`      | App not present in expected tier (setEnabled/setConfig) |
-| `unknown`            | Default fallback                                      |
+| Cause               | Source                                                  |
+| ------------------- | ------------------------------------------------------- |
+| `fs_permission`     | `EACCES` / `EPERM` / `EROFS` on tier file               |
+| `json_parse`        | `SyntaxError` reading existing tier file                |
+| `schema_validation` | `ZodError` validating `AppsConfig` or manifest fields   |
+| `tier_conflict`     | App not present in expected tier (setEnabled/setConfig) |
+| `unknown`           | Default fallback                                        |
 
 `classifyStoreError(err)` is the structured classifier; POST
 `/mcp/store/apps` returns `{ error, cause, tier, operation }` on
