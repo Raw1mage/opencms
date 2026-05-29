@@ -19,28 +19,31 @@ import {
 // Anthropic API types (wire format)
 // ---------------------------------------------------------------------------
 
+export type CacheControl = { type: "ephemeral"; scope?: "global" | "org"; ttl?: string }
+
 export interface AnthropicMessage {
   role: "user" | "assistant"
   content: string | AnthropicContentBlock[]
 }
 
 export type AnthropicContentBlock =
-  | { type: "text"; text: string }
-  | { type: "image"; source: { type: "base64"; media_type: string; data: string } }
-  | { type: "tool_use"; id: string; name: string; input: unknown }
-  | { type: "tool_result"; tool_use_id: string; content?: string | AnthropicContentBlock[] }
-  | { type: "thinking"; thinking: string }
+  | { type: "text"; text: string; cache_control?: CacheControl | null }
+  | { type: "image"; source: { type: "base64"; media_type: string; data: string }; cache_control?: CacheControl | null }
+  | { type: "tool_use"; id: string; name: string; input: unknown; cache_control?: CacheControl | null }
+  | { type: "tool_result"; tool_use_id: string; content?: string | AnthropicContentBlock[]; cache_control?: CacheControl | null }
+  | { type: "thinking"; thinking: string; signature?: string; cache_control?: CacheControl | null }
 
 export interface AnthropicSystemBlock {
   type: "text"
   text: string
-  cache_control?: { type: "ephemeral"; scope?: "global" | "org"; ttl?: string } | null
+  cache_control?: CacheControl | null
 }
 
 export interface AnthropicTool {
   name: string
   description?: string
   input_schema: unknown
+  cache_control?: CacheControl | null
 }
 
 // ---------------------------------------------------------------------------
@@ -110,7 +113,16 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
           if (part.type === "text") {
             blocks.push({ type: "text", text: part.text })
           } else if (part.type === "reasoning") {
-            blocks.push({ type: "thinking", thinking: part.text })
+            // Anthropic REQUIRES `signature` on thinking blocks replayed in
+            // history (captured from signature_delta in the SSE response and
+            // carried via providerOptions.anthropic.signature). A thinking block
+            // without it is rejected ("thinking.signature: Field required"), so
+            // drop unsigned reasoning rather than send an invalid block.
+            const signature = (part.providerOptions as { anthropic?: { signature?: string } } | undefined)
+              ?.anthropic?.signature
+            if (typeof signature === "string" && signature.length > 0) {
+              blocks.push({ type: "thinking", thinking: part.text, signature })
+            }
           } else if (part.type === "tool-call") {
             const name = prefixToolName(part.toolName)
             blocks.push({
@@ -157,14 +169,45 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
 
 export function convertTools(
   tools: LanguageModelV2FunctionTool[] | undefined,
+  enableCaching = false,
 ): AnthropicTool[] | undefined {
   if (!tools || tools.length === 0) return undefined
 
-  return tools.map((tool) => ({
+  const result: AnthropicTool[] = tools.map((tool) => ({
     name: prefixToolName(tool.name),
     description: tool.description,
     input_schema: tool.inputSchema,
   }))
+
+  // datasheet §9.2: cache_control on the tools block (set on the LAST tool —
+  // Anthropic caches the whole prefix up to the breakpoint). Tool schemas are
+  // large and stable across a session; without this they were reprocessed as
+  // fresh input on every turn, inflating token usage and burning the context
+  // budget toward the long-context (>200K) tier.
+  if (enableCaching && result.length > 0) {
+    result[result.length - 1]!.cache_control = { type: "ephemeral" }
+  }
+
+  return result
+}
+
+/**
+ * datasheet §9.2: sliding conversation cache breakpoint. Marks the last content
+ * block of the last message with cache_control. Recomputed per request, so the
+ * breakpoint slides forward as the conversation grows — each turn the prior
+ * conversation prefix is a cache READ and only the new turn is fresh. Without
+ * this the entire history was reprocessed as fresh input every turn (the cause
+ * of "3M tokens in a few minutes" + premature long-context rate limits).
+ */
+export function applyConversationCacheBreakpoint(
+  messages: AnthropicMessage[],
+  enableCaching = false,
+): void {
+  if (!enableCaching || messages.length === 0) return
+  const last = messages[messages.length - 1]!
+  if (Array.isArray(last.content) && last.content.length > 0) {
+    last.content[last.content.length - 1]!.cache_control = { type: "ephemeral" }
+  }
 }
 
 // ---------------------------------------------------------------------------

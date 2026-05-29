@@ -13,12 +13,13 @@ import type {
   LanguageModelV2Usage,
   LanguageModelV2CallWarning,
 } from "@ai-sdk/provider"
-import { BASE_API_URL, IDENTITY_INTERACTIVE } from "./protocol.js"
+import { BASE_API_URL, IDENTITY_INTERACTIVE, toApiModelId } from "./protocol.js"
 import { getMaxOutput } from "./models.js"
 import {
   convertPrompt,
   convertTools,
   convertSystemBlocks,
+  applyConversationCacheBreakpoint,
 } from "./convert.js"
 import { buildHeaders } from "./headers.js"
 import { parseAnthropicSSE, mapFinishReason } from "./sse.js"
@@ -83,8 +84,14 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
     const creds = this.options.credentials
     await this.ensureValidToken(creds)
 
+    const enableCaching = this.options.enableCaching ?? true
+
     // § 4.2.2  Convert prompt → messages + system
     const { messages, system } = convertPrompt(callOptions.prompt)
+
+    // datasheet §9.2: sliding conversation cache breakpoint on the last block.
+    // Without it the whole history was reprocessed as fresh input every turn.
+    applyConversationCacheBreakpoint(messages, enableCaching)
 
     // Find first user message text for billing header
     const firstUserMsg = messages.find((m) => m.role === "user")
@@ -94,15 +101,16 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
         : JSON.stringify(firstUserMsg.content)
       : undefined
 
-    // § 4.2.3  Convert tools (with mcp__ prefix)
+    // § 4.2.3  Convert tools (with mcp__ prefix + tools-block cache_control)
     const tools = convertTools(
       callOptions.tools?.filter((t): t is Extract<typeof t, { type: "function" }> => t.type === "function"),
+      enableCaching,
     )
 
     // § 4.2.4  Convert system blocks (with cache_control)
     const systemBlocks = convertSystemBlocks({
       systemText: system,
-      enableCaching: this.options.enableCaching ?? true,
+      enableCaching,
       identity: this.options.identity ?? IDENTITY_INTERACTIVE,
       billingContent,
     })
@@ -143,7 +151,7 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
     const maxTokens = callOptions.maxOutputTokens ?? getMaxOutput(this.modelId)
 
     const body: Record<string, unknown> = {
-      model: this.modelId,
+      model: toApiModelId(this.modelId), // §6.3: strip [1m]/[2m] marker
       max_tokens: maxTokens,
       stream: true,
       system: systemBlocks,

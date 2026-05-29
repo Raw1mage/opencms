@@ -343,6 +343,47 @@ export function buildBillingHeader(
   return `cc_version=${VERSION}.${hash}; cc_entrypoint=${ep}; cch=00000;`
 }
 
+/**
+ * §3.4: `anthropic-client-platform` header value, by entrypoint. Always present
+ * since 2.1.144. opencode impersonates the CLI, so the default is
+ * `claude_code_cli`.
+ */
+export function clientPlatform(entrypoint?: string): string {
+  const ep = entrypoint || process.env.CLAUDE_CODE_ENTRYPOINT || "cli"
+  switch (ep) {
+    case "claude-vscode":
+      return "claude_code_vscode"
+    case "remote":
+    case "remote_baku":
+    case "remote_desktop":
+    case "remote_mobile":
+      return "claude_code_remote"
+    case "sdk-cli":
+    case "sdk-ts":
+    case "sdk-py":
+      return "claude_code_sdk"
+    case "mcp":
+      return "claude_code_mcp"
+    case "claude-code-github-action":
+      return "claude_code_github_action"
+    case "local-agent":
+      return "claude_code_local_agent"
+    case "claude_in_slack":
+      return "claude_in_slack"
+    default:
+      return "claude_code_cli"
+  }
+}
+
+/**
+ * §6.3: strip the `[1m]`/`[2m]` context-window marker before sending the model
+ * ID to the API (upstream `GL()`). The marker is an opencode/CLI-side hint
+ * (it drives the context-1m beta), not a valid API model ID.
+ */
+export function toApiModelId(modelId: string): string {
+  return modelId.replace(/\[(1|2)m\]/gi, "")
+}
+
 // ---------------------------------------------------------------------------
 // § 0.8  Tool Prefix
 // ---------------------------------------------------------------------------

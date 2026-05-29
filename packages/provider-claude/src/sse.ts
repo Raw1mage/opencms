@@ -26,7 +26,7 @@ export function parseAnthropicSSE(
   // Track active content blocks for id generation
   const activeBlocks = new Map<
     number,
-    { type: string; id: string; toolName?: string; input?: string }
+    { type: string; id: string; toolName?: string; input?: string; signature?: string }
   >()
   let blockCounter = 0
 
@@ -47,6 +47,10 @@ export function parseAnthropicSSE(
   // wasn't done and re-requested with the assistant reply trailing → Anthropic
   // 400 "does not support assistant message prefill".
   let lastStopReason: string | undefined
+  // Anthropic reports cache-write tokens as cache_creation_input_tokens; not part
+  // of LanguageModelV2Usage, so carry it out via finish providerMetadata for the
+  // host's cache-write accounting (else cache write always shows 0).
+  let cacheCreationTokens: number | undefined
 
   return new ReadableStream<LanguageModelV2StreamPart>({
     async pull(controller) {
@@ -141,6 +145,7 @@ export function parseAnthropicSSE(
           if (msg.usage) {
             usage.inputTokens = msg.usage.input_tokens
             usage.cachedInputTokens = msg.usage.cache_read_input_tokens
+            cacheCreationTokens = msg.usage.cache_creation_input_tokens
           }
         }
         break
@@ -181,6 +186,11 @@ export function parseAnthropicSSE(
           controller.enqueue({ type: "text-delta", id: info.id, delta: delta.text })
         } else if (delta.type === "thinking_delta") {
           controller.enqueue({ type: "reasoning-delta", id: info.id, delta: delta.thinking })
+        } else if (delta.type === "signature_delta") {
+          // Anthropic signs each thinking block; the signature must be replayed
+          // when the thinking block is sent back in history. Accumulate it for
+          // the reasoning-end providerMetadata below.
+          info.signature = (info.signature ?? "") + (delta.signature ?? "")
         } else if (delta.type === "input_json_delta") {
           // Accumulate the streamed JSON so content_block_stop can emit the
           // final tool-call part with the complete input.
@@ -199,7 +209,15 @@ export function parseAnthropicSSE(
         if (info.type === "text") {
           controller.enqueue({ type: "text-end", id: info.id })
         } else if (info.type === "thinking") {
-          controller.enqueue({ type: "reasoning-end", id: info.id })
+          // Carry the signature out via providerMetadata so the AI SDK stores it
+          // on the reasoning part; convertPrompt replays it as thinking.signature.
+          controller.enqueue({
+            type: "reasoning-end",
+            id: info.id,
+            ...(info.signature
+              ? { providerMetadata: { anthropic: { signature: info.signature } } }
+              : {}),
+          })
         } else if (info.type === "tool_use") {
           controller.enqueue({ type: "tool-input-end", id: info.id })
           // CRITICAL: emit the final tool-call part. Without it the AI SDK
@@ -237,6 +255,9 @@ export function parseAnthropicSSE(
           type: "finish",
           finishReason: mapFinishReason(lastStopReason),
           usage,
+          ...(cacheCreationTokens != null
+            ? { providerMetadata: { anthropic: { cacheCreationInputTokens: cacheCreationTokens } } }
+            : {}),
         })
         break
       }

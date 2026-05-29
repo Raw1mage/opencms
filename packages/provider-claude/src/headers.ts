@@ -9,6 +9,7 @@ import {
   API_VERSION,
   assembleBetas,
   buildBillingHeader,
+  clientPlatform,
   type AssembleBetasOptions,
   type ProviderRoute,
 } from "./protocol.js"
@@ -58,6 +59,8 @@ export function buildHeaders(options: BuildHeadersOptions): Headers {
   headers.set("anthropic-version", API_VERSION)
   headers.set("Content-Type", "application/json")
   headers.set("User-Agent", `claude-code/${VERSION}`)
+  // §3.4: always-present since 2.1.144. Missing it was a fingerprint gap.
+  headers.set("anthropic-client-platform", clientPlatform(options.entrypoint))
 
   // Beta flags — dynamic per-request assembly (1:1 forward)
   const betaOptions: AssembleBetasOptions = {
