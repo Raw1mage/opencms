@@ -1286,7 +1286,13 @@ export namespace Session {
       // AFAIK other providers (OpenRouter/OpenAI/Gemini etc.) do it the same way e.g. vercel/ai#8794 (comment)
       // Anthropic does it differently though - inputTokens doesn't include cached tokens.
       // It looks like OpenCode's cost calculation assumes all providers return inputTokens the same way Anthropic does (I'm guessing getUsage logic was originally implemented with anthropic), so it's causing incorrect cost calculation for OpenRouter and others.
-      const excludesCachedTokens = !!(input.metadata?.["anthropic"] || input.metadata?.["bedrock"])
+      // The custom claude-cli provider (@opencode-ai/provider-claude) follows
+      // the Anthropic convention (inputTokens EXCLUDES cached) but doesn't set
+      // metadata.anthropic, so it must be recognized explicitly — otherwise
+      // cached tokens get double-subtracted and inputTokens goes negative.
+      const excludesCachedTokens =
+        !!(input.metadata?.["anthropic"] || input.metadata?.["bedrock"]) ||
+        input.model.api.npm === "@opencode-ai/provider-claude"
       const adjustedInputTokens = safe(
         excludesCachedTokens ? inputTokens : inputTokens - cacheReadInputTokens - cacheWriteInputTokens,
       )
@@ -1297,7 +1303,8 @@ export namespace Session {
         if (
           input.model.api.npm === "@ai-sdk/anthropic" ||
           input.model.api.npm === "@ai-sdk/amazon-bedrock" ||
-          input.model.api.npm === "@ai-sdk/google-vertex/anthropic"
+          input.model.api.npm === "@ai-sdk/google-vertex/anthropic" ||
+          input.model.api.npm === "@opencode-ai/provider-claude"
         ) {
           return adjustedInputTokens + outputTokens + cacheReadInputTokens + cacheWriteInputTokens
         }
