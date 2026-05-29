@@ -23,8 +23,8 @@
 
 | Endpoint | URL |
 |----------|-----|
-| Authorize (Console) | `https://platform.claude.com/oauth/authorize` |
-| Authorize (Claude.ai) | `https://claude.ai/cai/oauth/authorize` |
+| Authorize (Console / API key) | `https://platform.claude.com/oauth/authorize` |
+| Authorize (Claude.ai / subscription) | `https://claude.com/cai/oauth/authorize` |
 | Token | `https://platform.claude.com/v1/oauth/token` |
 | Profile | `https://api.anthropic.com/api/oauth/profile` |
 | Create API Key | `https://api.anthropic.com/api/oauth/claude_cli/create_api_key` |
@@ -32,6 +32,16 @@
 | Redirect URI | `https://platform.claude.com/oauth/code/callback` |
 | MCP Proxy | `https://mcp-proxy.anthropic.com/v1/mcp/{server_id}` |
 | Client Metadata | `https://claude.ai/oauth/claude-code-client-metadata` |
+
+**Authorize host selection (CRITICAL, corrected 2026-05-30)**: the official CLI
+picks the authorize server by the `loginWithClaudeAi` flag — **subscription**
+(Pro/Max/Team/Enterprise) → `claude.com/cai/oauth/authorize`; **console**
+(API-key) → `platform.claude.com/oauth/authorize`. (Earlier this table listed
+the subscription host as `claude.ai/cai`, which is wrong.) The **Redirect URI**
+and the **Token** endpoint are shared by both flows (always `platform.claude.com`)
+and do **not** change with the authorize host. Sending a subscription login to
+the console authorize server yields a console-context code that fails token
+exchange — historically misread as a rate limit.
 
 ### §2.2 OAuth Scopes
 
@@ -108,6 +118,30 @@ cc_version={VERSION}.{model_suffix}; cc_entrypoint={entrypoint}; cch=00000; cc_w
 | `Tl()` (full) | `claude-cli/{VERSION} (external, {entrypoint}, ...)` | Extended header |
 
 **Delta from 2.1.126**: Full format prefix changed `claude-code/` → `claude-cli/`.
+
+**OAuth token endpoint is User-Agent-throttled (CRITICAL, added 2026-05-30).**
+The User-Agent values above apply to the **inference** path (`api.anthropic.com`).
+The OAuth **token endpoint** (`platform.claude.com/v1/oauth/token`, i.e. the
+`authorization_code` exchange and `refresh_token` grant) behaves differently:
+the official CLI's OAuth calls (`Zn8` / refresh) go through **plain axios**, so
+they carry `User-Agent: axios/{ver}` — **not** `claude-code/{VERSION}`.
+
+Probed 2026-05-30 (POST with a deliberately invalid `refresh_token`, observing
+the status *before* credential validation):
+
+| Request `User-Agent` | Token-endpoint result |
+|----------------------|------------------------|
+| `axios/*`, `node`, `Bun/*`, arbitrary | **400** (passes throttle → reaches validation) |
+| `claude-code/{VERSION}` | **429** `rate_limit_error` (throttled before validation) |
+
+So the token endpoint **buckets by User-Agent** and singles out
+`claude-code/{VERSION}` for throttling — almost certainly an anti-impersonation
+guard, since the real client never sends that UA here. **Reproductions/clients
+MUST send `axios/{ver}` (or any non-`claude-code` UA) on the token endpoint.**
+Setting `claude-code/{VERSION}` there produces a persistent 429 that masquerades
+as a rate limit. Per-request headers on the exchange/refresh call are otherwise
+just `Content-Type: application/json`; the profile call adds
+`anthropic-beta: oauth-2025-04-20`.
 
 ---
 
