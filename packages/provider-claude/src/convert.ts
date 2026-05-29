@@ -53,6 +53,10 @@ export interface AnthropicTool {
 export function convertPrompt(prompt: LanguageModelV2Prompt): {
   messages: AnthropicMessage[]
   system: string | undefined
+  /** Count of trailing assistant messages removed by the user-terminated guard
+   *  below. >0 signals an upstream serialization defect the caller MUST log
+   *  loudly (not silently swallow) — see the guard comment. */
+  droppedTrailingAssistants: number
 } {
   let system: string | undefined
   const messages: AnthropicMessage[] = []
@@ -160,7 +164,25 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
     }
   }
 
-  return { messages, system }
+  // Anthropic rejects a conversation that ends with an assistant message
+  // ("This model does not support assistant message prefill. The conversation
+  // must end with a user message."). A correct agentic turn ends with a
+  // tool_result (user-role) message, so a trailing assistant only appears when
+  // upstream assembly emits a non-user-terminated conversation (e.g. consecutive
+  // assistant messages with a tool result not threaded back between them).
+  //
+  // We correct it here so the request is valid (Anthropic regenerates from the
+  // last user/tool message), but this is NOT a silent fallback: the count is
+  // returned so the caller logs it loudly. The trailing assistant is a symptom
+  // of an upstream serialization defect that must stay visible.
+  // See issues/bug_20260529_claude_assistant_prefill_400.md.
+  let droppedTrailingAssistants = 0
+  while (messages.length > 0 && messages[messages.length - 1]!.role === "assistant") {
+    messages.pop()
+    droppedTrailingAssistants++
+  }
+
+  return { messages, system, droppedTrailingAssistants }
 }
 
 // ---------------------------------------------------------------------------

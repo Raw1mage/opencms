@@ -87,7 +87,18 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
     const enableCaching = this.options.enableCaching ?? true
 
     // § 4.2.2  Convert prompt → messages + system
-    const { messages, system } = convertPrompt(callOptions.prompt)
+    const { messages, system, droppedTrailingAssistants } = convertPrompt(callOptions.prompt)
+
+    // Loud signal (not a silent fallback): the conversation was not
+    // user-terminated, so convertPrompt had to strip trailing assistant
+    // message(s) to avoid Anthropic's "assistant message prefill" 400. This is
+    // an upstream serialization defect — keep it visible.
+    // issues/bug_20260529_claude_assistant_prefill_400.md
+    if (droppedTrailingAssistants > 0) {
+      console.warn(
+        `[claude-provider] non-user-terminated conversation: stripped ${droppedTrailingAssistants} trailing assistant message(s) before dispatch (model=${this.modelId}). Upstream serialization should append a user/tool turn. See issues/bug_20260529_claude_assistant_prefill_400.md`,
+      )
+    }
 
     // datasheet §9.2: sliding conversation cache breakpoint on the last block.
     // Without it the whole history was reprocessed as fresh input every turn.
