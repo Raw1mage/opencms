@@ -400,6 +400,46 @@ describe("session.prompt cache-cliff classification", () => {
     const observed = await deriveObservedCondition({ ...baseInput(sid), lastFinished: finished(sid, 1_000) })
     expect(observed).toBe("overflow")
   })
+
+  // SL (stateless prompt-cache) providers bill cache as read + write. A turn
+  // that re-writes the prefix shows low read + high write while input≈0 — the
+  // prompt is still fully cached, NOT a cliff. The cache_read-only predicate
+  // used to fire here (false positive). SL must NOT take the SS invalidate path.
+  const slFinished = (sessionID: string, input: number, read: number, write: number) =>
+    ({
+      id: `msg_${sessionID}_${input}_${read}_${write}`,
+      role: "assistant",
+      sessionID,
+      parentID: "msg_u",
+      mode: "build",
+      agent: "build",
+      path: { cwd: "/tmp", root: "/tmp" },
+      cost: 0,
+      tokens: { input, output: 1, reasoning: 0, cache: { read, write } },
+      modelID: "test-model",
+      providerId: "claude-cli",
+      time: { created: Date.now() },
+      finish: "stop",
+    }) as any
+
+  test("SL re-cache turn (input≈0, read drop, write absorbs it): no cliff, falls through", async () => {
+    const sid = "ses_sl_recache"
+    const slBase = { ...baseInput(sid), pinnedProviderId: "claude-cli" }
+    // Warm-up: 100K read.
+    await deriveObservedCondition({ ...slBase, lastFinished: slFinished(sid, 0, 100_000, 0) })
+    // read collapses 100K→5K but 95K is written → prompt still fully cached, input 0.
+    const observed = await deriveObservedCondition({ ...slBase, lastFinished: slFinished(sid, 0, 5_000, 95_000) })
+    // Must NOT be null — null is the SS invalidate path; SL is telemetry-only.
+    expect(observed).toBe("overflow")
+  })
+
+  test("SS provider with the same read drop still cliffs → returns null", async () => {
+    const sid = "ses_ss_contrast"
+    const ssBase = { ...baseInput(sid), pinnedProviderId: "codex" }
+    await deriveObservedCondition({ ...ssBase, lastFinished: finished(sid, 100_000) })
+    const observed = await deriveObservedCondition({ ...ssBase, lastFinished: finished(sid, 10_000) })
+    expect(observed).toBeNull()
+  })
 })
 
 describe("util.token.estimate", () => {
