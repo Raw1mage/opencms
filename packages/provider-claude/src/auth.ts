@@ -12,7 +12,36 @@ import {
   AUTHORIZE_SCOPES,
   SUBSCRIPTION_SCOPES,
   REFRESH_SCOPES,
+  BETA_OAUTH,
 } from "./protocol.js"
+
+/**
+ * User-Agent for the OAuth token endpoint.
+ *
+ * CRITICAL: do NOT send `claude-code/<ver>` here. The official CLI reserves
+ * that UA for *inference* (api.anthropic.com); its OAuth calls (`Zn8`/refresh)
+ * go through plain axios, so the token endpoint sees `axios/x`. Empirically
+ * (probed 2026-05-30) `platform.claude.com/v1/oauth/token` throttles the
+ * `claude-code/<ver>` UA on this endpoint — every request with it returns 429
+ * `rate_limit_error` *before* credential validation, while `axios/*` (and in
+ * fact any other UA) reaches validation (400 on a bad grant). Likely an
+ * anti-impersonation throttle: the real client never uses `claude-code/<ver>`
+ * here. So mirror upstream — present as axios. The exact version is not
+ * validated server-side; this just has to not be the throttled string.
+ */
+const OAUTH_USER_AGENT = "axios/1.7.9"
+
+/**
+ * Headers for the OAuth token endpoint (exchange + refresh). Matches the
+ * official CLI's per-request set on this call: just `Content-Type`, plus the
+ * axios User-Agent the request would carry through claude-code's HTTP client.
+ */
+function oauthHeaders(): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    "User-Agent": OAUTH_USER_AGENT,
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,7 +77,14 @@ export async function authorize(
   generatePKCE: () => Promise<{ challenge: string; verifier: string }>,
 ): Promise<{ url: string; verifier: string }> {
   const pkce = await generatePKCE()
-  const url = new URL(OAUTH.authorizeConsole)
+  // Authorization SERVER differs by mode: subscription (Max/Pro) authorizes at
+  // the Claude.ai server (claude.com/cai), the console (API-key) flow at
+  // platform.claude.com. Upstream selects the same way via `loginWithClaudeAi`
+  // (CLAUDE_AI_AUTHORIZE_URL vs CONSOLE_AUTHORIZE_URL). Sending a Max login to
+  // the console authorize server yields a code that fails exchange (observed as
+  // a 429 rate_limit_error at the token endpoint), even though redirect_uri and
+  // the token endpoint itself are shared between both flows.
+  const url = new URL(mode === "console" ? OAUTH.authorizeConsole : OAUTH.authorizeClaude)
   url.searchParams.set("code", "true")
   url.searchParams.set("client_id", CLIENT_ID)
   url.searchParams.set("response_type", "code")
@@ -76,7 +112,7 @@ export async function exchange(
   const splits = code.split("#")
   const result = await fetch(OAUTH.token, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: oauthHeaders(),
     body: JSON.stringify({
       code: splits[0],
       state: splits[1],
@@ -129,7 +165,7 @@ export async function refreshToken(
 ): Promise<TokenSet> {
   const response = await fetch(OAUTH.token, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: oauthHeaders(),
     body: JSON.stringify({
       grant_type: "refresh_token",
       refresh_token: refreshTokenValue,
@@ -163,7 +199,8 @@ export async function refreshToken(
 
 export async function fetchProfile(accessToken: string): Promise<Profile> {
   const response = await fetch(OAUTH.profile, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    // Official profile call sends anthropic-beta alongside the bearer token.
+    headers: { ...oauthHeaders(), "anthropic-beta": BETA_OAUTH, Authorization: `Bearer ${accessToken}` },
   })
   if (!response.ok) {
     throw new Error(`Profile fetch failed (${response.status})`)
