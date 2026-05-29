@@ -27,6 +27,23 @@ export function isRateLimitError(error: unknown): boolean {
   const errorObj = asErrorWithMetadata(error)
   if (!errorObj) return false
 
+  const message = errorObj.message ?? ""
+  const lower = typeof message === "string" ? message.toLowerCase() : ""
+
+  // FIX: ANY "token refresh failed" is an AUTH error, not a rate limit — even
+  // when the OAuth token endpoint returns 429 (a refresh storm rate-limiting
+  // the refresh, not inference). Rotating to other providers is useless when
+  // YOUR token can't refresh; rotation also abandons a still-valid subscription.
+  // Route to the auth path (hard stop + "please re-authenticate") instead.
+  // MUST be checked BEFORE the 429-status check below, because TokenRefreshError
+  // carries status:429 which would otherwise short-circuit to rate-limit.
+  // Generalized from the original invalid_scope-only exclusion.
+  // @event_20260212_invalid_scope_no_rotate + @event_20260529_token_refresh_429_is_auth
+  if (lower.includes("token refresh failed")) {
+    log.debug("isRateLimitError: token refresh failure is an auth error, NOT rate limit — skipping")
+    return false
+  }
+
   // Check for explicit 429 status code
   const status = errorObj.status ?? errorObj.statusCode ?? errorObj.code
 
@@ -38,19 +55,7 @@ export function isRateLimitError(error: unknown): boolean {
   }
 
   // Check for explicit rate limit message patterns (strict matching)
-  const message = errorObj.message ?? ""
-  if (typeof message === "string" && message.length > 0) {
-    const lower = message.toLowerCase()
-
-    // FIX: invalid_scope is an AUTH error (expired OAuth grant), not a rate limit.
-    // Treating it as rate limit causes useless rotation across all claude-cli vectors
-    // sharing the same broken refresh token. Must stop and ask user to re-authenticate.
-    // @event_20260212_invalid_scope_no_rotate
-    if (lower.includes("token refresh failed") && lower.includes("invalid_scope")) {
-      log.debug("isRateLimitError: invalid_scope is auth error, NOT rate limit — skipping")
-      return false
-    }
-
+  if (lower.length > 0) {
     // Only match very specific rate limit patterns, not generic "error" messages
     if (
       lower.includes("429") ||
