@@ -36,18 +36,28 @@ export const OAUTH = {
 // ---------------------------------------------------------------------------
 
 /**
- * Console (API-key) authorize scopes — includes `org:create_api_key` because
- * that flow exchanges the code then calls the create_api_key endpoint.
+ * Authorize scopes — used by BOTH the subscription and console flows.
+ *
+ * Upstream `bx8` = union of console scopes (`$3q` = [org:create_api_key,
+ * user:profile]) and claude.ai scopes (`zR$`, see below). The official
+ * authorize URL builder sends this exact set regardless of `loginWithClaudeAi`
+ * (only `inferenceOnly` narrows it to `[user:inference]`). Subscription
+ * accounts simply can't act on `org:create_api_key`; the authorization server
+ * grants the subset it can. (Historically we stripped `org:create_api_key`
+ * from the subscription authorize believing it caused "授權碼無效" — that was
+ * actually the wrong-authorize-host bug; once the host is correct, the union
+ * matches upstream and works. 2026-05-30.)
  */
 export const AUTHORIZE_SCOPES =
   "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload"
 
 /**
- * Subscription (Pro/Max/Team/Enterprise) authorize scopes — upstream Sn8.
- * MUST NOT include `org:create_api_key`: a subscription account cannot grant
- * org-level key creation, so requesting it makes the authorize/exchange fail
- * ("授權碼無效"). Matches the scope set in a real `claudeAiOauth` credential
- * and equals REFRESH_SCOPES.
+ * Refresh-grant scopes — upstream `zR$`. The `refresh_token` grant uses the
+ * narrower set WITHOUT `org:create_api_key`: a subscription account cannot
+ * grant org-level key creation, so including it in a refresh yields
+ * `invalid_scope`. Also equals the scope set carried in a real `claudeAiOauth`
+ * credential. (Name kept as SUBSCRIPTION_SCOPES for back-compat; semantically
+ * these are the refresh scopes — authorize uses AUTHORIZE_SCOPES above.)
  */
 export const SUBSCRIPTION_SCOPES = [
   "user:profile",

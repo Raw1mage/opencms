@@ -10,7 +10,6 @@ import {
   CLIENT_ID,
   OAUTH,
   AUTHORIZE_SCOPES,
-  SUBSCRIPTION_SCOPES,
   REFRESH_SCOPES,
   BETA_OAUTH,
 } from "./protocol.js"
@@ -34,7 +33,7 @@ import {
  * http adapter sends `"axios/" + YPH`. Re-sync this when refs/claude-code-npm
  * bumps axios (grep cli.js for `"axios/"+` then resolve the version var).
  */
-const OAUTH_USER_AGENT = "axios/1.13.6"
+export const OAUTH_USER_AGENT = "axios/1.13.6"
 
 /**
  * Headers for the OAuth token endpoint (exchange + refresh). Matches the
@@ -94,12 +93,12 @@ export async function authorize(
   url.searchParams.set("client_id", CLIENT_ID)
   url.searchParams.set("response_type", "code")
   url.searchParams.set("redirect_uri", OAUTH.redirectUri)
-  // Subscription (max) must NOT request org:create_api_key — only the console
-  // (API-key) flow may. Upstream selects scopes by mode the same way.
-  url.searchParams.set(
-    "scope",
-    mode === "console" ? AUTHORIZE_SCOPES : SUBSCRIPTION_SCOPES.join(" "),
-  )
+  // Both flows send the SAME authorize scope set (upstream `bx8` = union,
+  // incl. org:create_api_key). Subscription accounts can't act on the org
+  // scope; the AS grants the subset. Upstream does not vary scope by login
+  // type here — only the authorize host (above) differs. The narrower set is
+  // for the refresh grant (REFRESH_SCOPES), not authorize.
+  url.searchParams.set("scope", AUTHORIZE_SCOPES)
   url.searchParams.set("code_challenge", pkce.challenge)
   url.searchParams.set("code_challenge_method", "S256")
   url.searchParams.set("state", pkce.verifier)

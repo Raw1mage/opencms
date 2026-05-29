@@ -44,6 +44,43 @@ describe("authorize() — host selection by mode", () => {
   })
 })
 
+describe("authorize() — scope parity with upstream (bx8 union, both flows)", () => {
+  // Upstream `bx8` = union($3q console, zR$ claude.ai) sent for BOTH login
+  // types. Subscription must NOT strip org:create_api_key (that was a
+  // wrong-host artifact). See protocol-datasheets.md §2.2.
+  const UPSTREAM_AUTHORIZE_SCOPE =
+    "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload"
+
+  test("both flows send the identical upstream union scope (incl. org:create_api_key)", async () => {
+    const scopes = await Promise.all(
+      (["max", "console"] as const).map(async (mode) => {
+        const { url } = await authorize(mode, fakePKCE)
+        return new URL(url).searchParams.get("scope")
+      }),
+    )
+    expect(scopes[0]).toBe(UPSTREAM_AUTHORIZE_SCOPE)
+    expect(scopes[1]).toBe(UPSTREAM_AUTHORIZE_SCOPE)
+    expect(scopes[0]).toBe(scopes[1]) // upstream does not vary scope by login type
+  })
+
+  test("refresh grant uses the narrower set WITHOUT org:create_api_key (upstream zR$)", async () => {
+    // Guard the inverse: the refresh body must not carry the org scope.
+    const original = globalThis.fetch
+    let body: any = null
+    globalThis.fetch = (async (_input: any, init: any) => {
+      body = JSON.parse(init.body)
+      return { ok: true, status: 200, json: async () => ({ access_token: "a", expires_in: 3600 }) } as unknown as Response
+    }) as typeof fetch
+    try {
+      await refreshToken("r")
+      expect(body.scope).not.toContain("org:create_api_key")
+      expect(body.scope).toContain("user:inference")
+    } finally {
+      globalThis.fetch = original
+    }
+  })
+})
+
 describe("OAuth token-endpoint User-Agent — must be axios, never claude-code", () => {
   const original = globalThis.fetch
   let captured: { url: string; headers: Record<string, string> } | null = null

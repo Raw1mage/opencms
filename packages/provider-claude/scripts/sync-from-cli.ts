@@ -43,6 +43,7 @@ import {
   BETA_OAUTH,
 } from "../src/protocol.js"
 import { MODEL_CATALOG, getOutputLimit, normalizeModelId } from "../src/models.js"
+import { OAUTH_USER_AGENT } from "../src/auth.js"
 
 /** The CLI version this provider is currently aligned to. Bump deliberately. */
 const PINNED_VERSION = "2.1.156"
@@ -109,6 +110,16 @@ check("CLIENT_ID", has(CLIENT_ID), CLIENT_ID)
 check("ATTRIBUTION_SALT", has(ATTRIBUTION_SALT), ATTRIBUTION_SALT)
 check("API_VERSION", has(API_VERSION), API_VERSION)
 check("OAuth token endpoint", has(OAUTH.token.replace(/^https?:\/\//, "")), OAUTH.token)
+// Behavioral OAuth checks — string-presence alone missed the 2026-05-30 bugs
+// (wrong authorize host, claude-code UA on the token endpoint). Pin both
+// authorize hosts and the axios UA version so drift surfaces here, not in prod.
+check("authorize host (console)", has(OAUTH.authorizeConsole.replace(/^https?:\/\//, "")), OAUTH.authorizeConsole)
+check("authorize host (claude.ai/subscription)", has(OAUTH.authorizeClaude.replace(/^https?:\/\//, "")), OAUTH.authorizeClaude)
+// OAuth token endpoint is UA-throttled: we send axios (NOT claude-code/<ver>).
+// Track the bundled axios version so a bump prompts re-syncing OAUTH_USER_AGENT.
+const oauthAxiosVer = OAUTH_USER_AGENT.replace(/^axios\//, "")
+check(`OAuth UA is axios (not claude-code) — ${OAUTH_USER_AGENT}`, OAUTH_USER_AGENT.startsWith("axios/"))
+check(`OAuth UA axios version in bundle (${oauthAxiosVer})`, has(`"${oauthAxiosVer}"`), oauthAxiosVer)
 for (const scope of AUTHORIZE_SCOPES.split(" ")) check(`scope ${scope}`, has(scope))
 for (const scope of REFRESH_SCOPES) check(`refresh-scope ${scope}`, has(scope))
 check(`beta ${BETA_CLAUDE_CODE}`, has(BETA_CLAUDE_CODE))
