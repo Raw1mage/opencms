@@ -2012,4 +2012,41 @@ describe("ProviderTransform.variants", () => {
       expect(result).toEqual({})
     })
   })
+
+  describe("native claude-cli provider (@opencode-ai/provider-claude)", () => {
+    const createClaude = (id: string, output: number): any =>
+      createMockModel({
+        id,
+        providerId: "claude-cli",
+        api: { id, url: "https://api.anthropic.com", npm: "@opencode-ai/provider-claude" },
+        limit: { context: 1_000_000, output },
+      })
+
+    test("opus-4-8 exposes low/medium/high/xhigh with snake_case budget_tokens", () => {
+      const result = ProviderTransform.variants(createClaude("claude-opus-4-8", 64_000))
+      expect(Object.keys(result)).toEqual(["low", "medium", "high", "xhigh"])
+      // snake_case budget_tokens (wire format), NOT camelCase budgetTokens.
+      expect(result.low).toEqual({ thinking: { type: "enabled", budget_tokens: 1_024 } })
+      expect(result.medium).toEqual({ thinking: { type: "enabled", budget_tokens: 8_000 } })
+      expect(result.high).toEqual({ thinking: { type: "enabled", budget_tokens: 16_000 } })
+      expect(result.xhigh).toEqual({ thinking: { type: "enabled", budget_tokens: 32_000 } })
+    })
+
+    test("sonnet-4-6 has no xhigh (opus-4-7+ only)", () => {
+      const result = ProviderTransform.variants(createClaude("claude-sonnet-4-6", 32_000))
+      expect(Object.keys(result)).toEqual(["low", "medium", "high"])
+      expect(result.high).toEqual({ thinking: { type: "enabled", budget_tokens: 16_000 } })
+    })
+
+    test("opus-4-5 (< 4.7) has no xhigh", () => {
+      const result = ProviderTransform.variants(createClaude("claude-opus-4-5", 32_000))
+      expect(Object.keys(result)).toEqual(["low", "medium", "high"])
+    })
+
+    test("non-reasoning haiku returns empty (capability gate)", () => {
+      const model = createClaude("claude-haiku-4-5", 32_000)
+      model.capabilities = { reasoning: false }
+      expect(ProviderTransform.variants(model)).toEqual({})
+    })
+  })
 })

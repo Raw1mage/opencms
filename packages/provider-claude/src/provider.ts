@@ -86,6 +86,23 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
 
     const enableCaching = this.options.enableCaching ?? true
 
+    // providerOptions arrives KEYED under the opencode providerId ("claude-cli"):
+    // ProviderTransform.providerOptions wraps every option set as
+    // { [providerId]: {...} } and the AI SDK forwards that record verbatim to
+    // doStream. Read the keyed entry first, falling back to a flat object for
+    // direct/test callers. Mirrors provider-codex's resolver — without this the
+    // top-level reads below (effort/taskBudget/thinking/...) were always
+    // undefined, which is why thinking-effort variants never reached the wire.
+    const po: Record<string, any> =
+      (callOptions.providerOptions?.["claude-cli"] as Record<string, any> | undefined) ??
+      (callOptions.providerOptions as Record<string, any> | undefined) ??
+      {}
+
+    // Extended-thinking config (Anthropic `thinking` block), if a reasoning
+    // variant is selected. Resolved once here so both max_tokens sizing and the
+    // body assembly below agree on it.
+    const thinking = po.thinking as { type?: string; budget_tokens?: number } | undefined
+
     // § 4.2.2  Convert prompt → messages + system
     const { messages, system, droppedTrailingAssistants } = convertPrompt(callOptions.prompt)
 
@@ -146,20 +163,30 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
       orgID: creds.orgID,
       billingContent,
       fastMode: this.options.fastMode,
-      effort: !!callOptions.providerOptions?.effort,
-      taskBudget: !!callOptions.providerOptions?.taskBudget,
+      effort: !!po.effort,
+      taskBudget: !!po.taskBudget,
       envBetas: envBetasRaw ? envBetasRaw.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
       // Deployment posture (DD-4 + DD-17): opencode runs as a daemon serving
       // SSE to web/TUI clients, not a TTY. provider is always firstParty.
       provider: "firstParty",
       isInteractive: false,
-      showThinkingSummaries: !!callOptions.providerOptions?.showThinkingSummaries,
+      showThinkingSummaries: !!po.showThinkingSummaries,
       disableExperimentalBetas: !!process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS,
       disableInterleavedThinking: !!process.env.DISABLE_INTERLEAVED_THINKING,
     })
 
     // § 4.2.6  Build request body — single serialize
-    const maxTokens = callOptions.maxOutputTokens ?? getMaxOutput(this.modelId)
+    let maxTokens = callOptions.maxOutputTokens ?? getMaxOutput(this.modelId)
+
+    // Anthropic counts thinking tokens INSIDE max_tokens and rejects requests
+    // where budget_tokens >= max_tokens. opencode's maxOutputTokens() hands us a
+    // *text* budget (default-capped at 32k), so when extended thinking is on we
+    // must grow max_tokens to text+budget, clamped to the model's true output
+    // ceiling. @ai-sdk/anthropic does this addition internally; the native
+    // provider serializes straight to the wire, so it has to do it here.
+    if (thinking?.type === "enabled" && typeof thinking.budget_tokens === "number") {
+      maxTokens = Math.min(getMaxOutput(this.modelId), maxTokens + thinking.budget_tokens)
+    }
 
     const body: Record<string, unknown> = {
       model: toApiModelId(this.modelId), // §6.3: strip [1m]/[2m] marker
@@ -194,20 +221,24 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
       }
     }
 
-    // Temperature
-    if (callOptions.temperature !== undefined) {
-      body.temperature = callOptions.temperature
-    }
-    if (callOptions.topP !== undefined) {
-      body.top_p = callOptions.topP
-    }
-    if (callOptions.topK !== undefined) {
-      body.top_k = callOptions.topK
+    // Anthropic extended thinking is incompatible with temperature / top_p /
+    // top_k overrides — the Messages API 400s (or silently ignores them) when
+    // `thinking` is enabled, which requires temperature=1. Only forward sampling
+    // params when thinking is OFF; otherwise let the server default hold.
+    if (!thinking) {
+      if (callOptions.temperature !== undefined) {
+        body.temperature = callOptions.temperature
+      }
+      if (callOptions.topP !== undefined) {
+        body.top_p = callOptions.topP
+      }
+      if (callOptions.topK !== undefined) {
+        body.top_k = callOptions.topK
+      }
     }
 
-    // Thinking config from provider options
-    if (callOptions.providerOptions?.thinking) {
-      body.thinking = callOptions.providerOptions.thinking
+    if (thinking) {
+      body.thinking = thinking
     }
 
     const bodyStr = JSON.stringify(body)
