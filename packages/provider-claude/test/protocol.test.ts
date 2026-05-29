@@ -28,9 +28,11 @@ interface MatrixCase {
   _comment?: string
 }
 
+// The spec package was archived to specs/_archive/ but assembleBetas() is still
+// live code, so this matrix test stays valid — only the fixture path moved.
 const SPEC_VECTORS_PATH = resolve(
   __dirname,
-  "../../../specs/claude-provider-beta-fingerprint-realign/test-vectors.json",
+  "../../../specs/_archive/claude-provider-beta-fingerprint-realign/test-vectors.json",
 )
 
 const raw = readFileSync(SPEC_VECTORS_PATH, "utf-8")
