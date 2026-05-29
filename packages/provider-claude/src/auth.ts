@@ -27,9 +27,14 @@ import {
  * fact any other UA) reaches validation (400 on a bad grant). Likely an
  * anti-impersonation throttle: the real client never uses `claude-code/<ver>`
  * here. So mirror upstream — present as axios. The exact version is not
- * validated server-side; this just has to not be the throttled string.
+ * validated server-side (any non-`claude-code` UA passes); we track the real
+ * bundled version purely for fidelity.
+ *
+ * Value source: claude-code npm bundle ships axios `YPH = "1.13.6"`, and its
+ * http adapter sends `"axios/" + YPH`. Re-sync this when refs/claude-code-npm
+ * bumps axios (grep cli.js for `"axios/"+` then resolve the version var).
  */
-const OAUTH_USER_AGENT = "axios/1.7.9"
+const OAUTH_USER_AGENT = "axios/1.13.6"
 
 /**
  * Headers for the OAuth token endpoint (exchange + refresh). Matches the
