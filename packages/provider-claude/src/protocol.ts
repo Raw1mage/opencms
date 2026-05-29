@@ -1,8 +1,9 @@
 /**
- * Protocol constants extracted from @anthropic-ai/claude-code@2.1.126
+ * Protocol constants extracted from @anthropic-ai/claude-code@2.1.156
  *
  * Single file to update when official CLI upgrades.
  * Source of truth: plans/claude-provider/protocol-datasheet.md
+ * Verify with: bun packages/provider-claude/scripts/sync-from-cli.ts
  */
 import { createHash } from "node:crypto"
 
@@ -10,7 +11,7 @@ import { createHash } from "node:crypto"
 // § 0.2  Core Constants
 // ---------------------------------------------------------------------------
 
-export const VERSION = "2.1.126"
+export const VERSION = "2.1.156"
 export const CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 export const ATTRIBUTION_SALT = "59cf53e54c78"
 export const API_VERSION = "2023-06-01"
@@ -34,16 +35,29 @@ export const OAUTH = {
 // § 0.4  OAuth Scopes
 // ---------------------------------------------------------------------------
 
+/**
+ * Console (API-key) authorize scopes — includes `org:create_api_key` because
+ * that flow exchanges the code then calls the create_api_key endpoint.
+ */
 export const AUTHORIZE_SCOPES =
   "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload"
 
-export const REFRESH_SCOPES = [
+/**
+ * Subscription (Pro/Max/Team/Enterprise) authorize scopes — upstream Sn8.
+ * MUST NOT include `org:create_api_key`: a subscription account cannot grant
+ * org-level key creation, so requesting it makes the authorize/exchange fail
+ * ("授權碼無效"). Matches the scope set in a real `claudeAiOauth` credential
+ * and equals REFRESH_SCOPES.
+ */
+export const SUBSCRIPTION_SCOPES = [
   "user:profile",
   "user:inference",
   "user:sessions:claude_code",
   "user:mcp_servers",
   "user:file_upload",
 ] as const
+
+export const REFRESH_SCOPES = SUBSCRIPTION_SCOPES
 
 // ---------------------------------------------------------------------------
 // § 0.5  Identity Strings
@@ -129,6 +143,7 @@ export function isHaikuModel(modelId: string): boolean {
 const CONTEXT_1M_MODELS = [
   "claude-opus-4",
   "claude-opus-4-7",
+  "claude-opus-4-8",
   "claude-sonnet-4-5",
   "claude-sonnet-4-6",
 ]

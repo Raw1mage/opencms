@@ -1,8 +1,14 @@
 /**
  * Claude model catalog.
  *
- * Source of truth: @anthropic-ai/claude-code@2.1.126 (zz8 max output overrides)
- * + protocol-datasheet.md § 9
+ * Source of truth: @anthropic-ai/claude-code@2.1.156 (LMH() output table)
+ * + protocol-datasheet.md § 9. Verify/realign with:
+ *   bun packages/provider-claude/scripts/sync-from-cli.ts
+ *
+ * 2026-05-29: added Opus 4.8 (claude-opus-4-8) + Opus 4.5; realigned the whole
+ * max-output table to upstream LMH() — opus-4-6/4-7/4-8 = 64000, other 4.x =
+ * 32000. The old hand-copied "zz8" table capped opus at 8192 and was stale
+ * since ≥2.1.141, truncating replies at 8192 output tokens.
  */
 
 export interface ClaudeModelSpec {
@@ -26,23 +32,81 @@ export interface ClaudeModelSpec {
   }
 }
 
-/**
- * Max output token overrides from official CLI (zz8 in minified).
- * Models NOT listed here use the API default.
- */
-const MAX_OUTPUT_OVERRIDES: Record<string, number> = {
-  "claude-opus-4-20250514": 8192,
-  "claude-opus-4-0": 8192,
-  "claude-4-opus-20250514": 8192,
-  "claude-opus-4-1-20250805": 8192,
-  "claude-opus-4-7": 8192,
+/** Per-model output-token limits. */
+export interface OutputLimit {
+  /** Default `max_tokens` the CLI sends when the caller omits one. */
+  default: number
+  /** Ceiling the CLAUDE_CODE_MAX_OUTPUT_TOKENS env override is clamped to. */
+  upperLimit: number
 }
 
 /**
- * Get the max output tokens for a model, applying CLI overrides.
+ * Output-token table — faithful replica of upstream `LMH()` in
+ * @anthropic-ai/claude-code (verified against 2.1.141 + 2.1.156, 2026-05-29).
+ *
+ * Keys are NORMALIZED base model IDs (date / -vN / -fast / -latest / [1m]
+ * suffixes and provider prefixes stripped — see {@link normalizeModelId}).
+ * The previous hand-copied "zz8" table capped opus models at 8192, which was
+ * stale by ≥2.1.141 — the real CLI sends 64000 for opus-4-6/4-7/4-8.
  */
-export function getMaxOutput(modelId: string, apiDefault = 16384): number {
-  return MAX_OUTPUT_OVERRIDES[modelId] ?? apiDefault
+const OUTPUT_LIMITS: Record<string, OutputLimit> = {
+  "claude-opus-4-8": { default: 64000, upperLimit: 128000 },
+  "claude-opus-4-7": { default: 64000, upperLimit: 128000 },
+  "claude-opus-4-6": { default: 64000, upperLimit: 128000 },
+  "claude-sonnet-4-6": { default: 32000, upperLimit: 128000 },
+  "claude-opus-4-5": { default: 32000, upperLimit: 64000 },
+  "claude-sonnet-4-5": { default: 32000, upperLimit: 64000 },
+  "claude-sonnet-4-0": { default: 32000, upperLimit: 64000 },
+  "claude-sonnet-4": { default: 32000, upperLimit: 64000 },
+  "claude-haiku-4-5": { default: 32000, upperLimit: 64000 },
+  "claude-opus-4-1": { default: 32000, upperLimit: 32000 },
+  "claude-opus-4-0": { default: 32000, upperLimit: 32000 },
+  "claude-opus-4": { default: 32000, upperLimit: 32000 },
+  "claude-3-7-sonnet": { default: 32000, upperLimit: 64000 },
+  "claude-3-5-sonnet": { default: 8192, upperLimit: 8192 },
+  "claude-3-5-haiku": { default: 8192, upperLimit: 8192 },
+  "claude-3-opus": { default: 4096, upperLimit: 4096 },
+  "claude-3-sonnet": { default: 8192, upperLimit: 8192 },
+  "claude-3-haiku": { default: 4096, upperLimit: 4096 },
+}
+
+/** upstream else branch: oe1 (default) / ae1 (upperLimit). */
+const DEFAULT_OUTPUT_LIMIT: OutputLimit = { default: 32000, upperLimit: 128000 }
+
+/**
+ * Normalize a model ID to its base key (upstream O7 + xG): lowercase, drop the
+ * `[1m]` 1M-context marker, normalize `._` to `-`, strip provider region/vendor
+ * prefixes and trailing date / -vN / -fast / -latest qualifiers.
+ */
+export function normalizeModelId(modelId: string): string {
+  let id = modelId.toLowerCase().replace(/\[1m\]$/, "").replace(/[._]/g, "-")
+  id = id.replace(/^(us|eu|apac|global)-/, "").replace(/^anthropic-/, "")
+  let prev: string
+  do {
+    prev = id
+    id = id.replace(/-(\d{8}|v\d+|fast|latest)$/, "")
+  } while (id !== prev)
+  return id
+}
+
+/** Per-model output limits (upstream LMH), keyed by normalized model ID. */
+export function getOutputLimit(modelId: string): OutputLimit {
+  return OUTPUT_LIMITS[normalizeModelId(modelId)] ?? DEFAULT_OUTPUT_LIMIT
+}
+
+/**
+ * Effective default `max_tokens` for a model — upstream `LMH().default` with
+ * the `CLAUDE_CODE_MAX_OUTPUT_TOKENS` env override applied and clamped to
+ * `upperLimit` (upstream E5H + n$H). Invalid/≤0 env values fall back to default.
+ */
+export function getMaxOutput(modelId: string): number {
+  const { default: def, upperLimit } = getOutputLimit(modelId)
+  const env = process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS
+  if (env) {
+    const n = Number.parseInt(env, 10)
+    if (Number.isFinite(n) && n > 0) return Math.min(n, upperLimit)
+  }
+  return def
 }
 
 /**
@@ -52,10 +116,19 @@ export function getMaxOutput(modelId: string, apiDefault = 16384): number {
  */
 export const MODEL_CATALOG: ClaudeModelSpec[] = [
   {
+    id: "claude-opus-4-8",
+    name: "Claude Opus 4.8",
+    context: 200_000,
+    maxOutput: 64000,
+    supports1MContext: true,
+    supportsThinking: true,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  },
+  {
     id: "claude-opus-4-7",
     name: "Claude Opus 4.7",
     context: 200_000,
-    maxOutput: 8192,
+    maxOutput: 64000,
     supports1MContext: true,
     supportsThinking: true,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -64,7 +137,7 @@ export const MODEL_CATALOG: ClaudeModelSpec[] = [
     id: "claude-sonnet-4-6-20250627",
     name: "Claude Sonnet 4.6",
     context: 200_000,
-    maxOutput: 16384,
+    maxOutput: 32000,
     supports1MContext: true,
     supportsThinking: true,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -73,7 +146,16 @@ export const MODEL_CATALOG: ClaudeModelSpec[] = [
     id: "claude-opus-4-6-20250627",
     name: "Claude Opus 4.6",
     context: 200_000,
-    maxOutput: 8192,
+    maxOutput: 64000,
+    supports1MContext: true,
+    supportsThinking: true,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  },
+  {
+    id: "claude-opus-4-5-20251101",
+    name: "Claude Opus 4.5",
+    context: 200_000,
+    maxOutput: 32000,
     supports1MContext: true,
     supportsThinking: true,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -82,7 +164,7 @@ export const MODEL_CATALOG: ClaudeModelSpec[] = [
     id: "claude-sonnet-4-5-20250514",
     name: "Claude Sonnet 4.5",
     context: 200_000,
-    maxOutput: 16384,
+    maxOutput: 32000,
     supports1MContext: true,
     supportsThinking: true,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -91,7 +173,7 @@ export const MODEL_CATALOG: ClaudeModelSpec[] = [
     id: "claude-opus-4-20250514",
     name: "Claude Opus 4",
     context: 200_000,
-    maxOutput: 8192,
+    maxOutput: 32000,
     supports1MContext: true,
     supportsThinking: true,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -100,7 +182,7 @@ export const MODEL_CATALOG: ClaudeModelSpec[] = [
     id: "claude-opus-4-1-20250805",
     name: "Claude Opus 4.1",
     context: 200_000,
-    maxOutput: 8192,
+    maxOutput: 32000,
     supports1MContext: true,
     supportsThinking: true,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -109,7 +191,7 @@ export const MODEL_CATALOG: ClaudeModelSpec[] = [
     id: "claude-haiku-4-5-20251001",
     name: "Claude Haiku 4.5",
     context: 200_000,
-    maxOutput: 16384,
+    maxOutput: 32000,
     supports1MContext: false,
     supportsThinking: true,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },

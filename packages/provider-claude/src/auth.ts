@@ -3,10 +3,14 @@
  *
  * Phase 3: Extracted from anthropic.ts, compatible with existing credentials.
  */
+import { readFileSync } from "node:fs"
+import { homedir } from "node:os"
+import { join } from "node:path"
 import {
   CLIENT_ID,
   OAUTH,
   AUTHORIZE_SCOPES,
+  SUBSCRIPTION_SCOPES,
   REFRESH_SCOPES,
 } from "./protocol.js"
 
@@ -49,7 +53,12 @@ export async function authorize(
   url.searchParams.set("client_id", CLIENT_ID)
   url.searchParams.set("response_type", "code")
   url.searchParams.set("redirect_uri", OAUTH.redirectUri)
-  url.searchParams.set("scope", AUTHORIZE_SCOPES)
+  // Subscription (max) must NOT request org:create_api_key — only the console
+  // (API-key) flow may. Upstream selects scopes by mode the same way.
+  url.searchParams.set(
+    "scope",
+    mode === "console" ? AUTHORIZE_SCOPES : SUBSCRIPTION_SCOPES.join(" "),
+  )
   url.searchParams.set("code_challenge", pkce.challenge)
   url.searchParams.set("code_challenge_method", "S256")
   url.searchParams.set("state", pkce.verifier)
@@ -63,7 +72,7 @@ export async function authorize(
 export async function exchange(
   code: string,
   verifier: string,
-): Promise<{ type: "success"; refresh: string; access: string; expires: number } | { type: "failed" }> {
+): Promise<{ type: "success"; refresh: string; access: string; expires: number }> {
   const splits = code.split("#")
   const result = await fetch(OAUTH.token, {
     method: "POST",
@@ -77,7 +86,13 @@ export async function exchange(
       code_verifier: verifier,
     }),
   })
-  if (!result.ok) return { type: "failed" }
+  if (!result.ok) {
+    // Surface the real status + body — previously this swallowed everything and
+    // returned a bare "failed", so a 429 (OAuth endpoint rate-limited) and a 400
+    // (invalid_grant / scope mismatch) were indistinguishable to the user.
+    const body = await result.text().catch(() => "unknown error")
+    throw new Error(`Token exchange failed (${result.status}): ${body}`)
+  }
   const json = await result.json()
   return {
     type: "success",
@@ -90,6 +105,23 @@ export async function exchange(
 // ---------------------------------------------------------------------------
 // § 3.3  refreshToken — refresh an expired access token
 // ---------------------------------------------------------------------------
+
+/**
+ * Refresh failure carrying the HTTP status and a `needsReauth` classifier.
+ * 400/401/403 ⇒ the login is dead, re-authenticate (don't keep retrying).
+ * 429 ⇒ the OAuth endpoint is rate-limiting us; back off (see the cooldown in
+ * {@link refreshTokenWithMutex}) — retry-storming is what earns the 429.
+ */
+export class TokenRefreshError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly needsReauth: boolean,
+  ) {
+    super(message)
+    this.name = "TokenRefreshError"
+  }
+}
 
 export async function refreshToken(
   refreshTokenValue: string,
@@ -107,8 +139,14 @@ export async function refreshToken(
   })
   if (!response.ok) {
     const errorText = await response.text().catch(() => "unknown error")
-    throw new Error(
-      `Token refresh failed (${response.status}): ${errorText}. Please re-authenticate.`,
+    const needsReauth = response.status === 400 || response.status === 401 || response.status === 403
+    const hint = needsReauth
+      ? "claude-cli login expired — please re-authenticate."
+      : "Please re-authenticate."
+    throw new TokenRefreshError(
+      `Token refresh failed (${response.status}): ${errorText}. ${hint}`,
+      response.status,
+      needsReauth,
     )
   }
   const json = await response.json()
@@ -143,21 +181,76 @@ export async function fetchProfile(accessToken: string): Promise<Profile> {
 
 let _refreshPromise: Promise<TokenSet> | null = null
 
+/** Storm guard: after a refresh failure, suppress further attempts on the same
+ *  token for a cooldown window so we don't hammer the OAuth endpoint (which is
+ *  what triggers the 429 in the first place). */
+const REFRESH_COOLDOWN_MS = 60_000
+const _refreshCooldown = new Map<string, { until: number; error: unknown }>()
+
 /**
- * Ensure only one refresh happens at a time.
- * Concurrent callers await the same promise.
+ * Ensure only one refresh happens at a time, and back off after failures.
+ * Concurrent callers await the same promise; callers within the cooldown after
+ * a failure get the cached error without touching the network.
  */
 export async function refreshTokenWithMutex(
   refreshTokenValue: string,
   clientId?: string,
 ): Promise<TokenSet> {
+  const cd = _refreshCooldown.get(refreshTokenValue)
+  if (cd && Date.now() < cd.until) throw cd.error
   if (_refreshPromise) return _refreshPromise
 
-  _refreshPromise = refreshToken(refreshTokenValue, clientId).finally(() => {
-    _refreshPromise = null
-  })
+  _refreshPromise = refreshToken(refreshTokenValue, clientId)
+    .then((tokens) => {
+      _refreshCooldown.delete(refreshTokenValue)
+      return tokens
+    })
+    .catch((error) => {
+      _refreshCooldown.set(refreshTokenValue, { until: Date.now() + REFRESH_COOLDOWN_MS, error })
+      throw error
+    })
+    .finally(() => {
+      _refreshPromise = null
+    })
 
   return _refreshPromise
+}
+
+// ---------------------------------------------------------------------------
+// § 3.5b  Import from the official Claude Code CLI credential store
+// ---------------------------------------------------------------------------
+
+export interface LocalClaudeCredentials {
+  access: string
+  refresh: string
+  expires: number
+  scopes?: string[]
+  subscriptionType?: string
+}
+
+/**
+ * Read the official Claude Code CLI's stored OAuth credential
+ * (`~/.claude/.credentials.json` → `claudeAiOauth`). opencode's claude provider
+ * shares the same OAuth client_id, scopes and endpoints, so this token is
+ * directly reusable — letting users import an existing local login instead of
+ * re-running the OAuth flow. Returns null if absent / unreadable / malformed.
+ */
+export function readLocalClaudeCredentials(
+  path = join(homedir(), ".claude", ".credentials.json"),
+): LocalClaudeCredentials | null {
+  try {
+    const oauth = JSON.parse(readFileSync(path, "utf8"))?.claudeAiOauth
+    if (!oauth?.accessToken || !oauth?.refreshToken || !oauth?.expiresAt) return null
+    return {
+      access: oauth.accessToken,
+      refresh: oauth.refreshToken,
+      expires: oauth.expiresAt,
+      scopes: oauth.scopes,
+      subscriptionType: oauth.subscriptionType,
+    }
+  } catch {
+    return null
+  }
 }
 
 // ---------------------------------------------------------------------------

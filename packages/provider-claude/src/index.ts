@@ -33,15 +33,18 @@ export {
   buildBillingHeader,
 } from "./protocol.js"
 export type { AssembleBetasOptions, ProviderRoute } from "./protocol.js"
+export { SUBSCRIPTION_SCOPES } from "./protocol.js"
 
 // Model catalog
 export {
   MODEL_CATALOG,
   getMaxOutput,
+  getOutputLimit,
+  normalizeModelId,
   findModel,
   isKnownModel,
 } from "./models.js"
-export type { ClaudeModelSpec } from "./models.js"
+export type { ClaudeModelSpec, OutputLimit } from "./models.js"
 
 // Format converters
 export {
@@ -73,8 +76,10 @@ export {
   refreshTokenWithMutex,
   fetchProfile,
   isClaudeCredentials,
+  readLocalClaudeCredentials,
+  TokenRefreshError,
 } from "./auth.js"
-export type { ClaudeCredentials, TokenSet, Profile } from "./auth.js"
+export type { ClaudeCredentials, TokenSet, Profile, LocalClaudeCredentials } from "./auth.js"
 
 // Provider (main entry)
 export { createClaudeCode } from "./provider.js"

@@ -28,7 +28,6 @@ export const authMethods = [
         method: "code" as const,
         callback: async (code: string) => {
           const credentials = await exchange(code, verifier)
-          if (credentials.type === "failed") return credentials
           try {
             const profile = await fetchProfile(credentials.access)
             return {
@@ -58,7 +57,6 @@ export const authMethods = [
         method: "code" as const,
         callback: async (code: string) => {
           const credentials = await exchange(code, verifier)
-          if (credentials.type === "failed") return credentials
           const result = await fetch(OAUTH.apiKey, {
             method: "POST",
             headers: { "Content-Type": "application/json", authorization: `Bearer ${credentials.access}` },

@@ -26,7 +26,7 @@ export function parseAnthropicSSE(
   // Track active content blocks for id generation
   const activeBlocks = new Map<
     number,
-    { type: string; id: string; toolName?: string }
+    { type: string; id: string; toolName?: string; input?: string }
   >()
   let blockCounter = 0
 
@@ -41,6 +41,12 @@ export function parseAnthropicSSE(
   let messageId: string | undefined
   let messageModel: string | undefined
   let emittedStreamStart = false
+  // Anthropic emits the final stop_reason on message_delta (NOT message_stop);
+  // cache it per-stream so message_stop can map it. Without this every turn
+  // finished as "other" instead of "stop", so the runloop thought the turn
+  // wasn't done and re-requested with the assistant reply trailing → Anthropic
+  // 400 "does not support assistant message prefill".
+  let lastStopReason: string | undefined
 
   return new ReadableStream<LanguageModelV2StreamPart>({
     async pull(controller) {
@@ -154,7 +160,7 @@ export function parseAnthropicSSE(
           controller.enqueue({ type: "reasoning-start", id })
         } else if (block.type === "tool_use") {
           const toolName = stripToolPrefix(block.name || "")
-          activeBlocks.set(idx, { type: "tool_use", id: block.id || id, toolName })
+          activeBlocks.set(idx, { type: "tool_use", id: block.id || id, toolName, input: "" })
           controller.enqueue({
             type: "tool-input-start",
             id: block.id || id,
@@ -176,6 +182,9 @@ export function parseAnthropicSSE(
         } else if (delta.type === "thinking_delta") {
           controller.enqueue({ type: "reasoning-delta", id: info.id, delta: delta.thinking })
         } else if (delta.type === "input_json_delta") {
+          // Accumulate the streamed JSON so content_block_stop can emit the
+          // final tool-call part with the complete input.
+          info.input = (info.input ?? "") + (delta.partial_json ?? "")
           controller.enqueue({ type: "tool-input-delta", id: info.id, delta: delta.partial_json })
         }
         break
@@ -193,6 +202,16 @@ export function parseAnthropicSSE(
           controller.enqueue({ type: "reasoning-end", id: info.id })
         } else if (info.type === "tool_use") {
           controller.enqueue({ type: "tool-input-end", id: info.id })
+          // CRITICAL: emit the final tool-call part. Without it the AI SDK
+          // never dispatches the tool — every tool call stayed `pending` and
+          // was reconstructed as "[Tool execution was interrupted]". (codex's
+          // parser already emits this; claude's never did.)
+          controller.enqueue({
+            type: "tool-call",
+            toolCallId: info.id,
+            toolName: info.toolName ?? "unknown",
+            input: info.input && info.input.length > 0 ? info.input : "{}",
+          })
         }
         activeBlocks.delete(idx)
         break
@@ -203,17 +222,20 @@ export function parseAnthropicSSE(
         if (event.usage) {
           usage.outputTokens = event.usage.output_tokens
         }
-        // Finish reason is emitted in message_stop
+        // The stop_reason arrives here in delta.stop_reason; cache it for the
+        // message_stop finish event below.
+        if (event.delta?.stop_reason) {
+          lastStopReason = event.delta.stop_reason
+        }
         break
       }
 
       // § 1B.6  message_stop → finish
       case "message_stop": {
-        // Determine finish reason from the last message_delta's stop_reason
-        // Default to "stop" if not explicitly set
+        // Finish reason comes from the cached message_delta stop_reason.
         controller.enqueue({
           type: "finish",
-          finishReason: mapFinishReason(event._stopReason),
+          finishReason: mapFinishReason(lastStopReason),
           usage,
         })
         break
@@ -238,9 +260,6 @@ export function parseAnthropicSSE(
 // ---------------------------------------------------------------------------
 // § 1B.5  Finish reason mapping
 // ---------------------------------------------------------------------------
-
-// Cache stop_reason from message_delta for use in message_stop
-let _lastStopReason: string | undefined
 
 export function mapFinishReason(
   reason: string | undefined,

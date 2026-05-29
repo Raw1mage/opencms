@@ -1291,16 +1291,21 @@ export namespace Provider {
 
     // Initialize claude-cli provider (Official Protocol Mimicry)
     // Replacing the legacy 'anthropic' provider entirely.
+    // `output` mirrors upstream LMH().default (verified @anthropic-ai/claude-code
+    // 2.1.156, 2026-05-29): opus-4-6/4-7/4-8 = 64000, other 4.x = 32000, legacy
+    // claude-3 per family. Previously hardcoded to 8192, which truncated every
+    // claude-cli reply at 8192 output tokens regardless of model.
     const claudeCliModels = [
-      { id: "claude-3-haiku-20240307", name: "Claude Haiku 3", reasoning: false, context: 200000 },
-      { id: "claude-haiku-4-5", name: "Claude Haiku 4.5", reasoning: false, context: 200000 },
-      { id: "claude-3-opus-20240229", name: "Claude Opus 3", reasoning: true, context: 200000 },
-      { id: "claude-opus-4-5", name: "Claude Opus 4.5", reasoning: true, context: 200000 },
-      { id: "claude-opus-4-6", name: "Claude Opus 4.6", reasoning: true, context: 200000 },
-      { id: "claude-opus-4-7", name: "Claude Opus 4.7", reasoning: true, context: 200000 },
-      { id: "claude-3-5-sonnet-latest", name: "Claude Sonnet 4", reasoning: true, context: 200000 },
-      { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5", reasoning: true, context: 200000 },
-      { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6", reasoning: true, context: 200000 },
+      { id: "claude-3-haiku-20240307", name: "Claude Haiku 3", reasoning: false, context: 200000, output: 4096 },
+      { id: "claude-haiku-4-5", name: "Claude Haiku 4.5", reasoning: false, context: 200000, output: 32000 },
+      { id: "claude-3-opus-20240229", name: "Claude Opus 3", reasoning: true, context: 200000, output: 4096 },
+      { id: "claude-opus-4-5", name: "Claude Opus 4.5", reasoning: true, context: 200000, output: 32000 },
+      { id: "claude-opus-4-6", name: "Claude Opus 4.6", reasoning: true, context: 200000, output: 64000 },
+      { id: "claude-opus-4-7", name: "Claude Opus 4.7", reasoning: true, context: 200000, output: 64000 },
+      { id: "claude-opus-4-8", name: "Claude Opus 4.8", reasoning: true, context: 200000, output: 64000 },
+      { id: "claude-3-5-sonnet-latest", name: "Claude Sonnet 4", reasoning: true, context: 200000, output: 8192 },
+      { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5", reasoning: true, context: 200000, output: 32000 },
+      { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6", reasoning: true, context: 200000, output: 32000 },
     ]
 
     database["claude-cli"] = {
@@ -1332,7 +1337,7 @@ export namespace Provider {
           toolcall: true,
         },
         cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
-        limit: { context: m.context, output: 8192 },
+        limit: { context: m.context, output: m.output },
         options: {},
         variants: {},
         headers: {},

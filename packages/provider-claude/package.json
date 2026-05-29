@@ -7,6 +7,9 @@
   "exports": {
     "./*": "./src/*.ts"
   },
+  "scripts": {
+    "sync-check": "bun scripts/sync-from-cli.ts"
+  },
   "peerDependencies": {
     "@ai-sdk/provider": "^2.0.0"
   }
