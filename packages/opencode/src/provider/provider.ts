@@ -1108,8 +1108,7 @@ export namespace Provider {
     // Account.knownFamilies). Per-account slugs (codex-subscription-<x>) never
     // enter `database`, so allowing database keys is safe under DD-1.
     const baseKnown: readonly string[] = await Account.knownFamilies({ includeStorage: true })
-    const isKnownFamily = (providerId: string) =>
-      baseKnown.includes(providerId) || database[providerId] !== undefined
+    const isKnownFamily = (providerId: string) => baseKnown.includes(providerId) || database[providerId] !== undefined
 
     const configProviders = Object.entries(config.provider ?? {})
 
@@ -1170,9 +1169,10 @@ export namespace Provider {
             // Phase 0: only `lite` mode strips toolcall capability. freerun is
             // an inert flag pre-engine — full toolcall capability advertised so
             // sessions behave like full mode until Phase 1 engine takes over.
-            toolcall: ((provider as any).mode === "lite" || ((provider as any).mode === undefined && provider.lite))
-              ? false
-              : (model.tool_call ?? existingModel?.capabilities.toolcall ?? true),
+            toolcall:
+              (provider as any).mode === "lite" || ((provider as any).mode === undefined && provider.lite)
+                ? false
+                : (model.tool_call ?? existingModel?.capabilities.toolcall ?? true),
             input: {
               text: model.modalities?.input?.includes("text") ?? existingModel?.capabilities.input.text ?? true,
               audio: model.modalities?.input?.includes("audio") ?? existingModel?.capabilities.input.audio ?? false,
@@ -1705,8 +1705,7 @@ export namespace Provider {
         if (familyData.activeAccount === accountId) {
           familyEntry.active = true
           familyEntry.email = accountInfo.type === "subscription" ? accountInfo.email : undefined
-          familyEntry.coolingDownUntil =
-            accountInfo.type === "subscription" ? accountInfo.coolingDownUntil : undefined
+          familyEntry.coolingDownUntil = accountInfo.type === "subscription" ? accountInfo.coolingDownUntil : undefined
           familyEntry.cooldownReason =
             blocked ?? (accountInfo.type === "subscription" ? accountInfo.cooldownReason : undefined)
         }
@@ -1725,8 +1724,7 @@ export namespace Provider {
         const auth = await Auth.get(loadFamily, loadAccountId)
         if (!auth) {
           throw new Error(
-            `Auth not found for provider: family=${loadFamily}` +
-              (loadAccountId ? `, accountId=${loadAccountId}` : ""),
+            `Auth not found for provider: family=${loadFamily}` + (loadAccountId ? `, accountId=${loadAccountId}` : ""),
           )
         }
         return auth
@@ -2225,7 +2223,11 @@ export namespace Provider {
           ...options["headers"],
           ...model.headers,
         }
-      if (Env.get("OPENCODE_SMOKE_DEBUG") && family === "anthropic" && accountId?.startsWith("anthropic-subscription")) {
+      if (
+        Env.get("OPENCODE_SMOKE_DEBUG") &&
+        family === "anthropic" &&
+        accountId?.startsWith("anthropic-subscription")
+      ) {
         log.info("anthropic subscription sdk options", {
           family,
           accountId,
@@ -2242,9 +2244,7 @@ export namespace Provider {
       // per-account providerId) so different accounts of the same family
       // get distinct SDK instances.
       const hasCustomFetch = typeof options["fetch"] === "function"
-      const key = Bun.hash.xxHash32(
-        JSON.stringify({ family, accountId, npm: model.api.npm, options, hasCustomFetch }),
-      )
+      const key = Bun.hash.xxHash32(JSON.stringify({ family, accountId, npm: model.api.npm, options, hasCustomFetch }))
       const existing = s.sdk.get(key)
       if (existing) return existing
 
@@ -2590,9 +2590,24 @@ export namespace Provider {
 
     // Skip SDK loading when the model loader doesn't need it (e.g. native LMv2 providers).
     // This prevents InitError from getSDK() trying to install a non-existent npm package.
-    const sdk = loader !== undefined
-      ? await getSDK(family, accountId, model).catch(() => null)
-      : await getSDK(family, accountId, model)
+    //
+    // @opencode-ai/provider-* packages (provider-claude, provider-codex) are
+    // workspace-internal natives bundled INTO the binary; they are never
+    // npm-installable. Their loaders (claude-cli, codex) take `_sdk` and ignore
+    // it, returning a self-constructed LanguageModelV2. Calling getSDK for them
+    // always hits BunProc.install("@opencode-ai/provider-…") → BunInstallFailedError,
+    // which the `.catch(() => null)` below already swallows — but not before
+    // logging a misleading "getSDK failed" ERROR on every cold start. Skip the
+    // doomed call outright for these. Other loader families (openai, etc.) whose
+    // loaders genuinely use the SDK still go through getSDK normally.
+    const npm = model.api.npm
+    const loaderNeedsSdk = !npm || !npm.startsWith("@opencode-ai/provider-")
+    const sdk =
+      loader !== undefined
+        ? loaderNeedsSdk
+          ? await getSDK(family, accountId, model).catch(() => null)
+          : null
+        : await getSDK(family, accountId, model)
 
     // @spec specs/provider-account-decoupling DD-3 follow-up (2026-05-04)
     // CRITICAL FALSE-POSITIVE 429 ROOT CAUSE: previously this call passed
@@ -2613,9 +2628,7 @@ export namespace Provider {
 
     try {
       const language =
-        loader !== undefined
-          ? await loader(sdk, model.api.id, loaderOptions)
-          : sdk!.languageModel(model.api.id)
+        loader !== undefined ? await loader(sdk, model.api.id, loaderOptions) : sdk!.languageModel(model.api.id)
       s.models.set(cacheKey, language)
       return language
     } catch (e) {
