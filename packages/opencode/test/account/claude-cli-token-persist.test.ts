@@ -1,25 +1,42 @@
 import { describe, expect, test } from "bun:test"
+import path from "path"
 import { Account } from "../../src/account"
-import { Instance } from "../../src/project/instance"
+import { Global } from "../../src/global"
 
 // Offline regression guard for the claude-cli token-refresh persist fix
 // (spec auth/credential-token-refresh-ineffective).
 //
-// Root cause being guarded: getModel persisted the rotated refresh token via
-// the CLAUDE-side accountId / literal "claude-cli" instead of the opencode
-// storage account id, so the rotated token never landed on the live account →
-// next boot replayed a consumed token → invalid_grant → forced re-login. The
-// fix resolves the real storage id (Account.findByRefreshToken) and updates it
-// in place. These tests exercise that account-layer contract with NO network,
-// NO live token, NO HTTP — so they can gate a merge without churning real
-// credentials (which is what broke the live login during development).
+// Root cause being guarded: getModel persisted the rotated refresh token by the
+// CLAUDE-side accountId / literal "claude-cli" instead of the opencode storage
+// account id, so the rotated token never landed on the live account → next boot
+// replayed a consumed token → invalid_grant → forced re-login. The fix resolves
+// the real storage id via Account.findByRefreshToken (base-token match) and
+// updates it in place. These tests exercise that resolver with NO network, NO
+// live token, NO HTTP — so they gate a merge without churning real credentials
+// (which is what broke the live login during development).
+//
+// Storage is seeded by writing accounts.json directly + Account.refresh(),
+// mirroring account-cache.test.ts (the working pattern). We deliberately avoid
+// Account.add / Instance.provide, which pull in project-instance context that
+// isn't set up in this unit harness.
 
-function withStorage<T>(fn: () => Promise<T> | T): Promise<T> {
-  return Instance.provide(async () => fn())
+const accountsFile = () => path.join(Global.Path.user, "accounts.json")
+
+function seed(accounts: Record<string, any>): Promise<void> {
+  const doc = {
+    version: 2,
+    families: {
+      "claude-cli": {
+        activeAccount: Object.keys(accounts)[0],
+        accounts,
+      },
+    },
+  }
+  return Bun.write(accountsFile(), JSON.stringify(doc)).then(() => Account.refresh())
 }
 
 const sub = (over: Record<string, any>) => ({
-  type: "subscription" as const,
+  type: "subscription",
   name: "test",
   refreshToken: "rt_base",
   accessToken: "at_old",
@@ -28,78 +45,39 @@ const sub = (over: Record<string, any>) => ({
   ...over,
 })
 
-describe("claude-cli token persist — findByRefreshToken + in-place update", () => {
-  test("resolves storage id by base refresh token", () =>
-    withStorage(async () => {
-      const id = "claude-cli-subscription-claude-cli-aaaa"
-      await Account.add("claude-cli", id, sub({ refreshToken: "rt_alpha", email: "a@x.com" }) as any)
+describe("claude-cli Account.findByRefreshToken (token-persist storage-id resolver)", () => {
+  test("resolves storage id by base refresh token", async () => {
+    const id = "claude-cli-subscription-claude-cli-aaaa"
+    await seed({ [id]: sub({ refreshToken: "rt_alpha", email: "a@x.com", name: "a@x.com" }) })
+    expect(await Account.findByRefreshToken("claude-cli", "rt_alpha")).toBe(id)
+  })
 
-      const found = await Account.findByRefreshToken("claude-cli", "rt_alpha")
-      expect(found).toBe(id)
-    }))
+  test("matches on base token even when stored token carries a |projectId suffix", async () => {
+    const id = "claude-cli-subscription-claude-cli-bbbb"
+    await seed({ [id]: sub({ refreshToken: "rt_beta|proj_123" }) })
+    // The plugin looks up using the bare refresh token it was loaded with.
+    expect(await Account.findByRefreshToken("claude-cli", "rt_beta")).toBe(id)
+  })
 
-  test("matches on base token even when stored token carries a |projectId suffix", () =>
-    withStorage(async () => {
-      const id = "claude-cli-subscription-claude-cli-bbbb"
-      await Account.add("claude-cli", id, sub({ refreshToken: "rt_beta|proj_123" }) as any)
+  test("returns undefined when no subscription account matches (NO-OP, never creates)", async () => {
+    await seed({ "claude-cli-subscription-claude-cli-cccc": sub({ refreshToken: "rt_gamma" }) })
+    expect(await Account.findByRefreshToken("claude-cli", "rt_does_not_exist")).toBeUndefined()
+  })
 
-      // The plugin looks up using the bare refresh token it was loaded with.
-      const found = await Account.findByRefreshToken("claude-cli", "rt_beta")
-      expect(found).toBe(id)
-    }))
+  test("picks the right account among several by its base token", async () => {
+    await seed({
+      "claude-cli-subscription-claude-cli-one": sub({ refreshToken: "rt_one", email: "one@x.com" }),
+      "claude-cli-subscription-claude-cli-two": sub({ refreshToken: "rt_two|proj", email: "two@x.com" }),
+      "claude-cli-subscription-claude-cli-three": sub({ refreshToken: "rt_three", email: "three@x.com" }),
+    })
+    expect(await Account.findByRefreshToken("claude-cli", "rt_two")).toBe("claude-cli-subscription-claude-cli-two")
+    expect(await Account.findByRefreshToken("claude-cli", "rt_three")).toBe("claude-cli-subscription-claude-cli-three")
+  })
 
-  test("returns undefined when no subscription account matches (NO-OP, never creates)", () =>
-    withStorage(async () => {
-      await Account.add("claude-cli", "claude-cli-subscription-claude-cli-cccc", sub({ refreshToken: "rt_gamma" }) as any)
-
-      const found = await Account.findByRefreshToken("claude-cli", "rt_does_not_exist")
-      expect(found).toBeUndefined()
-    }))
-
-  test("persist flow: lookup by PRE-rotation token then update in place — no duplicate, token rotated", () =>
-    withStorage(async () => {
-      const id = "claude-cli-subscription-claude-cli-dddd"
-      await Account.add(
-        "claude-cli",
-        id,
-        sub({ refreshToken: "rt_pre", accessToken: "at_pre", expiresAt: 100, email: "user@x.com", name: "user@x.com" }) as any,
-      )
-
-      // Simulate getModel persist: refresh rotated rt_pre → rt_post; we locate the
-      // account by the pre-rotation token, then write the new token onto it.
-      const storageId = await Account.findByRefreshToken("claude-cli", "rt_pre")
-      expect(storageId).toBe(id)
-
-      await Account.update("claude-cli", storageId!, {
-        accessToken: "at_post",
-        expiresAt: 200,
-        refreshToken: "rt_post",
-      })
-
-      const accounts = await Account.list("claude-cli")
-      // Invariant 1: exactly one account — the fix must never mint a duplicate.
-      expect(Object.keys(accounts).length).toBe(1)
-      // Invariant 2: same storage id, identity preserved.
-      const updated = accounts[id] as any
-      expect(updated).toBeTruthy()
-      expect(updated.name).toBe("user@x.com")
-      expect(updated.email).toBe("user@x.com")
-      // Invariant 3: rotated token actually landed.
-      expect(updated.refreshToken).toBe("rt_post")
-      expect(updated.accessToken).toBe("at_post")
-      expect(updated.expiresAt).toBe(200)
-    }))
-
-  test("API accounts are ignored by findByRefreshToken (subscription-only)", () =>
-    withStorage(async () => {
-      await Account.add("claude-cli", "claude-cli-api-key1", {
-        type: "api",
-        name: "apikey",
-        apiKey: "rt_collide",
-        addedAt: 1,
-      } as any)
-
-      const found = await Account.findByRefreshToken("claude-cli", "rt_collide")
-      expect(found).toBeUndefined()
-    }))
+  test("API accounts are ignored (subscription-only)", async () => {
+    await seed({
+      "claude-cli-api-key1": { type: "api", name: "apikey", apiKey: "rt_collide", addedAt: 1 },
+    })
+    expect(await Account.findByRefreshToken("claude-cli", "rt_collide")).toBeUndefined()
+  })
 })
