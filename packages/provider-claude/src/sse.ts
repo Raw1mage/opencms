@@ -4,20 +4,14 @@
  * Phase 2B: Line-based buffering with chunk boundary handling.
  * Ref: Anthropic Messages API SSE event types.
  */
-import type {
-  LanguageModelV2StreamPart,
-  LanguageModelV2FinishReason,
-  LanguageModelV2Usage,
-} from "@ai-sdk/provider"
+import type { LanguageModelV2StreamPart, LanguageModelV2FinishReason, LanguageModelV2Usage } from "@ai-sdk/provider"
 import { stripToolPrefix } from "./convert.js"
 
 // ---------------------------------------------------------------------------
 // § 2B.1  parseAnthropicSSE — main entry point
 // ---------------------------------------------------------------------------
 
-export function parseAnthropicSSE(
-  body: ReadableStream<Uint8Array>,
-): ReadableStream<LanguageModelV2StreamPart> {
+export function parseAnthropicSSE(body: ReadableStream<Uint8Array>): ReadableStream<LanguageModelV2StreamPart> {
   const reader = body.getReader()
   const decoder = new TextDecoder()
   let remainder = ""
@@ -47,6 +41,15 @@ export function parseAnthropicSSE(
   // wasn't done and re-requested with the assistant reply trailing → Anthropic
   // 400 "does not support assistant message prefill".
   let lastStopReason: string | undefined
+  // [DIAG:claude-resp] Per-stream block-production tally for the "no-thinking
+  // session stalls" investigation (issues/bug_20260530_narrate_then_stall_regression.md).
+  // A stall ≈ "stream opened, finished, but produced no text/tool block" — i.e.
+  // an empty completion the runloop can't advance on. Count what was actually
+  // emitted so a reproduced stall is tied to a concrete production tally + the
+  // RAW stop_reason (mapped "other" when undefined → runloop mis-advance).
+  let producedText = 0
+  let producedReasoning = 0
+  let producedToolUse = 0
   // Anthropic reports cache-write tokens as cache_creation_input_tokens; not part
   // of LanguageModelV2Usage, so carry it out via finish providerMetadata for the
   // host's cache-write accounting (else cache write always shows 0).
@@ -90,10 +93,7 @@ export function parseAnthropicSSE(
     },
   })
 
-  function processLines(
-    text: string,
-    controller: ReadableStreamDefaultController<LanguageModelV2StreamPart>,
-  ) {
+  function processLines(text: string, controller: ReadableStreamDefaultController<LanguageModelV2StreamPart>) {
     for (const line of text.split("\n")) {
       const trimmed = line.trim()
 
@@ -124,10 +124,7 @@ export function parseAnthropicSSE(
     }
   }
 
-  function dispatchEvent(
-    event: any,
-    controller: ReadableStreamDefaultController<LanguageModelV2StreamPart>,
-  ) {
+  function dispatchEvent(event: any, controller: ReadableStreamDefaultController<LanguageModelV2StreamPart>) {
     switch (event.type) {
       // § 1B.1  message_start → response-metadata
       case "message_start": {
@@ -158,12 +155,15 @@ export function parseAnthropicSSE(
         const id = `block-${blockCounter++}`
 
         if (block.type === "text") {
+          producedText++
           activeBlocks.set(idx, { type: "text", id })
           controller.enqueue({ type: "text-start", id })
         } else if (block.type === "thinking") {
+          producedReasoning++
           activeBlocks.set(idx, { type: "thinking", id })
           controller.enqueue({ type: "reasoning-start", id })
         } else if (block.type === "tool_use") {
+          producedToolUse++
           const toolName = stripToolPrefix(block.name || "")
           activeBlocks.set(idx, { type: "tool_use", id: block.id || id, toolName, input: "" })
           controller.enqueue({
@@ -214,9 +214,7 @@ export function parseAnthropicSSE(
           controller.enqueue({
             type: "reasoning-end",
             id: info.id,
-            ...(info.signature
-              ? { providerMetadata: { anthropic: { signature: info.signature } } }
-              : {}),
+            ...(info.signature ? { providerMetadata: { anthropic: { signature: info.signature } } } : {}),
           })
         } else if (info.type === "tool_use") {
           controller.enqueue({ type: "tool-input-end", id: info.id })
@@ -250,6 +248,24 @@ export function parseAnthropicSSE(
 
       // § 1B.6  message_stop → finish
       case "message_stop": {
+        // [DIAG:claude-resp] Response-boundary checkpoint. A "no-thinking stall"
+        // should surface here as rawStop=undefined → mapped "other", and/or a
+        // zero production tally (no text/tool block) — an empty completion the
+        // host runloop cannot advance on. Tying the reproduced symptom to THIS
+        // line is what closes the code-thinker "no log, no root cause" gap.
+        const mapped = mapFinishReason(lastStopReason)
+        if (lastStopReason === undefined || producedText + producedToolUse === 0 || mapped === "other") {
+          console.warn(
+            `[DIAG:claude-resp] SUSPECT-EMPTY rawStop=${lastStopReason ?? "undefined"} mapped=${mapped}` +
+              ` text=${producedText} reasoning=${producedReasoning} toolUse=${producedToolUse}` +
+              ` outTokens=${usage.outputTokens ?? "-"}`,
+          )
+        } else {
+          console.warn(
+            `[DIAG:claude-resp] ok rawStop=${lastStopReason} mapped=${mapped}` +
+              ` text=${producedText} reasoning=${producedReasoning} toolUse=${producedToolUse}`,
+          )
+        }
         // Finish reason comes from the cached message_delta stop_reason.
         controller.enqueue({
           type: "finish",
@@ -282,9 +298,7 @@ export function parseAnthropicSSE(
 // § 1B.5  Finish reason mapping
 // ---------------------------------------------------------------------------
 
-export function mapFinishReason(
-  reason: string | undefined,
-): LanguageModelV2FinishReason {
+export function mapFinishReason(reason: string | undefined): LanguageModelV2FinishReason {
   switch (reason) {
     case "end_turn":
     case "stop":

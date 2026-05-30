@@ -15,12 +15,7 @@ import type {
 } from "@ai-sdk/provider"
 import { BASE_API_URL, IDENTITY_INTERACTIVE, toApiModelId } from "./protocol.js"
 import { getMaxOutput } from "./models.js"
-import {
-  convertPrompt,
-  convertTools,
-  convertSystemBlocks,
-  applyConversationCacheBreakpoint,
-} from "./convert.js"
+import { convertPrompt, convertTools, convertSystemBlocks, applyConversationCacheBreakpoint } from "./convert.js"
 import { buildHeaders } from "./headers.js"
 import { parseAnthropicSSE, mapFinishReason } from "./sse.js"
 import type { ClaudeCredentials, TokenSet } from "./auth.js"
@@ -151,9 +146,7 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
     // The credential type guard exists only to FAIL LOUD if a non-OAuth
     // credential ever sneaks in, not to enable a fallback.
     if (creds.type !== "oauth" && creds.type !== "subscription") {
-      throw new Error(
-        `claude-provider: opencode is OAuth-only (DD-16); refusing creds.type="${String(creds.type)}"`,
-      )
+      throw new Error(`claude-provider: opencode is OAuth-only (DD-16); refusing creds.type="${String(creds.type)}"`)
     }
     const envBetasRaw = process.env.ANTHROPIC_BETAS
     const headers = buildHeaders({
@@ -165,7 +158,12 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
       fastMode: this.options.fastMode,
       effort: !!po.effort,
       taskBudget: !!po.taskBudget,
-      envBetas: envBetasRaw ? envBetasRaw.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+      envBetas: envBetasRaw
+        ? envBetasRaw
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : undefined,
       // Deployment posture (DD-4 + DD-17): opencode runs as a daemon serving
       // SSE to web/TUI clients, not a TTY. provider is always firstParty.
       provider: "firstParty",
@@ -243,6 +241,23 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
 
     const bodyStr = JSON.stringify(body)
 
+    // [DIAG:claude-req] Request-boundary checkpoint for the "no-thinking session
+    // stalls" investigation (issues/bug_20260530_narrate_then_stall_regression.md).
+    // The no-thinking path is the one that forwards sampling params (temperature/
+    // top_p/top_k) — the thinking-effort wiring commit (0ee1f5ceb) only guards them
+    // OFF when thinking is ON. Capture the exact request shape so a reproduced stall
+    // can be tied to a concrete wire-level cause instead of inferred from code.
+    {
+      const lastMsg = messages[messages.length - 1] as { role?: string } | undefined
+      console.warn(
+        `[DIAG:claude-req] model=${this.modelId} thinking=${thinking ? `on(budget=${thinking.budget_tokens})` : "off"}` +
+          ` temp=${body.temperature ?? "-"} top_p=${body.top_p ?? "-"} top_k=${body.top_k ?? "-"}` +
+          ` max_tokens=${maxTokens} msgs=${messages.length} lastRole=${lastMsg?.role ?? "-"}` +
+          ` tools=${Array.isArray(body.tools) ? (body.tools as unknown[]).length : 0}` +
+          ` toolChoice=${JSON.stringify(body.tool_choice ?? null)} effort=${!!po.effort}`,
+      )
+    }
+
     // § 4.2.7  fetch — direct globalThis.fetch, zero middleware
     const baseURL = this.options.baseURL ?? BASE_API_URL
     // § 4.4  URL: /v1/messages?beta=true
@@ -258,9 +273,7 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
     // § 4.5  Error handling
     if (!response.ok) {
       const errorBody = await response.text().catch(() => "")
-      throw new Error(
-        `Anthropic API error ${response.status}: ${errorBody.slice(0, 500)}`,
-      )
+      throw new Error(`Anthropic API error ${response.status}: ${errorBody.slice(0, 500)}`)
     }
 
     if (!response.body) {
