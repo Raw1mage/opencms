@@ -74,69 +74,22 @@ export async function ClaudeCliPlugin(input: PluginInput): Promise<Hooks> {
                 creds.access = tokens.access
                 creds.expires = tokens.expires
                 if (tokens.refresh) creds.refresh = tokens.refresh
+                // Persist refreshed tokens
+                await client.auth.set({
+                  path: { id: creds.accountId || "claude-cli" },
+                  body: {
+                    type: creds.type,
+                    refresh: creds.refresh,
+                    access: creds.access,
+                    expires: creds.expires,
+                    orgID: creds.orgID,
+                    email: creds.email,
+                  } as unknown as SDKAuth,
+                })
                 log.info("Token refreshed before model creation")
               } catch (e) {
-                // Refresh failed. provider-claude's TokenRefreshError carries the
-                // precise intent: needsReauth=false (e.g. 429 — the OAuth *token
-                // endpoint* throttled us; the account is NOT dead, provider-claude
-                // already applied a 60s storm-guard cooldown) vs needsReauth=true
-                // (400/401/403 — the grant is dead, re-auth required).
-                //
-                // Do NOT let the raw "Token refresh failed (...)" error escape to the
-                // host's generic onError gates (session/llm.ts): isAuthError() string-
-                // matches "token refresh failed" → forces re-login, while
-                // isRateLimitError() early-returns false on the same string. Together
-                // they'd hard-stop a transient throttle and abandon a still-valid
-                // subscription. So consume the error in our own layer (like codex's
-                // openai.ts and gemini's token.ts do) and re-shape a transient throttle
-                // into a plain rate-limit error — the "(429)" in the message makes
-                // isRateLimitError() route it to RateLimitJudge → cooldown + immediate
-                // rotation to an available account. Only genuine re-auth propagates as-is.
-                const status = (e as { status?: number })?.status
-                const needsReauth = (e as { needsReauth?: boolean })?.needsReauth
-                if (needsReauth === false || status === 429) {
-                  log.warn("Token refresh throttled (transient); routing to rotation, not re-login", {
-                    status,
-                  })
-                  throw Object.assign(
-                    new Error(
-                      `claude-cli token endpoint rate limited (${status ?? 429}); rotating to an available account`,
-                    ),
-                    { status: status ?? 429 },
-                  )
-                }
-                log.error("Token refresh failed in getModel (re-auth required)", { error: e })
+                log.error("Token refresh failed in getModel", { error: e })
                 throw e
-              }
-
-              // Persist the rotated token back to accounts.json so the next process
-              // start doesn't replay a consumed refresh token (→ invalid_grant →
-              // forced re-login; spec DD-13). Best-effort: refresh already succeeded
-              // and `creds` is fresh in memory, so a write failure must NOT abort.
-              //
-              // Update the EXACT account by its opencode account id (the loader's
-              // `accountId`) via Account.update — a targeted in-place update that
-              // NO-OPS if the id is absent and NEVER creates a new account. Going
-              // through client.auth.set / Auth.set instead re-runs email-based
-              // identity resolution; for a claude account whose email lives only in
-              // `name` (the access token is opaque, not a JWT — DD-12) that resolves
-              // to a token-hash slug and mints a NEW "claude-cli" duplicate on every
-              // single refresh. (spec DD-15 — observed: 3 dupes in ~1 min.)
-              try {
-                const { Account } = await import("../../account")
-                if (accountId) {
-                  await Account.update("claude-cli", accountId, {
-                    accessToken: creds.access,
-                    expiresAt: creds.expires,
-                    refreshToken: creds.refresh,
-                  })
-                } else {
-                  log.warn("No accountId in loader scope; skipping token persist to avoid duplicate accounts")
-                }
-              } catch (persistErr) {
-                log.error("Failed to persist refreshed claude-cli token (continuing with in-memory creds)", {
-                  error: persistErr,
-                })
               }
             }
 

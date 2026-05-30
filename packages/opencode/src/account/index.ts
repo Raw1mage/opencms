@@ -681,13 +681,6 @@ export namespace Account {
       await save(storage)
       log.info("Account removed", { provider, accountId })
 
-      // Prune the rotation-state the removed account left behind — scoped to this
-      // exact id, so it can never affect another (live) account. @spec DD-6
-      try {
-        const { pruneAccountIds } = await import("./rotation/state")
-        pruneAccountIds([accountId])
-      } catch {}
-
       // @event_20260319_daemonization Phase ε.4 — publish account.removed
       await Bus.publish(Bus.AccountRemoved, { providerKey: provider, accountId }).catch(() => {})
     })
@@ -723,7 +716,6 @@ export namespace Account {
 
     // Find and remove duplicates
     let removed = 0
-    const removedIds: string[] = []
     for (const [_token, ids] of byToken) {
       if (ids.length <= 1) continue
 
@@ -743,7 +735,6 @@ export namespace Account {
         const idToRemove = ids[i]
         delete accounts[idToRemove]
         removed++
-        removedIds.push(idToRemove)
         log.info("Removed duplicate account", { provider, accountId: idToRemove })
 
         // Update active account if needed
@@ -755,29 +746,8 @@ export namespace Account {
 
     if (removed > 0) {
       await save(storage)
-      // Prune the rotation-state the just-removed duplicate ids left behind.
-      // Scoped to exactly the ids we deleted — never touches a live account. @spec DD-6
-      const { pruneAccountIds } = await import("./rotation/state")
-      pruneAccountIds(removedIds)
     }
-
     return removed
-  }
-
-  /**
-   * Full, cross-provider reconcile of orphaned rotation-state — prunes entries
-   * for any account id absent from accounts.json. Broader than the scoped
-   * prune-on-remove path; intended for an explicit, user-initiated one-shot
-   * cleanup, NOT auto-invoked at boot. @spec auth/credential-token-refresh-ineffective DD-6
-   */
-  export async function reconcileOrphanedRotationState(): Promise<string[]> {
-    const all = await listAll()
-    const valid = new Set<string>()
-    for (const data of Object.values(all)) {
-      for (const id of Object.keys(data.accounts ?? {})) valid.add(id)
-    }
-    const { pruneOrphanedAccounts } = await import("./rotation/state")
-    return pruneOrphanedAccounts(valid)
   }
 
   /**

@@ -28,40 +28,19 @@ export const authMethods = [
         method: "code" as const,
         callback: async (code: string) => {
           const credentials = await exchange(code, verifier)
-          // The profile carries the ONLY stable identity for a claude-cli account:
-          // the access token is an opaque (non-JWT) string, so no email/sub can be
-          // recovered from it (spec DD-12). If the email is lost here, Auth.set falls
-          // back to a token-hash slug + the literal "claude-cli" name — and because the
-          // refresh token rotates, every re-login then mints a NEW duplicate account
-          // (spec defect B). So fetch the profile with a small bounded retry (login is
-          // an interactive one-shot, not the runtime hot path — this is not the active
-          // retry that DD-8 forbids), and if it still fails, fail the login with a clear
-          // message instead of silently creating a half-identified account.
-          let lastErr: unknown
-          for (let attempt = 1; attempt <= 3; attempt++) {
-            try {
-              const profile = await fetchProfile(credentials.access)
-              return {
-                ...credentials,
-                orgID: profile.orgID,
-                email: profile.email,
-                accountId: profile.email,
-                provider: "claude-cli",
-              }
-            } catch (e) {
-              lastErr = e
-              log.warn(`Profile fetch failed (attempt ${attempt}/3)`, { error: e })
-              if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 500))
+          try {
+            const profile = await fetchProfile(credentials.access)
+            return {
+              ...credentials,
+              orgID: profile.orgID,
+              email: profile.email,
+              accountId: profile.email,
+              provider: "claude-cli",
             }
+          } catch (e) {
+            log.warn("Profile fetch failed, continuing without profile", { error: e })
+            return { ...credentials, provider: "claude-cli" }
           }
-          log.error("Profile fetch failed after retries; refusing to create an unidentified account", {
-            error: lastErr,
-          })
-          throw new Error(
-            "Logged in to Claude, but fetching your account profile failed, so the account could not be " +
-              "identified. No account was created (this avoids duplicate, mis-named 'claude-cli' accounts). " +
-              "Please try logging in again.",
-          )
         },
       }
     },
