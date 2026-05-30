@@ -6,6 +6,7 @@
  */
 import type { LanguageModelV2StreamPart, LanguageModelV2FinishReason, LanguageModelV2Usage } from "@ai-sdk/provider"
 import { stripToolPrefix } from "./convert.js"
+import { salvageAntmlInvokes, mayContainAntmlInvoke } from "./antml-salvage.js"
 
 // ---------------------------------------------------------------------------
 // § 2B.1  parseAnthropicSSE — main entry point
@@ -20,7 +21,7 @@ export function parseAnthropicSSE(body: ReadableStream<Uint8Array>): ReadableStr
   // Track active content blocks for id generation
   const activeBlocks = new Map<
     number,
-    { type: string; id: string; toolName?: string; input?: string; signature?: string }
+    { type: string; id: string; toolName?: string; input?: string; signature?: string; text?: string }
   >()
   let blockCounter = 0
 
@@ -61,6 +62,14 @@ export function parseAnthropicSSE(body: ReadableStream<Uint8Array>): ReadableStr
   let producedText = 0
   let producedReasoning = 0
   let producedToolUse = 0
+  // ANTML salvage (incident 2026-05-30 ses_189df799…): opus-4-8 intermittently
+  // emits tool calls in its innate Claude-Code text format (<invoke …>) inside a
+  // `text` block instead of a structured tool_use block. We recover them at
+  // content_block_stop and re-emit real tool-call parts. When that happens the
+  // turn's stop_reason is typically "end_turn"/"stop", so finish must be forced
+  // to "tool-calls" or the host runloop would treat the (now real) call as a
+  // finished text turn and never dispatch it.
+  let salvagedToolUse = false
   // Anthropic reports cache-write tokens as cache_creation_input_tokens; not part
   // of LanguageModelV2Usage, so carry it out via finish providerMetadata for the
   // host's cache-write accounting (else cache write always shows 0).
@@ -185,7 +194,7 @@ export function parseAnthropicSSE(body: ReadableStream<Uint8Array>): ReadableStr
 
         if (block.type === "text") {
           producedText++
-          activeBlocks.set(idx, { type: "text", id })
+          activeBlocks.set(idx, { type: "text", id, text: "" })
           controller.enqueue({ type: "text-start", id })
         } else if (block.type === "thinking") {
           producedReasoning++
@@ -212,6 +221,8 @@ export function parseAnthropicSSE(body: ReadableStream<Uint8Array>): ReadableStr
         if (!info) break
 
         if (delta.type === "text_delta") {
+          // Accumulate for ANTML salvage at block-stop; streaming is unchanged.
+          info.text = (info.text ?? "") + (delta.text ?? "")
           controller.enqueue({ type: "text-delta", id: info.id, delta: delta.text })
         } else if (delta.type === "thinking_delta") {
           controller.enqueue({ type: "reasoning-delta", id: info.id, delta: delta.thinking })
@@ -237,6 +248,26 @@ export function parseAnthropicSSE(body: ReadableStream<Uint8Array>): ReadableStr
 
         if (info.type === "text") {
           controller.enqueue({ type: "text-end", id: info.id })
+          // ANTML salvage: recover any tool calls the model leaked as text in
+          // this block and re-emit them as real tool-call parts. No-op (cheap
+          // string check) on normal prose. The raw <invoke> text still shows,
+          // but the call now actually executes instead of being hallucinated.
+          if (mayContainAntmlInvoke(info.text)) {
+            for (const call of salvageAntmlInvokes(info.text)) {
+              const salvageId = `salvage-${blockCounter++}`
+              const toolName = stripToolPrefix(call.name)
+              producedToolUse++
+              salvagedToolUse = true
+              controller.enqueue({ type: "tool-input-start", id: salvageId, toolName })
+              controller.enqueue({ type: "tool-input-end", id: salvageId })
+              controller.enqueue({
+                type: "tool-call",
+                toolCallId: salvageId,
+                toolName,
+                input: call.input,
+              })
+            }
+          }
         } else if (info.type === "thinking") {
           // Carry the signature out via providerMetadata so the AI SDK stores it
           // on the reasoning part; convertPrompt replays it as thinking.signature.
@@ -283,7 +314,9 @@ export function parseAnthropicSSE(body: ReadableStream<Uint8Array>): ReadableStr
         // zero production tally (no text/tool block) — an empty completion the
         // host runloop cannot advance on. Tying the reproduced symptom to THIS
         // line is what closes the code-thinker "no log, no root cause" gap.
-        const mapped = mapFinishReason(lastStopReason)
+        // Force tool-calls when we salvaged an ANTML text tool call: the raw
+        // stop_reason is end_turn/stop, but a real call now needs dispatching.
+        const mapped = salvagedToolUse ? "tool-calls" : mapFinishReason(lastStopReason)
         if (lastStopReason === undefined || producedText + producedToolUse === 0 || mapped === "other") {
           console.warn(
             `[DIAG:claude-resp] SUSPECT-EMPTY rawStop=${lastStopReason ?? "undefined"} mapped=${mapped}` +
@@ -296,10 +329,11 @@ export function parseAnthropicSSE(body: ReadableStream<Uint8Array>): ReadableStr
               ` text=${producedText} reasoning=${producedReasoning} toolUse=${producedToolUse}`,
           )
         }
-        // Finish reason comes from the cached message_delta stop_reason.
+        // Finish reason comes from the cached message_delta stop_reason
+        // (overridden to tool-calls above when an ANTML call was salvaged).
         controller.enqueue({
           type: "finish",
-          finishReason: mapFinishReason(lastStopReason),
+          finishReason: mapped,
           usage,
           ...(cacheCreationTokens != null
             ? { providerMetadata: { anthropic: { cacheCreationInputTokens: cacheCreationTokens } } }
