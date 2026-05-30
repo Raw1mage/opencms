@@ -1990,7 +1990,14 @@ do_build_frontend() {
 # Uses git tree hashes + dirty-file content so uncommitted changes invalidate.
 _binary_source_fingerprint() {
     cd "${PROJECT_ROOT}"
-    local dirs="packages/opencode packages/app"
+    # The standalone binary bundles packages/opencode AND every workspace:*
+    # package it depends on (provider-claude, provider-codex, plugin, sdk,
+    # util, script) plus the app frontend. Fingerprinting only opencode+app
+    # silently skipped rebuilds whenever a change landed solely in a provider
+    # package — e.g. the claude-cli SSE truncated-stream fix shipped in
+    # packages/provider-claude but was never compiled into the daemon. Scan
+    # every bundled workspace package so any of them invalidates the stamp.
+    local dirs="packages/opencode packages/app packages/provider-claude packages/provider-codex packages/plugin packages/sdk packages/util packages/script"
     {
         for dir in ${dirs}; do
             [ -d "${dir}" ] || continue
