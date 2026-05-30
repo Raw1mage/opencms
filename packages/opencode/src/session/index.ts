@@ -36,6 +36,16 @@ export namespace Session {
   const defaultDreamingWorker = new DreamingWorker()
 
   /**
+   * Sessions for which a version-drift WARN has already been emitted in this
+   * daemon's lifetime. Session.get() is a hot path (per bus event / per turn /
+   * per route), and Storage.read() returns a fresh object every call, so the
+   * old per-object `_staleVersion` flag could never dedup. This module-level
+   * Set ensures each stale session warns exactly once per daemon process.
+   * Cleared implicitly on daemon restart (fresh module instance).
+   */
+  const versionDriftWarned = new Set<string>()
+
+  /**
    * Start the per-process DreamingWorker tick timer. Called at daemon
    * boot; idempotent (the worker's start() guards re-entry). Tests do
    * NOT call this — the worker stays dormant unless explicitly started,
@@ -609,19 +619,25 @@ export namespace Session {
 
   export const get = fn(Identifier.schema("session"), async (id) => {
     const read = await Storage.read<Info>(["session", Instance.project.id, id])
-    // Version guard: detect sessions created by a different daemon version
+    // Version guard: detect sessions created by a different daemon version.
+    // Warn at most once per session per daemon lifetime — Session.get() is a
+    // hot path and would otherwise flood logs for any long-lived session that
+    // spans a daemon rebuild.
     if (read.version && read.version !== Installation.VERSION) {
       ;(read as any)._staleVersion = true
-      Log.Default.warn("session version mismatch", {
-        sessionID: id,
-        sessionVersion: read.version,
-        daemonVersion: Installation.VERSION,
-      })
-      debugCheckpoint("session", "version_drift", {
-        sessionID: id,
-        sessionVersion: read.version,
-        daemonVersion: Installation.VERSION,
-      })
+      if (!versionDriftWarned.has(id)) {
+        versionDriftWarned.add(id)
+        Log.Default.warn("session version mismatch", {
+          sessionID: id,
+          sessionVersion: read.version,
+          daemonVersion: Installation.VERSION,
+        })
+        debugCheckpoint("session", "version_drift", {
+          sessionID: id,
+          sessionVersion: read.version,
+          daemonVersion: Installation.VERSION,
+        })
+      }
     }
     return read as Info
   })
