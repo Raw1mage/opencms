@@ -1868,19 +1868,33 @@ export namespace LLM {
     if (input.idleWatchdogBox) {
       input.idleWatchdogBox.pause = pauseIdleWatchdog
     }
-    firstChunkTimer = setTimeout(() => {
-      if (firstChunkReceived) return
-      const elapsed = Date.now() - streamStartedAt
-      l.warn("stream first-chunk timeout — aborting", {
-        sessionID: input.sessionID,
-        providerId: input.model.providerId,
-        modelID: input.model.id,
-        accountId,
-        firstChunkTimeoutMs: STREAM_FIRST_CHUNK_TIMEOUT_MS,
-        elapsedMs: elapsed,
-      })
-      idleController.abort(new Error(`stream first-chunk timeout after ${STREAM_FIRST_CHUNK_TIMEOUT_MS}ms`))
-    }, STREAM_FIRST_CHUNK_TIMEOUT_MS)
+    // The first-chunk watchdog exists ONLY for codex's documented 0-byte
+    // wedge (commits b2da4beadb / 81e90fb9fb): codex post-runloop continuation
+    // requests sometimes open a stream and never emit a first chunk, hanging
+    // until the provider-level 300s timeout. Other providers must NOT arm it:
+    // claude-opus on large prompt-cache contexts (200K+ tokens) legitimately
+    // takes >60s of server-side cache-read + thinking before the first token
+    // (measured 178s on a healthy, fully-answered turn), so a 60s first-chunk
+    // killer false-aborts them → empty assistant turn + waiting_user
+    // (the user-perceived "只說不做"). The chunk-idle watchdog (90s, re-arms on
+    // every chunk) stays universal — it only catches mid-stream wedges, which
+    // claude's steadily-streaming responses never trip.
+    const FIRST_CHUNK_WATCHDOG_FAMILIES = new Set(["codex"])
+    if (FIRST_CHUNK_WATCHDOG_FAMILIES.has(input.model.providerId)) {
+      firstChunkTimer = setTimeout(() => {
+        if (firstChunkReceived) return
+        const elapsed = Date.now() - streamStartedAt
+        l.warn("stream first-chunk timeout — aborting", {
+          sessionID: input.sessionID,
+          providerId: input.model.providerId,
+          modelID: input.model.id,
+          accountId,
+          firstChunkTimeoutMs: STREAM_FIRST_CHUNK_TIMEOUT_MS,
+          elapsedMs: elapsed,
+        })
+        idleController.abort(new Error(`stream first-chunk timeout after ${STREAM_FIRST_CHUNK_TIMEOUT_MS}ms`))
+      }, STREAM_FIRST_CHUNK_TIMEOUT_MS)
+    }
     armIdleWatchdog()
     const composedAbortSignal = AbortSignal.any([input.abort, idleController.signal])
 
