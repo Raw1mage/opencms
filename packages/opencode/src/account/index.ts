@@ -695,6 +695,26 @@ export namespace Account {
   }
 
   /**
+   * Resolve a subscription account's storage id by matching its base refresh
+   * token — the same identity scheme deduplicateByToken uses. Robust where the
+   * opencode storage account id isn't otherwise in hand (e.g. token-rotation
+   * persistence from the provider plugin): pass the refresh token the account was
+   * loaded with (the pre-rotation value) and get back the storage id to feed
+   * Account.update. Returns undefined if no subscription account matches.
+   * @spec auth/credential-token-refresh-ineffective
+   */
+  export async function findByRefreshToken(provider: string, refreshToken: string): Promise<string | undefined> {
+    if (!refreshToken) return undefined
+    const accounts = await list(provider)
+    const target = parseBaseToken(refreshToken)
+    for (const [id, acc] of Object.entries(accounts)) {
+      if (acc.type !== "subscription") continue
+      if (parseBaseToken(acc.refreshToken) === target) return id
+    }
+    return undefined
+  }
+
+  /**
    * Deduplicate accounts with same base refresh token.
    * Keeps the account with email, or the one with the longer/more specific ID.
    * This cleans up phantom accounts created by legacy code paths.
