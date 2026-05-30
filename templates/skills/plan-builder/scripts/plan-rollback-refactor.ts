@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * plan-rollback-refactor.ts — Restore artifacts from the most recent
- * .history/refactor-*/ snapshot, undoing a refactor operation.
+ * .history/refactor-<date>/ snapshot, undoing a refactor operation.
  *
  * Usage: bun run scripts/plan-rollback-refactor.ts <spec-path> [--from <snapshot-name>]
  *
@@ -15,21 +15,11 @@ import { execFileSync } from "node:child_process"
 import { existsSync, readdirSync, rmSync, statSync } from "node:fs"
 import path from "node:path"
 import { ensureNewFormat } from "./lib/ensure-new-format"
-import {
-  appendHistory,
-  currentUser,
-  nowIso,
-  readState,
-  writeState,
-  type HistoryEntry,
-  type State,
-} from "./lib/state"
+import { appendHistory, currentUser, nowIso, readState, writeState, type HistoryEntry, type State } from "./lib/state"
 import { findLatestRefactorSnapshot } from "./lib/snapshot"
 
 function usage(exitCode = 2): never {
-  console.error(
-    `Usage: bun run plan-rollback-refactor.ts <spec-path> [--from <refactor-YYYY-MM-DD>]`,
-  )
+  console.error(`Usage: bun run plan-rollback-refactor.ts <spec-path> [--from <refactor-YYYY-MM-DD>]`)
   process.exit(exitCode)
 }
 
@@ -80,8 +70,7 @@ function main(): void {
 
   if (!snapshotPath || !existsSync(snapshotPath)) {
     console.error(
-      `plan-rollback-refactor: no refactor snapshot found` +
-        (fromOverride ? ` matching ${fromOverride}` : ""),
+      `plan-rollback-refactor: no refactor snapshot found` + (fromOverride ? ` matching ${fromOverride}` : ""),
     )
     process.exit(1)
   }
@@ -123,9 +112,7 @@ function main(): void {
       try {
         execFileSync("mv", [from, to])
       } catch (e) {
-        console.error(
-          `plan-rollback-refactor: failed to move ${fromRel} back: ${(e as Error).message}`,
-        )
+        console.error(`plan-rollback-refactor: failed to move ${fromRel} back: ${(e as Error).message}`)
         process.exit(1)
       }
     }
@@ -152,9 +139,7 @@ function main(): void {
   }
   writeState(finalPath, appendHistory({ ...state, state: prior }, entry))
   console.error(`plan-rollback-refactor: state ${state.state} → ${prior}; restored ${restoredFromRel}`)
-  console.log(
-    JSON.stringify({ path: finalPath, state: prior, restoredFrom: restoredFromRel }, null, 2),
-  )
+  console.log(JSON.stringify({ path: finalPath, state: prior, restoredFrom: restoredFromRel }, null, 2))
 }
 
 main()
