@@ -24,8 +24,14 @@ function isIgnoredPathsTouched() {
 }
 
 const decoder = new TextDecoder()
-const ROOT = new URL("../..", import.meta.url).pathname.replace(/\/$/, "")
-const result = run(["bun", "turbo", "typecheck"], ROOT)
+// Repo root (this file lives in <root>/scripts/). Run the workspace typecheck
+// script directly instead of `turbo typecheck`: turbo's typecheck task has
+// `dependsOn: ["^build"]`, which compiles the full multi-platform release
+// binary + vite frontends before checking types — tens of minutes for a check
+// that itself takes ~15s. typecheck-workspace.ts builds only the SDK .d.ts then
+// runs tsgo/tsc across packages.
+const ROOT = new URL("..", import.meta.url).pathname.replace(/\/$/, "")
+const result = run(["bun", "scripts/typecheck-workspace.ts"], ROOT)
 const stdout = text(decoder, result.stdout)
 const stderr = text(decoder, result.stderr)
 const output = `${stdout}${stderr}`
