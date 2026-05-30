@@ -1,0 +1,25 @@
+{
+  "title": "question-tool idle-watchdog pause hook data contract",
+  "definitions": {
+    "PauseIdleWatchdogHook": {
+      "description": "Optional method on Tool.Context. An interactive tool calls it to suspend the stream-idle watchdog while awaiting human input.",
+      "signature": "pauseIdleWatchdog?: () => ResumeFn",
+      "input": "none",
+      "output": "ResumeFn"
+    },
+    "ResumeFn": {
+      "description": "Closure returned by pauseIdleWatchdog(). Calling it re-arms the idle watchdog from full timeout.",
+      "signature": "() => void",
+      "input": "none",
+      "output": "void"
+    },
+    "IdleWatchdogState": {
+      "description": "Internal watchdog state in LLM.stream (not serialized; modeled for contract clarity).",
+      "fields": {
+        "idleTimer": "setTimeout handle | undefined (undefined when disarmed)",
+        "paused": "boolean (true while an interactive tool holds the pause)",
+        "timeoutMs": "90000 (STREAM_IDLE_TIMEOUT_MS, constant)"
+      }
+    }
+  }
+}

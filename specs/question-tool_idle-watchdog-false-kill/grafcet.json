@@ -1,0 +1,19 @@
+[
+  {
+    "title": "question wait vs idle watchdog",
+    "steps": [
+      { "id": "S0", "name": "stream streaming (watchdog armed)", "initial": true },
+      { "id": "S1", "name": "interactive tool awaiting input (watchdog paused)" },
+      { "id": "S2", "name": "answer received or aborted" }
+    ],
+    "actions": [
+      { "step": "S1", "label": "disarm idle timer; hold pause" },
+      { "step": "S2", "label": "resume(): re-arm idle watchdog" }
+    ],
+    "transitions": [
+      { "from": "S0", "to": "S1", "condition": "question.ask called -> pauseIdleWatchdog()" },
+      { "from": "S1", "to": "S2", "condition": "user answers OR input.abort fires" },
+      { "from": "S2", "to": "S0", "condition": "resume() -> stream continues" }
+    ]
+  }
+]

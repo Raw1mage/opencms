@@ -1,0 +1,22 @@
+{
+  "diagram_title": "stream-idle watchdog with interactive-tool pause",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A0",
+      "name": "Run LLM stream with idle watchdog",
+      "inputs": ["LLM request"],
+      "controls": ["STREAM_IDLE_TIMEOUT_MS", "input.abort"],
+      "outputs": ["assistant reply", "abort on genuine wedge"],
+      "mechanisms": ["LLM.stream", "streamText"]
+    },
+    {
+      "id": "A1",
+      "name": "Execute interactive tool (question)",
+      "inputs": ["tool call"],
+      "controls": ["pauseIdleWatchdog hook"],
+      "outputs": ["user answer", "RejectedError on real abort"],
+      "mechanisms": ["question tool", "Question.ask"]
+    }
+  ]
+}

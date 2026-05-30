@@ -1,0 +1,14 @@
+[
+  {
+    "title": "question wait without idle false-kill (runtime sequence)",
+    "participants": ["LLM.stream", "streamText", "question tool", "Question.ask", "User"],
+    "messages": [
+      { "id": "MSG1", "from": "streamText", "to": "question tool", "label": "execute(args, ctx) — ctx.pauseIdleWatchdog injected", "componentRef": "C2" },
+      { "id": "MSG2", "from": "question tool", "to": "LLM.stream", "label": "ctx.pauseIdleWatchdog() -> disarm idle timer; returns resume()", "componentRef": "C1" },
+      { "id": "MSG3", "from": "question tool", "to": "Question.ask", "label": "await answer (no chunks flow, but watchdog paused)", "componentRef": "C2" },
+      { "id": "MSG4", "from": "User", "to": "Question.ask", "label": "submits answer (any duration, even >90s)" },
+      { "id": "MSG5", "from": "question tool", "to": "LLM.stream", "label": "finally: resume() -> re-arm idle watchdog", "componentRef": "C1" },
+      { "id": "MSG6", "from": "question tool", "to": "streamText", "label": "return answer; stream continues", "componentRef": "C2" }
+    ]
+  }
+]

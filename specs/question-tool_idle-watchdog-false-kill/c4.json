@@ -1,0 +1,40 @@
+{
+  "title": "idle-watchdog pause hook (component view)",
+  "level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "OpenCMS session runtime",
+      "description": "Drives the LLM stream loop and tool execution"
+    }
+  ],
+  "containers": [
+    {
+      "id": "CTR1",
+      "name": "session package",
+      "system": "SYS1",
+      "description": "packages/opencode/src/session + tool"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "LLM.stream watchdog",
+      "container": "CTR1",
+      "type": "component",
+      "description": "arms/disarms idle timer; injects pauseIdleWatchdog into tool ctx",
+      "moduleRef": "A0"
+    },
+    {
+      "id": "C2",
+      "name": "question tool",
+      "container": "CTR1",
+      "type": "component",
+      "description": "wraps Question.ask in pause/resume",
+      "moduleRef": "A1"
+    }
+  ],
+  "relationships": [
+    { "from": "C2", "to": "C1", "label": "pauseIdleWatchdog() / resume()" }
+  ]
+}
