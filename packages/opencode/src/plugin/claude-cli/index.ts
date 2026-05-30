@@ -69,10 +69,6 @@ export async function ClaudeCliPlugin(input: PluginInput): Promise<Hooks> {
 
             // Token refresh before model creation — ensures fresh access token
             if (isClaudeOAuthAuth(creds) && (!creds.access || (creds.expires && creds.expires < Date.now()))) {
-              // Snapshot the PRE-rotation refresh token: the stored account still
-              // holds it, so it's how we'll locate that account after the refresh
-              // rotates `creds.refresh` to a new value (see persist below).
-              const preRotationRefresh = creds.refresh as string
               try {
                 const tokens = await refreshTokenWithMutex(creds.refresh)
                 creds.access = tokens.access
@@ -118,31 +114,24 @@ export async function ClaudeCliPlugin(input: PluginInput): Promise<Hooks> {
               // forced re-login; spec DD-13). Best-effort: refresh already succeeded
               // and `creds` is fresh in memory, so a write failure must NOT abort.
               //
-              // Resolve the storage account id by its PRE-rotation refresh token via
-              // base-token match (Account.findByRefreshToken — same identity scheme
-              // as deduplicateByToken), then Account.update in place. We deliberately
-              // do NOT rely on the loader's `accountId` param: it is only supplied on
-              // the per-account loader call site (provider.ts:1806), not the
-              // family-default one (1764), so keying on it silently skipped persist on
-              // that path and the rotated token was lost (spec DD-16). And we must NOT
-              // route through client.auth.set / Auth.set: for a claude account whose
-              // email lives only in `name` (the access token is opaque, not a JWT —
-              // DD-12) its email-slug resolution falls back to a token-hash and mints
-              // a NEW "claude-cli" duplicate on every refresh (DD-15). Account.update
-              // is targeted, NO-OPS via thrown-and-caught error if the id is gone, and
-              // never creates an account.
+              // Update the EXACT account by its opencode account id (the loader's
+              // `accountId`) via Account.update — a targeted in-place update that
+              // NO-OPS if the id is absent and NEVER creates a new account. Going
+              // through client.auth.set / Auth.set instead re-runs email-based
+              // identity resolution; for a claude account whose email lives only in
+              // `name` (the access token is opaque, not a JWT — DD-12) that resolves
+              // to a token-hash slug and mints a NEW "claude-cli" duplicate on every
+              // single refresh. (spec DD-15 — observed: 3 dupes in ~1 min.)
               try {
                 const { Account } = await import("../../account")
-                const id = await Account.findByRefreshToken("claude-cli", preRotationRefresh)
-                if (id) {
-                  await Account.update("claude-cli", id, {
+                if (accountId) {
+                  await Account.update("claude-cli", accountId, {
                     accessToken: creds.access,
                     expiresAt: creds.expires,
                     refreshToken: creds.refresh,
                   })
-                  log.info("Persisted refreshed claude-cli token", { accountId: id })
                 } else {
-                  log.warn("Could not resolve account by refresh token; skipping persist to avoid duplicates")
+                  log.warn("No accountId in loader scope; skipping token persist to avoid duplicate accounts")
                 }
               } catch (persistErr) {
                 log.error("Failed to persist refreshed claude-cli token (continuing with in-memory creds)", {
