@@ -35,6 +35,17 @@ export function parseAnthropicSSE(body: ReadableStream<Uint8Array>): ReadableStr
   let messageId: string | undefined
   let messageModel: string | undefined
   let emittedStreamStart = false
+  // Anthropic's SSE contract guarantees `message_stop` as the terminal event.
+  // If the stream closes (reader done) WITHOUT it, the connection was
+  // truncated mid-response — observed as an empty turn: step-start emitted,
+  // then zero content blocks, finishReason left "unknown", tokens 0, and the
+  // host runloop silently stalls ("只說不做"). DB evidence: session
+  // ses_1890b118affe… msg …8L6dRw — 1 part (step-start), finish empty, tokens 0.
+  // Track terminal arrival so the done-branch can fail fast with an explicit
+  // error (→ host throws → retry/rotation) instead of a silent empty turn.
+  // (codex provider has empty-turn-classifier.ts for the same failure class;
+  // claude had no equivalent guard.)
+  let sawMessageStop = false
   // Anthropic emits the final stop_reason on message_delta (NOT message_stop);
   // cache it per-stream so message_stop can map it. Without this every turn
   // finished as "other" instead of "stop", so the runloop thought the turn
@@ -71,6 +82,24 @@ export function parseAnthropicSSE(body: ReadableStream<Uint8Array>): ReadableStr
           if (remainder.trim()) {
             processLines(remainder, controller)
             remainder = ""
+          }
+          // Fail fast on a truncated stream: Anthropic always sends
+          // `message_stop`. Its absence at reader-done means the connection
+          // dropped mid-response. Emitting an error here routes to the host's
+          // `case "error": throw` path (provider.ts) → retry/rotation, rather
+          // than silently closing with no finish event (the empty-turn stall).
+          // An emittedStreamStart with at least one block but no message_stop
+          // is the truncation fingerprint; a stream that never even started is
+          // covered too (no finish was ever produced either way).
+          if (!sawMessageStop) {
+            controller.enqueue({
+              type: "error",
+              error: new Error(
+                `claude-cli stream closed without message_stop (truncated response: ` +
+                  `text=${producedText} reasoning=${producedReasoning} toolUse=${producedToolUse} ` +
+                  `lastStop=${lastStopReason ?? "undefined"})`,
+              ),
+            })
           }
           controller.close()
           return
@@ -248,6 +277,7 @@ export function parseAnthropicSSE(body: ReadableStream<Uint8Array>): ReadableStr
 
       // § 1B.6  message_stop → finish
       case "message_stop": {
+        sawMessageStop = true
         // [DIAG:claude-resp] Response-boundary checkpoint. A "no-thinking stall"
         // should surface here as rawStop=undefined → mapped "other", and/or a
         // zero production tally (no text/tool block) — an empty completion the
