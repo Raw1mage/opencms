@@ -166,3 +166,34 @@ describe("INV-0 baseline: filterCompacted stops at the anchor (codex/default beh
     expect(result.stoppedByBudget).toBe(false)
   })
 })
+
+describe("claude firefight: filterCompacted ignoreAnchors=true (INV-1/INV-3 full-retransmit)", () => {
+  // Same stream as the codex baseline: [recent2, recent1, ANCHOR, old1, old0].
+  // claude mode: DROP the synthetic anchor and keep ALL raw history (no stop).
+  it("drops the anchor and includes full raw history (pre+post)", async () => {
+    const msgs = [
+      mkMsg("msg_z", "assistant"),
+      mkMsg("msg_y", "user"),
+      anchorMsg("msg_m"),
+      mkMsg("msg_b", "assistant"),
+      mkMsg("msg_a", "user"),
+    ]
+    const result = await MessageV2.filterCompacted(streamOf(msgs), undefined, { ignoreAnchors: true })
+    // anchor msg_m dropped; everything else included, chronological.
+    expect(result.messages.map((m: any) => m.info.id)).toEqual(["msg_a", "msg_b", "msg_y", "msg_z"])
+    expect(result.messages.some((m: any) => m.info.id === "msg_m")).toBe(false)
+    expect(result.stoppedByBudget).toBe(false)
+  })
+
+  it("ignores multiple inherited anchors, full raw history survives", async () => {
+    const msgs = [
+      mkMsg("msg_y", "user"),
+      anchorMsg("msg_m2"),
+      mkMsg("msg_c", "assistant"),
+      anchorMsg("msg_m1"),
+      mkMsg("msg_a", "user"),
+    ]
+    const result = await MessageV2.filterCompacted(streamOf(msgs), undefined, { ignoreAnchors: true })
+    expect(result.messages.map((m: any) => m.info.id)).toEqual(["msg_a", "msg_c", "msg_y"])
+  })
+})

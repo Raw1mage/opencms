@@ -1179,6 +1179,7 @@ export namespace MessageV2 {
   export async function filterCompacted(
     stream: AsyncIterable<MessageV2.WithParts>,
     contextLimit?: number,
+    opts?: { ignoreAnchors?: boolean },
   ): Promise<{ messages: MessageV2.WithParts[]; stoppedByBudget: boolean }> {
     const result = [] as MessageV2.WithParts[]
     const completed = new Set<string>()
@@ -1186,11 +1187,19 @@ export namespace MessageV2 {
     let stoppedByBudget = false
     const tokenBudget = contextLimit != null ? contextLimit * 0.7 : undefined
     for await (const msg of stream) {
-      result.push(msg)
-
       // Stop only at a compaction anchor — the authoritative boundary written by A or B compaction.
       // tool-call summaries and assistant summary fields are NOT boundaries.
       const hasCompactionAnchor = msg.parts.some((p: any) => p.type === "compaction")
+
+      // claude full-retransmit (context/claude-refactor INV-1/INV-3): claude
+      // is stateless/1M and treats the neutral SQLite as the SSOT. It must NOT
+      // be bounded or poisoned by a (possibly inherited codex-era) synthetic
+      // anchor — drop the anchor message and keep scanning the raw history.
+      // codex/other providers omit `ignoreAnchors`, so this branch is dead for
+      // them and the boundary semantics below are byte-identical (INV-0).
+      if (hasCompactionAnchor && opts?.ignoreAnchors) continue
+
+      result.push(msg)
       if (hasCompactionAnchor) break
 
       if (msg.info.role === "assistant" && (msg.info as any).summary && (msg.info as any).finish) {

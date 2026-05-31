@@ -71,6 +71,7 @@ import { prepareUserMessageContext } from "./user-message-context"
 import { buildUserMessageParts } from "./user-message-parts"
 import { materializeToolAttachments } from "./attachment-ownership"
 import { emitSessionNarration, isNarrationAssistantMessage } from "./narration"
+import { isClaudeContextProvider } from "./claude-context-policy"
 import {
   decideAutonomousContinuation,
   describeAutonomousNextAction,
@@ -1663,7 +1664,21 @@ export namespace SessionPrompt {
       if (hasSubagentCompletion) {
         log.info("loop: subagent completion collected from queue", { sessionID, step })
       }
-      const filteredResult = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
+      // Firefight (context/claude-refactor INV-1/INV-3): claude is stateless/1M
+      // and full-retransmits the neutral SQLite — it must not be bounded or
+      // poisoned by a (possibly inherited codex-era) synthetic anchor. Resolve
+      // the turn's active provider and, for claude only, drop anchors and keep
+      // raw history. Any non-claude / uncertain provider keeps the exact prior
+      // anchor-boundary behavior (INV-0).
+      const turnProviderId =
+        (await Session.get(sessionID).catch(() => undefined))?.execution?.providerId ??
+        options?.incomingModel?.providerId
+      const claudeFullRetransmit = isClaudeContextProvider(turnProviderId)
+      const filteredResult = await MessageV2.filterCompacted(
+        MessageV2.stream(sessionID),
+        undefined,
+        claudeFullRetransmit ? { ignoreAnchors: true } : undefined,
+      )
       let msgs = filteredResult.messages
       if (filteredResult.stoppedByBudget) {
         log.warn("filterCompacted stopped by token budget guard", { sessionID, messageCount: msgs.length })
