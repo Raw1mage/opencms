@@ -43,24 +43,11 @@ export function shouldSkipClaudeEventCompaction(
   return isClaudeContextProvider(providerId) && CLAUDE_NOOP_OBSERVED.has(observed)
 }
 
-/**
- * Size gate (tokens) for the claude cold-cache compaction trigger
- * (DD-13/14/16/18). A claude turn compacts only when it is BOTH cold (less than
- * half the prompt was served cheaply from cache) AND larger than this gate — so
- * the next turns send a bounded supersede-framed anchor+tail instead of the full
- * 1M array on every cold (>5min TTL) resend. Below the gate, raw full-retransmit
- * is cheaper than carrying an anchor.
- *
- * The gate is a NEGATIVE-feedback trigger: a compaction shrinks the message
- * array below the gate, so the compaction-induced cold turn does NOT re-trigger
- * → structurally cascade-immune. Contrast the codex `cache_read`-drop heuristic,
- * whose old "cliff → compaction" response was positive feedback (compaction →
- * new prefix → cache drops → re-trigger) and produced the 2026-05-19 cascade;
- * codex's cliff path is now chain-reset-only, and claude never adopts that
- * heuristic — it gates on observable context SIZE, never on cache_read/chain.
- * Illustrative / tunable.
- */
-export const CLAUDE_COLD_COMPACTION_GATE = 100_000
+// B-compaction size gate moved to per-provider tweak config
+// (context/claude-refactor DD-23): `Tweaks.contextThresholdsSync(providerId).bCompactTokens`
+// — absolute tokens, tunable, claude-cli default 100K. See config/tweaks.ts
+// ContextThresholdProfile. The gate gates on observable context SIZE (never on
+// cache_read/chain), so it stays structurally cascade-immune.
 
 /**
  * Anthropic ephemeral prompt-cache TTL (ms). After this much idle the cache is

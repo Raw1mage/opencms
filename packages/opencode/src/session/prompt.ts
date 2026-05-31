@@ -71,12 +71,7 @@ import { prepareUserMessageContext } from "./user-message-context"
 import { buildUserMessageParts } from "./user-message-parts"
 import { materializeToolAttachments } from "./attachment-ownership"
 import { emitSessionNarration, isNarrationAssistantMessage } from "./narration"
-import {
-  isClaudeContextProvider,
-  CLAUDE_COLD_COMPACTION_GATE,
-  CLAUDE_CACHE_TTL_MS,
-  projectClaudeAnchors,
-} from "./claude-context-policy"
+import { isClaudeContextProvider, CLAUDE_CACHE_TTL_MS, projectClaudeAnchors } from "./claude-context-policy"
 import {
   decideAutonomousContinuation,
   describeAutonomousNextAction,
@@ -587,7 +582,11 @@ export async function deriveObservedCondition(input: {
       // telemetry-only path byte-identical (INV-0). "cache-aware" → KIND_CHAIN
       // ["narrative","ai_paid"] and is NOT a CLAUDE_NOOP_OBSERVED, so it
       // produces a real supersede-framed anchor on the claude path.
-      if (isClaudeContextProvider(input.pinnedProviderId) && promptTotal > CLAUDE_COLD_COMPACTION_GATE) {
+      // context/claude-refactor DD-23: B-compaction threshold is per-provider,
+      // absolute tokens, tunable via tweak config (compaction_ctx_<provider>_b_tokens).
+      // claude-cli default 100K; other providers fall back to the `default` profile.
+      const bCompactTokens = Tweaks.contextThresholdsSync(input.pinnedProviderId).bCompactTokens
+      if (isClaudeContextProvider(input.pinnedProviderId) && promptTotal > bCompactTokens) {
         // DD-16 cold detection has TWO sources, OR'd:
         //  (1) cache_read share < half  → the LAST turn was cold (active-session).
         //  (2) idle gap > cache TTL     → SESSION RESUME / rebind: enough time has
@@ -611,7 +610,7 @@ export async function deriveObservedCondition(input: {
             cacheReadFraction,
             idleMs,
             idleColdResume,
-            gate: CLAUDE_COLD_COMPACTION_GATE,
+            gate: bCompactTokens,
           })
           return "cache-aware"
         }
