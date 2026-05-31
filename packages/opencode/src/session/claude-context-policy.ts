@@ -63,6 +63,18 @@ export function shouldSkipClaudeEventCompaction(
 export const CLAUDE_COLD_COMPACTION_GATE = 100_000
 
 /**
+ * Anthropic ephemeral prompt-cache TTL (ms). After this much idle the cache is
+ * GONE, so the next request is a guaranteed cold full-prefill regardless of what
+ * the previous turn's recorded cache split was. context/claude-refactor DD-16
+ * (session_resume): on resume/rebind after a long gap, the cold-compaction gate
+ * must fire on the IDLE-GAP signal — "we are resuming now, cache is dead" — not
+ * only on the previous turn's stale cache_read fraction. Otherwise a session
+ * whose last turn happened to be warm would full-prefill its whole array on the
+ * first cold resume, unbounded. 5 min = Anthropic's default ephemeral TTL.
+ */
+export const CLAUDE_CACHE_TTL_MS = 5 * 60 * 1000
+
+/**
  * READ-TIME anchor projection for the claude path (context/claude-refactor
  * DD-21). Anchors are stored NEUTRAL (base `<prior_context source="kind">`
  * wrapper, no supersede framing); ANY provider's anchor — incl. inherited

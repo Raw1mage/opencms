@@ -331,9 +331,12 @@ describe("claude cold-cache size-gate (DD-13/14/16/18)", () => {
     read?: number
     write?: number
     provider?: string
+    /** ms ago the turn completed; default 0 (just now = active session, cache warm-able). */
+    staleMs?: number
   }): MessageV2.Assistant {
     const read = opts.read ?? 0
     const write = opts.write ?? 0
+    const completedAt = Date.now() - (opts.staleMs ?? 0)
     return {
       id: "msg_fin",
       role: "assistant",
@@ -345,7 +348,7 @@ describe("claude cold-cache size-gate (DD-13/14/16/18)", () => {
       providerId: opts.provider ?? "claude-cli",
       accountId: "acc-A",
       finish: "stop",
-      time: { created: 1, completed: 2 },
+      time: { created: completedAt, completed: completedAt },
       cost: 0,
       tokens: { input: opts.input, output: 0, reasoning: 0, cache: { read, write }, total: opts.input + read + write },
       path: { cwd: "/tmp", root: "/tmp" },
@@ -388,6 +391,34 @@ describe("claude cold-cache size-gate (DD-13/14/16/18)", () => {
   it("claude cold but SMALL (<100K) → no gate (null, anchor not worth it)", async () => {
     ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
     const result = await deriveObservedCondition(gateInput({ lastFinished: finished({ input: 50_000 }) }))
+    expect(result).toBeNull()
+  })
+
+  it("SESSION RESUME (DD-16): warm last turn but idle > cache TTL → fires anyway (idle-gap)", async () => {
+    ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
+    // last turn was WARM (high cache_read fraction) but completed 10 min ago → the
+    // ephemeral cache is dead → this resume is a guaranteed cold full-prefill → must
+    // bound, even though the *recorded* fraction looks warm. This is the gap the
+    // stale-fraction-only gate missed.
+    const result = await deriveObservedCondition(
+      gateInput({ lastFinished: finished({ input: 10_000, read: 110_000, staleMs: 10 * 60 * 1000 }) }),
+    )
+    expect(result).toBe("cache-aware")
+  })
+
+  it("active warm + RECENT (idle < cache TTL) → no gate (resume signal off, cache still alive)", async () => {
+    ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
+    const result = await deriveObservedCondition(
+      gateInput({ lastFinished: finished({ input: 10_000, read: 110_000, staleMs: 60 * 1000 }) }), // 1 min < 5 min
+    )
+    expect(result).toBeNull()
+  })
+
+  it("SESSION RESUME but SMALL (<100K) → still no gate (size gate is the outer condition)", async () => {
+    ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
+    const result = await deriveObservedCondition(
+      gateInput({ lastFinished: finished({ input: 50_000, staleMs: 10 * 60 * 1000 }) }),
+    )
     expect(result).toBeNull()
   })
 
