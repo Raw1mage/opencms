@@ -67,15 +67,43 @@ export function unwrapPriorContext(text: string): string {
   }
 }
 
+/**
+ * claude supersede framing (context/claude-refactor DD-9/DD-16, INV-4). On the
+ * stateless claude path the anchor is re-sent every turn and competes with a
+ * newer verbatim tail; the codex `<prior_context>` framing silently asserts
+ * "this is the current state", so a stale anchor misleads. Mirror official
+ * claude-cli's framing: declare the summary covers the EARLIER portion and that
+ * later messages supersede it. Pure string, claude-gated — codex omits opts and
+ * is byte-identical (INV-0). Content (narrative) is unchanged; only the frame.
+ */
+function supersedePreamble(coversUpTo?: string): string {
+  const upto = coversUpTo ? ` (up to ${coversUpTo})` : ""
+  return (
+    `[This summarizes the EARLIER portion of this conversation${upto}. ` +
+    `Messages that appear AFTER this block are more recent and authoritative — ` +
+    `treat them as the current state and reconcile against them; do NOT assume ` +
+    `this summary reflects anything that happened after it.]`
+  )
+}
+
 /** Convenience: sanitize and return the joined body string ready for persistence. */
 export function sanitizeAnchorToString(
   text: string,
   kind: AnchorKind,
+  opts?: { claudeSupersede?: boolean; coversUpTo?: string },
 ): {
   body: string
   imperativePrefixApplied: boolean
 } {
   const parts = sanitizeAnchor(text, kind)
+  if (opts?.claudeSupersede) {
+    const attr = opts.coversUpTo ? ` covers_up_to="${opts.coversUpTo}"` : ""
+    const open = `<prior_context source="${kind}"${attr} superseded_by_recent="true">`
+    return {
+      body: `${open}\n${supersedePreamble(opts.coversUpTo)}\n${parts.softenedBody}\n${parts.wrapperClose}`,
+      imperativePrefixApplied: parts.imperativePrefixApplied,
+    }
+  }
   return {
     body: `${parts.wrapperOpen}\n${parts.softenedBody}\n${parts.wrapperClose}`,
     imperativePrefixApplied: parts.imperativePrefixApplied,
