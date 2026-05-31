@@ -71,7 +71,7 @@ import { prepareUserMessageContext } from "./user-message-context"
 import { buildUserMessageParts } from "./user-message-parts"
 import { materializeToolAttachments } from "./attachment-ownership"
 import { emitSessionNarration, isNarrationAssistantMessage } from "./narration"
-import { isClaudeContextProvider, CLAUDE_COLD_COMPACTION_GATE } from "./claude-context-policy"
+import { isClaudeContextProvider, CLAUDE_COLD_COMPACTION_GATE, projectClaudeAnchors } from "./claude-context-policy"
 import {
   decideAutonomousContinuation,
   describeAutonomousNextAction,
@@ -1694,21 +1694,20 @@ export namespace SessionPrompt {
         log.info("loop: subagent completion collected from queue", { sessionID, step })
       }
       // Firefight (context/claude-refactor INV-1/INV-3): claude is stateless/1M
-      // and full-retransmits the neutral SQLite. For claude only, USE its own
-      // supersede-framed anchor as the bounded boundary (DD-13/14/16) but IGNORE
-      // an inherited codex-era (unframed) anchor and keep the raw history
-      // (INV-1). Resolve the turn's active provider; any non-claude / uncertain
-      // provider keeps the exact prior anchor-boundary behavior (INV-0).
+      // and full-retransmits the neutral SQLite. context/claude-refactor DD-21:
+      // filterCompacted is provider-agnostic (stops at the most-recent anchor,
+      // INV-0). For claude only, the anchor bodies are re-framed at read time
+      // (projectClaudeAnchors → supersede framing) so a stale/foreign/legacy
+      // anchor is presented honestly ("earlier portion; recent supersedes")
+      // instead of asserting currency — and the session stays bounded by its
+      // own most-recent anchor (no full-raw regression on resume). Any
+      // non-claude / uncertain provider sees the neutral stored body (INV-0).
       const turnProviderId =
         (await Session.get(sessionID).catch(() => undefined))?.execution?.providerId ??
         options?.incomingModel?.providerId
       const claudeContextPath = isClaudeContextProvider(turnProviderId)
-      const filteredResult = await MessageV2.filterCompacted(
-        MessageV2.stream(sessionID),
-        undefined,
-        claudeContextPath ? { claudeFramedOnly: true } : undefined,
-      )
-      let msgs = filteredResult.messages
+      const filteredResult = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
+      let msgs = claudeContextPath ? projectClaudeAnchors(filteredResult.messages) : filteredResult.messages
       if (filteredResult.stoppedByBudget) {
         log.warn("filterCompacted stopped by token budget guard", { sessionID, messageCount: msgs.length })
       }

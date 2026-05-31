@@ -109,3 +109,22 @@ export function sanitizeAnchorToString(
     imperativePrefixApplied: parts.imperativePrefixApplied,
   }
 }
+
+/**
+ * READ-TIME projection (context/claude-refactor DD-21). Anchors are stored
+ * NEUTRAL — the base `<prior_context source="kind">` wrapper with no
+ * authority/supersede framing — and any provider's anchor (incl. inherited
+ * codex-era and pre-DD-21 legacy ones, which were always neutral narrative)
+ * reads the same core. On the stateless claude path the anchor is re-sent
+ * every turn and competes with a newer verbatim tail, so the supersede framing
+ * (DD-9/INV-4) must be applied HERE, at projection, not baked at write. Pure +
+ * idempotent: unwrap whatever wrapper the stored body has, recover the kind,
+ * re-wrap with the claude supersede frame. codex/other providers never call
+ * this → they see the neutral stored body (INV-0).
+ */
+export function reframeAnchorBodyForClaude(storedBody: string, coversUpTo?: string): string {
+  const m = storedBody.match(/^<prior_context\b[^>]*\bsource="([^"]+)"/)
+  const kind = (m?.[1] ?? "narrative") as AnchorKind
+  const inner = unwrapPriorContext(storedBody)
+  return sanitizeAnchorToString(inner, kind, { claudeSupersede: true, coversUpTo }).body
+}

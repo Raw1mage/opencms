@@ -26,7 +26,6 @@ import { Bus } from "@/bus"
 import { debugCheckpoint } from "@/util/debug"
 import { IncomingPaths } from "../incoming/paths"
 import { renderOfficeRoutingHint } from "../incoming/routing-hint"
-import { isClaudeFramedAnchorText } from "./claude-context-policy"
 
 export namespace MessageV2 {
   export type ContinuationResetTrigger =
@@ -1180,7 +1179,6 @@ export namespace MessageV2 {
   export async function filterCompacted(
     stream: AsyncIterable<MessageV2.WithParts>,
     contextLimit?: number,
-    opts?: { claudeFramedOnly?: boolean },
   ): Promise<{ messages: MessageV2.WithParts[]; stoppedByBudget: boolean }> {
     const result = [] as MessageV2.WithParts[]
     const completed = new Set<string>()
@@ -1190,21 +1188,12 @@ export namespace MessageV2 {
     for await (const msg of stream) {
       // Stop only at a compaction anchor — the authoritative boundary written by A or B compaction.
       // tool-call summaries and assistant summary fields are NOT boundaries.
+      //
+      // context/claude-refactor DD-21: provider-agnostic. Anchors are stored
+      // NEUTRAL and the claude path re-frames them at read time
+      // (reframeAnchorBodyForClaude) instead of discriminating here — so this
+      // boundary scan is byte-identical for every provider (INV-0 restored).
       const hasCompactionAnchor = msg.parts.some((p: any) => p.type === "compaction")
-
-      // claude anchor discrimination (context/claude-refactor INV-1/DD-16/18):
-      // claude is stateless/1M and treats the neutral SQLite as SSOT. It USES
-      // its OWN supersede-framed anchor (bounded cold-resend, DD-13/14) as the
-      // boundary, but must IGNORE an inherited codex-era anchor — that one is
-      // unframed and asserts a stale authority claude never reconciled. Skip an
-      // unframed anchor and keep scanning the raw history; treat a framed
-      // claude anchor as the real boundary (fall through → push + break).
-      // codex/other providers omit `claudeFramedOnly`, so this branch is dead
-      // for them and the boundary semantics below are byte-identical (INV-0).
-      if (hasCompactionAnchor && opts?.claudeFramedOnly) {
-        const framed = msg.parts.some((p: any) => p.type === "text" && isClaudeFramedAnchorText(p.text))
-        if (!framed) continue
-      }
 
       result.push(msg)
       if (hasCompactionAnchor) break

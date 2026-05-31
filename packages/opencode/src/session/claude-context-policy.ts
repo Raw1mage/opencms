@@ -9,6 +9,9 @@
  * Only `claude-cli` diverges. Non-claude turns exercise zero new behavior.
  */
 
+import type { MessageV2 } from "./message-v2"
+import { reframeAnchorBodyForClaude } from "./anchor-sanitizer"
+
 /** Providers that get the claude (stateless / 1M / full-retransmit) context path. */
 export const CLAUDE_CONTEXT_PROVIDERS: ReadonlySet<string> = new Set(["claude-cli"])
 
@@ -60,16 +63,27 @@ export function shouldSkipClaudeEventCompaction(
 export const CLAUDE_COLD_COMPACTION_GATE = 100_000
 
 /**
- * Marker embedded in a claude-authored (supersede-framed) anchor body by
- * anchor-sanitizer.ts (`claudeSupersede`). `filterCompacted` uses it to tell a
- * claude-authored anchor — a real boundary it should USE as [anchor + tail] —
- * from an inherited codex-era anchor, which is unframed and which claude must
- * IGNORE, keeping the raw history instead (INV-1). Kept in lockstep with the
- * attribute emitted by `sanitizeAnchorToString`.
+ * READ-TIME anchor projection for the claude path (context/claude-refactor
+ * DD-21). Anchors are stored NEUTRAL (base `<prior_context source="kind">`
+ * wrapper, no supersede framing); ANY provider's anchor — incl. inherited
+ * codex-era and pre-DD-21 legacy ones — reads the same core. On the stateless
+ * claude path the anchor is re-sent every turn against a newer verbatim tail,
+ * so each anchor message's body is re-framed with the supersede frame at
+ * projection (read) time. Pure: returns a shallow-cloned msg list with anchor
+ * text bodies re-framed; non-anchor messages pass through by reference.
+ * codex/other providers never call this → they see the neutral stored body
+ * (INV-0). Replaces the old framed/unframed `filterCompacted` discriminator,
+ * which broke every legacy session (all legacy anchors are unframed).
  */
-export const CLAUDE_SUPERSEDE_MARKER = 'superseded_by_recent="true"'
-
-/** True if an anchor body text was authored by the claude supersede path. */
-export function isClaudeFramedAnchorText(text: string | undefined): boolean {
-  return text != null && text.includes(CLAUDE_SUPERSEDE_MARKER)
+export function projectClaudeAnchors(msgs: MessageV2.WithParts[]): MessageV2.WithParts[] {
+  return msgs.map((msg) => {
+    const isAnchor = msg.parts.some((p: any) => p.type === "compaction")
+    if (!isAnchor) return msg
+    const parts = msg.parts.map((p: any) =>
+      p.type === "text" && typeof p.text === "string"
+        ? { ...p, text: reframeAnchorBodyForClaude(p.text) }
+        : p,
+    )
+    return { ...msg, parts }
+  })
 }
