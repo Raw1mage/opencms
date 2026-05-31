@@ -57,9 +57,12 @@ export function shouldSkipClaudeEventCompaction(
  * must fire on the IDLE-GAP signal — "we are resuming now, cache is dead" — not
  * only on the previous turn's stale cache_read fraction. Otherwise a session
  * whose last turn happened to be warm would full-prefill its whole array on the
- * first cold resume, unbounded. 5 min = Anthropic's default ephemeral TTL.
+ * first cold resume, unbounded. Aligned to the claude provider's prompt-cache
+ * TTL (provider-claude CLAUDE_CACHE_TTL): now 1h, so a resume within 1h is still
+ * cache-warm and must NOT be treated as a cold gap. (Was 5 min = Anthropic's
+ * default ephemeral; raised with the move to extended-cache-ttl 1h.)
  */
-export const CLAUDE_CACHE_TTL_MS = 5 * 60 * 1000
+export const CLAUDE_CACHE_TTL_MS = 60 * 60 * 1000
 
 /**
  * READ-TIME anchor projection for the claude path (context/claude-refactor

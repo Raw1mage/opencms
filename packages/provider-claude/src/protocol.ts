@@ -108,6 +108,18 @@ export const BETA_PROMPT_CACHING_SCOPE = "prompt-caching-scope-2026-01-05" // up
 export const BETA_FAST_MODE = "fast-mode-2026-02-01" // upstream: lv1
 export const BETA_EFFORT = "effort-2025-11-24" // upstream: dv1
 export const BETA_TASK_BUDGETS = "task-budgets-2026-03-13" // upstream: cv1
+export const BETA_EXTENDED_CACHE_TTL = "extended-cache-ttl-2025-04-11" // upstream: IWH (extended_cache_ttl)
+
+// Extended prompt-cache TTL — single source of truth (issues/enhancement_20260601_claude_1h_cache_ttl.md).
+// Official claude-cli applies "1h" to cache_control breakpoints AND emits the
+// extended-cache-ttl beta TOGETHER (cli.js: if(ttl==="1h"&&ET()) push IWH). We
+// bind BOTH to this one const so convert.ts (sets cache_control.ttl) and
+// assembleBetas (emits the beta) can never drift. undefined → Anthropic default
+// 5-min ephemeral. 1h costs 2x on cache_write but survives idle (read 0.1x) —
+// a net win for the idle-heavy usage this provider sees. Flip to undefined to
+// revert to 5-min; both the ttl and the beta header drop together.
+export const CLAUDE_CACHE_TTL: "1h" | undefined = "1h"
+
 // RESERVED slots — present in upstream ZR1 push order but not emitted by opencode (DD-6):
 //   structured-outputs-2025-12-15  (upstream t76; tengu_tool_pear feature flag)
 //   web-search-2025-03-05          (upstream Qv1; vertex/foundry only)
@@ -213,6 +225,8 @@ export interface AssembleBetasOptions {
   effort?: boolean
   /** Whether task budget is specified */
   taskBudget?: boolean
+  /** Emit extended-cache-ttl beta — paired with cache_control ttl:"1h". upstream: IWH */
+  extendedCacheTtl?: boolean
   /** Extra betas from ANTHROPIC_BETAS environment variable */
   envBetas?: string[]
   /** Routing target. Default firstParty. upstream: pq() */
@@ -309,6 +323,10 @@ export function assembleBetas(options: AssembleBetasOptions): string[] {
 
   // 9. prompt-caching-scope — upstream ZR1 step 9 (gated on ja(), NOT isOAuth — DD-11)
   if (jaEquivalent) betas.push(BETA_PROMPT_CACHING_SCOPE)
+
+  // extended-cache-ttl — upstream pushes IWH during cache application when
+  // ttl==="1h". Paired with cache_control.ttl:"1h" via CLAUDE_CACHE_TTL (convert.ts).
+  if (options.extendedCacheTtl) betas.push(BETA_EXTENDED_CACHE_TTL)
 
   // (Out-of-band feature gates not present in upstream ZR1 but kept for
   // opencode-side feature plumbing. These do not affect fingerprint parity.)
