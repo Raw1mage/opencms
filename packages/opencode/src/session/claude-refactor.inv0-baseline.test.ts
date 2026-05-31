@@ -14,6 +14,7 @@ import { describe, expect, it, mock } from "bun:test"
 import { SessionCompaction } from "./compaction"
 import { MessageV2 } from "./message-v2"
 import { Config } from "@/config/config"
+import { projectClaudeAnchors } from "./claude-context-policy"
 
 // Minimal WithParts builders for filterCompacted (stream is newest-first).
 const mkMsg = (id: string, role: "user" | "assistant", parts: any[] = []) =>
@@ -23,19 +24,14 @@ const anchorMsg = (id: string) =>
     info: { id, role: "assistant", sessionID: "ses_inv0_fc", summary: true, time: { created: 0 } },
     parts: [{ id: `${id}_p`, type: "compaction", sessionID: "ses_inv0_fc", messageID: id }],
   }) as any
-// claude-authored (supersede-framed) anchor: a compaction part PLUS a text part
-// carrying the supersede marker emitted by sanitizeAnchorToString({claudeSupersede}).
-const framedAnchorMsg = (id: string) =>
+// neutral (DD-21) anchor: a compaction part PLUS a text part holding the
+// base `<prior_context source="kind">` body WITHOUT supersede framing — the
+// form every provider stores and every legacy anchor already has.
+const neutralAnchorMsg = (id: string, body: string) =>
   ({
     info: { id, role: "assistant", sessionID: "ses_inv0_fc", summary: true, time: { created: 0 } },
     parts: [
-      {
-        id: `${id}_t`,
-        type: "text",
-        sessionID: "ses_inv0_fc",
-        messageID: id,
-        text: `<prior_context source="narrative" superseded_by_recent="true">\nEARLIER portion…\n</prior_context>`,
-      },
+      { id: `${id}_t`, type: "text", sessionID: "ses_inv0_fc", messageID: id, text: body },
       { id: `${id}_p`, type: "compaction", sessionID: "ses_inv0_fc", messageID: id },
     ],
   }) as any
@@ -183,97 +179,65 @@ describe("INV-0 baseline: filterCompacted stops at the anchor (codex/default beh
   })
 })
 
-describe("claude firefight: filterCompacted claudeFramedOnly (INV-1: use framed, ignore inherited)", () => {
-  // Same stream as the codex baseline: [recent2, recent1, ANCHOR, old1, old0].
-  // claude mode: an UNFRAMED (inherited codex-era) anchor is ignored and ALL
-  // raw history is kept (no stop) — INV-1.
-  it("drops an inherited (unframed) anchor and includes full raw history (pre+post)", async () => {
+describe("filterCompacted is provider-agnostic (DD-21: no claude discriminator, INV-0 restored)", () => {
+  // After DD-21 there is NO claudeFramedOnly flag — every provider, incl. the
+  // claude path, stops at the most-recent anchor. claude-safety lives in
+  // projectClaudeAnchors (read-time framing), not in this boundary scan. This
+  // is what keeps a legacy session bounded on resume (the 206K→662K regression
+  // fix): the (unframed) most-recent anchor still bounds the context.
+  it("stops at the most-recent anchor for ANY stream — legacy session stays bounded", async () => {
     const msgs = [
       mkMsg("msg_z", "assistant"),
       mkMsg("msg_y", "user"),
-      anchorMsg("msg_m"),
-      mkMsg("msg_b", "assistant"),
-      mkMsg("msg_a", "user"),
-    ]
-    const result = await MessageV2.filterCompacted(streamOf(msgs), undefined, { claudeFramedOnly: true })
-    // unframed anchor msg_m dropped; everything else included, chronological.
-    expect(result.messages.map((m: any) => m.info.id)).toEqual(["msg_a", "msg_b", "msg_y", "msg_z"])
-    expect(result.messages.some((m: any) => m.info.id === "msg_m")).toBe(false)
-    expect(result.stoppedByBudget).toBe(false)
-  })
-
-  it("ignores multiple inherited (unframed) anchors, full raw history survives", async () => {
-    const msgs = [
-      mkMsg("msg_y", "user"),
-      anchorMsg("msg_m2"),
-      mkMsg("msg_c", "assistant"),
-      anchorMsg("msg_m1"),
-      mkMsg("msg_a", "user"),
-    ]
-    const result = await MessageV2.filterCompacted(streamOf(msgs), undefined, { claudeFramedOnly: true })
-    expect(result.messages.map((m: any) => m.info.id)).toEqual(["msg_a", "msg_c", "msg_y"])
-  })
-
-  it("short referential user answer after an inherited anchor SURVIVES (#4 / DD-10 mechanism)", async () => {
-    // assistant offers A/B (pre-anchor), an inherited anchor exists, then user
-    // replies "A". The 1-char answer + the A/B options must both survive.
-    const userAnswer = {
-      info: { id: "msg_user_A", role: "user", sessionID: "ses_inv0_fc", time: { created: 9 } },
-      parts: [{ id: "p_a", type: "text", text: "A" }],
-    } as any
-    const abOptions = {
-      info: { id: "msg_ab", role: "assistant", sessionID: "ses_inv0_fc", time: { created: 1 } },
-      parts: [{ id: "p_ab", type: "text", text: "Choose A or B" }],
-    } as any
-    const msgs = [userAnswer, anchorMsg("msg_m"), abOptions] // newest-first
-    const result = await MessageV2.filterCompacted(streamOf(msgs), undefined, { claudeFramedOnly: true })
-    const ids = result.messages.map((m: any) => m.info.id)
-    expect(ids).toContain("msg_user_A") // the short answer is not dropped
-    expect(ids).toContain("msg_ab") // its referent (the options) survives too
-    expect(ids).not.toContain("msg_m") // inherited anchor dropped
-  })
-
-  // DD-16/18: claude USES its OWN supersede-framed anchor as the boundary —
-  // bounded [framed anchor + tail], NOT a full raw dump. This is what makes the
-  // cold-cache size-gate compaction actually save tokens.
-  it("uses a claude framed anchor as the boundary (keeps anchor + tail, drops pre-anchor history)", async () => {
-    const msgs = [
-      mkMsg("msg_z", "assistant"),
-      mkMsg("msg_y", "user"),
-      framedAnchorMsg("msg_m"),
-      mkMsg("msg_b", "assistant"),
-      mkMsg("msg_a", "user"),
-    ]
-    const result = await MessageV2.filterCompacted(streamOf(msgs), undefined, { claudeFramedOnly: true })
-    // framed anchor is the boundary: [anchor, tail] only; pre-anchor msg_a/msg_b dropped.
-    expect(result.messages.map((m: any) => m.info.id)).toEqual(["msg_m", "msg_y", "msg_z"])
-    expect(result.messages.some((m: any) => m.info.id === "msg_a")).toBe(false)
-  })
-
-  it("stops at the FRAMED anchor even when an older inherited anchor exists below it", async () => {
-    const msgs = [
-      mkMsg("msg_y", "user"),
-      framedAnchorMsg("msg_framed"),
-      mkMsg("msg_c", "assistant"),
-      anchorMsg("msg_inherited"),
-      mkMsg("msg_a", "user"),
-    ]
-    const result = await MessageV2.filterCompacted(streamOf(msgs), undefined, { claudeFramedOnly: true })
-    // boundary is the framed anchor; the older inherited anchor + msg_a/msg_c are never reached.
-    expect(result.messages.map((m: any) => m.info.id)).toEqual(["msg_framed", "msg_y"])
-    expect(result.messages.some((m: any) => m.info.id === "msg_inherited")).toBe(false)
-  })
-
-  it("codex byte-identical: same stream WITHOUT the flag still stops at the first anchor (INV-0)", async () => {
-    const msgs = [
-      mkMsg("msg_z", "assistant"),
-      mkMsg("msg_y", "user"),
-      anchorMsg("msg_m"),
+      anchorMsg("msg_m"), // unframed/legacy anchor — still a boundary
       mkMsg("msg_b", "assistant"),
       mkMsg("msg_a", "user"),
     ]
     const result = await MessageV2.filterCompacted(streamOf(msgs))
-    // no opts → unchanged: stop at the anchor, keep [anchor, tail].
+    // bounded by the anchor — NOT a full raw dump (the legacy-resume fix).
     expect(result.messages.map((m: any) => m.info.id)).toEqual(["msg_m", "msg_y", "msg_z"])
+    expect(result.messages.some((m: any) => m.info.id === "msg_a")).toBe(false)
+  })
+
+  it("stops at the FIRST (most-recent) of multiple anchors", async () => {
+    const msgs = [
+      mkMsg("msg_y", "user"),
+      anchorMsg("msg_recent"),
+      mkMsg("msg_c", "assistant"),
+      anchorMsg("msg_older"),
+      mkMsg("msg_a", "user"),
+    ]
+    const result = await MessageV2.filterCompacted(streamOf(msgs))
+    expect(result.messages.map((m: any) => m.info.id)).toEqual(["msg_recent", "msg_y"])
+    expect(result.messages.some((m: any) => m.info.id === "msg_older")).toBe(false)
+  })
+})
+
+describe("projectClaudeAnchors (DD-21: read-time supersede framing)", () => {
+  it("re-frames a neutral / legacy anchor body with the supersede frame", () => {
+    const legacy = neutralAnchorMsg("msg_m", `<prior_context source="narrative">\ndo the thing\n</prior_context>`)
+    const out = projectClaudeAnchors([mkMsg("msg_y", "user"), legacy])
+    const anchor = out.find((m: any) => m.info.id === "msg_m") as any
+    const text = anchor.parts.find((p: any) => p.type === "text").text
+    expect(text).toContain('superseded_by_recent="true"')
+    expect(text).toContain("more recent and authoritative")
+    expect(text).toContain("do the thing") // content preserved
+  })
+
+  it("leaves non-anchor messages untouched (same reference, no clone)", () => {
+    const u = mkMsg("msg_y", "user")
+    const out = projectClaudeAnchors([u])
+    expect(out[0]).toBe(u)
+  })
+
+  it("preserves content when re-framing an already-framed body (idempotent on content)", () => {
+    const framed = neutralAnchorMsg(
+      "msg_m",
+      `<prior_context source="narrative" superseded_by_recent="true">\nkept content\n</prior_context>`,
+    )
+    const out = projectClaudeAnchors([framed]) as any
+    const text = out[0].parts.find((p: any) => p.type === "text").text
+    expect(text).toContain("kept content")
+    expect(text).toContain('superseded_by_recent="true"')
   })
 })
