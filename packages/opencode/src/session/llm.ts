@@ -26,6 +26,7 @@ import { FreerunBus } from "../freerun/observability/bus"
 import { Global } from "@/global"
 import { Plugin } from "@/plugin"
 import { SystemPrompt } from "./system"
+import { streamIdleTimeoutMs, usesFirstChunkWatchdog } from "./stream-watchdog"
 import { Flag } from "@/flag/flag"
 import { PermissionNext } from "@/permission/next"
 import { Auth } from "@/auth"
@@ -1786,7 +1787,11 @@ export namespace LLM {
     // timeout surfaces it — leaving an empty assistant shell + state=running
     // that zombie-sweep can't touch because the runloop is still live.
     // Reset on every chunk so legitimate long reasoning pauses are tolerated.
-    const STREAM_IDLE_TIMEOUT_MS = 90_000
+    // Provider-aware: claude-opus legitimately goes silent >90s mid-stream
+    // (slow prefill, and the gap between opening a tool_use and the first
+    // input_json_delta of a large `write`) — it gets a wider budget. See
+    // ./stream-watchdog.ts for the measured rationale (ses_18d7f02e, 2026-05-31).
+    const STREAM_IDLE_TIMEOUT_MS = streamIdleTimeoutMs(input.model.providerId)
     // First-chunk watchdog. The chunk-idle timer above only re-arms on chunk
     // arrival, so "stream opened but never produced any chunk" falls through
     // to the provider-level 300_000ms AbortSignal.timeout (provider.ts:2296).
@@ -1876,11 +1881,13 @@ export namespace LLM {
     // takes >60s of server-side cache-read + thinking before the first token
     // (measured 178s on a healthy, fully-answered turn), so a 60s first-chunk
     // killer false-aborts them → empty assistant turn + waiting_user
-    // (the user-perceived "只說不做"). The chunk-idle watchdog (90s, re-arms on
-    // every chunk) stays universal — it only catches mid-stream wedges, which
-    // claude's steadily-streaming responses never trip.
-    const FIRST_CHUNK_WATCHDOG_FAMILIES = new Set(["codex"])
-    if (FIRST_CHUNK_WATCHDOG_FAMILIES.has(input.model.providerId)) {
+    // (the user-perceived "只說不做"). The chunk-idle watchdog re-arms on every
+    // chunk and catches mid-stream wedges; it is provider-aware (see
+    // STREAM_IDLE_TIMEOUT_MS above) because claude CAN go silent >90s mid-stream
+    // — e.g. after opening a tool_use block, before the first input_json_delta
+    // of a large `write` (observed 2026-05-31, ses_18d7f02e). The earlier claim
+    // that claude "never trips" the idle watchdog was wrong.
+    if (usesFirstChunkWatchdog(input.model.providerId)) {
       firstChunkTimer = setTimeout(() => {
         if (firstChunkReceived) return
         const elapsed = Date.now() - streamStartedAt
