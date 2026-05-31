@@ -29,7 +29,7 @@ import {
   emitUserMsgReplayTelemetry,
 } from "./compaction-telemetry"
 import { sanitizeAnchorToString, type AnchorKind } from "./anchor-sanitizer"
-import { shouldSkipClaudeEventCompaction } from "./claude-context-policy"
+import { shouldSkipClaudeEventCompaction, isClaudeContextProvider } from "./claude-context-policy"
 import { checkCleanTail } from "./idle-compaction-gate"
 import { SkillLayerRegistry } from "./skill-layer-registry"
 import { diagnoseCacheMiss } from "./cache-miss-diagnostic"
@@ -3316,7 +3316,16 @@ When constructing the summary, try to stick to this template:
 
     // DD-6: anchor body is wrapped + softened before persistence so it
     // cannot be misread as system authority by the LLM on next turn.
-    const sanitized = sanitizeAnchorToString(augmentedSummary, input.kind as AnchorKind)
+    // context/claude-refactor DD-16/INV-4: for a claude-triggered compaction,
+    // additionally frame the anchor as the EARLIER portion that newer messages
+    // supersede (the stateless claude path re-sends it every turn vs a fresh
+    // tail). codex omits the flag → byte-identical anchor (INV-0).
+    const claudeAnchor = isClaudeContextProvider(input.model.providerId)
+    const sanitized = sanitizeAnchorToString(
+      augmentedSummary,
+      input.kind as AnchorKind,
+      claudeAnchor ? { claudeSupersede: true } : undefined,
+    )
     log.info("compaction.anchor.sanitized", {
       sessionID: input.sessionID,
       kind: input.kind,
