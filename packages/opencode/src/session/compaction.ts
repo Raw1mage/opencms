@@ -29,6 +29,7 @@ import {
   emitUserMsgReplayTelemetry,
 } from "./compaction-telemetry"
 import { sanitizeAnchorToString, type AnchorKind } from "./anchor-sanitizer"
+import { shouldSkipClaudeEventCompaction } from "./claude-context-policy"
 import { checkCleanTail } from "./idle-compaction-gate"
 import { SkillLayerRegistry } from "./skill-layer-registry"
 import { diagnoseCacheMiss } from "./cache-miss-diagnostic"
@@ -2370,6 +2371,27 @@ When constructing the summary, try to stick to this template:
     Bus.publish(Event.CompactionStarted, { sessionID, mode: "auto" })
 
     const model = await resolveActiveModel(sessionID)
+
+    // Firefight (context/claude-refactor DD-4 / INV-3): claude is stateless,
+    // full-retransmit, 1M context — it has no server chain to rebind. The
+    // codex chain-rebind observeds (provider-switched / rebind /
+    // continuation-invalidated) must NOT trigger compaction on claude; doing
+    // so forged the stale narrative anchor that broke ses_18d7f02e. No-op
+    // here and let the next turn full-retransmit the neutral SQLite. Genuine
+    // token pressure (overflow/idle) and user `manual` still compact claude.
+    // codex/other providers are unaffected (INV-0).
+    if (shouldSkipClaudeEventCompaction(model?.providerId, observed)) {
+      log.info("compaction.claude_event_noop", { sessionID, observed, providerId: model?.providerId, step })
+      emitCompactionPredicateTelemetry({
+        sessionID,
+        step,
+        outcome: "block",
+        reason: "claude-event-noop",
+        observed,
+      })
+      return "continue"
+    }
+
     const ctxRatio = await sessionContextRatio(sessionID, model)
     const isSubscription = isSubscriptionCostModel(model)
     const byRequest = model ? !isByTokenBilling(model) : false
