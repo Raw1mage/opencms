@@ -322,3 +322,97 @@ describe("deriveObservedCondition (DD-1 state-driven)", () => {
     expect(result).toBe("rebind")
   })
 })
+
+describe("claude cold-cache size-gate (DD-13/14/16/18)", () => {
+  // lastFinished with explicit token split so we can drive promptTotal and the
+  // cache-read fraction independently. promptTotal = input + cache.read + write.
+  function finished(opts: {
+    input: number
+    read?: number
+    write?: number
+    provider?: string
+  }): MessageV2.Assistant {
+    const read = opts.read ?? 0
+    const write = opts.write ?? 0
+    return {
+      id: "msg_fin",
+      role: "assistant",
+      sessionID: "ses_gate",
+      parentID: "msg_u1",
+      mode: "default",
+      agent: "default",
+      modelID: "claude-opus-4-8",
+      providerId: opts.provider ?? "claude-cli",
+      accountId: "acc-A",
+      finish: "stop",
+      time: { created: 1, completed: 2 },
+      cost: 0,
+      tokens: { input: opts.input, output: 0, reasoning: 0, cache: { read, write }, total: opts.input + read + write },
+      path: { cwd: "/tmp", root: "/tmp" },
+    } as any
+  }
+
+  let n = 0
+  function gateInput(over: Partial<Parameters<typeof deriveObservedCondition>[0]> = {}) {
+    return {
+      sessionID: `ses_gate_${n++}`,
+      step: 5,
+      msgs: [],
+      lastFinished: undefined,
+      pinnedProviderId: "claude-cli",
+      pinnedAccountId: "acc-A",
+      hasUnprocessedCompactionRequest: false,
+      compactionRequestAuto: undefined,
+      parentID: undefined,
+      continuationInvalidatedAt: undefined,
+      isOverflow: async () => false,
+      isCacheAware: async () => false,
+      ...over,
+    }
+  }
+
+  it("claude cold (cache served <50%) AND >100K → cache-aware", async () => {
+    ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
+    const result = await deriveObservedCondition(gateInput({ lastFinished: finished({ input: 120_000 }) }))
+    expect(result).toBe("cache-aware")
+  })
+
+  it("claude WARM (cache served >50%) at >100K → no gate (null, raw resend stays cheap)", async () => {
+    ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
+    const result = await deriveObservedCondition(
+      gateInput({ lastFinished: finished({ input: 10_000, read: 110_000 }) }),
+    )
+    expect(result).toBeNull()
+  })
+
+  it("claude cold but SMALL (<100K) → no gate (null, anchor not worth it)", async () => {
+    ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
+    const result = await deriveObservedCondition(gateInput({ lastFinished: finished({ input: 50_000 }) }))
+    expect(result).toBeNull()
+  })
+
+  it("cold-recreate cache (high write, low read) at >100K still fires (write is the cold cost)", async () => {
+    ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
+    // cache expired → prefix re-written this turn: read≈0, write large → frac<0.5.
+    const result = await deriveObservedCondition(
+      gateInput({ lastFinished: finished({ input: 5_000, read: 2_000, write: 130_000 }) }),
+    )
+    expect(result).toBe("cache-aware")
+  })
+
+  it("INV-0: codex cold+large does NOT hit the claude gate (not cache-aware)", async () => {
+    ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
+    const result = await deriveObservedCondition(
+      gateInput({ pinnedProviderId: "codex", lastFinished: finished({ input: 200_000, provider: "codex" }) }),
+    )
+    expect(result).not.toBe("cache-aware")
+  })
+
+  it("INV-0: another SL provider (gemini-cli) cold+large does NOT hit the claude gate", async () => {
+    ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
+    const result = await deriveObservedCondition(
+      gateInput({ pinnedProviderId: "gemini-cli", lastFinished: finished({ input: 200_000, provider: "gemini-cli" }) }),
+    )
+    expect(result).not.toBe("cache-aware")
+  })
+})

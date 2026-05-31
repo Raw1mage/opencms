@@ -23,6 +23,22 @@ const anchorMsg = (id: string) =>
     info: { id, role: "assistant", sessionID: "ses_inv0_fc", summary: true, time: { created: 0 } },
     parts: [{ id: `${id}_p`, type: "compaction", sessionID: "ses_inv0_fc", messageID: id }],
   }) as any
+// claude-authored (supersede-framed) anchor: a compaction part PLUS a text part
+// carrying the supersede marker emitted by sanitizeAnchorToString({claudeSupersede}).
+const framedAnchorMsg = (id: string) =>
+  ({
+    info: { id, role: "assistant", sessionID: "ses_inv0_fc", summary: true, time: { created: 0 } },
+    parts: [
+      {
+        id: `${id}_t`,
+        type: "text",
+        sessionID: "ses_inv0_fc",
+        messageID: id,
+        text: `<prior_context source="narrative" superseded_by_recent="true">\nEARLIER portion…\n</prior_context>`,
+      },
+      { id: `${id}_p`, type: "compaction", sessionID: "ses_inv0_fc", messageID: id },
+    ],
+  }) as any
 async function* streamOf(msgs: any[]) {
   for (const m of msgs) yield m
 }
@@ -167,10 +183,11 @@ describe("INV-0 baseline: filterCompacted stops at the anchor (codex/default beh
   })
 })
 
-describe("claude firefight: filterCompacted ignoreAnchors=true (INV-1/INV-3 full-retransmit)", () => {
+describe("claude firefight: filterCompacted claudeFramedOnly (INV-1: use framed, ignore inherited)", () => {
   // Same stream as the codex baseline: [recent2, recent1, ANCHOR, old1, old0].
-  // claude mode: DROP the synthetic anchor and keep ALL raw history (no stop).
-  it("drops the anchor and includes full raw history (pre+post)", async () => {
+  // claude mode: an UNFRAMED (inherited codex-era) anchor is ignored and ALL
+  // raw history is kept (no stop) — INV-1.
+  it("drops an inherited (unframed) anchor and includes full raw history (pre+post)", async () => {
     const msgs = [
       mkMsg("msg_z", "assistant"),
       mkMsg("msg_y", "user"),
@@ -178,14 +195,14 @@ describe("claude firefight: filterCompacted ignoreAnchors=true (INV-1/INV-3 full
       mkMsg("msg_b", "assistant"),
       mkMsg("msg_a", "user"),
     ]
-    const result = await MessageV2.filterCompacted(streamOf(msgs), undefined, { ignoreAnchors: true })
-    // anchor msg_m dropped; everything else included, chronological.
+    const result = await MessageV2.filterCompacted(streamOf(msgs), undefined, { claudeFramedOnly: true })
+    // unframed anchor msg_m dropped; everything else included, chronological.
     expect(result.messages.map((m: any) => m.info.id)).toEqual(["msg_a", "msg_b", "msg_y", "msg_z"])
     expect(result.messages.some((m: any) => m.info.id === "msg_m")).toBe(false)
     expect(result.stoppedByBudget).toBe(false)
   })
 
-  it("ignores multiple inherited anchors, full raw history survives", async () => {
+  it("ignores multiple inherited (unframed) anchors, full raw history survives", async () => {
     const msgs = [
       mkMsg("msg_y", "user"),
       anchorMsg("msg_m2"),
@@ -193,7 +210,70 @@ describe("claude firefight: filterCompacted ignoreAnchors=true (INV-1/INV-3 full
       anchorMsg("msg_m1"),
       mkMsg("msg_a", "user"),
     ]
-    const result = await MessageV2.filterCompacted(streamOf(msgs), undefined, { ignoreAnchors: true })
+    const result = await MessageV2.filterCompacted(streamOf(msgs), undefined, { claudeFramedOnly: true })
     expect(result.messages.map((m: any) => m.info.id)).toEqual(["msg_a", "msg_c", "msg_y"])
+  })
+
+  it("short referential user answer after an inherited anchor SURVIVES (#4 / DD-10 mechanism)", async () => {
+    // assistant offers A/B (pre-anchor), an inherited anchor exists, then user
+    // replies "A". The 1-char answer + the A/B options must both survive.
+    const userAnswer = {
+      info: { id: "msg_user_A", role: "user", sessionID: "ses_inv0_fc", time: { created: 9 } },
+      parts: [{ id: "p_a", type: "text", text: "A" }],
+    } as any
+    const abOptions = {
+      info: { id: "msg_ab", role: "assistant", sessionID: "ses_inv0_fc", time: { created: 1 } },
+      parts: [{ id: "p_ab", type: "text", text: "Choose A or B" }],
+    } as any
+    const msgs = [userAnswer, anchorMsg("msg_m"), abOptions] // newest-first
+    const result = await MessageV2.filterCompacted(streamOf(msgs), undefined, { claudeFramedOnly: true })
+    const ids = result.messages.map((m: any) => m.info.id)
+    expect(ids).toContain("msg_user_A") // the short answer is not dropped
+    expect(ids).toContain("msg_ab") // its referent (the options) survives too
+    expect(ids).not.toContain("msg_m") // inherited anchor dropped
+  })
+
+  // DD-16/18: claude USES its OWN supersede-framed anchor as the boundary —
+  // bounded [framed anchor + tail], NOT a full raw dump. This is what makes the
+  // cold-cache size-gate compaction actually save tokens.
+  it("uses a claude framed anchor as the boundary (keeps anchor + tail, drops pre-anchor history)", async () => {
+    const msgs = [
+      mkMsg("msg_z", "assistant"),
+      mkMsg("msg_y", "user"),
+      framedAnchorMsg("msg_m"),
+      mkMsg("msg_b", "assistant"),
+      mkMsg("msg_a", "user"),
+    ]
+    const result = await MessageV2.filterCompacted(streamOf(msgs), undefined, { claudeFramedOnly: true })
+    // framed anchor is the boundary: [anchor, tail] only; pre-anchor msg_a/msg_b dropped.
+    expect(result.messages.map((m: any) => m.info.id)).toEqual(["msg_m", "msg_y", "msg_z"])
+    expect(result.messages.some((m: any) => m.info.id === "msg_a")).toBe(false)
+  })
+
+  it("stops at the FRAMED anchor even when an older inherited anchor exists below it", async () => {
+    const msgs = [
+      mkMsg("msg_y", "user"),
+      framedAnchorMsg("msg_framed"),
+      mkMsg("msg_c", "assistant"),
+      anchorMsg("msg_inherited"),
+      mkMsg("msg_a", "user"),
+    ]
+    const result = await MessageV2.filterCompacted(streamOf(msgs), undefined, { claudeFramedOnly: true })
+    // boundary is the framed anchor; the older inherited anchor + msg_a/msg_c are never reached.
+    expect(result.messages.map((m: any) => m.info.id)).toEqual(["msg_framed", "msg_y"])
+    expect(result.messages.some((m: any) => m.info.id === "msg_inherited")).toBe(false)
+  })
+
+  it("codex byte-identical: same stream WITHOUT the flag still stops at the first anchor (INV-0)", async () => {
+    const msgs = [
+      mkMsg("msg_z", "assistant"),
+      mkMsg("msg_y", "user"),
+      anchorMsg("msg_m"),
+      mkMsg("msg_b", "assistant"),
+      mkMsg("msg_a", "user"),
+    ]
+    const result = await MessageV2.filterCompacted(streamOf(msgs))
+    // no opts → unchanged: stop at the anchor, keep [anchor, tail].
+    expect(result.messages.map((m: any) => m.info.id)).toEqual(["msg_m", "msg_y", "msg_z"])
   })
 })

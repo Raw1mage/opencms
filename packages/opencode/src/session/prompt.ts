@@ -71,7 +71,7 @@ import { prepareUserMessageContext } from "./user-message-context"
 import { buildUserMessageParts } from "./user-message-parts"
 import { materializeToolAttachments } from "./attachment-ownership"
 import { emitSessionNarration, isNarrationAssistantMessage } from "./narration"
-import { isClaudeContextProvider } from "./claude-context-policy"
+import { isClaudeContextProvider, CLAUDE_COLD_COMPACTION_GATE } from "./claude-context-policy"
 import {
   decideAutonomousContinuation,
   describeAutonomousNextAction,
@@ -567,6 +567,35 @@ export async function deriveObservedCondition(input: {
         }).catch(() => {})
       }
       lastCacheReadState.set(input.sessionID, nextState)
+
+      // context/claude-refactor DD-13/14/16/18: claude cold-cache size-gated
+      // compaction. The SL telemetry above never compacts; claude must compact
+      // when the cold resend is BOTH expensive (cache served <half the prompt)
+      // AND large, so subsequent turns send a bounded supersede-framed
+      // anchor+tail instead of the full 1M array on every cold (>5min TTL)
+      // resend. The trigger gates on observable context SIZE + cache-read share
+      // only — NEVER on the codex `cache_read`-drop=chain-lost heuristic in the
+      // SS branch below — so it is structurally cascade-immune (post-compaction
+      // the array shrinks below the gate → no re-trigger; negative feedback).
+      // Warm-near-window growth stays covered by the existing `overflow`
+      // trigger. claude-gated: other SL providers (gemini) keep the
+      // telemetry-only path byte-identical (INV-0). "cache-aware" → KIND_CHAIN
+      // ["narrative","ai_paid"] and is NOT a CLAUDE_NOOP_OBSERVED, so it
+      // produces a real supersede-framed anchor on the claude path.
+      if (isClaudeContextProvider(input.pinnedProviderId) && promptTotal > CLAUDE_COLD_COMPACTION_GATE) {
+        const cacheReadFraction = promptTotal > 0 ? t.cache.read / promptTotal : 0
+        if (cacheReadFraction < 0.5) {
+          debugCheckpoint("prompt", "claude_cold_compaction_gate", {
+            sessionID: input.sessionID,
+            step: input.step,
+            promptTotal,
+            cacheRead: t.cache.read,
+            cacheReadFraction,
+            gate: CLAUDE_COLD_COMPACTION_GATE,
+          })
+          return "cache-aware"
+        }
+      }
     } else if (prev !== undefined && prev.cacheRead > 50_000 && currentCache < prev.cacheRead * 0.5) {
       // Classify: did WE cause this drop? If yes it's planned — telemetry
       // only, fall through to remaining triggers. If no it's a real
@@ -1665,19 +1694,19 @@ export namespace SessionPrompt {
         log.info("loop: subagent completion collected from queue", { sessionID, step })
       }
       // Firefight (context/claude-refactor INV-1/INV-3): claude is stateless/1M
-      // and full-retransmits the neutral SQLite — it must not be bounded or
-      // poisoned by a (possibly inherited codex-era) synthetic anchor. Resolve
-      // the turn's active provider and, for claude only, drop anchors and keep
-      // raw history. Any non-claude / uncertain provider keeps the exact prior
-      // anchor-boundary behavior (INV-0).
+      // and full-retransmits the neutral SQLite. For claude only, USE its own
+      // supersede-framed anchor as the bounded boundary (DD-13/14/16) but IGNORE
+      // an inherited codex-era (unframed) anchor and keep the raw history
+      // (INV-1). Resolve the turn's active provider; any non-claude / uncertain
+      // provider keeps the exact prior anchor-boundary behavior (INV-0).
       const turnProviderId =
         (await Session.get(sessionID).catch(() => undefined))?.execution?.providerId ??
         options?.incomingModel?.providerId
-      const claudeFullRetransmit = isClaudeContextProvider(turnProviderId)
+      const claudeContextPath = isClaudeContextProvider(turnProviderId)
       const filteredResult = await MessageV2.filterCompacted(
         MessageV2.stream(sessionID),
         undefined,
-        claudeFullRetransmit ? { ignoreAnchors: true } : undefined,
+        claudeContextPath ? { claudeFramedOnly: true } : undefined,
       )
       let msgs = filteredResult.messages
       if (filteredResult.stoppedByBudget) {
