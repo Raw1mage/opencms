@@ -20,6 +20,37 @@ import { buildHeaders } from "./headers.js"
 import { parseAnthropicSSE, mapFinishReason } from "./sse.js"
 import type { ClaudeCredentials, TokenSet } from "./auth.js"
 import { refreshTokenWithMutex } from "./auth.js"
+import fs from "node:fs"
+import os from "node:os"
+
+// Wire diag (issues/bug_20260601_claude_upstream_stall_silent_timeout.md):
+// debug.log only records an inbound packet once one ARRIVES, so an
+// accept-then-hang (200 received, then upstream silent) leaves no trace and the
+// 240s watchdog message is the only — misleading — signal. Capture the HTTP
+// status + rate-limit headers at the moment of RECEIPT into a dedicated jsonl
+// so a later stall is diagnosable from the wire, not guessed. Append-only,
+// never throws, never blocks the request.
+function recordClaudeWire(modelId: string, response: Response): void {
+  try {
+    const h = (k: string) => response.headers.get(k) ?? undefined
+    const line =
+      JSON.stringify({
+        t: new Date().toISOString(),
+        model: modelId,
+        status: response.status,
+        reqId: h("request-id") ?? h("anthropic-request-id"),
+        rlReqRemaining: h("anthropic-ratelimit-requests-remaining"),
+        rlTokRemaining: h("anthropic-ratelimit-tokens-remaining"),
+        rlInputTokRemaining: h("anthropic-ratelimit-input-tokens-remaining"),
+        rlOutputTokRemaining: h("anthropic-ratelimit-output-tokens-remaining"),
+        rlTokReset: h("anthropic-ratelimit-tokens-reset"),
+        retryAfter: h("retry-after"),
+      }) + "\n"
+    fs.appendFileSync(`${os.homedir()}/.local/share/opencode/log/claude-wire.jsonl`, line)
+  } catch {
+    /* diagnostic only — must never affect the request path */
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -269,6 +300,10 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
       body: bodyStr,
       signal: callOptions.abortSignal,
     })
+
+    // Wire diag at receipt — captures status + rate-limit headers even when the
+    // stream then stalls silently (the case debug.log misses). See helper above.
+    recordClaudeWire(this.modelId, response)
 
     // § 4.5  Error handling
     if (!response.ok) {

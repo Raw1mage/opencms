@@ -126,6 +126,7 @@ export namespace TelemetryProjector {
       cumulativeTokens: z.number(),
       cumulativeCacheReadTokens: z.number().optional(),
       cumulativeInputTokens: z.number().optional(),
+      cumulativeCacheWriteTokens: z.number().optional(),
       totalRequests: z.number(),
       cumulativeCost: z.number(),
       latestRoundIndex: z.number().optional(),
@@ -160,6 +161,7 @@ export namespace TelemetryProjector {
     const cumulativeTokens = sumField("totalTokens")
     const cumulativeCacheReadTokens = sumField("cacheReadTokens")
     const cumulativeInputTokens = sumField("inputTokens")
+    const cumulativeCacheWriteTokens = sumField("cacheWriteTokens")
     const cumulativeCost = sumField("cost")
     const lastEvent = events.at(-1)
 
@@ -173,6 +175,7 @@ export namespace TelemetryProjector {
         cumulativeTokens,
         cumulativeCacheReadTokens,
         cumulativeInputTokens,
+        cumulativeCacheWriteTokens,
         totalRequests,
         cumulativeCost,
         latestRoundIndex:

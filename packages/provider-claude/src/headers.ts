@@ -10,6 +10,7 @@ import {
   assembleBetas,
   buildBillingHeader,
   clientPlatform,
+  CLAUDE_CACHE_TTL,
   type AssembleBetasOptions,
   type ProviderRoute,
 } from "./protocol.js"
@@ -69,6 +70,7 @@ export function buildHeaders(options: BuildHeadersOptions): Headers {
     fastMode: options.fastMode,
     effort: options.effort,
     taskBudget: options.taskBudget,
+    extendedCacheTtl: CLAUDE_CACHE_TTL === "1h",
     envBetas: options.envBetas,
     provider: options.provider,
     showThinkingSummaries: options.showThinkingSummaries,

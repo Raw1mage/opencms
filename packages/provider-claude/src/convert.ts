@@ -13,6 +13,7 @@ import {
   BOUNDARY_MARKER,
   IDENTITY_INTERACTIVE,
   buildBillingHeader,
+  CLAUDE_CACHE_TTL,
 } from "./protocol.js"
 
 // ---------------------------------------------------------------------------
@@ -20,6 +21,17 @@ import {
 // ---------------------------------------------------------------------------
 
 export type CacheControl = { type: "ephemeral"; scope?: "global" | "org"; ttl?: string }
+
+// Cache breakpoint factory — applies the extended TTL (CLAUDE_CACHE_TTL) uniformly
+// to every breakpoint, mirroring official (one ttl mapped onto all breakpoints).
+// When CLAUDE_CACHE_TTL is undefined the ttl key is omitted → Anthropic 5-min default.
+function ephemeral(scope?: "global" | "org"): CacheControl {
+  return {
+    type: "ephemeral",
+    ...(scope ? { scope } : {}),
+    ...(CLAUDE_CACHE_TTL ? { ttl: CLAUDE_CACHE_TTL } : {}),
+  }
+}
 
 export interface AnthropicMessage {
   role: "user" | "assistant"
@@ -207,7 +219,7 @@ export function convertTools(
   // fresh input on every turn, inflating token usage and burning the context
   // budget toward the long-context (>200K) tier.
   if (enableCaching && result.length > 0) {
-    result[result.length - 1]!.cache_control = { type: "ephemeral" }
+    result[result.length - 1]!.cache_control = ephemeral()
   }
 
   return result
@@ -228,7 +240,7 @@ export function applyConversationCacheBreakpoint(
   if (!enableCaching || messages.length === 0) return
   const last = messages[messages.length - 1]!
   if (Array.isArray(last.content) && last.content.length > 0) {
-    last.content[last.content.length - 1]!.cache_control = { type: "ephemeral" }
+    last.content[last.content.length - 1]!.cache_control = ephemeral()
   }
 }
 
@@ -270,7 +282,7 @@ export function convertSystemBlocks(options: ConvertSystemOptions): AnthropicSys
   blocks.push({
     type: "text",
     text: identity,
-    ...(enableCaching && { cache_control: { type: "ephemeral" as const, scope: "org" as const } }),
+    ...(enableCaching && { cache_control: ephemeral("org") }),
   })
 
   if (!systemText) return blocks
@@ -287,7 +299,7 @@ export function convertSystemBlocks(options: ConvertSystemOptions): AnthropicSys
       blocks.push({
         type: "text",
         text: staticPart,
-        ...(enableCaching && { cache_control: { type: "ephemeral" as const, scope: "global" as const } }),
+        ...(enableCaching && { cache_control: ephemeral("global") }),
       })
     }
 
@@ -299,7 +311,7 @@ export function convertSystemBlocks(options: ConvertSystemOptions): AnthropicSys
     blocks.push({
       type: "text",
       text: systemText,
-      ...(enableCaching && { cache_control: { type: "ephemeral" as const, scope: "org" as const } }),
+      ...(enableCaching && { cache_control: ephemeral("org") }),
     })
   }
 

@@ -182,6 +182,9 @@ export type SessionTelemetrySessionSummary = {
   cumulativeCacheReadTokens?: number
   /** Sum of fresh (non-cached) input across all rounds. Pair with cumulativeCacheReadTokens for hit rate. */
   cumulativeInputTokens?: number
+  /** Sum of cache_write (cache_creation) across all rounds. claude bills read/write separately, so the
+   *  hit-rate denominator MUST include write — a cold turn's big write is NOT a cache hit. */
+  cumulativeCacheWriteTokens?: number
   totalRequests: number
   providerId?: string
   accountId?: string
