@@ -201,6 +201,25 @@ IMPORTANT:
 
 const STRUCTURED_OUTPUT_SYSTEM_PROMPT = `IMPORTANT: The user has requested structured output. You MUST use the StructuredOutput tool to provide your final response. Do NOT respond with plain text - you MUST call the StructuredOutput tool with your answer formatted according to the schema.`
 
+// Claude-compatible proactive reminder — the per-turn behavioral steering claude
+// needs to stop "光說不做" (announce-a-step-then-end_turn). RCA: claude genuinely
+// emits end_turn to defer/announce mid-task; the anti-punt tuning that stabilized
+// codex (reasoning_effort, chain-init nudges) is a no-op for claude (SL provider).
+// Official Claude Code counters the same disposition with a per-turn `isMeta`
+// turnReminder ("Execute autonomously, prefer action over planning") — a knob
+// claude lacks, so we mirror the *reminder*. Injected ephemerally onto the tail
+// turn each loop iteration (sessionMessages is a clone — never persisted) so it
+// is re-injected every turn, survives compaction, and does not decay.
+const CLAUDE_PROACTIVE_REMINDER = [
+  "<system-reminder>",
+  "Execute autonomously. Keep working until the task is fully done. Prefer action over narration:",
+  "when the next step is something you can do yourself, DO IT NOW in this same turn — do not",
+  "announce it and stop. Make reasonable assumptions for routine, low-risk decisions instead of",
+  "pausing to ask. Only hand back to the user for genuinely destructive actions (deleting data,",
+  "modifying shared/production systems) or a real preference fork you cannot resolve yourself.",
+  "</system-reminder>",
+].join("\n")
+
 // Phase 13.1: captureTurnSummaryOnExit removed. TurnSummaries are no longer
 // persisted to a separate Memory file — they're derived at read time by
 // `Memory.read(sid)` walking the messages stream and extracting the last
@@ -3168,6 +3187,23 @@ export namespace SessionPrompt {
               "</system-reminder>",
             ].join("\n")
           }
+        }
+      }
+
+      // Claude proactive reminder (anti-"光說不做"). Mirrors the official Claude
+      // Code per-turn isMeta turnReminder, gated to claude + autonomous (autorun
+      // opt-in). Appended ephemerally to the tail turn's text — highest recency,
+      // right before generation — so it steers this turn without being persisted
+      // (sessionMessages is a clone). See CLAUDE_PROACTIVE_REMINDER.
+      if (isClaudeContextProvider(activeModel.providerId) && session.workflow?.autonomous.enabled === true) {
+        let tailUserText: (typeof sessionMessages)[number]["parts"][number] | undefined
+        for (let i = sessionMessages.length - 1; i >= 0 && !tailUserText; i--) {
+          if (sessionMessages[i].info.role !== "user") continue
+          tailUserText = sessionMessages[i].parts.find((p) => p.type === "text" && !p.ignored && p.text.trim())
+        }
+        if (tailUserText && tailUserText.type === "text") {
+          tailUserText.text = `${tailUserText.text}\n\n${CLAUDE_PROACTIVE_REMINDER}`
+          log.info("claude-proactive-reminder.injected", { sessionID, step })
         }
       }
 
