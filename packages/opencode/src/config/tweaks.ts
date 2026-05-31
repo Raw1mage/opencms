@@ -193,7 +193,11 @@ export namespace Tweaks {
   export interface ContextThresholdProfile {
     /** B-compaction trigger: cold total context above this folds C→B (narrative). */
     bCompactTokens: number
-    /** A-compaction trigger: B size above this archives oldest B→A (ai_paid), only on cache-lost. (future) */
+    /**
+     * A-compaction trigger: B size above this archives oldest B→A (ai_paid),
+     * ONLY on cache-lost. (future) RULE (DD-23): if A would fire but there is no
+     * B anchor to archive from, SKIP — A can only compress existing B.
+     */
     aCompactTokens: number
     /** How much oldest-B to archive per cold moment (分期付款 increment). (future) */
     aIncrementTokens: number
@@ -447,7 +451,10 @@ export namespace Tweaks {
     // values; all to be experiment-tuned. Only claude-cli is consumed today.
     contextThresholds: {
       default: { bCompactTokens: 100_000, aCompactTokens: 60_000, aIncrementTokens: 20_000 },
-      "claude-cli": { bCompactTokens: 100_000, aCompactTokens: 60_000, aIncrementTokens: 20_000 },
+      // claude (1M window): absolute K — B 200K (cold total → C+B compaction),
+      // A 100K (B size → archive oldest B→A). B>A keeps B drained under A. 50%
+      // ratio is never reached on claude, so absolute K is what we tune.
+      "claude-cli": { bCompactTokens: 200_000, aCompactTokens: 100_000, aIncrementTokens: 20_000 },
       codex: { bCompactTokens: 80_000, aCompactTokens: 50_000, aIncrementTokens: 15_000 },
     },
   }

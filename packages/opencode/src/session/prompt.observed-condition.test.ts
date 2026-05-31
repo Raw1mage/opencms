@@ -374,23 +374,24 @@ describe("claude cold-cache size-gate (DD-13/14/16/18)", () => {
     }
   }
 
-  it("claude cold (cache served <50%) AND >100K → cache-aware", async () => {
+  // B threshold = claude-cli default bCompactTokens = 200K (DD-23 tweak config).
+  it("claude cold (cache served <50%) AND >200K → cache-aware", async () => {
     ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
-    const result = await deriveObservedCondition(gateInput({ lastFinished: finished({ input: 120_000 }) }))
+    const result = await deriveObservedCondition(gateInput({ lastFinished: finished({ input: 250_000 }) }))
     expect(result).toBe("cache-aware")
   })
 
-  it("claude WARM (cache served >50%) at >100K → no gate (null, raw resend stays cheap)", async () => {
+  it("claude WARM (cache served >50%) at >200K → no gate (null, raw resend stays cheap)", async () => {
     ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
     const result = await deriveObservedCondition(
-      gateInput({ lastFinished: finished({ input: 10_000, read: 110_000 }) }),
+      gateInput({ lastFinished: finished({ input: 10_000, read: 250_000 }) }),
     )
     expect(result).toBeNull()
   })
 
-  it("claude cold but SMALL (<100K) → no gate (null, anchor not worth it)", async () => {
+  it("claude cold but SMALL (<200K) → no gate (null, anchor not worth it)", async () => {
     ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
-    const result = await deriveObservedCondition(gateInput({ lastFinished: finished({ input: 50_000 }) }))
+    const result = await deriveObservedCondition(gateInput({ lastFinished: finished({ input: 120_000 }) }))
     expect(result).toBeNull()
   })
 
@@ -399,9 +400,9 @@ describe("claude cold-cache size-gate (DD-13/14/16/18)", () => {
     // last turn was WARM (high cache_read fraction) but completed 10 min ago → the
     // ephemeral cache is dead → this resume is a guaranteed cold full-prefill → must
     // bound, even though the *recorded* fraction looks warm. This is the gap the
-    // stale-fraction-only gate missed.
+    // stale-fraction-only gate missed. (>200K so the outer size condition holds.)
     const result = await deriveObservedCondition(
-      gateInput({ lastFinished: finished({ input: 10_000, read: 110_000, staleMs: 10 * 60 * 1000 }) }),
+      gateInput({ lastFinished: finished({ input: 10_000, read: 250_000, staleMs: 10 * 60 * 1000 }) }),
     )
     expect(result).toBe("cache-aware")
   })
@@ -409,24 +410,24 @@ describe("claude cold-cache size-gate (DD-13/14/16/18)", () => {
   it("active warm + RECENT (idle < cache TTL) → no gate (resume signal off, cache still alive)", async () => {
     ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
     const result = await deriveObservedCondition(
-      gateInput({ lastFinished: finished({ input: 10_000, read: 110_000, staleMs: 60 * 1000 }) }), // 1 min < 5 min
+      gateInput({ lastFinished: finished({ input: 10_000, read: 250_000, staleMs: 60 * 1000 }) }), // 1 min < 5 min
     )
     expect(result).toBeNull()
   })
 
-  it("SESSION RESUME but SMALL (<100K) → still no gate (size gate is the outer condition)", async () => {
+  it("SESSION RESUME but SMALL (<200K) → still no gate (size gate is the outer condition)", async () => {
     ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
     const result = await deriveObservedCondition(
-      gateInput({ lastFinished: finished({ input: 50_000, staleMs: 10 * 60 * 1000 }) }),
+      gateInput({ lastFinished: finished({ input: 120_000, staleMs: 10 * 60 * 1000 }) }),
     )
     expect(result).toBeNull()
   })
 
-  it("cold-recreate cache (high write, low read) at >100K still fires (write is the cold cost)", async () => {
+  it("cold-recreate cache (high write, low read) at >200K still fires (write is the cold cost)", async () => {
     ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
     // cache expired → prefix re-written this turn: read≈0, write large → frac<0.5.
     const result = await deriveObservedCondition(
-      gateInput({ lastFinished: finished({ input: 5_000, read: 2_000, write: 130_000 }) }),
+      gateInput({ lastFinished: finished({ input: 5_000, read: 2_000, write: 230_000 }) }),
     )
     expect(result).toBe("cache-aware")
   })
