@@ -222,6 +222,8 @@ export function buildSessionTelemetryFromProjector(input: {
       asNumber(sessionSummaryRecord?.cumulativeCacheReadTokens) ?? input.session?.stats?.tokens?.cache?.read,
     cumulativeInputTokens:
       asNumber(sessionSummaryRecord?.cumulativeInputTokens) ?? input.session?.stats?.tokens?.input,
+    cumulativeCacheWriteTokens:
+      asNumber(sessionSummaryRecord?.cumulativeCacheWriteTokens) ?? input.session?.stats?.tokens?.cache?.write,
     totalRequests: asNumber(sessionSummaryRecord?.totalRequests) ?? 0,
     providerId: round.providerId ?? input.session?.execution?.providerId,
     accountId: round.accountId ?? input.session?.execution?.accountId,

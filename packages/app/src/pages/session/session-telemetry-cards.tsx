@@ -236,8 +236,11 @@ export function RoundSessionTelemetryCard(props: {
     if (!telemetry) return []
     const prompt = telemetry.round.promptTokens ?? 0
     const cacheRead = telemetry.round.cacheReadTokens ?? 0
-    const totalInput = prompt + cacheRead
-    const roundHitPct = totalInput > 0 ? (cacheRead / totalInput) * 100 : undefined
+    const cacheWrite = telemetry.round.cacheWriteTokens ?? 0
+    // claude bills cache read/write separately: a cold turn's cache_write is the
+    // (re)created prefix — NOT a hit. Hit rate = read / full prompt (read+write+input).
+    const promptTotal = prompt + cacheRead + cacheWrite
+    const roundHitPct = promptTotal > 0 ? (cacheRead / promptTotal) * 100 : undefined
     return [
       tokenLine("Prompt", telemetry.round.promptTokens),
       tokenLine("Response", telemetry.round.responseTokens),
@@ -263,8 +266,11 @@ export function RoundSessionTelemetryCard(props: {
       telemetry.sessionSummary.accountId
     const cumCache = telemetry.sessionSummary.cumulativeCacheReadTokens ?? 0
     const cumInput = telemetry.sessionSummary.cumulativeInputTokens ?? 0
-    const cumTotalInput = cumInput + cumCache
-    const sessionHitPct = cumTotalInput > 0 ? (cumCache / cumTotalInput) * 100 : undefined
+    const cumWrite = telemetry.sessionSummary.cumulativeCacheWriteTokens ?? 0
+    // include cache_write so cold turns (big write, 0 read) drag the rate down —
+    // otherwise claude sessions falsely show ~100% (write was never in the denominator).
+    const cumPromptTotal = cumInput + cumCache + cumWrite
+    const sessionHitPct = cumPromptTotal > 0 ? (cumCache / cumPromptTotal) * 100 : undefined
     return [
       telemetry.sessionSummary.totalRequests > 0 ? `${telemetry.sessionSummary.totalRequests} requests` : undefined,
       telemetry.sessionSummary.cumulativeTokens > 0
