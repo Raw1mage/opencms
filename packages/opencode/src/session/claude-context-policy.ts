@@ -43,24 +43,23 @@ export function shouldSkipClaudeEventCompaction(
   return isClaudeContextProvider(providerId) && CLAUDE_NOOP_OBSERVED.has(observed)
 }
 
+// B-compaction size gate moved to per-provider tweak config
+// (context/claude-refactor DD-23): `Tweaks.contextThresholdsSync(providerId).bCompactTokens`
+// — absolute tokens, tunable, claude-cli default 100K. See config/tweaks.ts
+// ContextThresholdProfile. The gate gates on observable context SIZE (never on
+// cache_read/chain), so it stays structurally cascade-immune.
+
 /**
- * Size gate (tokens) for the claude cold-cache compaction trigger
- * (DD-13/14/16/18). A claude turn compacts only when it is BOTH cold (less than
- * half the prompt was served cheaply from cache) AND larger than this gate — so
- * the next turns send a bounded supersede-framed anchor+tail instead of the full
- * 1M array on every cold (>5min TTL) resend. Below the gate, raw full-retransmit
- * is cheaper than carrying an anchor.
- *
- * The gate is a NEGATIVE-feedback trigger: a compaction shrinks the message
- * array below the gate, so the compaction-induced cold turn does NOT re-trigger
- * → structurally cascade-immune. Contrast the codex `cache_read`-drop heuristic,
- * whose old "cliff → compaction" response was positive feedback (compaction →
- * new prefix → cache drops → re-trigger) and produced the 2026-05-19 cascade;
- * codex's cliff path is now chain-reset-only, and claude never adopts that
- * heuristic — it gates on observable context SIZE, never on cache_read/chain.
- * Illustrative / tunable.
+ * Anthropic ephemeral prompt-cache TTL (ms). After this much idle the cache is
+ * GONE, so the next request is a guaranteed cold full-prefill regardless of what
+ * the previous turn's recorded cache split was. context/claude-refactor DD-16
+ * (session_resume): on resume/rebind after a long gap, the cold-compaction gate
+ * must fire on the IDLE-GAP signal — "we are resuming now, cache is dead" — not
+ * only on the previous turn's stale cache_read fraction. Otherwise a session
+ * whose last turn happened to be warm would full-prefill its whole array on the
+ * first cold resume, unbounded. 5 min = Anthropic's default ephemeral TTL.
  */
-export const CLAUDE_COLD_COMPACTION_GATE = 100_000
+export const CLAUDE_CACHE_TTL_MS = 5 * 60 * 1000
 
 /**
  * READ-TIME anchor projection for the claude path (context/claude-refactor

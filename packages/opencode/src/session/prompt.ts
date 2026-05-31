@@ -71,7 +71,7 @@ import { prepareUserMessageContext } from "./user-message-context"
 import { buildUserMessageParts } from "./user-message-parts"
 import { materializeToolAttachments } from "./attachment-ownership"
 import { emitSessionNarration, isNarrationAssistantMessage } from "./narration"
-import { isClaudeContextProvider, CLAUDE_COLD_COMPACTION_GATE, projectClaudeAnchors } from "./claude-context-policy"
+import { isClaudeContextProvider, CLAUDE_CACHE_TTL_MS, projectClaudeAnchors } from "./claude-context-policy"
 import {
   decideAutonomousContinuation,
   describeAutonomousNextAction,
@@ -582,16 +582,35 @@ export async function deriveObservedCondition(input: {
       // telemetry-only path byte-identical (INV-0). "cache-aware" → KIND_CHAIN
       // ["narrative","ai_paid"] and is NOT a CLAUDE_NOOP_OBSERVED, so it
       // produces a real supersede-framed anchor on the claude path.
-      if (isClaudeContextProvider(input.pinnedProviderId) && promptTotal > CLAUDE_COLD_COMPACTION_GATE) {
+      // context/claude-refactor DD-23: B-compaction threshold is per-provider,
+      // absolute tokens, tunable via tweak config (compaction_ctx_<provider>_b_tokens).
+      // claude-cli default 100K; other providers fall back to the `default` profile.
+      const bCompactTokens = Tweaks.contextThresholdsSync(input.pinnedProviderId).bCompactTokens
+      if (isClaudeContextProvider(input.pinnedProviderId) && promptTotal > bCompactTokens) {
+        // DD-16 cold detection has TWO sources, OR'd:
+        //  (1) cache_read share < half  → the LAST turn was cold (active-session).
+        //  (2) idle gap > cache TTL     → SESSION RESUME / rebind: enough time has
+        //      passed that the ephemeral cache is GONE, so the NEXT request is a
+        //      guaranteed cold full-prefill — regardless of the previous turn's
+        //      (now-stale) recorded cache split. Without (2), a session whose last
+        //      turn was warm would full-prefill its whole array on first cold
+        //      resume, unbounded. resume==rebind here: claude has no server chain
+        //      to rebind, so the resume work is purely "cache dead → bound the
+        //      resend"; codex's chain reset is handled separately in the SS branch.
         const cacheReadFraction = promptTotal > 0 ? t.cache.read / promptTotal : 0
-        if (cacheReadFraction < 0.5) {
+        const lastCompletedAt = finished.time?.completed ?? finished.time?.created ?? 0
+        const idleMs = lastCompletedAt > 0 ? Date.now() - lastCompletedAt : 0
+        const idleColdResume = idleMs > CLAUDE_CACHE_TTL_MS
+        if (cacheReadFraction < 0.5 || idleColdResume) {
           debugCheckpoint("prompt", "claude_cold_compaction_gate", {
             sessionID: input.sessionID,
             step: input.step,
             promptTotal,
             cacheRead: t.cache.read,
             cacheReadFraction,
-            gate: CLAUDE_COLD_COMPACTION_GATE,
+            idleMs,
+            idleColdResume,
+            gate: bCompactTokens,
           })
           return "cache-aware"
         }

@@ -185,6 +185,24 @@ export namespace Tweaks {
    *   the active model's context window (DD-5). Over the cap → next
    *   compaction is forced into Phase 2 absorbing pinned_zone.
    */
+  /**
+   * context/claude-refactor (A/B/C 觸發模型, DD-23): one provider's compaction
+   * thresholds, in ABSOLUTE tokens (not ratios — claude 50% is never reached so
+   * absolute K is what we actually tune; codex small-window needs its own).
+   */
+  export interface ContextThresholdProfile {
+    /** B-compaction trigger: cold total context above this folds C→B (narrative). */
+    bCompactTokens: number
+    /**
+     * A-compaction trigger: B size above this archives oldest B→A (ai_paid),
+     * ONLY on cache-lost. (future) RULE (DD-23): if A would fire but there is no
+     * B anchor to archive from, SKIP — A can only compress existing B.
+     */
+    aCompactTokens: number
+    /** How much oldest-B to archive per cold moment (分期付款 increment). (future) */
+    aIncrementTokens: number
+  }
+
   export interface CompactionConfig {
     /**
      * Master switch for the hybrid-llm compaction kind. Default false
@@ -286,6 +304,14 @@ export namespace Tweaks {
      * average.
      */
     anchorRecompressCeilingTokens: number
+    /**
+     * context/claude-refactor (A/B/C, DD-23): per-provider granular compaction
+     * thresholds. Keyed by `providerId`; `default` is the fallback. claude and
+     * codex carry different values (big-window vs small-window). Tunable for
+     * offline ablation / live 調校. Only `claude-cli` is consumed today (A/B/C is
+     * claude-gated); other entries are scaffolding for codex generalisation.
+     */
+    contextThresholds: Record<string, ContextThresholdProfile>
   }
 
   export interface SessionStorageConfig {
@@ -421,6 +447,16 @@ export namespace Tweaks {
     enableUserMsgReplay: true,
     enableDialogRedactionAnchor: true,
     anchorRecompressCeilingTokens: 50_000,
+    // context/claude-refactor A/B/C (DD-23) — absolute-token, per-provider. Start
+    // values; all to be experiment-tuned. Only claude-cli is consumed today.
+    contextThresholds: {
+      default: { bCompactTokens: 100_000, aCompactTokens: 60_000, aIncrementTokens: 20_000 },
+      // claude (1M window): absolute K — B 200K (cold total → C+B compaction),
+      // A 100K (B size → archive oldest B→A). B>A keeps B drained under A. 50%
+      // ratio is never reached on claude, so absolute K is what we tune.
+      "claude-cli": { bCompactTokens: 200_000, aCompactTokens: 100_000, aIncrementTokens: 20_000 },
+      codex: { bCompactTokens: 80_000, aCompactTokens: 50_000, aIncrementTokens: 15_000 },
+    },
   }
 
   const SESSION_STORAGE_DEFAULTS: SessionStorageConfig = {
@@ -1002,6 +1038,31 @@ export namespace Tweaks {
     }
 
     const compaction: CompactionConfig = { ...COMPACTION_DEFAULTS }
+    // context/claude-refactor A/B/C (DD-23): deep-clone the per-provider
+    // thresholds (the shallow spread above shares the nested object with the
+    // defaults) and apply optional flat overrides:
+    //   compaction_ctx_<provider>_b_tokens / _a_tokens / _a_increment_tokens
+    compaction.contextThresholds = Object.fromEntries(
+      Object.entries(COMPACTION_DEFAULTS.contextThresholds).map(([prov, p]) => [prov, { ...p }]),
+    )
+    for (const prov of Object.keys(compaction.contextThresholds)) {
+      const prof = compaction.contextThresholds[prov]
+      const bRaw = parsed.get(`compaction_ctx_${prov}_b_tokens`)
+      if (bRaw !== undefined) {
+        const v = parseIntRange(bRaw, `compaction_ctx_${prov}_b_tokens`, 1_000, 2_000_000)
+        if (v !== undefined) prof.bCompactTokens = v
+      }
+      const aRaw = parsed.get(`compaction_ctx_${prov}_a_tokens`)
+      if (aRaw !== undefined) {
+        const v = parseIntRange(aRaw, `compaction_ctx_${prov}_a_tokens`, 1_000, 2_000_000)
+        if (v !== undefined) prof.aCompactTokens = v
+      }
+      const aiRaw = parsed.get(`compaction_ctx_${prov}_a_increment_tokens`)
+      if (aiRaw !== undefined) {
+        const v = parseIntRange(aiRaw, `compaction_ctx_${prov}_a_increment_tokens`, 1_000, 2_000_000)
+        if (v !== undefined) prof.aIncrementTokens = v
+      }
+    }
     const cmpEnableRaw = parsed.get("compaction_enable_hybrid_llm")
     if (cmpEnableRaw !== undefined) {
       const v = parseBool(cmpEnableRaw, "compaction_enable_hybrid_llm")
@@ -1302,6 +1363,16 @@ export namespace Tweaks {
    */
   export function compactionSync(): CompactionConfig {
     return _effective?.compaction ?? COMPACTION_DEFAULTS
+  }
+
+  /**
+   * context/claude-refactor A/B/C (DD-23): per-provider compaction thresholds,
+   * falling back to the `default` profile for any provider without its own entry.
+   * Sync (cached property read) — safe for the deriveObservedCondition hot path.
+   */
+  export function contextThresholdsSync(providerId: string | undefined): ContextThresholdProfile {
+    const all = compactionSync().contextThresholds
+    return (providerId !== undefined && all[providerId]) || all.default
   }
 
   export function sessionStorageSync(): SessionStorageConfig {
