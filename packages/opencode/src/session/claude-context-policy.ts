@@ -50,6 +50,33 @@ export function shouldSkipClaudeEventCompaction(
 // cache_read/chain), so it stays structurally cascade-immune.
 
 /**
+ * DD-23 P4-2 — A-tier (background ai_paid) enrichment gate. Decides whether a
+ * just-written narrative B anchor is big enough to be worth a background
+ * recompress into the smaller ai_paid A-tier. Returns true = RUN enrichment.
+ *
+ * claude triggers on an ABSOLUTE token floor (`aFloorTokens`, from the
+ * per-provider tweak `aCompactTokens`, claude-cli 100K): its 1M window makes
+ * the legacy context-ratio gate (0.4 → 400K) unreachable, so a fat ~160K claude
+ * anchor was scheduled-then-skipped every cache-aware turn and only ever grew
+ * (ses_188bb5576 #6). Non-claude providers keep the legacy context-ratio gate
+ * byte-identical (INV-0; codex profile is a separate later push) — small
+ * windows (≤128K) demand 25%, larger ones 40%.
+ */
+export function shouldEnrichAnchor(input: {
+  providerId: string | undefined
+  anchorTokens: number
+  contextLimit: number
+  aFloorTokens: number
+}): boolean {
+  if (isClaudeContextProvider(input.providerId)) {
+    return input.anchorTokens >= input.aFloorTokens
+  }
+  const ratio = input.contextLimit > 0 ? input.anchorTokens / input.contextLimit : 0
+  const gate = input.contextLimit <= 128_000 ? 0.25 : 0.4
+  return ratio >= gate
+}
+
+/**
  * Anthropic ephemeral prompt-cache TTL (ms). After this much idle the cache is
  * GONE, so the next request is a guaranteed cold full-prefill regardless of what
  * the previous turn's recorded cache split was. context/claude-refactor DD-16

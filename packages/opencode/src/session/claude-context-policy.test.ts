@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test"
 import {
   isClaudeContextProvider,
   shouldSkipClaudeEventCompaction,
+  shouldEnrichAnchor,
   CLAUDE_NOOP_OBSERVED,
 } from "./claude-context-policy"
 
@@ -39,5 +40,46 @@ describe("claude-context-policy: event-compaction no-op (DD-4)", () => {
     for (const p of ["copilot-cli", "local", undefined]) {
       expect(shouldSkipClaudeEventCompaction(p as any, "provider-switched")).toBe(false)
     }
+  })
+})
+
+describe("claude-context-policy: A-tier enrichment gate (DD-23 P4-2)", () => {
+  const claudeFloor = 100_000 // claude-cli aCompactTokens
+
+  it("claude: anchor at/above absolute floor => enrich, regardless of 1M ratio", () => {
+    // ses_188bb5576 #6 reality: 160K anchor in a 1M window = 0.16 ratio.
+    // Legacy 0.4 ratio gate skipped it; absolute floor must RUN it.
+    expect(
+      shouldEnrichAnchor({ providerId: "claude-cli", anchorTokens: 160_000, contextLimit: 1_000_000, aFloorTokens: claudeFloor }),
+    ).toBe(true)
+    expect(
+      shouldEnrichAnchor({ providerId: "claude-cli", anchorTokens: 100_000, contextLimit: 1_000_000, aFloorTokens: claudeFloor }),
+    ).toBe(true)
+  })
+
+  it("claude: anchor below absolute floor => skip (don't recompress a thin anchor)", () => {
+    expect(
+      shouldEnrichAnchor({ providerId: "claude-cli", anchorTokens: 99_999, contextLimit: 1_000_000, aFloorTokens: claudeFloor }),
+    ).toBe(false)
+    expect(
+      shouldEnrichAnchor({ providerId: "claude-cli", anchorTokens: 30_000, contextLimit: 1_000_000, aFloorTokens: claudeFloor }),
+    ).toBe(false)
+  })
+
+  it("non-claude keeps the legacy context-ratio gate byte-identical (INV-0)", () => {
+    // Large window (>128K) => 0.4 gate. codex aFloorTokens is IGNORED on this path.
+    expect(
+      shouldEnrichAnchor({ providerId: "codex", anchorTokens: 160_000, contextLimit: 1_000_000, aFloorTokens: 50_000 }),
+    ).toBe(false) // 0.16 < 0.4 — unchanged from legacy
+    expect(
+      shouldEnrichAnchor({ providerId: "codex", anchorTokens: 410_000, contextLimit: 1_000_000, aFloorTokens: 50_000 }),
+    ).toBe(true) // 0.41 >= 0.4
+    // Small window (≤128K) => 0.25 gate.
+    expect(
+      shouldEnrichAnchor({ providerId: "copilot-cli", anchorTokens: 40_000, contextLimit: 128_000, aFloorTokens: 50_000 }),
+    ).toBe(true) // 0.3125 >= 0.25
+    expect(
+      shouldEnrichAnchor({ providerId: "copilot-cli", anchorTokens: 30_000, contextLimit: 128_000, aFloorTokens: 50_000 }),
+    ).toBe(false) // 0.234 < 0.25
   })
 })
