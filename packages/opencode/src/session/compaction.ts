@@ -29,7 +29,7 @@ import {
   emitUserMsgReplayTelemetry,
 } from "./compaction-telemetry"
 import { sanitizeAnchorToString, type AnchorKind } from "./anchor-sanitizer"
-import { shouldSkipClaudeEventCompaction } from "./claude-context-policy"
+import { shouldSkipClaudeEventCompaction, isClaudeContextProvider, shouldEnrichAnchor } from "./claude-context-policy"
 import { checkCleanTail } from "./idle-compaction-gate"
 import { SkillLayerRegistry } from "./skill-layer-registry"
 import { diagnoseCacheMiss } from "./cache-miss-diagnostic"
@@ -1760,14 +1760,34 @@ When constructing the summary, try to stick to this template:
         // no point polishing a 5% anchor.
         // Dynamic threshold: small context (≤128K) → 25% (every token counts),
         // large context (>128K) → 40% (more room to spare).
-        const enrichGateRatio = contextLimit <= 128_000 ? 0.25 : 0.4
+        //
+        // DD-23 P4-2 (A-tier foundation): the ratio gate is unreachable on
+        // claude's 1M window — 0.4×1M = 400K, but a fat claude B anchor sits
+        // at ~160K (ses_188bb5576 #6), so the background ai_paid A-tier was
+        // SCHEDULED every cache-aware turn (4×) yet skipped here every time →
+        // the anchor only re-narrativised and GREW. claude triggers on the
+        // ABSOLUTE aCompactTokens floor instead (per-provider tweak, claude-cli
+        // 100K). codex/copilot keep the ratio gate byte-identical (INV-0;
+        // DD-23 codex profile is a separate later push). Foreground stays fast
+        // narrative (the 0-token B buffer); this background pass does the
+        // shrink, matching DD-23's non-blocking A design.
+        const claudePath = isClaudeContextProvider(model.providerId)
         const anchorRatio = contextLimit > 0 ? narrativeTokens / contextLimit : 0
-        if (anchorRatio < enrichGateRatio) {
-          log.info("hybrid_llm enrichment skipped (anchor body < 50% of context)", {
+        const aFloorTokens = Tweaks.contextThresholdsSync(model.providerId).aCompactTokens
+        const belowGate = !shouldEnrichAnchor({
+          providerId: model.providerId,
+          anchorTokens: narrativeTokens,
+          contextLimit,
+          aFloorTokens,
+        })
+        if (belowGate) {
+          log.info("hybrid_llm enrichment skipped (anchor body below A-tier floor)", {
             sessionID,
             narrativeTokens,
             contextLimit,
             anchorRatio,
+            claudePath,
+            aFloorTokens: claudePath ? aFloorTokens : undefined,
           })
           console.error(
             `[ENRICH-SKIP] reason=anchor_small ratio=${(anchorRatio * 100).toFixed(0)}% tokens=${narrativeTokens} ctx=${contextLimit} session=${sessionID}`,
@@ -2912,7 +2932,21 @@ When constructing the summary, try to stick to this template:
     if (assistantChild) {
       const finish = (assistantChild.info as MessageV2.Assistant).finish
       const lengthIsAnswered = observed !== "overflow"
-      if (finish === "stop" || finish === "tool-calls" || (lengthIsAnswered && finish === "length")) {
+      // 2026-06-01 overflow-replay-toolchain-fix (Path C): an overflow that
+      // fired in the MIDDLE of a tool-call chain — first child finish=tool-calls
+      // but NO terminal `stop` ever arrived anywhere in the chain
+      // (firstStopIdx === -1) — is the literal symptom of the interruption, not
+      // a completed answer. The model was still mid-work (e.g. ran git status,
+      // intended to stage+commit). Treat it as UNANSWERED so the user request is
+      // replayed across the anchor and the work resumes — mirroring the Path A
+      // finish=length special-case. Without this the anchor is written auto:false
+      // with nothing replayed, the runloop hits loop:no_user_after_compaction and
+      // exits silently, stranding the in-flight work (ses_17d9df5dcffe). A later
+      // child that DID reach stop (firstStopIdx > 0) means the request was truly
+      // answered after some tool calls — keep tool-calls-as-answered there.
+      const toolCallsInterrupted = observed === "overflow" && finish === "tool-calls" && firstStopIdx === -1
+      const toolCallsAnswered = finish === "tool-calls" && !toolCallsInterrupted
+      if (finish === "stop" || toolCallsAnswered || (lengthIsAnswered && finish === "length")) {
         log.info("compaction.snapshot.skipped", {
           sessionID,
           observed,

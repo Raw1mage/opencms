@@ -250,6 +250,38 @@ describe("SessionCompaction.snapshotUnansweredUserMessage", () => {
     expect(result).toBeUndefined()
   })
 
+  // Path C (2026-06-01 overflow-replay-toolchain-fix): observed=overflow +
+  // first child finish=tool-calls but NO terminal stop anywhere in the chain
+  // = overflow fired mid-tool-call chain. The model was still working (ran a
+  // tool, intended to continue) — treat as UNANSWERED so replay resumes it.
+  // Without this the runloop silently exits via no_user_after_compaction
+  // (ses_17d9df5dcffe: user typed "commit", model ran git status @201K tokens,
+  // B-compaction fired, work stranded until manual "go").
+  it("Path C: returns snapshot when observed=overflow + tool-calls child with no terminal stop", async () => {
+    stubMessages([userMsg("msg_u", "commit"), assistantMsg("msg_a", "tool-calls")])
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "overflow")
+    expect(result).toBeDefined()
+    expect(result!.info.id).toBe("msg_u")
+    expect(result!.emptyAssistantID).toBe("msg_a")
+  })
+
+  // Path C complement: a tool-call chain that DID reach a terminal stop means
+  // the request was genuinely answered (model finished after some tool calls).
+  // firstStopIdx > 0 → keep tool-calls-as-answered even under overflow.
+  it("Path C complement: returns undefined when overflow tool-call chain reached a terminal stop", async () => {
+    stubMessages([userMsg("msg_u"), assistantMsg("msg_a1", "tool-calls"), assistantMsg("msg_a2", "stop")])
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "overflow")
+    expect(result).toBeUndefined()
+  })
+
+  // Path C guard: tool-calls-as-interrupted is OVERFLOW-ONLY. A non-overflow
+  // observed (e.g. manual) keeps tool-calls-as-answered (no replay).
+  it("Path C guard: returns undefined when observed=manual + tool-calls child (no stop)", async () => {
+    stubMessages([userMsg("msg_u"), assistantMsg("msg_a", "tool-calls")])
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual")
+    expect(result).toBeUndefined()
+  })
+
   // Path B: SessionCompaction.create writes a user-role msg whose only part
   // is a compaction-request placeholder. Snapshot must skip past it and find
   // the real user msg behind it — otherwise replay copies a meaningless
