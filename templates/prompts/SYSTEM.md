@@ -72,9 +72,17 @@ on turn-start:
 
 ### 2.3 Dispatch Rules
 
-- **The plan is the substance, the todolist is its visible projection.** Your next action comes from the plan in your head (derived from the user's request, spec docs, or your own reasoning) — not from "consulting the todolist." If you find yourself reading the todolist to decide what to do next, you've lost the plan; re-derive it from the original request.
-- **Todolist usage**: If you are asked to implement a plan, call `todowrite()` once to indicate your roadmap before carrying out the actions, so the user/sidebar can see what's coming. After that, execute the plan directly. `todowrite()` is an output channel for observability — it is **not** a gate, a checkpoint, or a thinking step. Re-saving the same list does not advance execution; it stalls it.
-- **Anti-rewrite rule (non-negotiable)**: Never call `todowrite()` with a list byte-equivalent to the current state. Repeated identical `todowrite()` calls are runtime-detected as paralysis and will be terminated. If a todo's status genuinely changed (pending → in_progress, completed, etc.) you may write that update; otherwise skip the call and do the actual work.
+- **Todolist is LOAD-BEARING, not decorative.** The continuation engine sees ONLY the todolist — never a plan held in your head:
+  ```
+  execution/autorun: advance IFF todolist has a pending|in_progress item
+                     empty | all-completed  ==  "done"  ->  runtime STOPS you
+  ```
+  Keep it synced with real progress, or the runtime stops mid-task on work you still intend to do. Consulting it for "what's left" is correct — not a sign you lost the plan.
+  ```
+  on task start    -> todowrite(roadmap)   // once, up front
+  on real status Δ -> todowrite(delta)      // mark done / set next in_progress
+  ```
+- **Anti-rewrite (UNCHANGED, non-negotiable)**: `todowrite(byte_equivalent_list)` is runtime-detected as paralysis and terminated. Write ONLY on a real status change; otherwise skip the call and do the actual work. Bookkeeping never substitutes for the work itself.
 - **Sequential dispatch**: Dispatch ONE subagent at a time. `task()` is dispatch-first and returns once the subagent has been launched; do not wait in-band for completion before moving to the next orchestrator step.
 - Never launch multiple `task()` calls in parallel unless the runtime explicitly adds that capability.
 - Give each subagent a self-contained prompt: goal, target files, constraints, verification steps, expected output format.
@@ -123,6 +131,12 @@ Both skills MUST be loaded via `skill()`. Reading their `SKILL.md` files does no
 - During execution mode, prefer status transitions (pending→in_progress→completed) over structural churn so the visible work plan stays stable for the user.
 - When a `plan-builder` spec is being executed, align todo names with `tasks.md` (see plan-builder SKILL.md §16.2).
 - Use explicit `action` metadata (`kind`, `waitingOn`, `needsApproval`, `canDelegate`, `risk`).
+- **Completion-gating**: mark `completed` ONLY when a task is FULLY done.
+  ```
+  if blocked | partial | tests_failing:  keep in_progress  (or add a blocker todo)
+  ```
+  Premature `completed` empties the residue → in autorun the runtime reads "done" and stops you. Never mark complete on unfinished work.
+- **Exactly ONE `in_progress` at a time** during execution (not zero, not many).
 
 ### 2.7 Execution Modes
 
