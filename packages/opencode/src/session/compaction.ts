@@ -278,11 +278,7 @@ export namespace SessionCompaction {
     | "compaction_stall_recovery"
     | "compaction_preemptive_daemon_restart"
     | "compaction_server_side" {
-    if (
-      eventMeta?.kind === "server-side" ||
-      eventMeta?.kind === "ai_free" ||
-      eventMeta?.kind === "low-cost-server"
-    ) {
+    if (eventMeta?.kind === "server-side" || eventMeta?.kind === "ai_free" || eventMeta?.kind === "low-cost-server") {
       return "compaction_server_side"
     }
     switch (eventMeta?.observed) {
@@ -411,9 +407,9 @@ export namespace SessionCompaction {
   async function isFreerunProvider(model: Provider.Model): Promise<boolean> {
     try {
       const cfg = await Config.get()
-      const providerCfg = (cfg.provider as Record<string, { lite?: boolean; mode?: "full" | "lite" | "freerun" }> | undefined)?.[
-        model.providerId
-      ]
+      const providerCfg = (
+        cfg.provider as Record<string, { lite?: boolean; mode?: "full" | "lite" | "freerun" }> | undefined
+      )?.[model.providerId]
       return providerCfg?.mode === "freerun"
     } catch {
       return false
@@ -1196,7 +1192,7 @@ export namespace SessionCompaction {
    * slices from a bodyless anchor → context drops to near zero.
    */
   async function demoteStubAnchors(sessionID: string, msgs?: MessageV2.WithParts[]) {
-    const messages = msgs ?? await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
+    const messages = msgs ?? (await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[]))
     for (const m of messages) {
       if (m.info.role !== "assistant") continue
       if ((m.info as MessageV2.Assistant).summary !== true) continue
@@ -1330,9 +1326,7 @@ export namespace SessionCompaction {
             })
             const stateOutput = p.state.output
             const outputStr =
-              stateOutput == null ? "" :
-              typeof stateOutput === "string" ? stateOutput :
-              JSON.stringify(stateOutput)
+              stateOutput == null ? "" : typeof stateOutput === "string" ? stateOutput : JSON.stringify(stateOutput)
             items.push({
               type: "function_call_output",
               call_id: (p as any).toolCallId ?? p.id,
@@ -1730,7 +1724,9 @@ When constructing the summary, try to stick to this template:
     const dialogRedactionFlag =
       (tweaks as { enableDialogRedactionAnchor?: boolean }).enableDialogRedactionAnchor !== false
     if (!dialogRedactionFlag && !new Set<Observed>(["overflow", "cache-aware", "manual"]).has(observed)) {
-      console.error(`[ENRICH-SKIP] reason=observed_not_eligible observed=${observed} dialogRedactionFlag=${dialogRedactionFlag} session=${sessionID}`)
+      console.error(
+        `[ENRICH-SKIP] reason=observed_not_eligible observed=${observed} dialogRedactionFlag=${dialogRedactionFlag} session=${sessionID}`,
+      )
       return
     }
 
@@ -1764,7 +1760,7 @@ When constructing the summary, try to stick to this template:
         // no point polishing a 5% anchor.
         // Dynamic threshold: small context (≤128K) → 25% (every token counts),
         // large context (>128K) → 40% (more room to spare).
-        const enrichGateRatio = contextLimit <= 128_000 ? 0.25 : 0.40
+        const enrichGateRatio = contextLimit <= 128_000 ? 0.25 : 0.4
         const anchorRatio = contextLimit > 0 ? narrativeTokens / contextLimit : 0
         if (anchorRatio < enrichGateRatio) {
           log.info("hybrid_llm enrichment skipped (anchor body < 50% of context)", {
@@ -1773,7 +1769,9 @@ When constructing the summary, try to stick to this template:
             contextLimit,
             anchorRatio,
           })
-          console.error(`[ENRICH-SKIP] reason=anchor_small ratio=${(anchorRatio * 100).toFixed(0)}% tokens=${narrativeTokens} ctx=${contextLimit} session=${sessionID}`)
+          console.error(
+            `[ENRICH-SKIP] reason=anchor_small ratio=${(anchorRatio * 100).toFixed(0)}% tokens=${narrativeTokens} ctx=${contextLimit} session=${sessionID}`,
+          )
           return
         }
 
@@ -1854,7 +1852,7 @@ When constructing the summary, try to stick to this template:
           // Keep 40% of the anchor's own body length (not 40% of context).
           // If anchor is 40% of context, keeping 40% of it = 16% of context.
           // This ensures meaningful compression regardless of anchor size.
-          const KEEP_RATIO = 0.40
+          const KEEP_RATIO = 0.4
           const keepChars = Math.floor(latestBody.length * KEEP_RATIO)
           let trimmedBody = latestBody
           if (latestBody.length > keepChars) {
@@ -1903,13 +1901,13 @@ When constructing the summary, try to stick to this template:
         }
 
         // ── Step 2: ai_paid (LLM) — last resort when drop_old didn't apply ──
-        log.info("enrichment step 2 (ai_paid LLM): anchor not trimmed by drop_old, attempting LLM compress", { sessionID })
+        log.info("enrichment step 2 (ai_paid LLM): anchor not trimmed by drop_old, attempting LLM compress", {
+          sessionID,
+        })
         emitTelemetry("session.hybrid_enrichment.fallback_to_ai_paid")
         const LLM_INPUT_TOKEN_CAP = 30_000
         const llmInputCharCap = LLM_INPUT_TOKEN_CAP * 4
-        const llmBody = latestBody.length > llmInputCharCap
-          ? latestBody.slice(-llmInputCharCap)
-          : latestBody
+        const llmBody = latestBody.length > llmInputCharCap ? latestBody.slice(-llmInputCharCap) : latestBody
         const priorAnchor: Hybrid.Anchor = {
           role: "assistant",
           summary: true,
@@ -2010,7 +2008,9 @@ When constructing the summary, try to stick to this template:
           .map((p) => (p as any).text ?? "")
           .join("\n")
         if (!upgradedBody.trim()) {
-          log.warn("hybrid_llm enrichment: stub anchor has no text body; leaving narrative anchor unchanged", { sessionID })
+          log.warn("hybrid_llm enrichment: stub anchor has no text body; leaving narrative anchor unchanged", {
+            sessionID,
+          })
           return
         }
 
@@ -2135,9 +2135,8 @@ When constructing the summary, try to stick to this template:
       // Resolve accountId from session execution (pinned by rotation),
       // falling back to last user message or anchor message.
       const sessionExec = (await Session.get(sessionID).catch(() => undefined))?.execution
-      const accountId = sessionExec?.accountId
-        ?? lastUser?.model?.accountId
-        ?? (anchorMsg.info as MessageV2.Assistant).accountId
+      const accountId =
+        sessionExec?.accountId ?? lastUser?.model?.accountId ?? (anchorMsg.info as MessageV2.Assistant).accountId
       const agent = lastUser?.agent ? await Agent.get(lastUser.agent).catch(() => undefined) : undefined
       const instructions = (agent?.prompt ?? "").slice(0, 50_000)
 
@@ -2154,7 +2153,7 @@ When constructing the summary, try to stick to this template:
         sessionID,
         totalItems: allConversationItems.length,
         batches: batches.length,
-        batchSizes: batches.map(b => b.length),
+        batchSizes: batches.map((b) => b.length),
         anchorTokensBefore,
       })
 
@@ -2406,8 +2405,7 @@ When constructing the summary, try to stick to this template:
     // llm-agent. By-request providers (copilot) have tiny context windows —
     // narrative append doesn't shrink context, only ai_paid does.
     const forceRich = intent === "rich" || (observed === "manual" && byRequest)
-    const chain: ReadonlyArray<KindName> =
-      observed === "manual" && forceRich ? (["ai_paid"] as const) : baseChain
+    const chain: ReadonlyArray<KindName> = observed === "manual" && forceRich ? (["ai_paid"] as const) : baseChain
     emitKindChainTelemetry({
       observed,
       providerId: model?.providerId,
@@ -2468,149 +2466,170 @@ When constructing the summary, try to stick to this template:
       ? await snapshotUnansweredUserMessage(sessionID, observed).catch(() => undefined)
       : undefined
 
-    for (let i = 0; i < chain.length; i++) {
-      const kind = chain[i]
-      const attempt = await tryKind(kind, input, model)
-      log.info("compaction.kind_attempted", {
-        sessionID,
-        observed,
-        kind,
-        succeeded: attempt.ok,
-        reason: attempt.ok ? undefined : attempt.reason,
-      })
-      if (attempt.ok) {
-        // Double-phase escalation (DD-13): a LOCAL kind succeeded but had to
-        // drop content to fit the target cap (`truncated: true`). If a paid
-        // kind is available later in the chain, fall through and let it
-        // re-compress intelligently — the local result was lossy. If no paid
-        // kind remains, commit the truncated local result as best-effort.
-        if (!attempt.anchorWritten && isLocalKind(attempt.kind) && attempt.truncated && hasPaidKindLater(i)) {
-          const estimate = Math.ceil(attempt.summaryText.length / 4)
-          log.info("compaction.local_truncated_escalating", {
-            sessionID,
-            observed,
-            kind: attempt.kind,
-            estimate,
-            target,
-          })
-          continue
-        }
-        if (attempt.anchorWritten) {
-          // Executor already wrote the anchor (tryLlmAgent uses an inline
-          // SessionProcessor.process flow that requires a persisted message).
-          // Skip _writeAnchor; replay the snapshotted user msg first
-          // (so post-anchor stream is settled before Continue decision),
-          // THEN ask the runtime gate whether to inject Continue.
-          //
-          // user-msg-replay-unification DD-3 + DD-4: replay before
-          // injectContinue means shouldInjectContinue's runtime check
-          // sees the replayed user msg and correctly skips Continue
-          // injection. Helper never throws.
-          if (preReplaySnapshot) {
-            const newAnchorId = await readMostRecentAnchorId(sessionID)
-            if (newAnchorId) {
-              log.info("compaction.replay.invoked", {
-                sessionID,
-                observed,
-                step,
-                callSite: "run_anchorWritten",
-                anchorMessageID: newAnchorId,
-                snapshotUserID: preReplaySnapshot.info.id,
-              })
-              await _replayHelper({
-                sessionID,
-                snapshot: preReplaySnapshot,
-                anchorMessageID: newAnchorId,
-                observed,
-                step,
-              })
+    // Observability: mark the session as compacting so the TUI/monitor
+    // spinner (session.time.compacting → monitor.ts status "compacting")
+    // lights up. The web statusFooter already keys off Event.CompactionStarted
+    // (published above at 2371); this covers the TUI/sidebar path whose
+    // session.time.compacting flag previously had ZERO writers (declared +
+    // consumed but never set = dead spinner). Cleared in the finally below on
+    // every exit (success / exhaust / throw) so the spinner never sticks.
+    await Session.update(sessionID, (draft) => {
+      draft.time.compacting = Date.now()
+    }).catch(() => {})
+    try {
+      for (let i = 0; i < chain.length; i++) {
+        const kind = chain[i]
+        const attempt = await tryKind(kind, input, model)
+        log.info("compaction.kind_attempted", {
+          sessionID,
+          observed,
+          kind,
+          succeeded: attempt.ok,
+          reason: attempt.ok ? undefined : attempt.reason,
+        })
+        if (attempt.ok) {
+          // Double-phase escalation (DD-13): a LOCAL kind succeeded but had to
+          // drop content to fit the target cap (`truncated: true`). If a paid
+          // kind is available later in the chain, fall through and let it
+          // re-compress intelligently — the local result was lossy. If no paid
+          // kind remains, commit the truncated local result as best-effort.
+          if (!attempt.anchorWritten && isLocalKind(attempt.kind) && attempt.truncated && hasPaidKindLater(i)) {
+            const estimate = Math.ceil(attempt.summaryText.length / 4)
+            log.info("compaction.local_truncated_escalating", {
+              sessionID,
+              observed,
+              kind: attempt.kind,
+              estimate,
+              target,
+            })
+            continue
+          }
+          if (attempt.anchorWritten) {
+            // Executor already wrote the anchor (tryLlmAgent uses an inline
+            // SessionProcessor.process flow that requires a persisted message).
+            // Skip _writeAnchor; replay the snapshotted user msg first
+            // (so post-anchor stream is settled before Continue decision),
+            // THEN ask the runtime gate whether to inject Continue.
+            //
+            // user-msg-replay-unification DD-3 + DD-4: replay before
+            // injectContinue means shouldInjectContinue's runtime check
+            // sees the replayed user msg and correctly skips Continue
+            // injection. Helper never throws.
+            if (preReplaySnapshot) {
+              const newAnchorId = await readMostRecentAnchorId(sessionID)
+              if (newAnchorId) {
+                log.info("compaction.replay.invoked", {
+                  sessionID,
+                  observed,
+                  step,
+                  callSite: "run_anchorWritten",
+                  anchorMessageID: newAnchorId,
+                  snapshotUserID: preReplaySnapshot.info.id,
+                })
+                await _replayHelper({
+                  sessionID,
+                  snapshot: preReplaySnapshot,
+                  anchorMessageID: newAnchorId,
+                  observed,
+                  step,
+                })
+              } else {
+                log.info("compaction.replay.skipped", {
+                  sessionID,
+                  observed,
+                  step,
+                  callSite: "run_anchorWritten",
+                  reason: "no_anchor_id_after_inline_write",
+                })
+              }
             } else {
               log.info("compaction.replay.skipped", {
                 sessionID,
                 observed,
                 step,
                 callSite: "run_anchorWritten",
-                reason: "no_anchor_id_after_inline_write",
+                reason: "no_snapshot",
               })
             }
-          } else {
-            log.info("compaction.replay.skipped", {
-              sessionID,
-              observed,
-              step,
-              callSite: "run_anchorWritten",
-              reason: "no_snapshot",
-            })
-          }
-          if (replayEnabled) {
-            const anchorIdForGate = await readMostRecentAnchorId(sessionID)
-            if (anchorIdForGate && (await shouldInjectContinue(sessionID, observed, anchorIdForGate))) {
+            if (replayEnabled) {
+              const anchorIdForGate = await readMostRecentAnchorId(sessionID)
+              if (anchorIdForGate && (await shouldInjectContinue(sessionID, observed, anchorIdForGate))) {
+                await injectContinueAfterAnchor(sessionID, observed)
+              }
+            } else if (INJECT_CONTINUE[observed]) {
+              // Legacy fallback (flag disabled): direct INJECT_CONTINUE
+              // table check, no runtime gate.
               await injectContinueAfterAnchor(sessionID, observed)
             }
-          } else if (INJECT_CONTINUE[observed]) {
-            // Legacy fallback (flag disabled): direct INJECT_CONTINUE
-            // table check, no runtime gate.
-            await injectContinueAfterAnchor(sessionID, observed)
+          } else if (model) {
+            await _writeAnchor({
+              sessionID,
+              summaryText: attempt.summaryText,
+              model,
+              auto: INJECT_CONTINUE[observed],
+              kind: attempt.kind,
+              serverCompactedItems: attempt.serverCompactedItems,
+              chainBinding: attempt.chainBinding,
+              observed,
+              step,
+              snapshot: preReplaySnapshot,
+            })
+          } else {
+            log.warn("compaction.run anchor write skipped: no resolvable model", { sessionID, observed })
           }
-        } else if (model) {
-          await _writeAnchor({
+          // Phase 13.1: Memory.markCompacted call removed. The anchor message
+          // written above (with `summary: true` and `time.created = now`) IS
+          // the cooldown signal — Cooldown.shouldThrottle reads it directly.
+          log.info("compaction.completed", {
             sessionID,
-            summaryText: attempt.summaryText,
-            model,
-            auto: INJECT_CONTINUE[observed],
-            kind: attempt.kind,
-            serverCompactedItems: attempt.serverCompactedItems,
-            chainBinding: attempt.chainBinding,
             observed,
+            kind: attempt.kind,
             step,
-            snapshot: preReplaySnapshot,
           })
-        } else {
-          log.warn("compaction.run anchor write skipped: no resolvable model", { sessionID, observed })
+          // hybrid_llm post-step enrichment (Phase 2 redesigned 2026-04-29):
+          // user is already unblocked because the chain just wrote a fast
+          // intermediate anchor. If the operator opted in to hybrid_llm,
+          // fire a background distillation that supersedes the chain's
+          // anchor with a higher-quality one. Always non-blocking; failures
+          // are logged but don't affect the runloop or the user.
+          if (hybridEnrichmentEligible.has(observed)) {
+            console.error(`[ENRICH-CALL] observed=${observed} kind=${attempt.kind} session=${sessionID}`)
+            scheduleHybridEnrichment(sessionID, observed, model)
+          } else {
+            console.error(`[ENRICH-INELIGIBLE] observed=${observed} session=${sessionID}`)
+          }
+          // compaction_simplification T8 (2026-05-14): rev5 sustainability
+          // watermark backstop retired. The 0.9 overflowThreshold (codex
+          // tuned) is now the sole synchronous overflow guard. The 20%
+          // local→ai_paid upgrade trigger (T4) provides preemptive size
+          // control without the watermark recursion machinery.
+          // Some kinds (low-cost-server) do not self-publish Event.Compacted;
+          // others (compactWithSharedContext / tryLlmAgent / tryHybridLlm) do.
+          // Publishing here for the kinds that don't ensures the frontend
+          // statusFooter reliably clears on every successful exit.
+          if (attempt.kind === "ai_free") {
+            void publishCompactedAndResetChain(sessionID, { observed, kind: attempt.kind })
+          }
+          return "continue"
         }
-        // Phase 13.1: Memory.markCompacted call removed. The anchor message
-        // written above (with `summary: true` and `time.created = now`) IS
-        // the cooldown signal — Cooldown.shouldThrottle reads it directly.
-        log.info("compaction.completed", {
-          sessionID,
-          observed,
-          kind: attempt.kind,
-          step,
-        })
-        // hybrid_llm post-step enrichment (Phase 2 redesigned 2026-04-29):
-        // user is already unblocked because the chain just wrote a fast
-        // intermediate anchor. If the operator opted in to hybrid_llm,
-        // fire a background distillation that supersedes the chain's
-        // anchor with a higher-quality one. Always non-blocking; failures
-        // are logged but don't affect the runloop or the user.
-        if (hybridEnrichmentEligible.has(observed)) {
-          console.error(`[ENRICH-CALL] observed=${observed} kind=${attempt.kind} session=${sessionID}`)
-          scheduleHybridEnrichment(sessionID, observed, model)
-        } else {
-          console.error(`[ENRICH-INELIGIBLE] observed=${observed} session=${sessionID}`)
-        }
-        // compaction_simplification T8 (2026-05-14): rev5 sustainability
-        // watermark backstop retired. The 0.9 overflowThreshold (codex
-        // tuned) is now the sole synchronous overflow guard. The 20%
-        // local→ai_paid upgrade trigger (T4) provides preemptive size
-        // control without the watermark recursion machinery.
-        // Some kinds (low-cost-server) do not self-publish Event.Compacted;
-        // others (compactWithSharedContext / tryLlmAgent / tryHybridLlm) do.
-        // Publishing here for the kinds that don't ensures the frontend
-        // statusFooter reliably clears on every successful exit.
-        if (attempt.kind === "ai_free") {
-          void publishCompactedAndResetChain(sessionID, { observed, kind: attempt.kind })
-        }
-        return "continue"
       }
-    }
 
-    log.warn("compaction.chain_exhausted", { sessionID, observed, step })
-    // Chain exhausted without writing an anchor — still publish Compacted
-    // so the frontend statusFooter clears (otherwise spinner sticks
-    // indefinitely after a silent failure).
-    void publishCompactedAndResetChain(sessionID, { observed, success: false })
-    return "stop"
+      log.warn("compaction.chain_exhausted", { sessionID, observed, step })
+      // Chain exhausted without writing an anchor — still publish Compacted
+      // so the frontend statusFooter clears (otherwise spinner sticks
+      // indefinitely after a silent failure).
+      void publishCompactedAndResetChain(sessionID, { observed, success: false })
+      return "stop"
+    } finally {
+      // Bulletproof clear: monitor.ts:474 treats any truthy time.compacting
+      // as "compacting" with NO staleness guard, so a missed clear = a
+      // permanently stuck TUI spinner (worse than silence). finally guarantees
+      // the flag clears on every exit path — success return, chain-exhausted
+      // return, or a throw from tryKind / _writeAnchor / replay.
+      await Session.update(sessionID, (draft) => {
+        draft.time.compacting = undefined
+      }).catch(() => {})
+    }
   }
 
   /** Inject the synthetic Continue user message only when PostCompaction
@@ -3265,9 +3284,7 @@ When constructing the summary, try to stick to this template:
     // sanitization. For hybrid_llm we deduplicate against any LLM-emitted
     // table.
     let augmentedSummary = input.summaryText
-    const needsClientSideIndex =
-      input.kind === "narrative" ||
-      input.kind === "ai_paid"
+    const needsClientSideIndex = input.kind === "narrative" || input.kind === "ai_paid"
     if (needsClientSideIndex) {
       try {
         const allMsgs = await Session.messages({ sessionID: input.sessionID }).catch(() => [] as MessageV2.WithParts[])
@@ -4501,7 +4518,9 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
           ? await Provider.getModel(exec.providerId, exec.modelID)
           : userMessage.model
             ? await Provider.getModel(userMessage.model.providerId, userMessage.model.modelID)
-            : await Provider.getModel(...(await Provider.defaultModel().then((m) => [m.providerId, m.modelID] as const)))
+            : await Provider.getModel(
+                ...(await Provider.defaultModel().then((m) => [m.providerId, m.modelID] as const)),
+              )
       if (!canSummarize(model)) {
         return {
           ok: false,
