@@ -27,6 +27,7 @@ import { createCodex } from "@opencode-ai/provider-codex/provider"
 import { isCodexCredentials } from "@opencode-ai/provider-codex/auth"
 import { setContinuationFilePath, invalidateContinuation } from "@opencode-ai/provider-codex/continuation"
 import { setEmptyTurnLogPath, setEmptyTurnLogBus } from "@opencode-ai/provider-codex/empty-turn-log"
+import { setChainLogPath } from "@opencode-ai/provider-codex/chain-log"
 import type { TokenResponse, PkceCodes } from "@opencode-ai/provider-codex"
 import { Log } from "../util/log"
 import { Installation } from "../installation"
@@ -272,6 +273,9 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
         // boundary discipline) — they are injected here at runtime initialization,
         // matching the setContinuationFilePath pattern above.
         setEmptyTurnLogPath(path.join(Global.Path.state, "codex", "empty-turns.jsonl"))
+        // cache-chain-hotfix W1: WS chain-reset forensic JSONL, same injected-path
+        // pattern (provider package never imports Global.Path — INV-16).
+        setChainLogPath(path.join(Global.Path.state, "codex", "ws-chain.jsonl"))
         // Bus mirroring uses the generic GlobalBus EventEmitter directly so we
         // don't need to define a typed BusEvent for what is intentionally a
         // schemaless convenience channel (INV-06 — bus is non-load-bearing).

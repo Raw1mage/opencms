@@ -13,7 +13,7 @@
  */
 import { describe, expect, test } from "bun:test"
 import { buildHeaders } from "./headers"
-import { armSendStallWatchdog } from "./transport-ws"
+import { armSendStallWatchdog, planDeltaTrim } from "./transport-ws"
 
 describe("buildHeaders({ isWebSocket: true }) fingerprint", () => {
   const base = {
@@ -185,5 +185,50 @@ describe("armSendStallWatchdog (codex-update DD-3)", () => {
     await new Promise((r) => setTimeout(r, 100))
     expect(fired).toBe(false)
     clearTimeout(timer)
+  })
+})
+
+// cache-chain-hotfix (DD-2/DD-7): planDeltaTrim is the pure delta gate. The fix
+// is in WHEN lastInputLength is committed (only on response.completed), which
+// this helper consumes — so these vectors pin the decision behavior the fix
+// relies on. See plans/provider-codex_cache-chain-hotfix/test-vectors.json.
+describe("planDeltaTrim (cache-chain-hotfix)", () => {
+  test("TV-1: phantom-vs-fix — failed turn must NOT force a reset on next turn", () => {
+    // Turn N-1 completed at input length 100 → lastInputLength committed = 100.
+    // Turn N (length 150) aborts via ws_send_timeout (no completion).
+    // Turn N+1 arrives still at length 150 (the aborted turn appended nothing).
+
+    // BEFORE the fix: lastInputLength was advanced to 150 at SEND time (phantom),
+    // so the next turn sees 150 > 150 = false → reset (cache cliff).
+    const phantom = planDeltaTrim({ hasPrevResp: true, inputLength: 150, lastInputLength: 150 })
+    expect(phantom.action).toBe("reset")
+
+    // AFTER the fix: lastInputLength still tracks the last SUCCESSFUL turn (100),
+    // so 150 > 100 = true → delta from 100. No reset, no cliff.
+    const fixed = planDeltaTrim({ hasPrevResp: true, inputLength: 150, lastInputLength: 100 })
+    expect(fixed.action).toBe("delta")
+    expect(fixed).toMatchObject({ action: "delta", sliceFrom: 100 })
+  })
+
+  test("TV-2: compaction shrink still resets (length_not_grown preserved)", () => {
+    const plan = planDeltaTrim({ hasPrevResp: true, inputLength: 50, lastInputLength: 200 })
+    expect(plan.action).toBe("reset")
+    expect(plan).toMatchObject({ reason: expect.stringContaining("length_not_grown") })
+  })
+
+  test("TV-2b: equal length (no growth) resets — strict-growth invariant", () => {
+    const plan = planDeltaTrim({ hasPrevResp: true, inputLength: 120, lastInputLength: 120 })
+    expect(plan.action).toBe("reset")
+  })
+
+  test("TV-3: first turn / no chain pointer → full send", () => {
+    expect(planDeltaTrim({ hasPrevResp: false, inputLength: 80, lastInputLength: undefined }).action).toBe("full")
+    // hasPrevResp but lastInputLength unknown (0) → cannot trust a delta → reset
+    expect(planDeltaTrim({ hasPrevResp: true, inputLength: 80, lastInputLength: undefined }).action).toBe("reset")
+  })
+
+  test("TV-4: normal growth → delta from last successful length", () => {
+    const plan = planDeltaTrim({ hasPrevResp: true, inputLength: 130, lastInputLength: 118 })
+    expect(plan).toMatchObject({ action: "delta", sliceFrom: 118 })
   })
 })

@@ -20,6 +20,7 @@ import {
   invalidateContinuationFamily,
 } from "./continuation.js"
 import { buildHeaders } from "./headers.js"
+import { appendChainEvent, classifyReset, nextChainSeq } from "./chain-log.js"
 import type { ResponseStreamEvent } from "./types.js"
 
 // ---------------------------------------------------------------------------
@@ -314,6 +315,38 @@ export interface WsRequestResult {
   getSnapshot: () => TransportSnapshot
 }
 
+export type DeltaPlan =
+  | { action: "full" }
+  | { action: "delta"; sliceFrom: number }
+  | { action: "reset"; reason: string }
+
+/**
+ * Pure delta-trim decision for the WS request gate. Extracted from wsRequest so
+ * the load-bearing chain-reset logic is unit-testable (cache-chain-hotfix).
+ *
+ *   - no previous_response_id          → full send (nothing to extend)
+ *   - lastInputLength>0 AND input grew → delta, slice from lastInputLength
+ *   - otherwise                        → reset (length didn't strictly grow)
+ *
+ * `lastInputLength` is committed ONLY on response.completed (see handler), so it
+ * always reflects the last SUCCESSFUL turn. A failed turn never advances it,
+ * which is what prevents the phantom-length forced reset (DD-2/DD-7). Mirrors
+ * upstream codex-rs, whose chain pointer (LastResponse) is set only on
+ * ResponseEvent::Completed (core/src/client.rs:1846).
+ */
+export function planDeltaTrim(input: {
+  hasPrevResp: boolean
+  inputLength: number
+  lastInputLength: number | undefined
+}): DeltaPlan {
+  if (!input.hasPrevResp) return { action: "full" }
+  const lastLen = input.lastInputLength ?? 0
+  if (lastLen > 0 && input.inputLength > lastLen) {
+    return { action: "delta", sliceFrom: lastLen }
+  }
+  return { action: "reset", reason: `length_not_grown(prev=${lastLen},now=${input.inputLength})` }
+}
+
 function wsRequest(input: {
   ws: WebSocket
   body: Record<string, unknown>
@@ -352,13 +385,17 @@ function wsRequest(input: {
   const fullInputLength = Array.isArray(wsBody.input) ? wsBody.input.length : 0
   let chainResetReason: string | null = null
   if (wsBody.previous_response_id && Array.isArray(wsBody.input)) {
-    const lastLen = state.lastInputLength ?? 0
-    if (lastLen > 0 && wsBody.input.length > lastLen) {
-      wsBody.input = wsBody.input.slice(lastLen)
-    } else {
+    const plan = planDeltaTrim({
+      hasPrevResp: true,
+      inputLength: wsBody.input.length,
+      lastInputLength: state.lastInputLength,
+    })
+    if (plan.action === "delta") {
+      wsBody.input = wsBody.input.slice(plan.sliceFrom)
+    } else if (plan.action === "reset") {
       // Length did not strictly grow — chain is unreliable. Drop chain
       // pointer and send full input stateless.
-      chainResetReason = `length_not_grown(prev=${lastLen},now=${wsBody.input.length})`
+      chainResetReason = plan.reason
       delete wsBody.previous_response_id
       state.lastResponseId = undefined
       state.lastInputLength = undefined
@@ -366,7 +403,14 @@ function wsRequest(input: {
     }
   }
   const priorLastInputLength = state.lastInputLength
-  state.lastInputLength = fullInputLength
+  // cache-chain-hotfix (DD-2/DD-7): do NOT advance lastInputLength at send time.
+  // Upstream codex-rs advances its chain pointer (LastResponse) only inside
+  // ResponseEvent::Completed (core/src/client.rs:1846); the send-time advance here
+  // left a phantom length on any failed turn that skips doInvalidate (notably the
+  // send-watchdog ws_send_timeout path), so the next turn's strict-growth check
+  // (lastLen above) falsely tripped length_not_grown → forced chain reset → cache
+  // cliff. lastInputLength is now committed paired with lastResponseId in the
+  // response.completed handler below, so it always tracks the last SUCCESSFUL turn.
   const deltaMode = !!wsBody.previous_response_id
   const trimmedInputLength = Array.isArray(wsBody.input) ? wsBody.input.length : 0
   // DIAG 2026-04-30: WS sync verification. Trace prevResp + length monotonicity
@@ -392,6 +436,24 @@ function wsRequest(input: {
   console.error(
     `[CODEX-WS] REQ session=${sessionId} delta=${deltaMode} inputItems=${trimmedInputLength} fullItems=${fullInputLength} prevLen=${priorLastInputLength ?? "—"} prevResp=${prevRespPrefix} hasPrevResp=${!!wsBody.previous_response_id}${chainResetReason ? ` chainResetReason=${chainResetReason}` : ""} tail=${JSON.stringify(tail)}`,
   )
+  // cache-chain-hotfix W1: persist the reset cause so a session can be split into
+  // length_not_grown / chainless / server_evict / none. seq joins this REQ event
+  // to its USAGE event below. Never throws (chain-log INV-05).
+  const chainSeq = nextChainSeq()
+  const hasPrevRespSent = !!wsBody.previous_response_id
+  appendChainEvent({
+    schemaVersion: 1,
+    kind: "req",
+    seq: chainSeq,
+    sessionID: sessionId,
+    ts: Date.now(),
+    hasPrevResp: hasPrevRespSent,
+    chainResetReason: chainResetReason ?? null,
+    deltaMode,
+    inputItems: trimmedInputLength,
+    fullItems: fullInputLength,
+    resetClass: classifyReset({ hasPrevResp: hasPrevRespSent, chainResetReason }),
+  })
 
   const events = new ReadableStream<ResponseStreamEvent>({
     start(controller) {
@@ -563,9 +625,15 @@ function wsRequest(input: {
             if (responseId) {
               const previousId = state.lastResponseId
               state.lastResponseId = responseId
+              // cache-chain-hotfix (DD-2/DD-7): commit lastInputLength HERE, paired
+              // with lastResponseId, using this request's fullInputLength (closure
+              // scope). Mirrors upstream codex-rs, where the chain pointer is only
+              // advanced on completion. A failed turn never reaches here, so its
+              // length never pollutes the next turn's delta gate.
+              state.lastInputLength = fullInputLength
               updateContinuation(sessionId, {
                 lastResponseId: responseId,
-                lastInputLength: state.lastInputLength,
+                lastInputLength: fullInputLength,
                 accountId: state.accountId,
               })
               // DIAG 2026-04-30: chain advancement. Verify monotonic move.
@@ -583,6 +651,24 @@ function wsRequest(input: {
                 console.error(
                   `[CODEX-WS] USAGE session=${sessionId} model=${(wsBody as any).model ?? "?"} input_tokens=${usage.input_tokens ?? "?"} output_tokens=${usage.output_tokens ?? "?"} total_tokens=${usage.total_tokens ?? "?"} reasoning_tokens=${usage.output_tokens_details?.reasoning_tokens ?? "?"} cached_tokens=${usage.input_tokens_details?.cached_tokens ?? "?"} hasPrevResp=${!!wsBody.previous_response_id}`,
                 )
+                // cache-chain-hotfix W1: usage frame refines none vs server_evict
+                // (cached_tokens). seq joins back to the REQ event above.
+                const cachedTokens = usage.input_tokens_details?.cached_tokens
+                appendChainEvent({
+                  schemaVersion: 1,
+                  kind: "usage",
+                  seq: chainSeq,
+                  sessionID: sessionId,
+                  ts: Date.now(),
+                  hasPrevResp: hasPrevRespSent,
+                  cachedTokens: cachedTokens ?? null,
+                  inputTokens: usage.input_tokens ?? null,
+                  resetClass: classifyReset({
+                    hasPrevResp: hasPrevRespSent,
+                    chainResetReason,
+                    cachedTokens,
+                  }),
+                })
               }
             } catch {}
             // Mark this process's view of the session as validated — a
