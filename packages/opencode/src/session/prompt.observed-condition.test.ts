@@ -447,4 +447,78 @@ describe("claude cold-cache size-gate (DD-13/14/16/18)", () => {
     )
     expect(result).not.toBe("cache-aware")
   })
+
+  // ---- F2 / DD-5: post-compaction recent-anchor cooldown (loop-B defense) ----
+  // The active-session cold gate must NOT re-fire on the first cold turn that is
+  // merely the echo of a just-written compaction anchor (the rewritten prefix is
+  // not cached server-side yet). The top-of-fn 30s Cooldown covers the within-30s
+  // window; this catches the first cold turn after it expires. Mirrors the SS
+  // branch's `recent_compaction` planned-source classifier.
+  it("F2: cold >200K but an anchor written AFTER last observation → SKIP (null)", async () => {
+    ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
+    const sid = "ses_f2_echo"
+    // Call 1 (no anchor): fires cache-aware AND seeds lastCacheReadState.ts = now.
+    expect(
+      await deriveObservedCondition(gateInput({ sessionID: sid, lastFinished: finished({ input: 250_000 }) })),
+    ).toBe("cache-aware")
+    // Call 2: an anchor created AFTER call-1's observation → post-compaction echo.
+    const anchor = makeAnchor("claude-cli", "claude-opus-4-8", "acc-A")
+    ;(anchor.info as any).time = { created: Date.now() + 1_000_000, completed: Date.now() + 1_000_000 }
+    expect(
+      await deriveObservedCondition(
+        gateInput({ sessionID: sid, msgs: [anchor], lastFinished: finished({ input: 250_000 }) }),
+      ),
+    ).toBeNull()
+  })
+
+  it("F2: cold >200K with an OLD anchor (createdAt < last observation) → still cache-aware", async () => {
+    ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
+    const sid = "ses_f2_old"
+    expect(
+      await deriveObservedCondition(gateInput({ sessionID: sid, lastFinished: finished({ input: 250_000 }) })),
+    ).toBe("cache-aware")
+    const anchor = makeAnchor("claude-cli", "claude-opus-4-8", "acc-A")
+    ;(anchor.info as any).time = { created: 1, completed: 1 } // ancient → not a recent compaction
+    expect(
+      await deriveObservedCondition(
+        gateInput({ sessionID: sid, msgs: [anchor], lastFinished: finished({ input: 250_000 }) }),
+      ),
+    ).toBe("cache-aware")
+  })
+
+  it("F2: idle cold-resume (>TTL) is NEVER suppressed, even with a recent anchor", async () => {
+    ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
+    const sid = "ses_f2_idle"
+    expect(
+      await deriveObservedCondition(gateInput({ sessionID: sid, lastFinished: finished({ input: 250_000 }) })),
+    ).toBe("cache-aware")
+    const anchor = makeAnchor("claude-cli", "claude-opus-4-8", "acc-A")
+    ;(anchor.info as any).time = { created: Date.now() + 1_000_000, completed: Date.now() + 1_000_000 }
+    // warm-looking split but idle 90 min (> CLAUDE_CACHE_TTL_MS = 1h) → ephemeral
+    // cache is dead → guaranteed cold prefill → must still fire despite recent anchor.
+    expect(
+      await deriveObservedCondition(
+        gateInput({
+          sessionID: sid,
+          msgs: [anchor],
+          lastFinished: finished({ input: 10_000, read: 250_000, staleMs: 90 * 60 * 1000 }),
+        }),
+      ),
+    ).toBe("cache-aware")
+  })
+
+  it("F2/INV-0: codex with a recent anchor never enters the claude cooldown branch", async () => {
+    ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
+    const anchor = makeAnchor("codex", "gpt-5.5", "acc-A")
+    ;(anchor.info as any).time = { created: Date.now() + 1_000_000, completed: Date.now() + 1_000_000 }
+    const result = await deriveObservedCondition(
+      gateInput({
+        sessionID: "ses_f2_codex",
+        pinnedProviderId: "codex",
+        msgs: [anchor],
+        lastFinished: finished({ input: 250_000, provider: "codex" }),
+      }),
+    )
+    expect(result).not.toBe("cache-aware")
+  })
 })

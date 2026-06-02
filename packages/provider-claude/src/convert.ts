@@ -203,7 +203,9 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
 
 export function convertTools(
   tools: LanguageModelV2FunctionTool[] | undefined,
-  enableCaching = false,
+  // Kept for caller-API stability. Tools intentionally no longer carry their own
+  // cache_control breakpoint — see the budget note below (DD-8).
+  _enableCaching = false,
 ): AnthropicTool[] | undefined {
   if (!tools || tools.length === 0) return undefined
 
@@ -213,34 +215,56 @@ export function convertTools(
     input_schema: tool.inputSchema,
   }))
 
-  // datasheet §9.2: cache_control on the tools block (set on the LAST tool —
-  // Anthropic caches the whole prefix up to the breakpoint). Tool schemas are
-  // large and stable across a session; without this they were reprocessed as
-  // fresh input on every turn, inflating token usage and burning the context
-  // budget toward the long-context (>200K) tier.
-  if (enableCaching && result.length > 0) {
-    result[result.length - 1]!.cache_control = ephemeral()
-  }
-
+  // plan provider-claude_conversation-cache-breakpoint DD-8: NO cache_control on
+  // the tools block. Anthropic's prompt-cache prefix order is tools → system →
+  // messages, so the system breakpoint (convertSystemBlocks) already caches the
+  // tools prefix — a separate tools breakpoint is redundant. Removing it frees a
+  // slot under Anthropic's 4-breakpoint/request cap so the conversation can carry
+  // TWO breakpoints (last + second-to-last, aligned to official `TF5`) instead of
+  // one — the single sliding breakpoint was the cause of the warm/cold cache
+  // thrash. Tool schemas stay cached (the stable ~33K-token floor) via the system
+  // breakpoint. Official claude-code v2.1.112 likewise places zero cache_control
+  // on tools.
   return result
 }
 
 /**
- * datasheet §9.2: sliding conversation cache breakpoint. Marks the last content
- * block of the last message with cache_control. Recomputed per request, so the
- * breakpoint slides forward as the conversation grows — each turn the prior
- * conversation prefix is a cache READ and only the new turn is fresh. Without
- * this the entire history was reprocessed as fresh input every turn (the cause
- * of "3M tokens in a few minutes" + premature long-context rate limits).
+ * datasheet §9.2 + plan provider-claude_conversation-cache-breakpoint (DD-2/DD-7/
+ * DD-8): conversation cache breakpoints aligned to official claude-code `TF5`.
+ *
+ * Marks the last content block of the LAST TWO messages with cache_control (the
+ * official marker set M = {last} ∪ {second-to-last}). A last block that is a
+ * `thinking`/`redacted_thinking` block is skipped, mirroring official `OF5`
+ * (`A===length-1 && type!=="thinking" && type!=="redacted_thinking"`).
+ *
+ * Why two and not one: the second-to-last breakpoint coincides with the PREVIOUS
+ * turn's last breakpoint, which is already in cache → a stable read-hit every
+ * turn, instead of relying on implicit longest-prefix matching of a single
+ * sliding breakpoint. The single-breakpoint version thrashed: cache_read
+ * alternated ~194K (warm) ↔ 33204 (cold, only the system/tools prefix), and the
+ * cold turns (cacheReadFraction≈0.166) fed the DD-16 claude cold-compaction gate
+ * into rapid narrative compaction. See issues/bug_20260602_claude_cli_rapid_
+ * narrative_compaction_cascade.md §3.x.
+ *
+ * Budget (Anthropic max 4 breakpoints/request, DD-8): tools(0) + system(2:
+ * identity + static) + conversation(2) = 4. The tools breakpoint was dropped in
+ * convertTools — the system breakpoint already caches the tools prefix via
+ * Anthropic's tools→system→messages cache order.
  */
 export function applyConversationCacheBreakpoint(
   messages: AnthropicMessage[],
   enableCaching = false,
 ): void {
   if (!enableCaching || messages.length === 0) return
-  const last = messages[messages.length - 1]!
-  if (Array.isArray(last.content) && last.content.length > 0) {
-    last.content[last.content.length - 1]!.cache_control = ephemeral()
+  // last + second-to-last (official `TF5` write-path marker set)
+  for (const idx of [messages.length - 1, messages.length - 2]) {
+    if (idx < 0) continue
+    const msg = messages[idx]!
+    if (!Array.isArray(msg.content) || msg.content.length === 0) continue
+    const last = msg.content[msg.content.length - 1]!
+    // thinking/redacted_thinking blocks are never cache breakpoints (official OF5)
+    if (last.type === "thinking" || (last.type as string) === "redacted_thinking") continue
+    last.cache_control = ephemeral()
   }
 }
 

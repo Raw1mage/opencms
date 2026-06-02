@@ -621,17 +621,47 @@ export async function deriveObservedCondition(input: {
         const idleMs = lastCompletedAt > 0 ? Date.now() - lastCompletedAt : 0
         const idleColdResume = idleMs > CLAUDE_CACHE_TTL_MS
         if (cacheReadFraction < 0.5 || idleColdResume) {
-          debugCheckpoint("prompt", "claude_cold_compaction_gate", {
-            sessionID: input.sessionID,
-            step: input.step,
-            promptTotal,
-            cacheRead: t.cache.read,
-            cacheReadFraction,
-            idleMs,
-            idleColdResume,
-            gate: bCompactTokens,
-          })
-          return "cache-aware"
+          // F2 / DD-5 (claude-gated, loop-B defense-in-depth): if a compaction
+          // anchor was written AFTER our last observation, the current active-
+          // session cold is the EXPECTED post-compaction warm-up echo — the
+          // freshly rewritten prefix is not cached server-side yet — NOT cache
+          // thrash. Compacting again on it is exactly the self-feeding cascade
+          // (loop B). The top-of-function 30s Cooldown.shouldThrottle covers the
+          // within-30s window; this guard catches the FIRST cold turn after that
+          // window expires (e.g. a slow tool turn). It fires for at most one turn
+          // (prev.ts advances past the anchor on the next observation). Idiom
+          // mirrors the SS branch's `recent_compaction` planned-source classifier
+          // below. idleColdResume (TTL elapsed) is a genuine cold prefill
+          // regardless of anchor age, so it is NEVER suppressed here.
+          const recentAnchor = findMostRecentAnchor(input.msgs)
+          const postCompactionEcho =
+            !idleColdResume &&
+            !!prev &&
+            !!recentAnchor?.createdAt &&
+            recentAnchor.createdAt > prev.ts
+          if (postCompactionEcho) {
+            debugCheckpoint("prompt", "claude_cold_gate_recent_compaction_skip", {
+              sessionID: input.sessionID,
+              step: input.step,
+              promptTotal,
+              cacheReadFraction,
+              anchorCreatedAt: recentAnchor!.createdAt,
+              prevObservedAt: prev!.ts,
+            })
+            // fall through — do not compact on the expected post-compaction cold
+          } else {
+            debugCheckpoint("prompt", "claude_cold_compaction_gate", {
+              sessionID: input.sessionID,
+              step: input.step,
+              promptTotal,
+              cacheRead: t.cache.read,
+              cacheReadFraction,
+              idleMs,
+              idleColdResume,
+              gate: bCompactTokens,
+            })
+            return "cache-aware"
+          }
         }
       }
     } else if (prev !== undefined && prev.cacheRead > 50_000 && currentCache < prev.cacheRead * 0.5) {
