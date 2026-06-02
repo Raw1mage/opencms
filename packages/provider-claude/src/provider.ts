@@ -16,6 +16,7 @@ import type {
 import { BASE_API_URL, IDENTITY_INTERACTIVE, toApiModelId } from "./protocol.js"
 import { getMaxOutput } from "./models.js"
 import { convertPrompt, convertTools, convertSystemBlocks, applyConversationCacheBreakpoint } from "./convert.js"
+import type { AnthropicSystemBlock, AnthropicTool, AnthropicMessage } from "./convert.js"
 import { buildHeaders } from "./headers.js"
 import { parseAnthropicSSE, mapFinishReason } from "./sse.js"
 import type { ClaudeCredentials, TokenSet } from "./auth.js"
@@ -47,6 +48,47 @@ function recordClaudeWire(modelId: string, response: Response): void {
         retryAfter: h("retry-after"),
       }) + "\n"
     fs.appendFileSync(`${os.homedir()}/.local/share/opencode/log/claude-wire.jsonl`, line)
+  } catch {
+    /* diagnostic only — must never affect the request path */
+  }
+}
+
+// plan provider-claude_conversation-cache-breakpoint (DD-7, P0 causation closure):
+// emit the ACTUAL cache_control breakpoint count + positions per request. Static
+// upstream comparison only proved the *divergence* (1 vs 2 conversation
+// breakpoints); aligning this telemetry against the same session's cache_read
+// warm/cold shape (session DB) is what closes "divergence → causation" and
+// confirms the fix (conversation==2, total<=4) without any live-token churn.
+// Append-only, never throws, never blocks the request — mirrors recordClaudeWire.
+function recordCacheBreakpoints(
+  modelId: string,
+  systemBlocks: AnthropicSystemBlock[],
+  tools: AnthropicTool[] | undefined,
+  messages: AnthropicMessage[],
+): void {
+  try {
+    const system = systemBlocks.filter((b) => b.cache_control != null).length
+    const toolsCount = (tools ?? []).filter((t) => t.cache_control != null).length
+    const conversationIndices: number[] = []
+    messages.forEach((m, i) => {
+      if (Array.isArray(m.content) && m.content.some((b) => b.cache_control != null)) {
+        conversationIndices.push(i)
+      }
+    })
+    const conversation = conversationIndices.length
+    const line =
+      JSON.stringify({
+        t: new Date().toISOString(),
+        model: modelId,
+        kind: "cache_breakpoints",
+        conversation,
+        system,
+        tools: toolsCount,
+        total: conversation + system + toolsCount,
+        conversationIndices,
+        messageCount: messages.length,
+      }) + "\n"
+    fs.appendFileSync(`${os.homedir()}/.local/share/opencode/log/claude-cache-breakpoints.jsonl`, line)
   } catch {
     /* diagnostic only — must never affect the request path */
   }
@@ -143,8 +185,9 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
       )
     }
 
-    // datasheet §9.2: sliding conversation cache breakpoint on the last block.
-    // Without it the whole history was reprocessed as fresh input every turn.
+    // datasheet §9.2: conversation cache breakpoints on the last TWO messages,
+    // aligned to official `TF5` (DD-8). The second-to-last breakpoint is the
+    // previous turn's last → a stable read-hit, eliminating the warm/cold thrash.
     applyConversationCacheBreakpoint(messages, enableCaching)
 
     // Find first user message text for billing header
@@ -155,7 +198,8 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
         : JSON.stringify(firstUserMsg.content)
       : undefined
 
-    // § 4.2.3  Convert tools (with mcp__ prefix + tools-block cache_control)
+    // § 4.2.3  Convert tools (mcp__ prefix; NO tools-block cache_control — the
+    // system breakpoint caches the tools prefix via cache order, DD-8)
     const tools = convertTools(
       callOptions.tools?.filter((t): t is Extract<typeof t, { type: "function" }> => t.type === "function"),
       enableCaching,
@@ -168,6 +212,10 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
       identity: this.options.identity ?? IDENTITY_INTERACTIVE,
       billingContent,
     })
+
+    // P0 causation telemetry (DD-7): record the final cache_control breakpoint
+    // layout for this request. cache_control is not mutated after this point.
+    if (enableCaching) recordCacheBreakpoints(this.modelId, systemBlocks, tools, messages)
 
     // § 4.2.5  Build headers from scratch
     //
