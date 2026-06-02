@@ -5,6 +5,7 @@ import {
   shouldEnrichAnchor,
   CLAUDE_NOOP_OBSERVED,
 } from "./claude-context-policy"
+import { ToolBudget } from "../tool/budget"
 
 describe("claude-context-policy: provider gate (INV-0)", () => {
   it("recognizes claude-cli as the claude context provider", () => {
@@ -81,5 +82,40 @@ describe("claude-context-policy: A-tier enrichment gate (DD-23 P4-2)", () => {
     expect(
       shouldEnrichAnchor({ providerId: "copilot-cli", anchorTokens: 30_000, contextLimit: 128_000, aFloorTokens: 50_000 }),
     ).toBe(false) // 0.234 < 0.25
+  })
+})
+
+describe("A-tier drain gate fed by the shared estimator (anchor-unbounded-growth)", () => {
+  const legacyDiv4 = (s: string) => Math.ceil(s.length / 4)
+
+  it("THE FIX: a CJK anchor that chars/4 hid below the 100K floor crosses it via the shared CJK-aware estimator", () => {
+    const cjkAnchor = "字".repeat(120_000) // realistic CJK-heavy anchor
+    const floor = 100_000
+    // OLD inlined chars/4 = 30K → drain gate FALSE → anchor never shrinks (the bug)
+    expect(
+      shouldEnrichAnchor({ providerId: "claude-cli", anchorTokens: legacyDiv4(cjkAnchor), contextLimit: 1_000_000, aFloorTokens: floor }),
+    ).toBe(false)
+    // shared ToolBudget.estimateTokens (now CJK-aware) ≈ 120K → gate TRUE → drain fires (the fix)
+    expect(
+      shouldEnrichAnchor({
+        providerId: "claude-cli",
+        anchorTokens: ToolBudget.estimateTokens(cjkAnchor),
+        contextLimit: 1_000_000,
+        aFloorTokens: floor,
+      }),
+    ).toBe(true)
+  })
+
+  it("ASCII anchor: shared estimator == old chars/4, so gate decision is unchanged (regression)", () => {
+    const asciiAnchor = "x".repeat(120_000)
+    expect(ToolBudget.estimateTokens(asciiAnchor)).toBe(legacyDiv4(asciiAnchor)) // byte-identical
+    expect(
+      shouldEnrichAnchor({
+        providerId: "claude-cli",
+        anchorTokens: ToolBudget.estimateTokens(asciiAnchor),
+        contextLimit: 1_000_000,
+        aFloorTokens: 100_000,
+      }),
+    ).toBe(false) // 30K < 100K, same as before
   })
 })
