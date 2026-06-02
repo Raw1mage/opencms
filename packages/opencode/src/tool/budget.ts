@@ -68,12 +68,37 @@ export namespace ToolBudget {
   }
 
   /**
-   * Approximate token count for a string. Uses the same formula as
-   * util/token-estimate.ts elsewhere in the codebase: roughly chars/4.
-   * Tools should use this when slicing on token boundaries; it is fast,
-   * has no async cost, and is deterministic across providers.
+   * Approximate token count for a string — the codebase's single shared
+   * estimator. Tools use it for token-boundary slicing; compaction uses it for
+   * anchor-size gating. Keeping ONE estimator avoids the unpredictable divergence
+   * of mixing methods (a separate gate that counted differently was the root of
+   * plan compaction_anchor-unbounded-growth).
+   *
+   * CJK-aware: a CJK / Japanese / Korean / fullwidth codepoint is ~1 token (not
+   * ~0.25 as plain chars/4 assumed); everything else stays chars/4. Pure
+   * ASCII/Latin text returns EXACTLY Math.ceil(length/4) — byte-identical to the
+   * old formula — so only CJK-bearing text changes (it gets counted closer to
+   * its real token cost, which is also what the model's reported usage shows).
+   * Fast: a single charCodeAt pass, no allocation, deterministic.
    */
   export function estimateTokens(text: string): number {
-    return Math.ceil(text.length / 4)
+    let cjk = 0
+    for (let i = 0; i < text.length; i++) {
+      const c = text.charCodeAt(i)
+      if (
+        (c >= 0x3000 && c <= 0x303f) || // CJK symbols & punctuation
+        (c >= 0x3040 && c <= 0x30ff) || // Hiragana + Katakana
+        (c >= 0x3400 && c <= 0x4dbf) || // CJK Ext A
+        (c >= 0x4e00 && c <= 0x9fff) || // CJK Unified Ideographs
+        (c >= 0xac00 && c <= 0xd7af) || // Hangul syllables
+        (c >= 0xf900 && c <= 0xfaff) || // CJK compat ideographs
+        (c >= 0xff00 && c <= 0xffef) || // Fullwidth / halfwidth forms
+        (c >= 0xd800 && c <= 0xdbff) // high surrogate (astral CJK ext-B etc.) ~1 token
+      ) {
+        cjk++
+      }
+    }
+    const other = text.length - cjk
+    return cjk + Math.ceil(other / 4)
   }
 }
