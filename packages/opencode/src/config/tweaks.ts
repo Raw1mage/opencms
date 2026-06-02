@@ -305,6 +305,30 @@ export namespace Tweaks {
      */
     anchorRecompressCeilingTokens: number
     /**
+     * compaction_recency-fadeout-tiers (DD-1..7): claude-gated 記憶淡出 knobs.
+     * All env-overridable (= experiment IVs, not tuning; defaults provisional,
+     * to be swept). Only the claude path consumes these; non-claude keeps the
+     * legacy A-tier/B-fold chain byte-identical (DD-1). Fade-out = 每層壓縮保留
+     * 最近 tail 逐字、老段降解析度:B+C→new_B 留最近 C round;A+B→new_A 把舊段
+     * ai_paid 蒸餾成精華(≤aEssenceTokens,幾句話)+ 保留最近 B rounds 逐字。
+     */
+    fadeout: {
+      /** master switch (claude-gated; default on) */
+      enabled: boolean
+      /** ai_paid 精華目標 (= LLM compaction targetTokens), ~5K = a few sentences */
+      aEssenceTokens: number
+      /** B+C→new_B: 保留最近幾個 C round 逐字不折 */
+      bTailRounds: number
+      /** C-tail 絕對 cap (防單一大 tool dump) */
+      bTailMaxTokens: number
+      /** A+B→new_A: 保留最近幾個 B round 逐字不蒸餾 */
+      aTailRounds: number
+      /** B-tail 下限 (湊不足多留) */
+      aTailFloorTokens: number
+      /** A 主方法; 另一個為 ai_paid 失敗/逾時 fallback */
+      aMethod: "ai_paid" | "drop_old"
+    }
+    /**
      * context/claude-refactor (A/B/C, DD-23): per-provider granular compaction
      * thresholds. Keyed by `providerId`; `default` is the fallback. claude and
      * codex carry different values (big-window vs small-window). Tunable for
@@ -447,6 +471,16 @@ export namespace Tweaks {
     enableUserMsgReplay: true,
     enableDialogRedactionAnchor: true,
     anchorRecompressCeilingTokens: 50_000,
+    // compaction_recency-fadeout-tiers (DD-7): provisional defaults = experiment IVs.
+    fadeout: {
+      enabled: true,
+      aEssenceTokens: 5_000,
+      bTailRounds: 1,
+      bTailMaxTokens: 12_000,
+      aTailRounds: 3,
+      aTailFloorTokens: 20_000,
+      aMethod: "ai_paid",
+    },
     // context/claude-refactor A/B/C (DD-23) — absolute-token, per-provider. Start
     // values; all to be experiment-tuned. Only claude-cli is consumed today.
     contextThresholds: {
@@ -1176,6 +1210,45 @@ export namespace Tweaks {
     if (cmpRecompressCeilingRaw !== undefined) {
       const v = parseIntRange(cmpRecompressCeilingRaw, "compaction_anchor_recompress_ceiling_tokens", 1_000, 1_000_000)
       if (v !== undefined) compaction.anchorRecompressCeilingTokens = v
+    }
+
+    // compaction_recency-fadeout-tiers (DD-5): clone the nested object (shallow
+    // spread shares it with the defaults) then apply env overrides. Every knob
+    // is an experiment IV.
+    compaction.fadeout = { ...COMPACTION_DEFAULTS.fadeout }
+    const foEnabledRaw = parsed.get("compaction_fadeout_enabled")
+    if (foEnabledRaw !== undefined) {
+      const v = parseBool(foEnabledRaw, "compaction_fadeout_enabled")
+      if (v !== undefined) compaction.fadeout.enabled = v
+    }
+    const foEssenceRaw = parsed.get("compaction_fadeout_a_essence_tokens")
+    if (foEssenceRaw !== undefined) {
+      const v = parseIntRange(foEssenceRaw, "compaction_fadeout_a_essence_tokens", 500, 200_000)
+      if (v !== undefined) compaction.fadeout.aEssenceTokens = v
+    }
+    const foBTailRoundsRaw = parsed.get("compaction_fadeout_b_tail_rounds")
+    if (foBTailRoundsRaw !== undefined) {
+      const v = parseIntRange(foBTailRoundsRaw, "compaction_fadeout_b_tail_rounds", 0, 50)
+      if (v !== undefined) compaction.fadeout.bTailRounds = v
+    }
+    const foBTailMaxRaw = parsed.get("compaction_fadeout_b_tail_max_tokens")
+    if (foBTailMaxRaw !== undefined) {
+      const v = parseIntRange(foBTailMaxRaw, "compaction_fadeout_b_tail_max_tokens", 1_000, 500_000)
+      if (v !== undefined) compaction.fadeout.bTailMaxTokens = v
+    }
+    const foATailRoundsRaw = parsed.get("compaction_fadeout_a_tail_rounds")
+    if (foATailRoundsRaw !== undefined) {
+      const v = parseIntRange(foATailRoundsRaw, "compaction_fadeout_a_tail_rounds", 0, 100)
+      if (v !== undefined) compaction.fadeout.aTailRounds = v
+    }
+    const foATailFloorRaw = parsed.get("compaction_fadeout_a_tail_floor_tokens")
+    if (foATailFloorRaw !== undefined) {
+      const v = parseIntRange(foATailFloorRaw, "compaction_fadeout_a_tail_floor_tokens", 0, 500_000)
+      if (v !== undefined) compaction.fadeout.aTailFloorTokens = v
+    }
+    const foAMethodRaw = parsed.get("compaction_fadeout_a_method")
+    if (foAMethodRaw === "ai_paid" || foAMethodRaw === "drop_old") {
+      compaction.fadeout.aMethod = foAMethodRaw
     }
 
     const sessionStorage: SessionStorageConfig = { ...SESSION_STORAGE_DEFAULTS }
