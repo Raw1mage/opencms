@@ -20,6 +20,7 @@ import {
   invalidateContinuationFamily,
 } from "./continuation.js"
 import { buildHeaders } from "./headers.js"
+import { appendChainEvent, classifyReset, nextChainSeq } from "./chain-log.js"
 import type { ResponseStreamEvent } from "./types.js"
 
 // ---------------------------------------------------------------------------
@@ -435,6 +436,24 @@ function wsRequest(input: {
   console.error(
     `[CODEX-WS] REQ session=${sessionId} delta=${deltaMode} inputItems=${trimmedInputLength} fullItems=${fullInputLength} prevLen=${priorLastInputLength ?? "—"} prevResp=${prevRespPrefix} hasPrevResp=${!!wsBody.previous_response_id}${chainResetReason ? ` chainResetReason=${chainResetReason}` : ""} tail=${JSON.stringify(tail)}`,
   )
+  // cache-chain-hotfix W1: persist the reset cause so a session can be split into
+  // length_not_grown / chainless / server_evict / none. seq joins this REQ event
+  // to its USAGE event below. Never throws (chain-log INV-05).
+  const chainSeq = nextChainSeq()
+  const hasPrevRespSent = !!wsBody.previous_response_id
+  appendChainEvent({
+    schemaVersion: 1,
+    kind: "req",
+    seq: chainSeq,
+    sessionID: sessionId,
+    ts: Date.now(),
+    hasPrevResp: hasPrevRespSent,
+    chainResetReason: chainResetReason ?? null,
+    deltaMode,
+    inputItems: trimmedInputLength,
+    fullItems: fullInputLength,
+    resetClass: classifyReset({ hasPrevResp: hasPrevRespSent, chainResetReason }),
+  })
 
   const events = new ReadableStream<ResponseStreamEvent>({
     start(controller) {
@@ -632,6 +651,24 @@ function wsRequest(input: {
                 console.error(
                   `[CODEX-WS] USAGE session=${sessionId} model=${(wsBody as any).model ?? "?"} input_tokens=${usage.input_tokens ?? "?"} output_tokens=${usage.output_tokens ?? "?"} total_tokens=${usage.total_tokens ?? "?"} reasoning_tokens=${usage.output_tokens_details?.reasoning_tokens ?? "?"} cached_tokens=${usage.input_tokens_details?.cached_tokens ?? "?"} hasPrevResp=${!!wsBody.previous_response_id}`,
                 )
+                // cache-chain-hotfix W1: usage frame refines none vs server_evict
+                // (cached_tokens). seq joins back to the REQ event above.
+                const cachedTokens = usage.input_tokens_details?.cached_tokens
+                appendChainEvent({
+                  schemaVersion: 1,
+                  kind: "usage",
+                  seq: chainSeq,
+                  sessionID: sessionId,
+                  ts: Date.now(),
+                  hasPrevResp: hasPrevRespSent,
+                  cachedTokens: cachedTokens ?? null,
+                  inputTokens: usage.input_tokens ?? null,
+                  resetClass: classifyReset({
+                    hasPrevResp: hasPrevRespSent,
+                    chainResetReason,
+                    cachedTokens,
+                  }),
+                })
               }
             } catch {}
             // Mark this process's view of the session as validated — a
