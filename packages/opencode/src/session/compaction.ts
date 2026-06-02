@@ -30,6 +30,7 @@ import {
 } from "./compaction-telemetry"
 import { sanitizeAnchorToString, type AnchorKind } from "./anchor-sanitizer"
 import { shouldSkipClaudeEventCompaction, isClaudeContextProvider, shouldEnrichAnchor } from "./claude-context-policy"
+import { ToolBudget } from "../tool/budget"
 import { checkCleanTail } from "./idle-compaction-gate"
 import { SkillLayerRegistry } from "./skill-layer-registry"
 import { diagnoseCacheMiss } from "./cache-miss-diagnostic"
@@ -1154,7 +1155,14 @@ export namespace SessionCompaction {
     // bigger.  Bail out so the kind chain escalates to ai_paid which
     // can actually re-summarize and shrink the anchor.
     if (prevBody && _model) {
-      const anchorTokenEstimate = Math.ceil(prevBody.length / 4)
+      // compaction_anchor-unbounded-growth: size the anchor with the codebase's
+      // ONE shared estimator (now CJK-aware) instead of an inlined chars/4, so
+      // this gate can't diverge from the rest of the system. NOTE (DD-8): we
+      // deliberately keep the 0.5 threshold and do NOT make the foreground
+      // escalate for claude — per DD-23 the foreground stays fast narrative and
+      // the background ai_paid pass does the shrink; forcing a synchronous
+      // ai_paid here would block the turn.
+      const anchorTokenEstimate = ToolBudget.estimateTokens(prevBody)
       const contextLimit = _model.limit.context
       if (contextLimit > 0 && anchorTokenEstimate >= contextLimit * 0.5) {
         log.info("narrative.anchor_bloat_escalation", {
@@ -1750,7 +1758,14 @@ When constructing the summary, try to stick to this template:
           .filter((p) => p.type === "text")
           .map((p) => (p as any).text ?? "")
           .join("\n")
-        const narrativeTokens = Math.ceil(narrativeContent.length / 4)
+        // compaction_anchor-unbounded-growth DD-2/DD-3: the A-tier drain gate
+        // (shouldEnrichAnchor, below) compares this against the absolute claude
+        // aFloor (100K). The old inlined chars/4 under-counted CJK ~3-4×, so a
+        // real ~180K anchor read as ~60K < 100K → drain skipped every turn →
+        // anchor grew unbounded. Route through the ONE shared estimator (now
+        // CJK-aware) so this gate measures the same way the rest of the system
+        // does; pure-ASCII anchors are byte-identical to before.
+        const narrativeTokens = ToolBudget.estimateTokens(narrativeContent)
         const ceilingTokens =
           (tweaks as { anchorRecompressCeilingTokens?: number }).anchorRecompressCeilingTokens ?? 50_000
         const contextLimit = model.limit?.context ?? 0
