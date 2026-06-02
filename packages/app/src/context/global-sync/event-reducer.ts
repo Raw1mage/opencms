@@ -40,6 +40,22 @@ export function seedKnownMessageIds(messageIds: Iterable<string>) {
 // that stamps completion. Eviction skips IDs in this set.
 const _liveStreamingIds = new Set<string>()
 
+// Session this client is currently viewing (set by the session route on
+// mount / id change, cleared on navigate-away). Protected from eviction so
+// the conversation the user is actively reading is never LRU-trimmed mid-view.
+// The workspace `activeSessionId` only tracks the last-CREATED session per
+// directory, so it does NOT cover "an older idle session opened on mobile".
+// Single-value: a client views one session at a time; switching/leaving
+// clears the previous id, so a huge viewed session never stays pinned in
+// memory after you leave it.
+let _viewingSessionId: string | undefined
+export function setViewingSession(sessionID: string | undefined) {
+  _viewingSessionId = sessionID || undefined
+}
+export function clearViewingSession(sessionID: string) {
+  if (_viewingSessionId === sessionID) _viewingSessionId = undefined
+}
+
 // Tombstone set: messageIDs recently removed via "message.removed" SSE events.
 // Prevents mergeSnapshot (active-poll) from re-introducing deleted messages
 // when a stale poll response arrives after the removal event was processed.
@@ -74,7 +90,11 @@ let _evictionSetStore: SetStoreFunction<State> | null = null
 
 function buildProtectedSessionIds(store: Store<State>): Set<string> {
   const ids = new Set<string>()
-  // Protect the currently-viewed session.
+  // Protect the session THIS client is currently viewing (route-level).
+  if (_viewingSessionId) ids.add(_viewingSessionId)
+  // Protect the workspace's active session. NOTE: this is the last-CREATED
+  // session in the directory, not necessarily the one being viewed — kept as
+  // a secondary signal; the route-level id above is the authoritative one.
   const activeId = store.workspace?.attachments?.activeSessionId
   if (activeId) ids.add(activeId)
   // Protect any session that is currently busy (running/streaming).

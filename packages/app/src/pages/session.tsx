@@ -19,6 +19,7 @@ import { Mark } from "@opencode-ai/ui/logo"
 import { DragDropProvider, DragDropSensors, DragOverlay, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd"
 import type { DragEvent } from "@thisbeyond/solid-dnd"
 import { useSync } from "@/context/sync"
+import { setViewingSession, clearViewingSession } from "@/context/global-sync/event-reducer"
 import { workspaceKey as normalizeWorkspaceKey } from "./layout/helpers"
 import { useTerminal, type LocalPTY } from "@/context/terminal"
 import { useLayout } from "@/context/layout"
@@ -331,6 +332,20 @@ export default function Page() {
     document.addEventListener("visibilitychange", onVisibility)
     onCleanup(() => document.removeEventListener("visibilitychange", onVisibility))
   }
+
+  // Tell the global store which session this client is viewing so LRU
+  // eviction never trims the conversation the user is actively reading. The
+  // workspace `activeSessionId` only tracks the last-CREATED session per
+  // directory, so an older idle session opened on mobile would otherwise be
+  // eviction-eligible (issue 2026-06-02). onCleanup runs on id change AND on
+  // route unmount, so leaving/switching clears the previous id — a huge viewed
+  // session is never pinned in memory after you navigate away.
+  createEffect(() => {
+    const id = params.id
+    if (!id) return
+    setViewingSession(id)
+    onCleanup(() => clearViewingSession(id))
+  })
 
   // File tree freshness: while the page is visible, re-list every
   // currently-expanded+loaded directory periodically so externally
@@ -999,7 +1014,12 @@ export default function Page() {
       const msgs = visibleUserMessages()
       const start = store.turnStart
       if (start <= 0) return msgs
-      if (start >= msgs.length) return emptyUserMessages
+      // turnStart is an offset into msgs. If the array shrank under it — a
+      // reconnect refetched only the tail (forceReload), or LRU eviction
+      // trimmed the session — a stale offset would point past the new end.
+      // Never blank the timeline in that case: show what we have (the latest
+      // messages). The clamp effect below realigns turnStart on the next tick.
+      if (start >= msgs.length) return msgs
       return msgs.slice(start)
     },
     emptyUserMessages,
@@ -1996,6 +2016,22 @@ export default function Page() {
       { defer: true },
     ),
   )
+
+  // Defensive clamp for a shrinking message array. The windowing effect above
+  // only recomputes turnStart on [params.id, messagesReady()], so it never
+  // reacts when visibleUserMessages shrinks WITHOUT a session switch — exactly
+  // what happens when a mobile reconnect refetches the tail (forceReload) or
+  // LRU eviction trims the viewed session. A stale turnStart then points past
+  // the new end, blanking the timeline mid-view (issue 2026-06-02), or hides
+  // content the user is actively reading. Re-clamp so the window always
+  // includes at least the last turnInit messages (or all, when fewer). This
+  // only ever REDUCES turnStart, so it never hides more than intended and never
+  // fights the backfill loop (which also walks turnStart toward 0).
+  createEffect(() => {
+    const len = visibleUserMessages().length
+    const maxStart = len > turnInit ? len - turnInit : 0
+    if (store.turnStart > maxStart) setStore("turnStart", maxStart)
+  })
 
   createResizeObserver(
     () => promptDock,
