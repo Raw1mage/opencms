@@ -90,7 +90,21 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
 
       case "user": {
         const blocks: AnthropicContentBlock[] = []
+        // Block-level context-preface marker. Message-level providerOptions do
+        // NOT survive the native claude prompt pipeline (the marker never arrived
+        // → applyConversationCacheBreakpoint never skipped the preface, confirmed
+        // by the cache-breakpoint log's consecutive convIdx). Block-level
+        // providerOptions DO survive — same inbound channel convert reads
+        // `part.providerOptions.anthropic.signature` from on assistant thinking
+        // blocks. Detect the marker on any content part.
+        let blockMarkedPreface = false
         for (const part of msg.content) {
+          if (
+            (part as { providerOptions?: { anthropic?: { contextPreface?: boolean } } }).providerOptions?.anthropic
+              ?.contextPreface === true
+          ) {
+            blockMarkedPreface = true
+          }
           if (part.type === "text") {
             blocks.push({ type: "text", text: part.text })
           } else if (part.type === "file") {
@@ -127,9 +141,11 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
         }
         if (blocks.length > 0) {
           // Carry the context-preface marker through so the breakpoint finder can
-          // skip it (mirrors official `api_system` skip). Set by llm.ts on the
-          // injected per-turn preface message via message-level providerOptions.
+          // skip it (mirrors official `api_system` skip). Prefer the block-level
+          // marker (survives the native pipeline); accept the message-level one too
+          // as a belt-and-suspenders fallback.
           const isContextPreface =
+            blockMarkedPreface ||
             (msg as { providerOptions?: { anthropic?: { contextPreface?: boolean } } }).providerOptions?.anthropic
               ?.contextPreface === true
           messages.push({ role: "user", content: blocks, ...(isContextPreface && { isContextPreface: true }) })

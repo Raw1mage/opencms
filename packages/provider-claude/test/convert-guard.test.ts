@@ -57,3 +57,51 @@ describe("convertPrompt — user-terminated guard", () => {
     expect(lastRole(messages)).toBe("user")
   })
 })
+
+// The preface-skip cache fix only works if convertPrompt actually flags the
+// injected preface. The marker MUST be carried at BLOCK level — message-level
+// providerOptions do not survive the native claude prompt pipeline (the original
+// message-level marker was inert; the cache-breakpoint log's consecutive convIdx
+// proved the preface was never skipped). These tests pin the working channel.
+describe("convertPrompt — block-level context-preface detection", () => {
+  test("a content part marked anthropic.contextPreface sets isContextPreface on the message", () => {
+    const prompt = [
+      { role: "user", content: [{ type: "text", text: "real turn" }] },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: "ephemeral preface",
+            providerOptions: { anthropic: { contextPreface: true } },
+          },
+        ],
+      },
+    ] as unknown as LanguageModelV2Prompt
+    const { messages } = convertPrompt(prompt)
+    expect((messages[0] as { isContextPreface?: boolean }).isContextPreface).toBeUndefined()
+    expect((messages[1] as { isContextPreface?: boolean }).isContextPreface).toBe(true)
+  })
+
+  test("detects the marker even when it rides a non-first content block", () => {
+    const prompt = [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "t1" },
+          { type: "text", text: "t2", providerOptions: { anthropic: { contextPreface: true } } },
+        ],
+      },
+    ] as unknown as LanguageModelV2Prompt
+    const { messages } = convertPrompt(prompt)
+    expect((messages[0] as { isContextPreface?: boolean }).isContextPreface).toBe(true)
+  })
+
+  test("an unmarked user message is NOT flagged", () => {
+    const prompt = [
+      { role: "user", content: [{ type: "text", text: "plain" }] },
+    ] as unknown as LanguageModelV2Prompt
+    const { messages } = convertPrompt(prompt)
+    expect((messages[0] as { isContextPreface?: boolean }).isContextPreface).toBeUndefined()
+  })
+})

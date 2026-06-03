@@ -1145,6 +1145,12 @@ export namespace LLM {
       // providerMetadataSchema (Record<string, Record<string, JsonValue>>).
       // Flat boolean at the outer level fails validation with
       // "messages must be a ModelMessage[]".
+      // Block-level context-preface marker. The native claude convert path reads
+      // this off content blocks (message-level providerOptions do NOT survive the
+      // pipeline — the message-level marker below was inert) to skip the preface
+      // when placing conversation cache breakpoints. anthropic.contextPreface on
+      // text blocks rides the same inbound channel as anthropic.signature.
+      const PREFACE_BLOCK_MARKER = { anthropic: { contextPreface: true } } as const
       const prefaceContent = blocks.map((b, i) => {
         if (b.type === "file") {
           // v4 DD-19: image binary block — passes through to AI SDK as-is.
@@ -1158,14 +1164,14 @@ export namespace LLM {
           }
         }
         const needsBreakpoint = i === t1LastIdx || i === t2LastIdx
-        if (needsBreakpoint) {
-          return {
-            type: "text" as const,
-            text: b.text,
-            providerOptions: { ...ProviderTransform.PHASE_B_BREAKPOINT_PROVIDER_OPTION },
-          }
+        return {
+          type: "text" as const,
+          text: b.text,
+          providerOptions: {
+            ...(needsBreakpoint ? ProviderTransform.PHASE_B_BREAKPOINT_PROVIDER_OPTION : {}),
+            ...PREFACE_BLOCK_MARKER,
+          },
         }
-        return { type: "text" as const, text: b.text }
       })
       // Mark as the injected context preface so the native claude breakpoint finder
       // (applyConversationCacheBreakpoint) SKIPS it — mirrors official claude-code's
