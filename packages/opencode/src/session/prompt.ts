@@ -308,47 +308,34 @@ function renderContextBudget(input: { lastFinished: MessageV2.Assistant; model: 
   ].join("\n")
 }
 
-async function withContextBudgetEnvelope(input: {
-  messages: MessageV2.WithParts[]
+// DD-19: resolve the context-budget text so the CALLER can put it in the uncached
+// preface trailing tier (the `system` array). Returns undefined when there is
+// nothing to show, no finished source, or the provider is lite (small local
+// models parrot the <context_budget> block back as the visible response).
+//
+// This REPLACES the old `withContextBudgetEnvelope`, which spliced the budget as a
+// synthetic part INTO the last user message — i.e. inside the cached conversation
+// prefix. Because the block carries per-turn-changing numbers (used/ratio/
+// cache_read/cache_hit_rate), that splice invalidated the whole conversation cache
+// every turn the numbers changed → the mid-runloop "cache 跑了" cold drops.
+// Official claude-code never splices a mutating value into a cached message; it
+// keeps volatile per-turn context in the tail. See datasheet.md §2 / DD-18.
+async function resolveContextBudgetText(input: {
   lastFinished?: MessageV2.Assistant
   model: Provider.Model
-}): Promise<MessageV2.WithParts[]> {
-  if (!input.lastFinished) return input.messages
-  // Skip envelope for lite/freerun providers (DD-5 / freerun Phase 0).
-  // Small local models in lite/freerun mode tend to parrot the <context_budget>
-  // block back as the user-visible response. The envelope is a turn-based-mode
-  // optimization that does not apply to lite (basic system prompt only) or
-  // freerun (per-iteration ContextNode rendering supplies its own state).
+}): Promise<string | undefined> {
+  if (!input.lastFinished) return undefined
   try {
     const cfg = await Config.get()
     const providerCfg = (
       cfg.provider as Record<string, { mode?: "full" | "lite" | "freerun"; lite?: boolean }> | undefined
     )?.[input.model.providerId]
     const effectiveMode = providerCfg?.mode ?? (providerCfg?.lite === true ? "lite" : "full")
-    // Phase 0: freerun flag is inert pre-engine; envelope applies to freerun
-    // sessions same as full. Engine (Phase 1) will render its own prompt that
-    // doesn't carry envelope; until then leave full-mode behavior intact.
-    if (effectiveMode === "lite") return input.messages
+    if (effectiveMode === "lite") return undefined
   } catch {
-    // Config read failure → fall through to envelope (preserve existing behaviour).
+    // Config read failure → fall through (preserve existing behaviour).
   }
-  const budget = renderContextBudget({ lastFinished: input.lastFinished, model: input.model })
-  if (!budget) return input.messages
-  const lastUserIndex = input.messages.findLastIndex((msg) => msg.info.role === "user")
-  if (lastUserIndex < 0) return input.messages
-  const lastUser = input.messages[lastUserIndex]
-  const budgetPart: MessageV2.TextPart = {
-    id: `${lastUser.info.id}:context-budget`,
-    messageID: lastUser.info.id,
-    sessionID: lastUser.info.sessionID,
-    type: "text",
-    synthetic: true,
-    text: budget,
-    metadata: { contextBudget: true, excludeFromDisplay: true },
-  }
-  const next = input.messages.slice()
-  next[lastUserIndex] = { ...lastUser, parts: [...lastUser.parts, budgetPart] }
-  return next
+  return renderContextBudget({ lastFinished: input.lastFinished, model: input.model }) || undefined
 }
 
 /**
@@ -3327,8 +3314,16 @@ export namespace SessionPrompt {
         }).catch(() => undefined)
       }
 
-      const sessionMessagesForModel = await withContextBudgetEnvelope({
-        messages: sessionMessages,
+      // DD-19: the context budget is per-turn-dynamic (used/ratio/cache_read/…)
+      // → it MUST ride the uncached preface tail (added to `system` below, which
+      // LLM.stream carries into the preface trailing tier), NOT be spliced into a
+      // cached conversation message. The old withContextBudgetEnvelope splice put
+      // the <context_budget> block into the last user message — inside the cached
+      // prefix — so it invalidated the whole conversation cache every turn its
+      // numbers changed (the mid-runloop "cache 跑了" colds). Mirrors official,
+      // which never splices a mutating value into a cached message. See
+      // datasheet.md §2 / DD-18 (volatile → tail).
+      const contextBudgetText = await resolveContextBudgetText({
         lastFinished: contextBudgetSource,
         model: activeModel,
       })
@@ -3370,6 +3365,9 @@ export namespace SessionPrompt {
         // + subagent return notices. Carried into preface trailing tier in
         // LLM.stream (cache-friendly: rides the user-turn invalidation).
         system: [
+          // DD-19: context budget rides the trailing (uncached) tier, not a cached
+          // conversation message — see the contextBudgetText note above.
+          ...(contextBudgetText ? [contextBudgetText] : []),
           ...(gatedLazyCatalogPrompt ? [gatedLazyCatalogPrompt] : []),
           ...(format.type === "json_schema" ? [STRUCTURED_OUTPUT_SYSTEM_PROMPT] : []),
           ...noticeAddenda,
@@ -3400,7 +3398,7 @@ export namespace SessionPrompt {
                 },
               ]
             : []),
-          ...MessageV2.toModelMessages(sessionMessagesForModel, activeModel),
+          ...MessageV2.toModelMessages(sessionMessages, activeModel),
         ]),
         tools: gatedTools,
         lazyTools: gatedLazyTools,
