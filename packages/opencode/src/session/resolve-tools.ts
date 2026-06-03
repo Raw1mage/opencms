@@ -28,7 +28,7 @@ import { UnlockedTools } from "./unlocked-tools"
 import {
   ALWAYS_PRESENT_TOOLS,
   buildCatalog,
-  formatCatalogDescription,
+  TOOL_LOADER_STATIC_DESCRIPTION,
   formatLazyCatalogPrompt,
 } from "../tool/tool-loader"
 
@@ -442,10 +442,16 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
       description: ((tool as any).description ?? "") as string,
     }))
     const catalog = buildCatalog(allToolEntries)
-    const lazyToolCount = allToolEntries.filter((tool) => !alwaysPresent.has(tool.id)).length
 
     if (tools["tool_loader"]) {
-      ;(tools["tool_loader"] as any).description = formatCatalogDescription(catalog, lazyToolCount)
+      // DD-21: STATIC description. The live catalog is conveyed via
+      // lazyCatalogPrompt (formatLazyCatalogPrompt) in the UNCACHED preface tail,
+      // so it must NOT be re-baked into the tool definition (the cached, FIRST
+      // prefix element tools→system→messages). Doing so meant each lazy-tool
+      // unlock changed the catalog/count → tool_loader's description bytes changed
+      // → full rd=0 cold for the whole prefix, even during continuous work. A
+      // static tool description is standard/claude-factory-compatible. See DD-21.
+      ;(tools["tool_loader"] as any).description = TOOL_LOADER_STATIC_DESCRIPTION
     }
 
     // Active Loader: collect lazy tools before removing them

@@ -82,6 +82,18 @@ export function buildCatalog(allTools: { id: string; description: string }[]) {
     .slice(0, CATALOG_MAX_ENTRIES)
 }
 
+// DD-21: STATIC tool_loader description for the cached tools block. The live,
+// per-unlock-changing catalog goes to the UNCACHED preface tail via
+// formatLazyCatalogPrompt — it must NOT be baked into the tool definition (which
+// sits in the cached tools→system→messages prefix), or every lazy unlock would
+// churn the whole prefix → full rd=0 cold. This string never changes.
+export const TOOL_LOADER_STATIC_DESCRIPTION =
+  "Load additional on-demand tools into this session by name — they become available on your next action. " +
+  "The catalog of loadable tools is listed in your context (the lazy-tool catalog). " +
+  'Pass tool names as an array: tool_loader({ tools: ["bash", "edit"] }).'
+
+// Retained for any caller still wanting the inline catalog; the active tool_loader
+// path uses TOOL_LOADER_STATIC_DESCRIPTION instead (DD-21).
 export function formatCatalogDescription(catalog: CatalogEntry[], totalAvailable: number) {
   const lines = [
     "Load additional tools into this session. Call with the tool names you need — they become available on your next action.",
