@@ -433,7 +433,7 @@ export namespace LLM {
      */
     idleWatchdogBox?: { pause?: () => () => void }
     lazyTools?: Map<string, Tool>
-    toolChoice?: "auto" | "required" | "none"
+    toolChoice?: "auto" | "required" | "none" | { type: "tool"; toolName: string }
     contextBudget?: {
       status: "green" | "yellow" | "orange" | "red" | "unknown"
       ratio?: number

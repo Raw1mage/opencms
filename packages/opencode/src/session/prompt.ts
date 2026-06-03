@@ -2992,14 +2992,25 @@ export namespace SessionPrompt {
       // toolChoice) and on subagent sessions (the parent already gated).
       const forcedReadGate =
         !session.parentID && format.type !== "json_schema" && hasUnreadAttachmentRefs(msgs) && !!tools["attachment"]
-      const gatedTools = forcedReadGate ? { attachment: tools["attachment"] } : tools
+      // DD-20: do NOT strip the tools array to force the read. The tools block is
+      // the FIRST cached prefix element (tools→system→messages), so swapping
+      // 25-tools↔{attachment} every gated turn churns it → full rd=0 cold (the
+      // most expensive miss). Official forces a specific tool via tool_choice and
+      // keeps the tools array stable ("toggle tool_choice without losing the tools
+      // cache"). Mirror it: keep the full, stable tools array and force the
+      // `attachment` tool via toolChoice={type:"tool"}. That's a STRONGER gate than
+      // the strip (the model cannot respond text), and cache-safe. See datasheet
+      // §2 / DD-18/19 (don't mutate the cached prefix). lazyTools/catalog still
+      // clamp on the gated turn (they live in the uncached tail, no cache impact).
+      const gatedTools = tools
       const gatedLazyTools = forcedReadGate ? new Map<string, AITool>() : lazyTools
       const gatedLazyCatalogPrompt = forcedReadGate ? undefined : lazyCatalogPrompt
-      const gatedToolChoice: "auto" | "required" | "none" | undefined = forcedReadGate
-        ? "required"
-        : format.type === "json_schema"
-          ? "required"
-          : undefined
+      const gatedToolChoice: "auto" | "required" | "none" | { type: "tool"; toolName: string } | undefined =
+        forcedReadGate
+          ? { type: "tool", toolName: "attachment" }
+          : format.type === "json_schema"
+            ? "required"
+            : undefined
 
       if (step === 1) {
         SessionSummary.summarize({
