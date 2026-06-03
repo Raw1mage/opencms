@@ -36,6 +36,14 @@ function ephemeral(scope?: "global" | "org"): CacheControl {
 export interface AnthropicMessage {
   role: "user" | "assistant"
   content: string | AnthropicContentBlock[]
+  /**
+   * True for the ephemeral per-turn context preface message (injected by
+   * llm.ts before the last user turn). Mirrors official claude-code's
+   * `type:"api_system"` injected messages: the conversation cache-breakpoint
+   * finder (`applyConversationCacheBreakpoint`) SKIPS these so breakpoints land
+   * on stable real conversation, not the volatile preface. Not sent on the wire.
+   */
+  isContextPreface?: boolean
 }
 
 export type AnthropicContentBlock =
@@ -118,7 +126,13 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
           }
         }
         if (blocks.length > 0) {
-          messages.push({ role: "user", content: blocks })
+          // Carry the context-preface marker through so the breakpoint finder can
+          // skip it (mirrors official `api_system` skip). Set by llm.ts on the
+          // injected per-turn preface message via message-level providerOptions.
+          const isContextPreface =
+            (msg as { providerOptions?: { anthropic?: { contextPreface?: boolean } } }).providerOptions?.anthropic
+              ?.contextPreface === true
+          messages.push({ role: "user", content: blocks, ...(isContextPreface && { isContextPreface: true }) })
         }
         break
       }
@@ -256,8 +270,24 @@ export function applyConversationCacheBreakpoint(
   enableCaching = false,
 ): void {
   if (!enableCaching || messages.length === 0) return
-  // last + second-to-last (official `TF5` write-path marker set)
-  for (const idx of [messages.length - 1, messages.length - 2]) {
+  // Official `TF5` marker set M = {last} ∪ {second-to-last}, but its index finder
+  // `f()` SKIPS injected api_system messages: `while(H[L].type==="api_system")L--`.
+  // opencms's ephemeral context preface is the equivalent injected message — it is
+  // re-spliced right before the last user turn every call, so a breakpoint on it
+  // gives NO stable read-hit (its array position shifts as the conversation grows),
+  // and the conversation falls back to the system-prefix floor → cold full-rewrite.
+  // RCA: issues/bug_20260602_claude_cli_rapid_narrative_compaction_cascade §12.
+  // Mirror `f()`: skip preface messages so both breakpoints land on stable REAL
+  // conversation turns (the second-to-last then coincides with the previous turn's
+  // last breakpoint = a stable read-hit, as the official design intends).
+  const f = (from: number): number => {
+    let i = from
+    while (i >= 0 && messages[i]?.isContextPreface === true) i--
+    return i
+  }
+  const lastIdx = f(messages.length - 1)
+  const secondIdx = f(lastIdx - 1)
+  for (const idx of [lastIdx, secondIdx]) {
     if (idx < 0) continue
     const msg = messages[idx]!
     if (!Array.isArray(msg.content) || msg.content.length === 0) continue

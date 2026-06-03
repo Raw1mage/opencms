@@ -95,6 +95,55 @@ describe("applyConversationCacheBreakpoint — official TF5 two-breakpoint align
   })
 })
 
+// RCA §12 (upstream-confirmed): official `TF5` `f()` skips injected api_system
+// messages when placing breakpoints. opencms injects an ephemeral context preface
+// as a role:"user" message right before the last user turn; without skipping it the
+// second breakpoint lands on the volatile preface (re-spliced every turn) → no stable
+// read-hit → cache thrash (45% cold, full conversation rewrites). The finder must skip
+// isContextPreface messages so both breakpoints land on stable real conversation.
+describe("applyConversationCacheBreakpoint — skips the ephemeral context preface (RCA §12)", () => {
+  const preface = (text: string): AnthropicMessage => ({
+    role: "user",
+    content: [{ type: "text", text }],
+    isContextPreface: true,
+  })
+
+  test("preface as 2nd-to-last is skipped; breakpoints land on real conversation", () => {
+    const messages: AnthropicMessage[] = [
+      mkMsg("user", [{ type: "text", text: "m0" }]),
+      mkMsg("assistant", [{ type: "text", text: "m1-real-2nd-to-last" }]),
+      preface("ephemeral per-turn context"),
+      mkMsg("user", [{ type: "text", text: "m3-last-user" }]),
+    ]
+    applyConversationCacheBreakpoint(messages, true)
+    expect(ccCount(messages[3]!)).toBe(1) // last real conversation message
+    expect(ccCount(messages[2]!)).toBe(0) // PREFACE skipped — the bug was a cc here
+    expect(ccCount(messages[1]!)).toBe(1) // real second-to-last (found by skipping preface)
+    expect(ccCount(messages[0]!)).toBe(0)
+    expect(totalConvCC(messages)).toBe(2)
+  })
+
+  test("multiple consecutive prefaces are all skipped", () => {
+    const messages: AnthropicMessage[] = [
+      mkMsg("user", [{ type: "text", text: "real-a" }]),
+      mkMsg("assistant", [{ type: "text", text: "real-b" }]),
+      preface("p1"),
+      preface("p2"),
+    ]
+    applyConversationCacheBreakpoint(messages, true)
+    expect(ccCount(messages[2]!)).toBe(0)
+    expect(ccCount(messages[3]!)).toBe(0)
+    expect(ccCount(messages[1]!)).toBe(1) // last real
+    expect(ccCount(messages[0]!)).toBe(1) // second-to-last real
+  })
+
+  test("only prefaces → no breakpoints (no real conversation to mark)", () => {
+    const messages: AnthropicMessage[] = [preface("p1"), preface("p2")]
+    applyConversationCacheBreakpoint(messages, true)
+    expect(totalConvCC(messages)).toBe(0)
+  })
+})
+
 describe("cache breakpoint budget — DD-8 (tools 0 + system 2 + conversation 2 = 4)", () => {
   const tools = [
     { type: "function", name: "a", description: "", inputSchema: {} },

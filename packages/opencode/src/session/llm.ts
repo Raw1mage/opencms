@@ -1167,7 +1167,17 @@ export namespace LLM {
         }
         return { type: "text" as const, text: b.text }
       })
-      const prefaceMessage: ModelMessage = { role: "user", content: prefaceContent }
+      // Mark as the injected context preface so the native claude breakpoint finder
+      // (applyConversationCacheBreakpoint) SKIPS it — mirrors official claude-code's
+      // api_system messages. Without this, the conversation's 2nd cache breakpoint
+      // lands on this ephemeral, re-spliced message → no stable read-hit → cache
+      // thrash (45% cold, full conversation rewrites). RCA: issues/
+      // bug_20260602_claude_cli_rapid_narrative_compaction_cascade §12.
+      const prefaceMessage: ModelMessage = {
+        role: "user",
+        content: prefaceContent,
+        providerOptions: { anthropic: { contextPreface: true } },
+      }
       const insertAt = lastUserIdx >= 0 ? lastUserIdx : input.messages.length
       input.messages = [...input.messages.slice(0, insertAt), prefaceMessage, ...input.messages.slice(insertAt)]
     }
