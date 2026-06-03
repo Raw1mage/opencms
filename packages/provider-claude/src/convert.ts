@@ -362,6 +362,19 @@ export interface ConvertSystemOptions {
   billingContent?: string
   /** Entrypoint for billing header */
   entrypoint?: string
+  /**
+   * DD-22 Part B: low-frequency per-session context (T1 — README summary, cwd
+   * listing, today's date, pinned skills) routed out of the uncached tail into a
+   * cached system block placed AFTER the static systemText. T1 is low-CHANGE (not
+   * static): it's the head of the dynamic region, so it sits BEFORE the
+   * conversation where the growing conversation (downstream) never busts it, and
+   * a real T1 change (≈daily) re-prefills only T1 + the conversation — vs the old
+   * cost of re-sending ~11K of T1 at full price every turn from the tail. When
+   * present it takes the slot freed by dropping identity's own breakpoint
+   * (identity is static → it rides systemText's breakpoint), keeping the system
+   * total at 2 cache_control blocks (systemText + T1) within the 4-budget.
+   */
+  lowFreqText?: string
 }
 
 export function convertSystemBlocks(options: ConvertSystemOptions): AnthropicSystemBlock[] {
@@ -371,9 +384,11 @@ export function convertSystemBlocks(options: ConvertSystemOptions): AnthropicSys
     identity = IDENTITY_INTERACTIVE,
     billingContent,
     entrypoint,
+    lowFreqText,
   } = options
 
   const blocks: AnthropicSystemBlock[] = []
+  const hasLowFreq = !!(lowFreqText && lowFreqText.trim())
 
   // Block 0: billing header (no cache)
   if (billingContent) {
@@ -381,40 +396,61 @@ export function convertSystemBlocks(options: ConvertSystemOptions): AnthropicSys
     blocks.push({ type: "text", text: headerText, cache_control: null })
   }
 
-  // Block 1: identity (org-level cache)
+  // Block 1: identity (org-level cache).
+  // DD-22 Part B: when a low-freq (T1) block follows, drop identity's own
+  // breakpoint so the freed slot funds T1's breakpoint and the system total
+  // stays at 2 cache_control blocks (systemText + T1) within the 4-budget.
+  // identity is static and sits before systemText, so it stays cached as the
+  // prefix of systemText's breakpoint — no warmth is lost, only a redundant
+  // (static-on-static) breakpoint is reclaimed. Guarded on systemText so we
+  // never leave identity uncached when there is no downstream block to carry it.
+  const dropIdentityBreakpoint = hasLowFreq && !!systemText
   blocks.push({
     type: "text",
     text: identity,
-    ...(enableCaching && { cache_control: ephemeral("org") }),
+    ...(enableCaching && !dropIdentityBreakpoint && { cache_control: ephemeral("org") }),
   })
 
-  if (!systemText) return blocks
+  if (systemText) {
+    // Check for boundary marker
+    const boundaryIdx = systemText.indexOf(BOUNDARY_MARKER)
 
-  // Check for boundary marker
-  const boundaryIdx = systemText.indexOf(BOUNDARY_MARKER)
+    if (boundaryIdx !== -1) {
+      // Mode B: Boundary-based cache
+      const staticPart = systemText.slice(0, boundaryIdx).trim()
+      const dynamicPart = systemText.slice(boundaryIdx + BOUNDARY_MARKER.length).trim()
 
-  if (boundaryIdx !== -1) {
-    // Mode B: Boundary-based cache
-    const staticPart = systemText.slice(0, boundaryIdx).trim()
-    const dynamicPart = systemText.slice(boundaryIdx + BOUNDARY_MARKER.length).trim()
+      if (staticPart) {
+        blocks.push({
+          type: "text",
+          text: staticPart,
+          ...(enableCaching && { cache_control: ephemeral("global") }),
+        })
+      }
 
-    if (staticPart) {
+      if (dynamicPart) {
+        blocks.push({ type: "text", text: dynamicPart })
+      }
+    } else {
+      // Mode C: Fallback — all sections as org-level cache
       blocks.push({
         type: "text",
-        text: staticPart,
-        ...(enableCaching && { cache_control: ephemeral("global") }),
+        text: systemText,
+        ...(enableCaching && { cache_control: ephemeral("org") }),
       })
     }
+  }
 
-    if (dynamicPart) {
-      blocks.push({ type: "text", text: dynamicPart })
-    }
-  } else {
-    // Mode C: Fallback — all sections as org-level cache
+  // Block N: T1 low-freq per-session context (DD-22 Part B). Placed AFTER the
+  // static system, BEFORE the conversation (system precedes messages on the
+  // wire), with its own breakpoint so it caches across turns and a T1 change
+  // only re-prefills T1 + the conversation. Default ephemeral scope (no
+  // org/global) — it is per-session, not org-shared, content.
+  if (hasLowFreq) {
     blocks.push({
       type: "text",
-      text: systemText,
-      ...(enableCaching && { cache_control: ephemeral("org") }),
+      text: lowFreqText!,
+      ...(enableCaching && { cache_control: ephemeral() }),
     })
   }
 

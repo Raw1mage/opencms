@@ -766,6 +766,11 @@ export namespace LLM {
     const injectEnablementSnapshot = shouldInjectEnablementSnapshot(input.messages)
     const system: string[] = []
     let preface: ContextPrefaceMessageOutput | undefined
+    // DD-22 Part B: T1 (low-freq per-session context) is hoisted out of the tail
+    // preface and carried here so it can be routed into a cached SYSTEM block via
+    // requestProviderOptions (claude-cli) instead of being re-sent full-price in
+    // the uncached tail every turn. Native claude path only; codex is unaffected.
+    let lowFreqContextText: string | undefined
     // plans/provider_codex-prompt-realign Stage A.3-2: hoisted so the
     // bundle-injection block (after the preface insertion below) can read
     // the same flag and the same driver hash that buildStaticBlock produced.
@@ -1100,9 +1105,12 @@ export namespace LLM {
           inlineImageCount,
           t2Empty: preface.t2Empty,
           breakpointPlan: {
-            BP1: "static-system-end",
-            BP2: t1Block ? "preface-t1-end" : "omitted",
-            BP3: t2Block ? "preface-t2-end" : "omitted",
+            // DD-22 Part B: T1 now caches as a SYSTEM block (before the
+            // conversation), not a tail-preface breakpoint. T2/trailing ride the
+            // uncached tail. System = systemText + T1 (2); conversation = 2.
+            BP1: "system-static-end (identity rides systemText)",
+            BP2: t1Block ? "system-t1-end (DD-22B cached)" : "omitted",
+            BP3: "conversation-prev",
             BP4: "conversation-final",
           },
         })
@@ -1134,14 +1142,18 @@ export namespace LLM {
       // ProviderTransform PHASE_B_BREAKPOINT_PROVIDER_OPTION marker so
       // applyCaching places explicit BP2/BP3 there. The trailing tier is
       // deliberately NOT marked — it rides BP4 via the following user msg.
-      const blocks = preface.contentBlocks
-      const t1LastIdx = (() => {
-        for (let i = blocks.length - 1; i >= 0; i--) {
-          const b = blocks[i]
-          if (b?.type === "text" && b.tier === "t1") return i
-        }
-        return -1
-      })()
+      // DD-22 Part B: hoist T1 (low-freq) OUT of the tail preface. Its text is
+      // routed to a cached SYSTEM block (lowFreqContextText → providerOptions →
+      // convertSystemBlocks), placed before the conversation so it caches across
+      // turns instead of being re-sent full-price in the uncached tail. T2 +
+      // trailing + images stay in the tail. T1 goes UNFRAMED (a system block is
+      // already system context; the <system-reminder> framing in Part A is for
+      // the message-stream tail, not the system region).
+      const allBlocks = preface.contentBlocks
+      const t1Texts: string[] = []
+      for (const b of allBlocks) if (b.type === "text" && b.tier === "t1") t1Texts.push(b.text)
+      lowFreqContextText = t1Texts.length ? t1Texts.join("\n\n") : undefined
+      const blocks = allBlocks.filter((b) => !(b.type === "text" && b.tier === "t1"))
       const t2LastIdx = (() => {
         for (let i = blocks.length - 1; i >= 0; i--) {
           const b = blocks[i]
@@ -1171,7 +1183,7 @@ export namespace LLM {
             filename: b.filename,
           }
         }
-        const needsBreakpoint = i === t1LastIdx || i === t2LastIdx
+        const needsBreakpoint = i === t2LastIdx
         return {
           type: "text" as const,
           // DD-22 Part A: frame each preface tier as a <system-reminder> so the
@@ -1745,6 +1757,15 @@ export namespace LLM {
     // Get account ID for rate limit tracking
     const accountId = currentAccountId
     const requestProviderOptions = ProviderTransform.providerOptions(input.model, params.options)
+    // DD-22 Part B: hand the hoisted T1 (low-freq) text to the native claude
+    // provider under its own providerId key so convertSystemBlocks can place it
+    // as a cached system block. Keyed under "claude-cli" (the same channel the
+    // provider already reads for thinking). No-op for other providers (codex
+    // never reads this key → DD-4 byte-identical invariant holds).
+    if (lowFreqContextText) {
+      const opts = requestProviderOptions as Record<string, any>
+      opts["claude-cli"] = { ...(opts["claude-cli"] ?? {}), lowFreqContext: lowFreqContextText }
+    }
     const outboundFingerprint = Bun.hash(
       JSON.stringify({
         sessionID: input.sessionID,

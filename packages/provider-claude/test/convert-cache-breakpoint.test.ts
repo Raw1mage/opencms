@@ -276,3 +276,91 @@ describe("cache breakpoint budget — DD-8 (tools 0 + system 2 + conversation 2 
     expect(systemCC + toolsCC + convCC).toBeLessThanOrEqual(4)
   })
 })
+
+describe("convertSystemBlocks — DD-22 Part B (T1 low-freq cached system block)", () => {
+  test("lowFreqText present: identity drops its breakpoint, T1 gets one → still 2 system cc", () => {
+    const blocks = convertSystemBlocks({
+      systemText: "SYSTEM",
+      enableCaching: true,
+      identity: "ID",
+      lowFreqText: "README + cwd + date",
+    })
+    // billing absent → [identity, systemText, T1]
+    expect(blocks.map((b) => b.text)).toEqual(["ID", "SYSTEM", "README + cwd + date"])
+    // identity reallocated (no cc — rides systemText); systemText + T1 carry the 2
+    expect(blocks[0]!.cache_control).toBeFalsy() // identity: breakpoint reclaimed
+    expect(blocks[1]!.cache_control).toBeTruthy() // systemText
+    expect(blocks[2]!.cache_control).toBeTruthy() // T1
+    expect(blocks.filter((b) => b.cache_control != null).length).toBe(2)
+  })
+
+  test("T1 is the LAST system block (before the conversation, after static system)", () => {
+    const blocks = convertSystemBlocks({
+      systemText: "SYSTEM",
+      enableCaching: true,
+      identity: "ID",
+      lowFreqText: "T1",
+    })
+    expect(blocks[blocks.length - 1]!.text).toBe("T1")
+  })
+
+  test("end-to-end with T1: budget stays at 4 (system 2 + tools 0 + conversation 2)", () => {
+    const systemBlocks = convertSystemBlocks({
+      systemText: "SYSTEM",
+      enableCaching: true,
+      identity: "ID",
+      lowFreqText: "T1 low-freq context",
+    })
+    const messages: AnthropicMessage[] = [
+      mkMsg("user", [{ type: "text", text: "m0" }]),
+      mkMsg("assistant", [{ type: "text", text: "m1" }]),
+      mkMsg("user", [{ type: "text", text: "m2" }]),
+    ]
+    applyConversationCacheBreakpoint(messages, true)
+    const systemCC = systemBlocks.filter((b) => b.cache_control != null).length
+    expect(systemCC).toBe(2)
+    expect(systemCC + 0 + totalConvCC(messages)).toBe(4)
+  })
+
+  test("no lowFreqText → identity keeps its breakpoint (unchanged baseline)", () => {
+    const blocks = convertSystemBlocks({ systemText: "SYSTEM", enableCaching: true, identity: "ID" })
+    expect(blocks[0]!.cache_control).toBeTruthy() // identity keeps cc
+    expect(blocks.filter((b) => b.cache_control != null).length).toBe(2)
+  })
+
+  test("edge: lowFreqText but NO systemText → identity keeps its breakpoint (T1 still cached) = 2", () => {
+    const blocks = convertSystemBlocks({
+      systemText: undefined,
+      enableCaching: true,
+      identity: "ID",
+      lowFreqText: "T1",
+    })
+    // No systemText to carry identity → identity must keep its own breakpoint
+    expect(blocks.map((b) => b.text)).toEqual(["ID", "T1"])
+    expect(blocks[0]!.cache_control).toBeTruthy() // identity
+    expect(blocks[1]!.cache_control).toBeTruthy() // T1
+    expect(blocks.filter((b) => b.cache_control != null).length).toBe(2)
+  })
+
+  test("empty/whitespace lowFreqText → no T1 block, baseline 2 cc preserved", () => {
+    const blocks = convertSystemBlocks({
+      systemText: "SYSTEM",
+      enableCaching: true,
+      identity: "ID",
+      lowFreqText: "   ",
+    })
+    expect(blocks.map((b) => b.text)).toEqual(["ID", "SYSTEM"])
+    expect(blocks.filter((b) => b.cache_control != null).length).toBe(2)
+  })
+
+  test("caching disabled with lowFreqText → T1 present, zero breakpoints", () => {
+    const blocks = convertSystemBlocks({
+      systemText: "SYSTEM",
+      enableCaching: false,
+      identity: "ID",
+      lowFreqText: "T1",
+    })
+    expect(blocks.map((b) => b.text)).toEqual(["ID", "SYSTEM", "T1"])
+    expect(blocks.every((b) => b.cache_control == null)).toBe(true)
+  })
+})

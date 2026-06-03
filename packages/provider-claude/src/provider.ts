@@ -222,6 +222,10 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
       enableCaching,
       identity: this.options.identity ?? IDENTITY_INTERACTIVE,
       billingContent,
+      // DD-22 Part B: per-request low-freq (T1) context routed into a cached
+      // system block instead of the uncached tail preface. Arrives under the
+      // "claude-cli" providerId key (same channel as thinking, read into `po`).
+      lowFreqText: typeof po.lowFreqContext === "string" ? po.lowFreqContext : undefined,
     })
 
     // P0 causation telemetry (DD-7): record the final cache_control breakpoint
