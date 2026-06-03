@@ -1174,7 +1174,11 @@ export namespace LLM {
         const needsBreakpoint = i === t1LastIdx || i === t2LastIdx
         return {
           type: "text" as const,
-          text: b.text,
+          // DD-22 Part A: frame each preface tier as a <system-reminder> so the
+          // model reads the tail as per-turn SYSTEM context, not a second user
+          // utterance. Mirrors official u2()/Y35() (the tail is role api_system /
+          // system-framed). Cache-neutral — the preface rides the uncached tail.
+          text: `<system-reminder>\n${b.text}\n</system-reminder>`,
           providerOptions: {
             ...(needsBreakpoint ? ProviderTransform.PHASE_B_BREAKPOINT_PROVIDER_OPTION : {}),
             ...PREFACE_BLOCK_MARKER,
