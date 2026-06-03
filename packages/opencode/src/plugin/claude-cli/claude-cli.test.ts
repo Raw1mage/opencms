@@ -78,4 +78,28 @@ describe("claude-cli Plugin", () => {
     expect(indexSource).not.toContain("@ai-sdk/anthropic")
     expect(authSource).not.toContain("@ai-sdk/anthropic")
   })
+
+  // Regression guard for the 2026-06-03 token-landing bug: the provider-internal
+  // ensureValidToken refresh (provider.ts:478) rotates the refresh_token mid-session;
+  // if createClaudeCode is not given an onTokenRefresh callback, the rotation is lost
+  // and the next process start replays a consumed token → invalid_grant → forced
+  // re-login. createClaudeCode MUST be wired with the persist helper.
+  it("wires onTokenRefresh into createClaudeCode so mid-session rotations persist", async () => {
+    const src = await Bun.file(import.meta.dir + "/index.ts").text()
+    // The shared persist helper exists and writes to the real storage account.
+    expect(src).toContain("persistRefreshedToken")
+    expect(src).toMatch(/Account\.update\("claude-cli",\s*storageId/)
+    // createClaudeCode is invoked WITH the onTokenRefresh callback (the missing link).
+    expect(src).toMatch(/onTokenRefresh:\s*persistRefreshedToken/)
+    // Both refresh paths funnel through the one helper (explicit getModel refresh too).
+    expect(src).toMatch(/await persistRefreshedToken\(creds\)/)
+  })
+
+  it("persist resolves the OPENCODE storage id, not the claude-side accountId", async () => {
+    const src = await Bun.file(import.meta.dir + "/index.ts").text()
+    // storageId prefers the loader accountId, falls back to base-token reverse lookup.
+    expect(src).toMatch(/const storageId = accountId \|\| \(await Account\.findByRefreshToken\("claude-cli", lastKnownRefresh\)\)/)
+    // lastKnownRefresh advances after each persist so the fallback survives successive rotations.
+    expect(src).toContain("lastKnownRefresh = refreshed.refresh")
+  })
 })

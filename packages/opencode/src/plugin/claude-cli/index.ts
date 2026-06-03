@@ -67,12 +67,51 @@ export async function ClaudeCliPlugin(input: PluginInput): Promise<Hooks> {
             log.info("getModel via provider-claude", { modelID })
             const creds = options as any
 
+            // claude-cli token persistence — landing-bug fix (2026-06-03). ONE persist
+            // helper shared by BOTH refresh paths:
+            //   (1) the explicit getModel refresh below, and
+            //   (2) the provider-internal ensureValidToken refresh that fires
+            //       mid-session when the access token expires (provider.ts:478),
+            //       wired via `onTokenRefresh` on createClaudeCode.
+            // Path (2) was previously UNWIRED — createClaudeCode received no
+            // onTokenRefresh — so mid-session token ROTATIONS (Anthropic rotates
+            // refresh_token, see auth.ts:193) updated `creds` only in memory and were
+            // never written back. A long session refreshes many times; on the next
+            // process start the stale (already-consumed) refresh token loads →
+            // invalid_grant → forced re-login. Wiring (2) closes the leak.
+            //
+            // Persist targets the REAL opencode storage account (claude-cli-subscription-
+            // <slug>), NOT the claude-side `creds.accountId` (email/profile): prefer the
+            // loader's `accountId` (storage id), fall back to a base-token reverse-lookup.
+            // `lastKnownRefresh` tracks the account's current on-disk refresh value so the
+            // fallback keeps resolving across successive rotations. Account.update is
+            // in-place (throws if the id is gone → caught), never creates a duplicate, and
+            // is best-effort — a write failure must NOT abort the request.
+            let lastKnownRefresh = (creds?.refresh as string) ?? ""
+            const persistRefreshedToken = async (refreshed: any) => {
+              try {
+                const { Account } = await import("../../account")
+                const storageId = accountId || (await Account.findByRefreshToken("claude-cli", lastKnownRefresh))
+                if (!storageId) {
+                  log.warn("Could not resolve storage account for refreshed token; skipping persist")
+                  return
+                }
+                await Account.update("claude-cli", storageId, {
+                  accessToken: refreshed.access,
+                  expiresAt: refreshed.expires,
+                  refreshToken: refreshed.refresh,
+                })
+                if (refreshed.refresh) lastKnownRefresh = refreshed.refresh
+                log.info("Persisted refreshed claude-cli token", { accountId: storageId })
+              } catch (persistErr) {
+                log.error("Failed to persist refreshed claude-cli token (continuing with in-memory creds)", {
+                  error: persistErr,
+                })
+              }
+            }
+
             // Token refresh before model creation — ensures fresh access token
             if (isClaudeOAuthAuth(creds) && (!creds.access || (creds.expires && creds.expires < Date.now()))) {
-              // Snapshot the PRE-rotation refresh token. The stored account still
-              // holds it, so it's how we locate that exact account after the refresh
-              // rotates `creds.refresh` to a new value (see persist below).
-              const preRotationRefresh = creds.refresh as string
               try {
                 const tokens = await refreshTokenWithMutex(creds.refresh)
                 creds.access = tokens.access
@@ -83,44 +122,7 @@ export async function ClaudeCliPlugin(input: PluginInput): Promise<Hooks> {
                 log.error("Token refresh failed in getModel", { error: e })
                 throw e
               }
-
-              // Persist the rotated token back to accounts.json so the next process
-              // start does not replay a consumed refresh token (→ invalid_grant →
-              // forced re-login). Best-effort: refresh already succeeded and `creds`
-              // is fresh in memory, so a write failure must NOT abort the request.
-              //
-              // ROOT CAUSE of the original "time's up → must re-login": the previous
-              // persist did `client.auth.set({ path: { id: creds.accountId || "claude-cli" } })`.
-              // `creds.accountId` is the CLAUDE-side identifier (email/profile), NOT the
-              // opencode storage account id (claude-cli-subscription-<slug>), and it
-              // falls back to the literal "claude-cli". Auth.set then re-runs identity
-              // resolution on that wrong id → it fails to hit the live storage account
-              // and the rotated token never lands on it. Next boot loads the stale
-              // (already-consumed) refresh token → invalid_grant.
-              //
-              // Fix: write straight to the real storage account via Account.update —
-              // prefer the loader's `accountId` (the opencode storage id), and fall
-              // back to a base-token lookup for loader call sites that don't supply it.
-              // Account.update is targeted in-place, NO-OPS if the id is gone, and never
-              // creates a duplicate account.
-              try {
-                const { Account } = await import("../../account")
-                const storageId = accountId || (await Account.findByRefreshToken("claude-cli", preRotationRefresh))
-                if (storageId) {
-                  await Account.update("claude-cli", storageId, {
-                    accessToken: creds.access,
-                    expiresAt: creds.expires,
-                    refreshToken: creds.refresh,
-                  })
-                  log.info("Persisted refreshed claude-cli token", { accountId: storageId })
-                } else {
-                  log.warn("Could not resolve storage account for refreshed token; skipping persist")
-                }
-              } catch (persistErr) {
-                log.error("Failed to persist refreshed claude-cli token (continuing with in-memory creds)", {
-                  error: persistErr,
-                })
-              }
+              await persistRefreshedToken(creds)
             }
 
             const credentials: ClaudeCredentials = isClaudeCredentials(creds)
@@ -138,6 +140,10 @@ export async function ClaudeCliPlugin(input: PluginInput): Promise<Hooks> {
             const provider = createClaudeCode({
               credentials,
               enableCaching: true,
+              // Landing-bug fix: persist mid-session ensureValidToken rotations
+              // (provider.ts:478). Without this the rotated refresh token was lost
+              // on the next process start → invalid_grant.
+              onTokenRefresh: persistRefreshedToken,
             })
             return provider.languageModel(modelID)
           },
