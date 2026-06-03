@@ -164,6 +164,24 @@ describe("applyConversationCacheBreakpoint — skips the ephemeral context prefa
     expect(totalConvCC(messages)).toBe(2)
   })
 
+  test("preface at TAIL (DD-18 structure): breakpoints land on the last two REAL messages, preface skipped", () => {
+    // The structure-correct layout: preface is the LAST message (uncached tail),
+    // after the last user turn. Breakpoints must fall on the last two real
+    // conversation messages so the whole conversation is a clean cached prefix.
+    const messages: AnthropicMessage[] = [
+      mkMsg("user", [{ type: "text", text: "u0" }]),
+      mkMsg("assistant", [{ type: "text", text: "a1" }]),
+      mkMsg("user", [{ type: "text", text: "u2-query" }]),
+      preface("ephemeral tail context"),
+    ]
+    applyConversationCacheBreakpoint(messages, true)
+    expect(ccCount(messages[3]!)).toBe(0) // preface (tail) — skipped, uncached
+    expect(ccCount(messages[2]!)).toBe(1) // last real message (the query)
+    expect(ccCount(messages[1]!)).toBe(1) // second-to-last real message
+    expect(ccCount(messages[0]!)).toBe(0)
+    expect(totalConvCC(messages)).toBe(2)
+  })
+
   test("preface mid-array with several post-preface messages still anchors at preface-1", () => {
     const messages: AnthropicMessage[] = [
       mkMsg("user", [{ type: "text", text: "u0" }]),

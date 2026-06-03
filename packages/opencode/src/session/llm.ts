@@ -1116,9 +1116,17 @@ export namespace LLM {
     // the LLM reads it as context for the upcoming reply. The preface is
     // ephemeral (rebuilt per call); not persisted to storage.
     if (preface) {
-      const lastUserIdx = (() => {
+      // DD-18: the LAST user-role turn — role "user" OR a tool result (tool
+      // results are user-role on the Anthropic wire). The preface is appended
+      // AFTER this index so it rides the uncached TAIL, mirroring official
+      // claude-code (Y35/w append the api_system reminder after the user turn).
+      // Inserting BEFORE it (the old behaviour) put the volatile preface inside
+      // the cached prefix → conversation cold-rewrite on every preface change.
+      // See plans/provider-claude_conversation-cache-breakpoint/datasheet.md.
+      const lastUserTurnIdx = (() => {
         for (let i = input.messages.length - 1; i >= 0; i--) {
-          if (input.messages[i]?.role === "user") return i
+          const r = input.messages[i]?.role
+          if (r === "user" || r === "tool") return i
         }
         return -1
       })()
@@ -1173,18 +1181,20 @@ export namespace LLM {
           },
         }
       })
-      // Mark as the injected context preface so the native claude breakpoint finder
-      // (applyConversationCacheBreakpoint) SKIPS it — mirrors official claude-code's
-      // api_system messages. Without this, the conversation's 2nd cache breakpoint
-      // lands on this ephemeral, re-spliced message → no stable read-hit → cache
-      // thrash (45% cold, full conversation rewrites). RCA: issues/
-      // bug_20260602_claude_cli_rapid_narrative_compaction_cascade §12.
+      // Mark as the injected context preface so the native claude breakpoint
+      // finder (applyConversationCacheBreakpoint) skips it. DD-18: place it in the
+      // uncached TAIL — AFTER the last user-role turn — so the entire real
+      // conversation stays a clean, append-only cached prefix and a preface change
+      // only re-writes the tail. Mirrors official Y35/w (api_system after the user
+      // turn) + TF5 (breakpoint on the last real message, skipping trailing
+      // context). RCA + structure: issues/bug_20260602_claude_cli_rapid_narrative_compaction_cascade §12
+      // and plans/provider-claude_conversation-cache-breakpoint/datasheet.md.
       const prefaceMessage: ModelMessage = {
         role: "user",
         content: prefaceContent,
         providerOptions: { anthropic: { contextPreface: true } },
       }
-      const insertAt = lastUserIdx >= 0 ? lastUserIdx : input.messages.length
+      const insertAt = lastUserTurnIdx >= 0 ? lastUserTurnIdx + 1 : input.messages.length
       input.messages = [...input.messages.slice(0, insertAt), prefaceMessage, ...input.messages.slice(insertAt)]
     }
 
