@@ -287,23 +287,43 @@ export function applyConversationCacheBreakpoint(
 ): void {
   try {
     if (!enableCaching || messages.length === 0) return
-    // Official `TF5` marker set M = {last} ∪ {second-to-last}, but its index finder
-    // `f()` SKIPS injected api_system messages: `while(H[L].type==="api_system")L--`.
-    // opencms's ephemeral context preface is the equivalent injected message — it is
-    // re-spliced right before the last user turn every call, so a breakpoint on it
-    // gives NO stable read-hit (its array position shifts as the conversation grows),
-    // and the conversation falls back to the system-prefix floor → cold full-rewrite.
-    // RCA: issues/bug_20260602_claude_cli_rapid_narrative_compaction_cascade §12.
-    // Mirror `f()`: skip preface messages so both breakpoints land on stable REAL
-    // conversation turns (the second-to-last then coincides with the previous turn's
-    // last breakpoint = a stable read-hit, as the official design intends).
+    // opencms injects an ephemeral context preface (re-spliced every turn) that is
+    // the equivalent of official claude-code's `api_system` messages. It is inserted
+    // right before the last USER-role message, so on tool-chain turns (where tool-role
+    // messages follow the last user turn) it lands MID-ARRAY. A breakpoint at or after
+    // it gets no stable read-hit when its volatile content changes → the whole
+    // conversation downstream re-writes → the warm/cold thrash (cold floor = system
+    // prefix only). RCA: issues/bug_20260602_claude_cli_rapid_narrative_compaction_cascade §12.
+    //
+    // Fix (beyond a simple `f()` skip): ANCHOR the second breakpoint at the message
+    // just before the EARLIEST preface. That caches the stable conversation bulk
+    // BEFORE the volatile preface, so a preface change can only re-write the small
+    // tail (preface + post-preface churn), never the bulk. The primary breakpoint
+    // still rides the last real (non-preface) message.
     const f = (from: number): number => {
       let i = from
       while (i >= 0 && messages[i]?.isContextPreface === true) i--
       return i
     }
+    let firstPrefaceIdx = -1
+    for (let i = 0; i < messages.length; i++) {
+      if (messages[i]?.isContextPreface === true) {
+        firstPrefaceIdx = i
+        break
+      }
+    }
     const lastIdx = f(messages.length - 1)
-    const secondIdx = f(lastIdx - 1)
+    // Secondary breakpoint. Only the genuine MID-ARRAY preface case (real messages
+    // follow the earliest preface) needs the anchor-before-preface treatment; that
+    // is the tool-turn thrash. A trailing/leading/absent preface keeps the official
+    // two-of-last alignment (skipping any preface at the second-to-last slot).
+    let secondIdx: number
+    if (firstPrefaceIdx > 0 && lastIdx > firstPrefaceIdx) {
+      secondIdx = firstPrefaceIdx - 1 // anchor the stable bulk before the preface
+    } else {
+      secondIdx = f(lastIdx - 1)
+    }
+    if (secondIdx >= lastIdx) secondIdx = -1 // never duplicate/invert the primary
     for (const idx of [lastIdx, secondIdx]) {
       if (idx < 0) continue
       const msg = messages[idx]!

@@ -65,6 +65,7 @@ function recordCacheBreakpoints(
   systemBlocks: AnthropicSystemBlock[],
   tools: AnthropicTool[] | undefined,
   messages: AnthropicMessage[],
+  prefaceIndices: number[] = [],
 ): void {
   try {
     const system = systemBlocks.filter((b) => b.cache_control != null).length
@@ -86,6 +87,10 @@ function recordCacheBreakpoints(
         tools: toolsCount,
         total: conversation + system + toolsCount,
         conversationIndices,
+        // diagnostic: where the injected preface(s) actually landed this request.
+        // mid-array prefaceIndices (not messageCount-2) is the tool-turn case the
+        // anchor-before-preface fix targets.
+        prefaceIndices,
         messageCount: messages.length,
       }) + "\n"
     fs.appendFileSync(`${os.homedir()}/.local/share/opencode/log/claude-cache-breakpoints.jsonl`, line)
@@ -185,9 +190,15 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
       )
     }
 
-    // datasheet §9.2: conversation cache breakpoints on the last TWO messages,
-    // aligned to official `TF5` (DD-8). The second-to-last breakpoint is the
-    // previous turn's last → a stable read-hit, eliminating the warm/cold thrash.
+    // datasheet §9.2: conversation cache breakpoints anchored around the injected
+    // preface (DD-8). The second breakpoint sits just before the earliest preface so
+    // the stable bulk survives preface churn, eliminating the warm/cold thrash.
+    // Capture preface positions BEFORE applyConversationCacheBreakpoint strips the
+    // internal marker, for the diagnostic log below.
+    const prefaceIndices: number[] = []
+    messages.forEach((m, i) => {
+      if ((m as { isContextPreface?: boolean }).isContextPreface === true) prefaceIndices.push(i)
+    })
     applyConversationCacheBreakpoint(messages, enableCaching)
 
     // Find first user message text for billing header
@@ -215,7 +226,7 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
 
     // P0 causation telemetry (DD-7): record the final cache_control breakpoint
     // layout for this request. cache_control is not mutated after this point.
-    if (enableCaching) recordCacheBreakpoints(this.modelId, systemBlocks, tools, messages)
+    if (enableCaching) recordCacheBreakpoints(this.modelId, systemBlocks, tools, messages, prefaceIndices)
 
     // § 4.2.5  Build headers from scratch
     //

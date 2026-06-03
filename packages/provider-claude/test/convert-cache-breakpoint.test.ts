@@ -142,6 +142,43 @@ describe("applyConversationCacheBreakpoint — skips the ephemeral context prefa
     applyConversationCacheBreakpoint(messages, true)
     expect(totalConvCC(messages)).toBe(0)
   })
+
+  test("preface MID-ARRAY (tool turn): 2nd breakpoint anchors BEFORE the preface, protecting the bulk", () => {
+    // [u0, a1(bulk), preface, a3(tool_use), u4(tool_result)] — preface mid-array
+    // with real messages after it (the tool-turn case). The bulk anchor must land
+    // on index 1 (just before the preface) so a preface change cannot cold-rewrite
+    // the conversation before it.
+    const messages: AnthropicMessage[] = [
+      mkMsg("user", [{ type: "text", text: "u0" }]),
+      mkMsg("assistant", [{ type: "text", text: "a1-bulk" }]),
+      preface("ephemeral per-turn context"),
+      mkMsg("assistant", [{ type: "tool_use", id: "t", name: "x", input: {} }]),
+      mkMsg("user", [{ type: "tool_result", tool_use_id: "t", content: "ok" }]),
+    ]
+    applyConversationCacheBreakpoint(messages, true)
+    expect(ccCount(messages[4]!)).toBe(1) // last real message
+    expect(ccCount(messages[3]!)).toBe(0) // post-preface churn, not anchored
+    expect(ccCount(messages[2]!)).toBe(0) // the volatile preface itself
+    expect(ccCount(messages[1]!)).toBe(1) // bulk anchor — JUST BEFORE the preface
+    expect(ccCount(messages[0]!)).toBe(0)
+    expect(totalConvCC(messages)).toBe(2)
+  })
+
+  test("preface mid-array with several post-preface messages still anchors at preface-1", () => {
+    const messages: AnthropicMessage[] = [
+      mkMsg("user", [{ type: "text", text: "u0" }]),
+      mkMsg("assistant", [{ type: "text", text: "a1" }]),
+      mkMsg("user", [{ type: "text", text: "u2-bulk-end" }]),
+      preface("ephemeral"),
+      mkMsg("assistant", [{ type: "tool_use", id: "t", name: "x", input: {} }]),
+      mkMsg("user", [{ type: "tool_result", tool_use_id: "t", content: "ok" }]),
+    ]
+    applyConversationCacheBreakpoint(messages, true)
+    expect(ccCount(messages[5]!)).toBe(1) // last
+    expect(ccCount(messages[3]!)).toBe(0) // preface
+    expect(ccCount(messages[2]!)).toBe(1) // anchor = preface index (3) - 1
+    expect(totalConvCC(messages)).toBe(2)
+  })
 })
 
 // Wire-leak guard: isContextPreface is an INTERNAL breakpoint marker. If it
