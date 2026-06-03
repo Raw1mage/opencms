@@ -260,8 +260,12 @@ export namespace RateLimitJudge {
       }
     }
 
-    if (strategy === "counter" || strategy === "passive") {
-      // Counter/Passive strategy: infer RPD from RPM stats
+    // RPD inference is "counter"-only — see the markRateLimited() site below
+    // for the full rationale. "passive" providers (claude-cli, copilot-cli, …)
+    // rely on the error response only; the RPM<limit ⇒ daily-exhausted guess
+    // latches a transient TPM 429 into a multi-hour 16:00 lockout for them.
+    if (strategy === "counter") {
+      // Counter strategy: infer RPD from RPM stats
       const inference = inferFromRequestLog(providerId, accountId, modelId, reason, backoffMs)
       if (inference.adjusted) {
         backoffMs = inference.backoffMs
@@ -479,7 +483,17 @@ export namespace RateLimitJudge {
       }
     }
 
-    if (strategy === "counter" || strategy === "passive") {
+    // RPD inference is "counter"-only. "passive" providers (claude-cli,
+    // copilot-cli, …) rely on the error response ONLY (see getBackoffStrategy
+    // docs). The RPD guess (RPM < limit ⇒ daily-exhausted ⇒ cool down to the
+    // 16:00 quota reset) misfires for token-limited / low-request-rate /
+    // provider-interleaved vectors whose RPM is ~always below the request
+    // limit: it latches a single transient TPM 429 into a multi-hour,
+    // persisted, restart-surviving lockout while the upstream limit (a short
+    // rolling window) has long since cleared. Passive now falls through to the
+    // error-response backoff (60s probe on the 1st same-day failure, 5h only on
+    // the 2nd+), which is recoverable and matches real upstream behaviour.
+    if (strategy === "counter") {
       const inference = inferFromRequestLog(providerId, accountId, modelId, reason, backoffMs)
       if (inference.adjusted) {
         backoffMs = inference.backoffMs
