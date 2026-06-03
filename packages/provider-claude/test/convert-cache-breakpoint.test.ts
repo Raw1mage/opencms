@@ -144,6 +144,44 @@ describe("applyConversationCacheBreakpoint — skips the ephemeral context prefa
   })
 })
 
+// Wire-leak guard: isContextPreface is an INTERNAL breakpoint marker. If it
+// survives onto the serialized message it triggers Anthropic
+//   invalid_request_error: messages.N.isContextPreface: Extra inputs are not permitted
+// which breaks EVERY claude request. applyConversationCacheBreakpoint is the sole
+// consumer and MUST strip it for every message, on every path.
+describe("applyConversationCacheBreakpoint — strips the internal marker before the wire", () => {
+  const preface = (text: string): AnthropicMessage => ({
+    role: "user",
+    content: [{ type: "text", text }],
+    isContextPreface: true,
+  })
+  const anyMarker = (messages: AnthropicMessage[]): boolean =>
+    messages.some((m) => m.isContextPreface !== undefined)
+
+  test("caching enabled: no message retains isContextPreface", () => {
+    const messages: AnthropicMessage[] = [
+      mkMsg("user", [{ type: "text", text: "m0" }]),
+      mkMsg("assistant", [{ type: "text", text: "m1" }]),
+      preface("ephemeral"),
+      mkMsg("user", [{ type: "text", text: "m3" }]),
+    ]
+    applyConversationCacheBreakpoint(messages, true)
+    expect(anyMarker(messages)).toBe(false)
+  })
+
+  test("caching DISABLED: marker is still stripped (early-return path)", () => {
+    const messages: AnthropicMessage[] = [preface("p"), mkMsg("user", [{ type: "text", text: "m" }])]
+    applyConversationCacheBreakpoint(messages, false)
+    expect(anyMarker(messages)).toBe(false)
+  })
+
+  test("only prefaces: all markers stripped", () => {
+    const messages: AnthropicMessage[] = [preface("p1"), preface("p2")]
+    applyConversationCacheBreakpoint(messages, true)
+    expect(anyMarker(messages)).toBe(false)
+  })
+})
+
 describe("cache breakpoint budget — DD-8 (tools 0 + system 2 + conversation 2 = 4)", () => {
   const tools = [
     { type: "function", name: "a", description: "", inputSchema: {} },

@@ -269,32 +269,45 @@ export function applyConversationCacheBreakpoint(
   messages: AnthropicMessage[],
   enableCaching = false,
 ): void {
-  if (!enableCaching || messages.length === 0) return
-  // Official `TF5` marker set M = {last} ∪ {second-to-last}, but its index finder
-  // `f()` SKIPS injected api_system messages: `while(H[L].type==="api_system")L--`.
-  // opencms's ephemeral context preface is the equivalent injected message — it is
-  // re-spliced right before the last user turn every call, so a breakpoint on it
-  // gives NO stable read-hit (its array position shifts as the conversation grows),
-  // and the conversation falls back to the system-prefix floor → cold full-rewrite.
-  // RCA: issues/bug_20260602_claude_cli_rapid_narrative_compaction_cascade §12.
-  // Mirror `f()`: skip preface messages so both breakpoints land on stable REAL
-  // conversation turns (the second-to-last then coincides with the previous turn's
-  // last breakpoint = a stable read-hit, as the official design intends).
-  const f = (from: number): number => {
-    let i = from
-    while (i >= 0 && messages[i]?.isContextPreface === true) i--
-    return i
-  }
-  const lastIdx = f(messages.length - 1)
-  const secondIdx = f(lastIdx - 1)
-  for (const idx of [lastIdx, secondIdx]) {
-    if (idx < 0) continue
-    const msg = messages[idx]!
-    if (!Array.isArray(msg.content) || msg.content.length === 0) continue
-    const last = msg.content[msg.content.length - 1]!
-    // thinking/redacted_thinking blocks are never cache breakpoints (official OF5)
-    if (last.type === "thinking" || (last.type as string) === "redacted_thinking") continue
-    last.cache_control = ephemeral()
+  try {
+    if (!enableCaching || messages.length === 0) return
+    // Official `TF5` marker set M = {last} ∪ {second-to-last}, but its index finder
+    // `f()` SKIPS injected api_system messages: `while(H[L].type==="api_system")L--`.
+    // opencms's ephemeral context preface is the equivalent injected message — it is
+    // re-spliced right before the last user turn every call, so a breakpoint on it
+    // gives NO stable read-hit (its array position shifts as the conversation grows),
+    // and the conversation falls back to the system-prefix floor → cold full-rewrite.
+    // RCA: issues/bug_20260602_claude_cli_rapid_narrative_compaction_cascade §12.
+    // Mirror `f()`: skip preface messages so both breakpoints land on stable REAL
+    // conversation turns (the second-to-last then coincides with the previous turn's
+    // last breakpoint = a stable read-hit, as the official design intends).
+    const f = (from: number): number => {
+      let i = from
+      while (i >= 0 && messages[i]?.isContextPreface === true) i--
+      return i
+    }
+    const lastIdx = f(messages.length - 1)
+    const secondIdx = f(lastIdx - 1)
+    for (const idx of [lastIdx, secondIdx]) {
+      if (idx < 0) continue
+      const msg = messages[idx]!
+      if (!Array.isArray(msg.content) || msg.content.length === 0) continue
+      const last = msg.content[msg.content.length - 1]!
+      // thinking/redacted_thinking blocks are never cache breakpoints (official OF5)
+      if (last.type === "thinking" || (last.type as string) === "redacted_thinking") continue
+      last.cache_control = ephemeral()
+    }
+  } finally {
+    // `isContextPreface` is an INTERNAL marker used ONLY for the breakpoint
+    // finder above — it must NEVER reach the wire. Anthropic strictly validates
+    // message objects and rejects unknown fields with
+    //   invalid_request_error: messages.N.isContextPreface: Extra inputs are not permitted
+    // This is the single consumer of the marker, so strip it here for EVERY
+    // message, unconditionally (the finally runs even on the early-return /
+    // caching-disabled path, where the marker is still present from convertPrompt).
+    for (const m of messages) {
+      if (m.isContextPreface !== undefined) delete m.isContextPreface
+    }
   }
 }
 
