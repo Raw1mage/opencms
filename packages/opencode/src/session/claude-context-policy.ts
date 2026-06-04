@@ -1,162 +1,55 @@
 /**
- * claude-context-policy — provider-gated context-assembly policy for the
- * claude path (context/claude-refactor). Extracted (like stream-watchdog.ts)
- * so the gates are pure + unit-testable, and so the claude-vs-rest split lives
- * in ONE auditable place (DD-1 chokepoint seed). This is the firefight surface;
- * the full ContextProjector strategy formalizes around it later.
+ * claude-context-policy — DELEGATING SHIM (context/provider-policy-dispatch, Move B).
  *
- * INV-0: every helper returns the codex/other-provider answer = "no change".
- * Only `claude-cli` diverges. Non-claude turns exercise zero new behavior.
+ * The claude-vs-rest branch moved to `context-policy.ts` (`resolvePolicy`). These
+ * exports are preserved byte-identically (INV-0) so existing call sites keep
+ * working unchanged; call sites migrate to `resolvePolicy()` directly in P1-3,
+ * after which this shim is deleted.
  */
 
 import type { MessageV2 } from "./message-v2"
-import { reframeAnchorBodyForClaude } from "./anchor-sanitizer"
+import {
+  resolvePolicy,
+  CLAUDE_CONTEXT_PROVIDERS,
+  CLAUDE_NOOP_OBSERVED,
+  CLAUDE_CACHE_TTL_MS,
+  latestRealPromptTokens,
+} from "./context-policy"
 
-/** Providers that get the claude (stateless / 1M / full-retransmit) context path. */
-export const CLAUDE_CONTEXT_PROVIDERS: ReadonlySet<string> = new Set(["claude-cli"])
+export { CLAUDE_CONTEXT_PROVIDERS, CLAUDE_NOOP_OBSERVED, CLAUDE_CACHE_TTL_MS, latestRealPromptTokens }
 
 export function isClaudeContextProvider(providerId: string | undefined): boolean {
-  return providerId != null && CLAUDE_CONTEXT_PROVIDERS.has(providerId)
+  return resolvePolicy(providerId).kind === "claude"
 }
 
-/**
- * Observed conditions that are codex server-chain-rebind artifacts (DD-4).
- * Stateless claude has no chain to rebind, so these must NOT trigger
- * compaction on the claude path. Genuine token-pressure (`overflow`,
- * `idle`) and user `manual` are NOT here — those still apply to claude.
- */
-export const CLAUDE_NOOP_OBSERVED: ReadonlySet<string> = new Set([
-  "provider-switched",
-  "rebind",
-  "continuation-invalidated",
-])
-
-/**
- * True when a compaction trigger should be a no-op for claude: the active
- * provider is claude AND the observed condition is a codex-ism (chain rebind),
- * not real token pressure. codex/other providers always get `false` (INV-0).
- */
-export function shouldSkipClaudeEventCompaction(
-  providerId: string | undefined,
-  observed: string,
-): boolean {
-  return isClaudeContextProvider(providerId) && CLAUDE_NOOP_OBSERVED.has(observed)
+export function shouldSkipClaudeEventCompaction(providerId: string | undefined, observed: string): boolean {
+  return resolvePolicy(providerId).skipEventCompaction(observed)
 }
 
-// B-compaction size gate moved to per-provider tweak config
-// (context/claude-refactor DD-23): `Tweaks.contextThresholdsSync(providerId).bCompactTokens`
-// — absolute tokens, tunable, claude-cli default 100K. See config/tweaks.ts
-// ContextThresholdProfile. The gate gates on observable context SIZE (never on
-// cache_read/chain), so it stays structurally cascade-immune.
-
-/**
- * DD-23 P4-2 — A-tier (background ai_paid) enrichment gate. Decides whether a
- * just-written narrative B anchor is big enough to be worth a background
- * recompress into the smaller ai_paid A-tier. Returns true = RUN enrichment.
- *
- * claude triggers on an ABSOLUTE token floor (`aFloorTokens`, from the
- * per-provider tweak `aCompactTokens`, claude-cli 100K): its 1M window makes
- * the legacy context-ratio gate (0.4 → 400K) unreachable, so a fat ~160K claude
- * anchor was scheduled-then-skipped every cache-aware turn and only ever grew
- * (ses_188bb5576 #6). Non-claude providers keep the legacy context-ratio gate
- * byte-identical (INV-0; codex profile is a separate later push) — small
- * windows (≤128K) demand 25%, larger ones 40%.
- */
 export function shouldEnrichAnchor(input: {
   providerId: string | undefined
   anchorTokens: number
   contextLimit: number
   aFloorTokens: number
 }): boolean {
-  if (isClaudeContextProvider(input.providerId)) {
-    return input.anchorTokens >= input.aFloorTokens
-  }
-  const ratio = input.contextLimit > 0 ? input.anchorTokens / input.contextLimit : 0
-  const gate = input.contextLimit <= 128_000 ? 0.25 : 0.4
-  return ratio >= gate
+  return resolvePolicy(input.providerId).shouldEnrichAnchor(input)
 }
 
-/**
- * Most recent COMPLETED assistant turn's total prompt tokens
- * (input + cache.read + cache.write), scanning newest→oldest and skipping
- * compaction-anchor rows (summary === true) and rows without recorded tokens.
- * This is the REAL provider-reported prompt size — the same signal the B-trigger
- * gates on (prompt.ts) — not a chars estimate. Returns 0 when none found.
- * Pure; provider-agnostic (the caller decides whether to use it).
- */
-export function latestRealPromptTokens(msgs: MessageV2.WithParts[]): number {
-  for (let i = msgs.length - 1; i >= 0; i--) {
-    const info = msgs[i]?.info
-    if (!info || info.role !== "assistant") continue
-    if ((info as MessageV2.Assistant).summary === true) continue
-    const tk = (info as MessageV2.Assistant).tokens
-    if (!tk) continue
-    const total = (tk.input ?? 0) + (tk.cache?.read ?? 0) + (tk.cache?.write ?? 0)
-    if (total > 0) return total
-  }
-  return 0
-}
-
-/**
- * compaction_recency-fadeout-tiers DD-9 — gate-input floor for the A-tier
- * enrichment gate on the claude path. The chars-based estimate (`estimateTokens`,
- * the shared CJK-aware ToolBudget.estimateTokens) still under-counts mixed
- * markdown/code anchors ~1.3x (measured: est 81K vs real 106K on a stuck warroom
- * anchor), so shouldEnrichAnchor's aFloor gate under-fired → drop_old never ran →
- * the anchor stayed pinned and B-compaction churned (~15% reduction only, 204K→
- * 171K every ~8min). Floor the gate input on the REAL reported prompt tokens of
- * the most recent COMPLETED turn (`latestRealPromptTokens`), minus a fixed
- * system/tools reserve so we count the conversation/anchor share only. Once A
- * shrinks the anchor the prompt drops and this self-regulates (stops firing).
- * claude only; non-claude returns the estimate unchanged (INV-0, byte-identical).
- */
 export function gateAnchorTokensForClaude(input: {
   providerId: string | undefined
   estimateTokens: number
   realPromptTokens: number
   systemReserveTokens: number
 }): number {
-  if (!isClaudeContextProvider(input.providerId)) return input.estimateTokens
-  return Math.max(input.estimateTokens, input.realPromptTokens - input.systemReserveTokens)
+  return resolvePolicy(input.providerId).gateAnchorTokens(input)
 }
 
 /**
- * Anthropic ephemeral prompt-cache TTL (ms). After this much idle the cache is
- * GONE, so the next request is a guaranteed cold full-prefill regardless of what
- * the previous turn's recorded cache split was. context/claude-refactor DD-16
- * (session_resume): on resume/rebind after a long gap, the cold-compaction gate
- * must fire on the IDLE-GAP signal — "we are resuming now, cache is dead" — not
- * only on the previous turn's stale cache_read fraction. Otherwise a session
- * whose last turn happened to be warm would full-prefill its whole array on the
- * first cold resume, unbounded. Aligned to the claude provider's prompt-cache
- * TTL (provider-claude CLAUDE_CACHE_TTL): now 1h, so a resume within 1h is still
- * cache-warm and must NOT be treated as a cold gap. (Was 5 min = Anthropic's
- * default ephemeral; raised with the move to extended-cache-ttl 1h.)
- */
-export const CLAUDE_CACHE_TTL_MS = 60 * 60 * 1000
-
-/**
- * READ-TIME anchor projection for the claude path (context/claude-refactor
- * DD-21). Anchors are stored NEUTRAL (base `<prior_context source="kind">`
- * wrapper, no supersede framing); ANY provider's anchor — incl. inherited
- * codex-era and pre-DD-21 legacy ones — reads the same core. On the stateless
- * claude path the anchor is re-sent every turn against a newer verbatim tail,
- * so each anchor message's body is re-framed with the supersede frame at
- * projection (read) time. Pure: returns a shallow-cloned msg list with anchor
- * text bodies re-framed; non-anchor messages pass through by reference.
- * codex/other providers never call this → they see the neutral stored body
- * (INV-0). Replaces the old framed/unframed `filterCompacted` discriminator,
- * which broke every legacy session (all legacy anchors are unframed).
+ * Read-time anchor projection. Historically only ever called on the claude path
+ * (caller guards with isClaudeContextProvider), and the function always reframed
+ * regardless — so delegate unconditionally to the claude policy's projection to
+ * preserve that exact behavior.
  */
 export function projectClaudeAnchors(msgs: MessageV2.WithParts[]): MessageV2.WithParts[] {
-  return msgs.map((msg) => {
-    const isAnchor = msg.parts.some((p: any) => p.type === "compaction")
-    if (!isAnchor) return msg
-    const parts = msg.parts.map((p: any) =>
-      p.type === "text" && typeof p.text === "string"
-        ? { ...p, text: reframeAnchorBodyForClaude(p.text) }
-        : p,
-    )
-    return { ...msg, parts }
-  })
+  return resolvePolicy("claude-cli").projectAnchors(msgs)
 }
