@@ -29,13 +29,7 @@ import {
   emitUserMsgReplayTelemetry,
 } from "./compaction-telemetry"
 import { sanitizeAnchorToString, type AnchorKind } from "./anchor-sanitizer"
-import {
-  shouldSkipClaudeEventCompaction,
-  isClaudeContextProvider,
-  shouldEnrichAnchor,
-  gateAnchorTokensForClaude,
-  latestRealPromptTokens,
-} from "./claude-context-policy"
+import { resolvePolicy, latestRealPromptTokens } from "./context-policy"
 import { ToolBudget } from "../tool/budget"
 import { checkCleanTail } from "./idle-compaction-gate"
 import { SkillLayerRegistry } from "./skill-layer-registry"
@@ -1792,7 +1786,8 @@ When constructing the summary, try to stick to this template:
         // DD-23 codex profile is a separate later push). Foreground stays fast
         // narrative (the 0-token B buffer); this background pass does the
         // shrink, matching DD-23's non-blocking A design.
-        const claudePath = isClaudeContextProvider(model.providerId)
+        const policy = resolvePolicy(model.providerId)
+        const claudePath = policy.kind === "claude"
         const anchorRatio = contextLimit > 0 ? narrativeTokens / contextLimit : 0
         const aFloorTokens = Tweaks.contextThresholdsSync(model.providerId).aCompactTokens
         // compaction_recency-fadeout-tiers DD-9: floor the A-tier gate input on the
@@ -1801,14 +1796,12 @@ When constructing the summary, try to stick to this template:
         // longer make the aFloor gate under-fire → drop_old skip → anchor pinned high →
         // weak B-only churn (~15%). See claude-context-policy gateAnchorTokensForClaude.
         const REAL_SYSTEM_RESERVE = 40_000
-        const gateAnchorTokens = gateAnchorTokensForClaude({
-          providerId: model.providerId,
+        const gateAnchorTokens = policy.gateAnchorTokens({
           estimateTokens: narrativeTokens,
           realPromptTokens: latestRealPromptTokens(messagesPre),
           systemReserveTokens: REAL_SYSTEM_RESERVE,
         })
-        const belowGate = !shouldEnrichAnchor({
-          providerId: model.providerId,
+        const belowGate = !policy.shouldEnrichAnchor({
           anchorTokens: gateAnchorTokens,
           contextLimit,
           aFloorTokens,
@@ -2433,7 +2426,7 @@ When constructing the summary, try to stick to this template:
     // here and let the next turn full-retransmit the neutral SQLite. Genuine
     // token pressure (overflow/idle) and user `manual` still compact claude.
     // codex/other providers are unaffected (INV-0).
-    if (shouldSkipClaudeEventCompaction(model?.providerId, observed)) {
+    if (resolvePolicy(model?.providerId).skipEventCompaction(observed)) {
       log.info("compaction.claude_event_noop", { sessionID, observed, providerId: model?.providerId, step })
       emitCompactionPredicateTelemetry({
         sessionID,

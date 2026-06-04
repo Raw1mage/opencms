@@ -19,6 +19,15 @@ import { reframeAnchorBodyForClaude } from "./anchor-sanitizer"
 export const CLAUDE_CONTEXT_PROVIDERS: ReadonlySet<string> = new Set(["claude-cli"])
 
 /**
+ * codex WS transport item-array overflow threshold. Payloads past ~this many
+ * items trigger ws_truncation (empty response, finishReason=unknown), so the
+ * stream must be compacted before the next call. Both policies fire at the same
+ * value today (DD-2 byte-identical: prompt.ts:745 ran unconditionally); this is
+ * the single seam where a future codex-only item threshold would diverge (DD-4).
+ */
+const CODEX_ITEM_OVERFLOW_THRESHOLD = 350
+
+/**
  * Observed conditions that are codex server-chain-rebind artifacts (DD-4):
  * stateless claude has no chain to rebind, so these must be a no-op on the
  * claude path. Genuine token pressure (`overflow`, `idle`) and `manual` are NOT
@@ -59,6 +68,23 @@ export interface ContextPolicy {
   readonly kind: "claude" | "general"
 
   /**
+   * B-tier cold-cache compaction SIZE trigger (the claude DD-23 absolute-token
+   * gate). claude: true when promptTotal exceeds the per-provider bCompactTokens
+   * floor (the caller still applies the cold-cache / idle-resume sub-conditions).
+   * general: always false — only the claude path runs the cold-resend B gate
+   * (INV-0: prompt.ts:595 was `isClaudeContextProvider && promptTotal > bCompactTokens`).
+   */
+  coldCacheBGate(input: { promptTotal: number; bCompactTokens: number }): boolean
+
+  /**
+   * Transport item-count overflow trigger (codex WS ~item-array limit). Both
+   * policies fire at >CODEX_ITEM_OVERFLOW_THRESHOLD today — prompt.ts:745 ran
+   * unconditionally, so claude saw it too (DD-2 byte-identical). The seam where a
+   * future codex-only item threshold would diverge from claude's 1M window (DD-4).
+   */
+  itemOverflowTrigger(itemCount: number): boolean
+
+  /**
    * A-tier (background ai_paid) enrichment gate — is a just-written narrative B
    * anchor big enough to be worth recompressing into the smaller A-tier?
    * claude: absolute aFloorTokens. general: legacy ratio (≤128K→25%, else 40%).
@@ -88,6 +114,14 @@ export interface ContextPolicy {
 class GeneralPolicy implements ContextPolicy {
   readonly kind = "general" as const
 
+  coldCacheBGate(_input: { promptTotal: number; bCompactTokens: number }): boolean {
+    return false
+  }
+
+  itemOverflowTrigger(itemCount: number): boolean {
+    return itemCount > CODEX_ITEM_OVERFLOW_THRESHOLD
+  }
+
   shouldEnrichAnchor(input: { anchorTokens: number; contextLimit: number; aFloorTokens: number }): boolean {
     const ratio = input.contextLimit > 0 ? input.anchorTokens / input.contextLimit : 0
     const gate = input.contextLimit <= 128_000 ? 0.25 : 0.4
@@ -109,6 +143,14 @@ class GeneralPolicy implements ContextPolicy {
 
 class ClaudePolicy implements ContextPolicy {
   readonly kind = "claude" as const
+
+  coldCacheBGate(input: { promptTotal: number; bCompactTokens: number }): boolean {
+    return input.promptTotal > input.bCompactTokens
+  }
+
+  itemOverflowTrigger(itemCount: number): boolean {
+    return itemCount > CODEX_ITEM_OVERFLOW_THRESHOLD
+  }
 
   shouldEnrichAnchor(input: { anchorTokens: number; contextLimit: number; aFloorTokens: number }): boolean {
     return input.anchorTokens >= input.aFloorTokens

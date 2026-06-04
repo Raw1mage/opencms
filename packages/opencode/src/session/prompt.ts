@@ -71,7 +71,8 @@ import { prepareUserMessageContext } from "./user-message-context"
 import { buildUserMessageParts } from "./user-message-parts"
 import { materializeToolAttachments } from "./attachment-ownership"
 import { emitSessionNarration, isNarrationAssistantMessage } from "./narration"
-import { isClaudeContextProvider, CLAUDE_CACHE_TTL_MS, projectClaudeAnchors } from "./claude-context-policy"
+import { CLAUDE_CACHE_TTL_MS } from "./claude-context-policy"
+import { resolvePolicy } from "./context-policy"
 import {
   decideAutonomousContinuation,
   describeAutonomousNextAction,
@@ -592,7 +593,7 @@ export async function deriveObservedCondition(input: {
       // absolute tokens, tunable via tweak config (compaction_ctx_<provider>_b_tokens).
       // claude-cli default 100K; other providers fall back to the `default` profile.
       const bCompactTokens = Tweaks.contextThresholdsSync(input.pinnedProviderId).bCompactTokens
-      if (isClaudeContextProvider(input.pinnedProviderId) && promptTotal > bCompactTokens) {
+      if (resolvePolicy(input.pinnedProviderId).coldCacheBGate({ promptTotal, bCompactTokens })) {
         // DD-16 cold detection has TWO sources, OR'd:
         //  (1) cache_read share < half  → the LAST turn was cold (active-session).
         //  (2) idle gap > cache TTL     → SESSION RESUME / rebind: enough time has
@@ -742,7 +743,7 @@ export async function deriveObservedCondition(input: {
   // MUST run before identity-drift / rebind checks — those return null
   // (chain reset only, no compaction), but a 500-item session needs
   // compaction regardless of account switch.
-  if (estimateCodexItemCount(input.msgs) > 350) return "overflow"
+  if (resolvePolicy(input.pinnedProviderId).itemOverflowTrigger(estimateCodexItemCount(input.msgs))) return "overflow"
 
   // DD-11: continuation-invalidated takes priority over identity drift.
   // The signal is fresh iff the timestamp is newer than the most recent
@@ -1760,9 +1761,8 @@ export namespace SessionPrompt {
       const turnProviderId =
         (await Session.get(sessionID).catch(() => undefined))?.execution?.providerId ??
         options?.incomingModel?.providerId
-      const claudeContextPath = isClaudeContextProvider(turnProviderId)
       const filteredResult = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
-      let msgs = claudeContextPath ? projectClaudeAnchors(filteredResult.messages) : filteredResult.messages
+      let msgs = resolvePolicy(turnProviderId).projectAnchors(filteredResult.messages)
       if (filteredResult.stoppedByBudget) {
         log.warn("filterCompacted stopped by token budget guard", { sessionID, messageCount: msgs.length })
       }
@@ -3223,7 +3223,7 @@ export namespace SessionPrompt {
       // opt-in). Appended ephemerally to the tail turn's text — highest recency,
       // right before generation — so it steers this turn without being persisted
       // (sessionMessages is a clone). See CLAUDE_PROACTIVE_REMINDER.
-      if (isClaudeContextProvider(activeModel.providerId) && session.workflow?.autonomous.enabled === true) {
+      if (resolvePolicy(activeModel.providerId).kind === "claude" && session.workflow?.autonomous.enabled === true) {
         let tailUserText: (typeof sessionMessages)[number]["parts"][number] | undefined
         for (let i = sessionMessages.length - 1; i >= 0 && !tailUserText; i--) {
           if (sessionMessages[i].info.role !== "user") continue
