@@ -77,6 +77,50 @@ export function shouldEnrichAnchor(input: {
 }
 
 /**
+ * Most recent COMPLETED assistant turn's total prompt tokens
+ * (input + cache.read + cache.write), scanning newest→oldest and skipping
+ * compaction-anchor rows (summary === true) and rows without recorded tokens.
+ * This is the REAL provider-reported prompt size — the same signal the B-trigger
+ * gates on (prompt.ts) — not a chars estimate. Returns 0 when none found.
+ * Pure; provider-agnostic (the caller decides whether to use it).
+ */
+export function latestRealPromptTokens(msgs: MessageV2.WithParts[]): number {
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const info = msgs[i]?.info
+    if (!info || info.role !== "assistant") continue
+    if ((info as MessageV2.Assistant).summary === true) continue
+    const tk = (info as MessageV2.Assistant).tokens
+    if (!tk) continue
+    const total = (tk.input ?? 0) + (tk.cache?.read ?? 0) + (tk.cache?.write ?? 0)
+    if (total > 0) return total
+  }
+  return 0
+}
+
+/**
+ * compaction_recency-fadeout-tiers DD-9 — gate-input floor for the A-tier
+ * enrichment gate on the claude path. The chars-based estimate (`estimateTokens`,
+ * the shared CJK-aware ToolBudget.estimateTokens) still under-counts mixed
+ * markdown/code anchors ~1.3x (measured: est 81K vs real 106K on a stuck warroom
+ * anchor), so shouldEnrichAnchor's aFloor gate under-fired → drop_old never ran →
+ * the anchor stayed pinned and B-compaction churned (~15% reduction only, 204K→
+ * 171K every ~8min). Floor the gate input on the REAL reported prompt tokens of
+ * the most recent COMPLETED turn (`latestRealPromptTokens`), minus a fixed
+ * system/tools reserve so we count the conversation/anchor share only. Once A
+ * shrinks the anchor the prompt drops and this self-regulates (stops firing).
+ * claude only; non-claude returns the estimate unchanged (INV-0, byte-identical).
+ */
+export function gateAnchorTokensForClaude(input: {
+  providerId: string | undefined
+  estimateTokens: number
+  realPromptTokens: number
+  systemReserveTokens: number
+}): number {
+  if (!isClaudeContextProvider(input.providerId)) return input.estimateTokens
+  return Math.max(input.estimateTokens, input.realPromptTokens - input.systemReserveTokens)
+}
+
+/**
  * Anthropic ephemeral prompt-cache TTL (ms). After this much idle the cache is
  * GONE, so the next request is a guaranteed cold full-prefill regardless of what
  * the previous turn's recorded cache split was. context/claude-refactor DD-16

@@ -29,7 +29,13 @@ import {
   emitUserMsgReplayTelemetry,
 } from "./compaction-telemetry"
 import { sanitizeAnchorToString, type AnchorKind } from "./anchor-sanitizer"
-import { shouldSkipClaudeEventCompaction, isClaudeContextProvider, shouldEnrichAnchor } from "./claude-context-policy"
+import {
+  shouldSkipClaudeEventCompaction,
+  isClaudeContextProvider,
+  shouldEnrichAnchor,
+  gateAnchorTokensForClaude,
+  latestRealPromptTokens,
+} from "./claude-context-policy"
 import { ToolBudget } from "../tool/budget"
 import { checkCleanTail } from "./idle-compaction-gate"
 import { SkillLayerRegistry } from "./skill-layer-registry"
@@ -1789,9 +1795,21 @@ When constructing the summary, try to stick to this template:
         const claudePath = isClaudeContextProvider(model.providerId)
         const anchorRatio = contextLimit > 0 ? narrativeTokens / contextLimit : 0
         const aFloorTokens = Tweaks.contextThresholdsSync(model.providerId).aCompactTokens
+        // compaction_recency-fadeout-tiers DD-9: floor the A-tier gate input on the
+        // most recent completed turn's REAL reported prompt tokens (claude only), so
+        // the chars estimate's ~1.3x undercount of mixed markdown/code anchors can no
+        // longer make the aFloor gate under-fire → drop_old skip → anchor pinned high →
+        // weak B-only churn (~15%). See claude-context-policy gateAnchorTokensForClaude.
+        const REAL_SYSTEM_RESERVE = 40_000
+        const gateAnchorTokens = gateAnchorTokensForClaude({
+          providerId: model.providerId,
+          estimateTokens: narrativeTokens,
+          realPromptTokens: latestRealPromptTokens(messagesPre),
+          systemReserveTokens: REAL_SYSTEM_RESERVE,
+        })
         const belowGate = !shouldEnrichAnchor({
           providerId: model.providerId,
-          anchorTokens: narrativeTokens,
+          anchorTokens: gateAnchorTokens,
           contextLimit,
           aFloorTokens,
         })
@@ -1799,6 +1817,7 @@ When constructing the summary, try to stick to this template:
           log.info("hybrid_llm enrichment skipped (anchor body below A-tier floor)", {
             sessionID,
             narrativeTokens,
+            gateAnchorTokens,
             contextLimit,
             anchorRatio,
             claudePath,
