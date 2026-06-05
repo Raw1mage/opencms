@@ -343,6 +343,39 @@ describe("deriveObservedCondition (DD-1 state-driven)", () => {
     )
     expect(result).toBeNull()
   })
+
+  it("compaction shrinkage resets continuation only and returns null when currentInputTokens < prev.cacheRead", async () => {
+    ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
+    const sid = "ses_compaction_shrinkage_test"
+
+    // 1. First round: simulate a high cache read turn (200k cache read)
+    const firstFin = makeAssistantFinished("msg_a1", 210_000)
+    firstFin.info.tokens.cache.read = 200_000
+    firstFin.info.tokens.input = 10_000
+
+    await deriveObservedCondition(
+      commonInput({
+        sessionID: sid,
+        lastFinished: firstFin.info as MessageV2.Assistant,
+      }),
+    )
+
+    // 2. Second round: cache read drops to 60k, but prompt tokens shrink to 130k (< 200k)
+    const secondFin = makeAssistantFinished("msg_a2", 130_000)
+    secondFin.info.tokens.cache.read = 60_000
+    secondFin.info.tokens.input = 70_000
+
+    const result = await deriveObservedCondition(
+      commonInput({
+        sessionID: sid,
+        lastFinished: secondFin.info as MessageV2.Assistant,
+        currentInputTokens: 130_000,
+      }),
+    )
+
+    // Compaction shrinkage drop should be safely bypassed (returns null)
+    expect(result).toBeNull()
+  })
 })
 
 describe("claude cold-cache size-gate (DD-13/14/16/18)", () => {

@@ -713,6 +713,13 @@ export async function deriveObservedCondition(input: {
         }
       }
 
+      // Compaction shrinkage: if the current prompt size is smaller than the
+      // previous cache read, the drop is entirely expected due to context
+      // trimming or history truncation.
+      if (input.currentInputTokens !== undefined && input.currentInputTokens < prev.cacheRead) {
+        plannedSources.push("compaction_shrinkage")
+      }
+
       if (plannedSources.length > 0) {
         debugCheckpoint("prompt", "cache_cliff_planned", {
           sessionID: input.sessionID,
