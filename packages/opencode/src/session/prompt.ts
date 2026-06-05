@@ -2226,7 +2226,7 @@ export namespace SessionPrompt {
             // halted on a still-growing item array. Now: any paralysis triple
             // with items > threshold attempts compaction first; nudge / halt
             // only run when items are not bloated.
-            const PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD = 250
+            const paralysisItemCountCompactThreshold = resolvePolicy(resolvedModel.providerId).itemOverflowThreshold()
             const estimatedItemCount = estimateTransportItemCount(msgs)
             const observed = await deriveObservedCondition({
               sessionID,
@@ -2239,7 +2239,7 @@ export namespace SessionPrompt {
               compactionRequestAuto: undefined,
               parentID: session.parentID,
               continuationInvalidatedAt: undefined,
-              paralysisItemThreshold: PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD,
+              paralysisItemThreshold: paralysisItemCountCompactThreshold,
               isOverflow: async () => false,
               isCacheAware: async () => false,
             })
@@ -2251,7 +2251,7 @@ export namespace SessionPrompt {
                 detector,
                 similarity,
                 estimatedItemCount,
-                threshold: PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD,
+                threshold: paralysisItemCountCompactThreshold,
                 priorRecoveryCount: paralysisRecoveryCount,
               })
               try {
@@ -2491,10 +2491,11 @@ export namespace SessionPrompt {
         //
         // Healthy / freshly-anchored sessions skip naturally (items
         // already low after slice, tokens below threshold).
-        const REBIND_PREEMPT_ITEM_THRESHOLD = 250
         const REBIND_PREEMPT_TOKEN_RATIO = 0.8
         try {
+          const rebindPreemptItemThreshold = resolvePolicy(effectiveProviderId).itemOverflowThreshold()
           const estimatedItemCount = estimateTransportItemCount(msgs)
+          const itemsHeavy = estimatedItemCount > rebindPreemptItemThreshold
           const lastFinishedTokens = lastFinished?.tokens?.total ?? 0
           const tokenLimit = resolvedModel
             ? ((await Provider.getModel(resolvedModel.providerId, resolvedModel.modelID).catch(() => undefined))?.limit
@@ -2513,7 +2514,7 @@ export namespace SessionPrompt {
             compactionRequestAuto: undefined,
             parentID: session.parentID,
             continuationInvalidatedAt: undefined,
-            rebindPreemptive: tokensHeavy,
+            rebindPreemptive: itemsHeavy || tokensHeavy,
             isOverflow: async () => false,
             isCacheAware: async () => false,
           })
@@ -2522,6 +2523,8 @@ export namespace SessionPrompt {
               sessionID,
               step,
               estimatedItemCount,
+              itemThreshold: rebindPreemptItemThreshold,
+              itemsHeavy,
               tokensHeavy,
               tokenRatio: Number(tokenRatio.toFixed(3)),
               tokenLimit,

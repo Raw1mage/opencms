@@ -282,10 +282,10 @@ export default function Layout(props: ParentProps) {
     setState("hoverProject", undefined)
   }
 
-  const navigateWithSidebarReset = (href: string) => {
+  const navigateWithSidebarReset = (href: string, options?: { keepMobileSidebarOpen?: boolean }) => {
     clearSidebarHoverState()
     navigate(href)
-    layout.mobileSidebar.hide()
+    if (!options?.keepMobileSidebarOpen) layout.mobileSidebar.hide()
   }
 
   function cycleTheme(direction = 1) {
@@ -1109,7 +1109,10 @@ export default function Layout(props: ParentProps) {
     dialog.show(() => <DialogPublishedWeb />)
   }
 
-  async function navigateToProject(directory: string | undefined, options?: { sessionList?: boolean }) {
+  async function navigateToProject(
+    directory: string | undefined,
+    options?: { sessionList?: boolean; keepMobileSidebarOpen?: boolean },
+  ) {
     if (!directory) return
     const project = layout.projects
       .list()
@@ -1122,7 +1125,9 @@ export default function Layout(props: ParentProps) {
     server.projects.touch(root)
 
     if (options?.sessionList) {
-      navigateWithSidebarReset(`/${base64Encode(root)}/session`)
+      navigateWithSidebarReset(`/${base64Encode(root)}/session`, {
+        keepMobileSidebarOpen: options.keepMobileSidebarOpen,
+      })
       return
     }
 
@@ -1280,8 +1285,16 @@ export default function Layout(props: ParentProps) {
         for (const directory of result) {
           openProject(directory, false)
         }
-        navigateToProject(result[0])
+        navigateToProject(result[0], {
+          sessionList: layout.mobileSidebar.opened(),
+          keepMobileSidebarOpen: layout.mobileSidebar.opened(),
+        })
       } else if (result) {
+        if (layout.mobileSidebar.opened()) {
+          openProject(result, false)
+          navigateToProject(result, { sessionList: true, keepMobileSidebarOpen: true })
+          return
+        }
         openProject(result)
       }
     }
@@ -2023,195 +2036,198 @@ export default function Layout(props: ParentProps) {
         </div>
       }
     >
-    <div class="relative bg-background-base flex-1 min-h-0 flex flex-col select-none [&_input]:select-text [&_textarea]:select-text [&_[contenteditable]]:select-text">
-      <Titlebar />
-      <div class="flex-1 min-h-0 flex relative">
-        <Show when={!mobileDrawerMode()}>
-          <>
+      <div class="relative bg-background-base flex-1 min-h-0 flex flex-col select-none [&_input]:select-text [&_textarea]:select-text [&_[contenteditable]]:select-text">
+        <Titlebar />
+        <div class="flex-1 min-h-0 flex relative">
+          <Show when={!mobileDrawerMode()}>
+            <>
+              <nav
+                aria-label={language.t("sidebar.nav.projectsAndSessions")}
+                data-component="sidebar-nav-desktop"
+                class="relative shrink-0"
+                style={{ width: "64px", "z-index": "10" }}
+                ref={(el) => {
+                  setState("nav", el)
+                }}
+                onMouseEnter={() => {
+                  if (navLeave.current === undefined) return
+                  clearTimeout(navLeave.current)
+                  navLeave.current = undefined
+                }}
+                onMouseLeave={() => {
+                  aim.reset()
+                  if (!sidebarHovering()) return
+
+                  if (navLeave.current !== undefined) clearTimeout(navLeave.current)
+                  navLeave.current = window.setTimeout(() => {
+                    navLeave.current = undefined
+                    setState("hoverProject", undefined)
+                    setState("hoverSession", undefined)
+                  }, 300)
+                }}
+              >
+                <div class="@container w-full h-full contain-strict">
+                  <SidebarContent
+                    opened={() => false}
+                    aimMove={aim.move}
+                    projects={() => layout.projects.list()}
+                    renderProject={(project) => (
+                      <SortableProject ctx={projectSidebarCtx} project={project} sortNow={sortNow} />
+                    )}
+                    handleDragStart={handleDragStart}
+                    handleDragEnd={handleDragEnd}
+                    handleDragOver={handleDragOver}
+                    openProjectLabel={language.t("command.project.open")}
+                    openProjectKeybind={() => command.keybind("project.open")}
+                    onOpenProject={chooseProject}
+                    renderProjectOverlay={() => (
+                      <ProjectDragOverlay
+                        projects={() => layout.projects.list()}
+                        activeProject={() => store.activeProject}
+                      />
+                    )}
+                    marketLabel={() => "App Market"}
+                    onOpenMarket={openMarket}
+                    tasksLabel={() => "Tasks"}
+                    onOpenTasks={openTasks}
+                    webRoutesLabel={() => "Published Web"}
+                    onOpenWebRoutes={openWebRoutes}
+                    settingsLabel={() => language.t("sidebar.settings")}
+                    settingsKeybind={() => command.keybind("settings.open")}
+                    onOpenSettings={openSettings}
+                    logoutLabel={() => "Logout"}
+                    onLogout={logout}
+                    renderPanel={() => (
+                      <Show
+                        when={isTasksRoute()}
+                        fallback={
+                          <Show when={currentProject()} keyed>
+                            {(project) => <SidebarPanel project={project} />}
+                          </Show>
+                        }
+                      >
+                        <div class="flex-1 min-w-0 bg-background-stronger border border-b-0 border-border-weak-base flex flex-col">
+                          <TaskSidebar />
+                        </div>
+                      </Show>
+                    )}
+                  />
+                </div>
+              </nav>
+              {/* Push sidebar — project session list OR task list (inline flex, pushes main content) */}
+              <Show when={layout.sidebar.opened() && (desktopOverlayProject() || isTasksRoute())}>
+                <div class="shrink-0 h-full flex relative" style={{ width: `${layout.sidebar.width()}px` }}>
+                  <Show
+                    when={isTasksRoute()}
+                    fallback={
+                      <Show when={desktopOverlayProject()} keyed>
+                        {(project) => <SidebarPanel project={project} />}
+                      </Show>
+                    }
+                  >
+                    <div class="flex-1 min-w-0 bg-background-stronger border border-b-0 border-border-weak-base flex flex-col">
+                      <TaskSidebar />
+                    </div>
+                  </Show>
+                  <ResizeHandle
+                    class="z-30"
+                    direction="horizontal"
+                    style={{ right: "0", width: "12px", transform: "none" }}
+                    size={layout.sidebar.width()}
+                    min={244}
+                    max={typeof window === "undefined" ? 1000 : Math.max(560, window.innerWidth - 24)}
+                    collapseThreshold={244}
+                    onResize={layout.sidebar.resize}
+                    onCollapse={layout.sidebar.close}
+                    onDblClick={() => layout.sidebar.close()}
+                  />
+                </div>
+              </Show>
+            </>
+          </Show>
+          <Show when={mobileDrawerMode()}>
+            <div
+              classList={{
+                "fixed inset-x-0 top-10 bottom-0 z-40 transition-opacity duration-200": true,
+                "opacity-100 pointer-events-auto": layout.mobileSidebar.opened(),
+                "opacity-0 pointer-events-none": !layout.mobileSidebar.opened(),
+              }}
+              onClick={(e) => {
+                if (document.querySelector('[data-component="dropdown-menu-content"]')) return
+                if (e.target === e.currentTarget) layout.mobileSidebar.hide()
+              }}
+            />
             <nav
               aria-label={language.t("sidebar.nav.projectsAndSessions")}
-              data-component="sidebar-nav-desktop"
-              class="relative shrink-0"
-              style={{ width: "64px", "z-index": "10" }}
-              ref={(el) => {
-                setState("nav", el)
+              data-component="sidebar-nav-mobile"
+              classList={{
+                "@container fixed top-10 bottom-0 left-0 z-50 bg-background-base transition-transform duration-200 ease-out": true,
+                "translate-x-0": layout.mobileSidebar.opened(),
+                "-translate-x-full": !layout.mobileSidebar.opened(),
               }}
-              onMouseEnter={() => {
-                if (navLeave.current === undefined) return
-                clearTimeout(navLeave.current)
-                navLeave.current = undefined
-              }}
-              onMouseLeave={() => {
-                aim.reset()
-                if (!sidebarHovering()) return
-
-                if (navLeave.current !== undefined) clearTimeout(navLeave.current)
-                navLeave.current = window.setTimeout(() => {
-                  navLeave.current = undefined
-                  setState("hoverProject", undefined)
-                  setState("hoverSession", undefined)
-                }, 300)
-              }}
+              style={{ width: "100vw" }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <div class="@container w-full h-full contain-strict">
-                <SidebarContent
-                  opened={() => false}
-                  aimMove={aim.move}
-                  projects={() => layout.projects.list()}
-                  renderProject={(project) => (
-                    <SortableProject ctx={projectSidebarCtx} project={project} sortNow={sortNow} />
-                  )}
-                  handleDragStart={handleDragStart}
-                  handleDragEnd={handleDragEnd}
-                  handleDragOver={handleDragOver}
-                  openProjectLabel={language.t("command.project.open")}
-                  openProjectKeybind={() => command.keybind("project.open")}
-                  onOpenProject={chooseProject}
-                  renderProjectOverlay={() => (
-                    <ProjectDragOverlay
-                      projects={() => layout.projects.list()}
-                      activeProject={() => store.activeProject}
-                    />
-                  )}
-                  marketLabel={() => "App Market"}
-                  onOpenMarket={openMarket}
-                  tasksLabel={() => "Tasks"}
-                  onOpenTasks={openTasks}
-                  webRoutesLabel={() => "Published Web"}
-                  onOpenWebRoutes={openWebRoutes}
-                  settingsLabel={() => language.t("sidebar.settings")}
-                  settingsKeybind={() => command.keybind("settings.open")}
-                  onOpenSettings={openSettings}
-                  logoutLabel={() => "Logout"}
-                  onLogout={logout}
-                  renderPanel={() => (
-                    <Show
-                      when={isTasksRoute()}
-                      fallback={
-                        <Show when={currentProject()} keyed>
-                          {(project) => <SidebarPanel project={project} />}
-                        </Show>
-                      }
-                    >
-                      <div class="flex-1 min-w-0 bg-background-stronger border border-b-0 border-border-weak-base flex flex-col">
-                        <TaskSidebar />
-                      </div>
-                    </Show>
-                  )}
-                />
-              </div>
+              <SidebarContent
+                mobile
+                opened={() => layout.sidebar.opened()}
+                aimMove={aim.move}
+                projects={() => layout.projects.list()}
+                renderProject={(project) => (
+                  <SortableProject ctx={projectSidebarCtx} project={project} sortNow={sortNow} mobile />
+                )}
+                handleDragStart={handleDragStart}
+                handleDragEnd={handleDragEnd}
+                handleDragOver={handleDragOver}
+                openProjectLabel={language.t("command.project.open")}
+                openProjectKeybind={() => command.keybind("project.open")}
+                onOpenProject={chooseProject}
+                renderProjectOverlay={() => (
+                  <ProjectDragOverlay
+                    projects={() => layout.projects.list()}
+                    activeProject={() => store.activeProject}
+                  />
+                )}
+                marketLabel={() => "App Market"}
+                onOpenMarket={openMarket}
+                tasksLabel={() => "Tasks"}
+                onOpenTasks={openTasks}
+                webRoutesLabel={() => "Published Web"}
+                onOpenWebRoutes={openWebRoutes}
+                settingsLabel={() => language.t("sidebar.settings")}
+                settingsKeybind={() => command.keybind("settings.open")}
+                onOpenSettings={openSettings}
+                logoutLabel={() => "Logout"}
+                onLogout={logout}
+                renderPanel={() =>
+                  isTasksRoute() ? (
+                    <div class="flex-1 min-w-0 bg-background-stronger flex flex-col">
+                      <TaskSidebar />
+                    </div>
+                  ) : (
+                    <SidebarPanel project={currentProject()} mobile />
+                  )
+                }
+              />
             </nav>
-            {/* Push sidebar — project session list OR task list (inline flex, pushes main content) */}
-            <Show when={layout.sidebar.opened() && (desktopOverlayProject() || isTasksRoute())}>
-              <div class="shrink-0 h-full flex relative" style={{ width: `${layout.sidebar.width()}px` }}>
-                <Show
-                  when={isTasksRoute()}
-                  fallback={
-                    <Show when={desktopOverlayProject()} keyed>
-                      {(project) => <SidebarPanel project={project} />}
-                    </Show>
-                  }
-                >
-                  <div class="flex-1 min-w-0 bg-background-stronger border border-b-0 border-border-weak-base flex flex-col">
-                    <TaskSidebar />
-                  </div>
-                </Show>
-                <ResizeHandle
-                  class="z-30"
-                  direction="horizontal"
-                  style={{ right: "0", width: "12px", transform: "none" }}
-                  size={layout.sidebar.width()}
-                  min={244}
-                  max={typeof window === "undefined" ? 1000 : Math.max(560, window.innerWidth - 24)}
-                  collapseThreshold={244}
-                  onResize={layout.sidebar.resize}
-                  onCollapse={layout.sidebar.close}
-                  onDblClick={() => layout.sidebar.close()}
-                />
-              </div>
-            </Show>
-          </>
-        </Show>
-        <Show when={mobileDrawerMode()}>
-          <div
-            classList={{
-              "fixed inset-x-0 top-10 bottom-0 z-40 transition-opacity duration-200": true,
-              "opacity-100 pointer-events-auto": layout.mobileSidebar.opened(),
-              "opacity-0 pointer-events-none": !layout.mobileSidebar.opened(),
-            }}
-            onClick={(e) => {
-              if (document.querySelector('[data-component="dropdown-menu-content"]')) return
-              if (e.target === e.currentTarget) layout.mobileSidebar.hide()
-            }}
-          />
-          <nav
-            aria-label={language.t("sidebar.nav.projectsAndSessions")}
-            data-component="sidebar-nav-mobile"
-            classList={{
-              "@container fixed top-10 bottom-0 left-0 z-50 bg-background-base transition-transform duration-200 ease-out": true,
-              "translate-x-0": layout.mobileSidebar.opened(),
-              "-translate-x-full": !layout.mobileSidebar.opened(),
-            }}
-            style={{ width: "100vw" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <SidebarContent
-              mobile
-              opened={() => layout.sidebar.opened()}
-              aimMove={aim.move}
-              projects={() => layout.projects.list()}
-              renderProject={(project) => (
-                <SortableProject ctx={projectSidebarCtx} project={project} sortNow={sortNow} mobile />
-              )}
-              handleDragStart={handleDragStart}
-              handleDragEnd={handleDragEnd}
-              handleDragOver={handleDragOver}
-              openProjectLabel={language.t("command.project.open")}
-              openProjectKeybind={() => command.keybind("project.open")}
-              onOpenProject={chooseProject}
-              renderProjectOverlay={() => (
-                <ProjectDragOverlay projects={() => layout.projects.list()} activeProject={() => store.activeProject} />
-              )}
-              marketLabel={() => "App Market"}
-              onOpenMarket={openMarket}
-              tasksLabel={() => "Tasks"}
-              onOpenTasks={openTasks}
-              webRoutesLabel={() => "Published Web"}
-              onOpenWebRoutes={openWebRoutes}
-              settingsLabel={() => language.t("sidebar.settings")}
-              settingsKeybind={() => command.keybind("settings.open")}
-              onOpenSettings={openSettings}
-              logoutLabel={() => "Logout"}
-              onLogout={logout}
-              renderPanel={() =>
-                isTasksRoute() ? (
-                  <div class="flex-1 min-w-0 bg-background-stronger flex flex-col">
-                    <TaskSidebar />
-                  </div>
-                ) : (
-                  <SidebarPanel project={currentProject()} mobile />
-                )
-              }
-            />
-          </nav>
-        </Show>
-
-        <main
-          classList={{
-            "flex-1 min-w-0 h-full overflow-x-hidden flex flex-col items-start contain-strict border-t border-border-weak-base": true,
-            "xl:border-l xl:rounded-tl-sm": true,
-          }}
-          onClick={() => {
-            if (layout.sidebar.opened()) layout.sidebar.close()
-          }}
-        >
-          <Show when={!autoselecting()} fallback={<div class="size-full" />}>
-            {props.children}
           </Show>
-        </main>
+
+          <main
+            classList={{
+              "flex-1 min-w-0 h-full overflow-x-hidden flex flex-col items-start contain-strict border-t border-border-weak-base": true,
+              "xl:border-l xl:rounded-tl-sm": true,
+            }}
+            onClick={() => {
+              if (layout.sidebar.opened()) layout.sidebar.close()
+            }}
+          >
+            <Show when={!autoselecting()} fallback={<div class="size-full" />}>
+              {props.children}
+            </Show>
+          </main>
+        </div>
+        <Toast.Region />
       </div>
-      <Toast.Region />
-    </div>
     </Show>
   )
 }

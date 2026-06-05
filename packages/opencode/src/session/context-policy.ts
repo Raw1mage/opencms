@@ -14,18 +14,10 @@
 
 import type { MessageV2 } from "./message-v2"
 import { reframeAnchorBodyForClaude } from "./anchor-sanitizer"
+import { Tweaks } from "../config/tweaks"
 
 /** Providers that get the claude (stateless / 1M / full-retransmit) context path. */
 export const CLAUDE_CONTEXT_PROVIDERS: ReadonlySet<string> = new Set(["claude-cli"])
-
-/**
- * codex WS transport item-array overflow threshold. Payloads past ~this many
- * items trigger ws_truncation (empty response, finishReason=unknown), so the
- * stream must be compacted before the next call. Both policies fire at the same
- * value today (DD-2 byte-identical: prompt.ts:745 ran unconditionally); this is
- * the single seam where a future codex-only item threshold would diverge (DD-4).
- */
-const CODEX_ITEM_OVERFLOW_THRESHOLD = 350
 
 /**
  * Observed conditions that are codex server-chain-rebind artifacts (DD-4):
@@ -76,13 +68,11 @@ export interface ContextPolicy {
    */
   coldCacheBGate(input: { promptTotal: number; bCompactTokens: number }): boolean
 
-  /**
-   * Transport item-count overflow trigger (codex WS ~item-array limit). Both
-   * policies fire at >CODEX_ITEM_OVERFLOW_THRESHOLD today — prompt.ts:745 ran
-   * unconditionally, so claude saw it too (DD-2 byte-identical). The seam where a
-   * future codex-only item threshold would diverge from claude's 1M window (DD-4).
-   */
+  /** Transport item-count overflow trigger, using provider-specific tweak thresholds. */
   itemOverflowTrigger(itemCount: number): boolean
+
+  /** Provider-specific transport item-count overflow threshold. */
+  itemOverflowThreshold(): number
 
   /**
    * A-tier (background ai_paid) enrichment gate — is a just-written narrative B
@@ -119,7 +109,11 @@ class GeneralPolicy implements ContextPolicy {
   }
 
   itemOverflowTrigger(itemCount: number): boolean {
-    return itemCount > CODEX_ITEM_OVERFLOW_THRESHOLD
+    return itemCount > this.itemOverflowThreshold()
+  }
+
+  itemOverflowThreshold(): number {
+    return Tweaks.compactionSync().codexItemOverflowThreshold
   }
 
   shouldEnrichAnchor(input: { anchorTokens: number; contextLimit: number; aFloorTokens: number }): boolean {
@@ -149,7 +143,11 @@ class ClaudePolicy implements ContextPolicy {
   }
 
   itemOverflowTrigger(itemCount: number): boolean {
-    return itemCount > CODEX_ITEM_OVERFLOW_THRESHOLD
+    return itemCount > this.itemOverflowThreshold()
+  }
+
+  itemOverflowThreshold(): number {
+    return Tweaks.compactionSync().claudeItemOverflowThreshold
   }
 
   shouldEnrichAnchor(input: { anchorTokens: number; contextLimit: number; aFloorTokens: number }): boolean {

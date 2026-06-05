@@ -228,6 +228,8 @@ export namespace Tweaks {
     stallRecoveryConsecutiveEmpty: number
     quotaPressureThreshold: number
     codexServerPriorityRatio: number
+    codexItemOverflowThreshold: number
+    claudeItemOverflowThreshold: number
     emptyResponseFloor: number
     /**
      * compaction_simplification T4 (2026-05-14, plans/compaction_simplification/
@@ -462,6 +464,8 @@ export namespace Tweaks {
     stallRecoveryConsecutiveEmpty: 2,
     quotaPressureThreshold: 0.1,
     codexServerPriorityRatio: 0.7,
+    codexItemOverflowThreshold: 350,
+    claudeItemOverflowThreshold: 10_000,
     emptyResponseFloor: 0.8,
     localToAiThresholdRatio: 0.4,
     phase1Enabled: false,
@@ -674,6 +678,8 @@ export namespace Tweaks {
     "compaction_stall_recovery_consecutive_empty",
     "compaction_quota_pressure_threshold",
     "compaction_codex_server_priority_ratio",
+    "compaction_codex_item_overflow_threshold",
+    "compaction_claude_item_overflow_threshold",
     "session_storage_idle_threshold_ms",
     "session_storage_connection_idle_ms",
     "boundary_user_attachment_max_bytes",
@@ -1165,6 +1171,16 @@ export namespace Tweaks {
     if (cmpCodexServerPriorityRaw !== undefined) {
       const v = parseRatio(cmpCodexServerPriorityRaw, "compaction_codex_server_priority_ratio")
       if (v !== undefined) compaction.codexServerPriorityRatio = v
+    }
+    const cmpCodexItemOverflowRaw = parsed.get("compaction_codex_item_overflow_threshold")
+    if (cmpCodexItemOverflowRaw !== undefined) {
+      const v = parseIntRange(cmpCodexItemOverflowRaw, "compaction_codex_item_overflow_threshold", 1, 100_000)
+      if (v !== undefined) compaction.codexItemOverflowThreshold = v
+    }
+    const cmpClaudeItemOverflowRaw = parsed.get("compaction_claude_item_overflow_threshold")
+    if (cmpClaudeItemOverflowRaw !== undefined) {
+      const v = parseIntRange(cmpClaudeItemOverflowRaw, "compaction_claude_item_overflow_threshold", 1, 100_000)
+      if (v !== undefined) compaction.claudeItemOverflowThreshold = v
     }
     const cmpEmptyResponseFloorRaw = parsed.get("compaction_empty_response_floor")
     if (cmpEmptyResponseFloorRaw !== undefined) {

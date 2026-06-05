@@ -1,5 +1,6 @@
-import { describe, expect, it } from "bun:test"
+import { afterEach, describe, expect, it } from "bun:test"
 import { resolvePolicy } from "./context-policy"
+import { Tweaks } from "../config/tweaks"
 // The shim still exposes the pre-split inline-branch helpers. These tests pin
 // that the resolved policy object's methods are byte-identical to the old
 // helpers across providers (context/provider-policy-dispatch Move B, P1-4).
@@ -44,14 +45,36 @@ describe("coldCacheBGate: equivalence to old `isClaudeContextProvider && promptT
   })
 })
 
-describe("itemOverflowTrigger: equivalence to old unconditional `count > 350` (prompt.ts:745)", () => {
-  const counts = [0, 350, 351, 1000]
-  it("fires at >350 for EVERY provider (the old check was unconditional)", () => {
-    for (const p of PROVIDERS) {
-      for (const c of counts) {
-        expect(resolvePolicy(p).itemOverflowTrigger(c)).toBe(c > 350)
-      }
+describe("itemOverflowTrigger: provider-specific tweak thresholds", () => {
+  const originalCompactionSync = Tweaks.compactionSync
+
+  afterEach(() => {
+    ;(Tweaks as any).compactionSync = originalCompactionSync
+  })
+
+  it("uses the codex/general threshold for non-claude providers", () => {
+    ;(Tweaks as any).compactionSync = () => ({
+      ...originalCompactionSync(),
+      codexItemOverflowThreshold: 400,
+      claudeItemOverflowThreshold: 10_000,
+    })
+    for (const p of ["codex", "copilot-cli", "local", "openai", undefined] as const) {
+      expect(resolvePolicy(p).itemOverflowThreshold()).toBe(400)
+      expect(resolvePolicy(p).itemOverflowTrigger(400)).toBe(false)
+      expect(resolvePolicy(p).itemOverflowTrigger(401)).toBe(true)
     }
+  })
+
+  it("uses the claude threshold for claude-cli", () => {
+    ;(Tweaks as any).compactionSync = () => ({
+      ...originalCompactionSync(),
+      codexItemOverflowThreshold: 400,
+      claudeItemOverflowThreshold: 1200,
+    })
+    expect(resolvePolicy("claude-cli").itemOverflowThreshold()).toBe(1200)
+    expect(resolvePolicy("claude-cli").itemOverflowTrigger(401)).toBe(false)
+    expect(resolvePolicy("claude-cli").itemOverflowTrigger(1200)).toBe(false)
+    expect(resolvePolicy("claude-cli").itemOverflowTrigger(1201)).toBe(true)
   })
 })
 

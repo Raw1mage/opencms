@@ -550,12 +550,16 @@ plus `chainBinding`, and at prompt assembly the
 `expandAnchorCompactedPrefix` step replaces the anchor's free-form
 summary with the codex-issued items (gated by chain identity match).
 
-itemCount-gated triggers (2026-05-09): the token-based overflow gate
-fires at ~88% of context, but on gpt-5.5 the codex backend's hidden
-input-array sensitivity rejects requests at ~250+ items even when
-total tokens are well under the limit. Three runloop-level triggers
-in `prompt.ts` close that gap, all gated by
-`itemCount > PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD = 250`:
+itemCount-gated triggers (2026-05-09; provider-threshold sync 2026-06-05):
+the token-based overflow gate fires at ~88% of context, but on gpt-5.5 the
+codex backend's hidden input-array sensitivity rejects requests at a much
+lower item count even when total tokens are well under the limit. The
+transport item threshold is now provider-specific and operator-tunable via
+`/etc/opencode/tweaks.cfg`: `compaction_codex_item_overflow_threshold`
+defaults to 350 for codex/general providers, while
+`compaction_claude_item_overflow_threshold` defaults to 10000 so claude's
+stateless full-resend path does not inherit codex's low WS ceiling. Three
+runloop-level triggers in `prompt.ts` close that gap:
 (1) **paralysis × bloated-input** — at the 3-turn paralysis-detector
 recovery branch, run `SessionCompaction.run({observed: "overflow"})`
 instead of injecting the recovery nudge;
@@ -565,8 +569,9 @@ instead of injecting the recovery nudge;
 finishReasons), run `SessionCompaction.run({observed: "empty-response"})`
 single-shot;
 (3) **pre-emptive rebind** — at step=1 immediately after
-`applyStreamAnchorRebind` slicing, when the sliced itemCount > 250 OR
-`tokenRatio > 0.7`, run `SessionCompaction.run({observed: "rebind"})`
+`applyStreamAnchorRebind` slicing, when the sliced itemCount exceeds the
+codex item threshold OR `tokenRatio > 0.8`, run
+`SessionCompaction.run({observed: "rebind"})`
 before the WS connection opens — daemon restart resets
 `state.lastResponseId` so the first request after restart MUST send
 the full input array, and pre-emptive compaction here caps the burn
