@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, mock } from "bun:test"
-import { deriveObservedCondition, findMostRecentAnchor } from "./prompt"
+import { deriveObservedCondition, estimateTransportItemCount, findMostRecentAnchor } from "./prompt"
 import { SessionCompaction } from "./compaction"
 import { Memory } from "./memory"
 import type { MessageV2 } from "./message-v2"
@@ -12,11 +12,7 @@ afterEach(() => {
   ;(Memory as any).read = originalMemoryRead
 })
 
-function makeAnchor(
-  providerId: string,
-  modelID: string,
-  accountId: string | undefined,
-): MessageV2.WithParts {
+function makeAnchor(providerId: string, modelID: string, accountId: string | undefined): MessageV2.WithParts {
   return {
     info: {
       id: "msg_anchor",
@@ -106,12 +102,24 @@ describe("findMostRecentAnchor", () => {
   })
 
   it("ignores non-summary assistant messages", () => {
-    const msgs = [
-      makeAnchor("codex", "gpt-5.5", "acc-A"),
-      makeAssistantFinished("msg_a2", 100, "claude", "acc-B"),
-    ]
+    const msgs = [makeAnchor("codex", "gpt-5.5", "acc-A"), makeAssistantFinished("msg_a2", 100, "claude", "acc-B")]
     const anchor = findMostRecentAnchor(msgs)
     expect(anchor?.providerId).toBe("codex") // not the regular assistant
+  })
+})
+
+describe("estimateTransportItemCount", () => {
+  it("matches the runloop transport item accounting", () => {
+    const assistantWithTextAndTool = makeAssistantFinished("msg_a_tool", 100)
+    assistantWithTextAndTool.parts = [
+      { id: "msg_a_tool_text", type: "text", text: "done" } as any,
+      {
+        id: "msg_a_tool_part",
+        type: "tool",
+        state: { status: "completed", input: { q: "x" }, output: "ok" },
+      } as any,
+    ]
+    expect(estimateTransportItemCount([makeUserText("msg_u1", "hi"), assistantWithTextAndTool])).toBe(4)
   })
 })
 
@@ -139,7 +147,7 @@ describe("deriveObservedCondition (DD-1 state-driven)", () => {
     expect(await deriveObservedCondition(commonInput())).toBeNull()
   })
 
-  it("DD-12: subagent (parentID set) DOES fire rebind via state-driven path", async () => {
+  it("DD-12: subagent account drift stays chain-reset only (no compaction)", async () => {
     ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
     const result = await deriveObservedCondition(
       commonInput({
@@ -148,7 +156,7 @@ describe("deriveObservedCondition (DD-1 state-driven)", () => {
         msgs: [makeAnchor("codex", "gpt-5.5", "acc-A")],
       }),
     )
-    expect(result).toBe("rebind")
+    expect(result).toBeNull()
   })
 
   it("DD-12: subagent does NOT trigger manual even with compaction-request part", async () => {
@@ -221,11 +229,7 @@ describe("deriveObservedCondition (DD-1 state-driven)", () => {
 
   it("returns null when cooldown blocks", async () => {
     ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => true)
-    expect(
-      await deriveObservedCondition(
-        commonInput({ hasUnprocessedCompactionRequest: true }),
-      ),
-    ).toBeNull()
+    expect(await deriveObservedCondition(commonInput({ hasUnprocessedCompactionRequest: true }))).toBeNull()
   })
 
   it("manual takes priority over all other observed conditions", async () => {
@@ -252,7 +256,7 @@ describe("deriveObservedCondition (DD-1 state-driven)", () => {
     expect(result).toBe("provider-switched")
   })
 
-  it("rebind when pinned accountId differs from last anchor (same provider)", async () => {
+  it("account drift resets continuation only and returns null (same provider)", async () => {
     ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
     const result = await deriveObservedCondition(
       commonInput({
@@ -261,7 +265,7 @@ describe("deriveObservedCondition (DD-1 state-driven)", () => {
         msgs: [makeAnchor("codex", "gpt-5.5", "acc-A")],
       }),
     )
-    expect(result).toBe("rebind")
+    expect(result).toBeNull()
   })
 
   it("provider-switched takes priority over rebind when both differ", async () => {
@@ -284,6 +288,24 @@ describe("deriveObservedCondition (DD-1 state-driven)", () => {
       }),
     )
     expect(result).toBeNull()
+  })
+
+  it("P2: paralysis item threshold fires overflow before continuation / rebind", async () => {
+    ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
+    const result = await deriveObservedCondition(
+      commonInput({
+        msgs: Array.from({ length: 251 }, (_, i) => makeUserText(`msg_u${i}`, "hi")),
+        continuationInvalidatedAt: 1700000000000,
+        paralysisItemThreshold: 250,
+      }),
+    )
+    expect(result).toBe("overflow")
+  })
+
+  it("P2: rebind preemptive gate fires before generic item overflow", async () => {
+    ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
+    const msgs = Array.from({ length: 400 }, (_, i) => makeUserText(`msg_rebind_${i}`, "hi"))
+    expect(await deriveObservedCondition(commonInput({ msgs, rebindPreemptive: true }))).toBe("rebind")
   })
 
   it("overflow when lastFinished present and isOverflow predicate returns true", async () => {
@@ -309,7 +331,7 @@ describe("deriveObservedCondition (DD-1 state-driven)", () => {
     expect(result).toBe("cache-aware")
   })
 
-  it("identity drift takes priority over token pressure", async () => {
+  it("account drift chain reset takes priority over token pressure", async () => {
     ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
     const result = await deriveObservedCondition(
       commonInput({
@@ -319,7 +341,7 @@ describe("deriveObservedCondition (DD-1 state-driven)", () => {
         isOverflow: async () => true,
       }),
     )
-    expect(result).toBe("rebind")
+    expect(result).toBeNull()
   })
 })
 
@@ -397,12 +419,12 @@ describe("claude cold-cache size-gate (DD-13/14/16/18)", () => {
 
   it("SESSION RESUME (DD-16): warm last turn but idle > cache TTL → fires anyway (idle-gap)", async () => {
     ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
-    // last turn was WARM (high cache_read fraction) but completed 10 min ago → the
+    // last turn was WARM (high cache_read fraction) but completed 90 min ago → the
     // ephemeral cache is dead → this resume is a guaranteed cold full-prefill → must
     // bound, even though the *recorded* fraction looks warm. This is the gap the
     // stale-fraction-only gate missed. (>200K so the outer size condition holds.)
     const result = await deriveObservedCondition(
-      gateInput({ lastFinished: finished({ input: 10_000, read: 250_000, staleMs: 10 * 60 * 1000 }) }),
+      gateInput({ lastFinished: finished({ input: 10_000, read: 250_000, staleMs: 90 * 60 * 1000 }) }),
     )
     expect(result).toBe("cache-aware")
   })

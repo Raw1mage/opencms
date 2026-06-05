@@ -264,6 +264,32 @@ export function estimateMsgsTokenCount(msgs: MessageV2.WithParts[]): number {
   return total
 }
 
+export function estimateTransportItemCount(msgs: MessageV2.WithParts[]): number {
+  let count = 0
+  for (const m of msgs) {
+    if (m.info.role === "user") {
+      count += 1
+      continue
+    }
+    if (m.info.role === "assistant") {
+      const hasText = m.parts.some(
+        (p) =>
+          p.type === "text" &&
+          typeof (p as { text?: string }).text === "string" &&
+          ((p as { text: string }).text.length ?? 0) > 0,
+      )
+      if (hasText) count += 1
+      for (const p of m.parts) {
+        if (p.type !== "tool") continue
+        count += 1
+        const status = (p as MessageV2.ToolPart).state?.status
+        if (status === "completed" || status === "error") count += 1
+      }
+    }
+  }
+  return count
+}
+
 type ContextBudgetStatus = "green" | "yellow" | "orange" | "red"
 
 export function contextBudgetStatus(
@@ -483,6 +509,8 @@ export async function deriveObservedCondition(input: {
   predictedCacheMiss?: "miss" | "hit" | "unknown"
   currentInputTokens?: number
   modelContextWindow?: number
+  paralysisItemThreshold?: number
+  rebindPreemptive?: boolean
   isOverflow: () => Promise<boolean>
   isCacheAware: () => Promise<boolean>
 }): Promise<SessionCompaction.Observed | null> {
@@ -623,10 +651,7 @@ export async function deriveObservedCondition(input: {
           // regardless of anchor age, so it is NEVER suppressed here.
           const recentAnchor = findMostRecentAnchor(input.msgs)
           const postCompactionEcho =
-            !idleColdResume &&
-            !!prev &&
-            !!recentAnchor?.createdAt &&
-            recentAnchor.createdAt > prev.ts
+            !idleColdResume && !!prev && !!recentAnchor?.createdAt && recentAnchor.createdAt > prev.ts
           if (postCompactionEcho) {
             debugCheckpoint("prompt", "claude_cold_gate_recent_compaction_skip", {
               sessionID: input.sessionID,
@@ -743,6 +768,13 @@ export async function deriveObservedCondition(input: {
   // MUST run before identity-drift / rebind checks — those return null
   // (chain reset only, no compaction), but a 500-item session needs
   // compaction regardless of account switch.
+  if (
+    input.paralysisItemThreshold !== undefined &&
+    estimateTransportItemCount(input.msgs) > input.paralysisItemThreshold
+  ) {
+    return "overflow"
+  }
+  if (input.rebindPreemptive) return "rebind"
   if (resolvePolicy(input.pinnedProviderId).itemOverflowTrigger(estimateCodexItemCount(input.msgs))) return "overflow"
 
   // DD-11: continuation-invalidated takes priority over identity drift.
@@ -2195,33 +2227,24 @@ export namespace SessionPrompt {
             // with items > threshold attempts compaction first; nudge / halt
             // only run when items are not bloated.
             const PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD = 250
-            const estimatedItemCount = (() => {
-              let count = 0
-              for (const m of msgs) {
-                if (m.info.role === "user") {
-                  count += 1
-                  continue
-                }
-                if (m.info.role === "assistant") {
-                  const hasText = m.parts.some(
-                    (p) =>
-                      p.type === "text" &&
-                      typeof (p as { text?: string }).text === "string" &&
-                      ((p as { text: string }).text.length ?? 0) > 0,
-                  )
-                  if (hasText) count += 1
-                  for (const p of m.parts) {
-                    if (p.type !== "tool") continue
-                    count += 1
-                    const status = (p as MessageV2.ToolPart).state?.status
-                    if (status === "completed" || status === "error") count += 1
-                  }
-                }
-              }
-              return count
-            })()
+            const estimatedItemCount = estimateTransportItemCount(msgs)
+            const observed = await deriveObservedCondition({
+              sessionID,
+              step,
+              msgs,
+              lastFinished: undefined,
+              pinnedProviderId: resolvedModel.providerId,
+              pinnedAccountId: resolvedModel.accountId,
+              hasUnprocessedCompactionRequest: false,
+              compactionRequestAuto: undefined,
+              parentID: session.parentID,
+              continuationInvalidatedAt: undefined,
+              paralysisItemThreshold: PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD,
+              isOverflow: async () => false,
+              isCacheAware: async () => false,
+            })
 
-            if (estimatedItemCount > PARALYSIS_ITEMCOUNT_COMPACT_THRESHOLD && !session.parentID) {
+            if (observed === "overflow" && !session.parentID) {
               log.warn("paralysis-recover: bloated input, triggering overflow compaction instead of nudge/halt", {
                 sessionID,
                 step,
@@ -2234,7 +2257,7 @@ export namespace SessionPrompt {
               try {
                 await SessionCompaction.run({
                   sessionID,
-                  observed: "overflow",
+                  observed,
                   step,
                   abort,
                 })
@@ -2471,28 +2494,7 @@ export namespace SessionPrompt {
         const REBIND_PREEMPT_ITEM_THRESHOLD = 250
         const REBIND_PREEMPT_TOKEN_RATIO = 0.8
         try {
-          let estimatedItemCount = 0
-          for (const m of msgs) {
-            if (m.info.role === "user") {
-              estimatedItemCount += 1
-              continue
-            }
-            if (m.info.role === "assistant") {
-              const hasText = m.parts.some(
-                (p) =>
-                  p.type === "text" &&
-                  typeof (p as { text?: string }).text === "string" &&
-                  ((p as { text: string }).text.length ?? 0) > 0,
-              )
-              if (hasText) estimatedItemCount += 1
-              for (const p of m.parts) {
-                if (p.type !== "tool") continue
-                estimatedItemCount += 1
-                const status = (p as MessageV2.ToolPart).state?.status
-                if (status === "completed" || status === "error") estimatedItemCount += 1
-              }
-            }
-          }
+          const estimatedItemCount = estimateTransportItemCount(msgs)
           const lastFinishedTokens = lastFinished?.tokens?.total ?? 0
           const tokenLimit = resolvedModel
             ? ((await Provider.getModel(resolvedModel.providerId, resolvedModel.modelID).catch(() => undefined))?.limit
@@ -2500,7 +2502,22 @@ export namespace SessionPrompt {
             : 0
           const tokenRatio = tokenLimit > 0 ? lastFinishedTokens / tokenLimit : 0
           const tokensHeavy = tokenRatio > REBIND_PREEMPT_TOKEN_RATIO
-          if (tokensHeavy) {
+          const observed = await deriveObservedCondition({
+            sessionID,
+            step,
+            msgs,
+            lastFinished: undefined,
+            pinnedProviderId: effectiveProviderId,
+            pinnedAccountId: effectiveAccountId ?? undefined,
+            hasUnprocessedCompactionRequest: false,
+            compactionRequestAuto: undefined,
+            parentID: session.parentID,
+            continuationInvalidatedAt: undefined,
+            rebindPreemptive: tokensHeavy,
+            isOverflow: async () => false,
+            isCacheAware: async () => false,
+          })
+          if (observed === "rebind") {
             log.warn("rebind handed off bloated session, pre-emptive compaction before WS open", {
               sessionID,
               step,
@@ -2512,7 +2529,7 @@ export namespace SessionPrompt {
             try {
               await SessionCompaction.run({
                 sessionID,
-                observed: "rebind",
+                observed,
                 step,
                 abort,
               })
