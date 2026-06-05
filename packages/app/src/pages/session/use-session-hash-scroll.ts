@@ -10,6 +10,12 @@ export const messageIdFromHash = (hash: string) => {
   return match[1]
 }
 
+export const shouldReplayInitialHash = (hash: string, hasPendingMessage: boolean, userScrolled: boolean) => {
+  if (!hash) return false
+  if (messageIdFromHash(hash)) return hasPendingMessage && !userScrolled
+  return true
+}
+
 type NewInput = {
   sessionKey: () => string
   sessionID: () => string | undefined
@@ -19,6 +25,7 @@ type NewInput = {
   turnStart: () => number
   currentMessageId: () => string | undefined
   pendingMessage: () => string | undefined
+  hasPendingMessage: () => boolean
   setPendingMessage: (value: string | undefined) => void
   setActiveMessage: (message: UserMessage | undefined) => void
   setTurnStart: (value: number) => void
@@ -66,6 +73,7 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
           turnStart: rawInput.turnStart,
           currentMessageId: rawInput.activeMessageId,
           pendingMessage: () => undefined,
+          hasPendingMessage: () => false,
           setPendingMessage: () => {},
           setActiveMessage: (message) => rawInput.onActiveChange(message?.id),
           setTurnStart: rawInput.onBackfill,
@@ -94,6 +102,12 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
 
   const updateHash = (id: string) => {
     window.history.replaceState(null, "", `#${input.anchor(id)}`)
+  }
+
+  const scrollToBottomAndTrack = () => {
+    input.autoScroll.scrollToBottom()
+    const el = input.scroller()
+    if (el) input.scheduleScrollState(el)
   }
 
   // Shadowing the exported scrollToElement with the one from the commit that is bound to input.scroller
@@ -160,20 +174,24 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
     const hash = window.location.hash.slice(1)
     if (!hash) {
       if (input.userScrolled?.()) return
-      input.autoScroll.scrollToBottom()
-      const el = input.scroller()
-      if (el) input.scheduleScrollState(el)
+      scrollToBottomAndTrack()
       return
     }
 
     const messageId = messageIdFromHash(hash)
     if (messageId) {
-      input.autoScroll.pause(true)
+      if (input.userScrolled?.()) {
+        clearMessageHash()
+        return
+      }
       const msg = messageById().get(messageId)
       if (msg) {
+        input.autoScroll.pause(true)
         scrollToMessage(msg, behavior)
         return
       }
+      clearMessageHash()
+      scrollToBottomAndTrack()
       return
     }
 
@@ -184,9 +202,7 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
       return
     }
 
-    input.autoScroll.scrollToBottom()
-    const el = input.scroller()
-    if (el) input.scheduleScrollState(el)
+    scrollToBottomAndTrack()
   }
 
   createEffect(
@@ -204,10 +220,11 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
     if (!initialAppliedForSession()) {
       setInitialAppliedForSession(true)
       requestAnimationFrame(() => {
-        if (window.location.hash) {
+        if (shouldReplayInitialHash(window.location.hash, input.hasPendingMessage(), !!input.userScrolled?.())) {
           applyHash("auto")
           return
         }
+        if (window.location.hash) clearMessageHash()
         if (input.userScrolled?.()) return
         input.setActiveMessage(undefined)
         input.autoScroll.scrollToBottom()

@@ -1,7 +1,7 @@
 import { describe, expect, test, mock, beforeEach, afterEach } from "bun:test"
 import { createRoot, createSignal } from "solid-js"
 import { isServer } from "solid-js/web"
-import { useSessionHashScroll, anchor } from "../use-session-hash-scroll"
+import { useSessionHashScroll, anchor, shouldReplayInitialHash } from "../use-session-hash-scroll"
 
 const testIfClient = isServer ? test.skip : test
 
@@ -156,6 +156,7 @@ describe("useSessionHashScroll", () => {
           turnStart: () => 0,
           currentMessageId: () => undefined,
           pendingMessage: () => undefined,
+          hasPendingMessage: () => false,
           setPendingMessage: () => {},
           setActiveMessage: () => {},
           setTurnStart: () => {},
@@ -208,6 +209,7 @@ describe("useSessionHashScroll", () => {
           turnStart: () => 0,
           currentMessageId: () => undefined,
           pendingMessage: () => undefined,
+          hasPendingMessage: () => true,
           setPendingMessage: () => {},
           setActiveMessage: () => {},
           setTurnStart: () => {},
@@ -235,6 +237,114 @@ describe("useSessionHashScroll", () => {
           resolve()
         }, 0)
       })
+    })
+  })
+
+  testIfClient("clears stale message hash and returns to bottom", () => {
+    window.location.hash = `#${anchor("missing-msg")}`
+
+    createRoot((dispose) => {
+      const scroller = document.createElement("div")
+      document.body.appendChild(scroller)
+      let pausedAutoScroll = false
+      let scrolledToBottom = false
+      let scheduledScrollState = false
+
+      const hashScroll = useSessionHashScroll({
+        sessionKey: () => "session-c",
+        sessionID: () => "session-c",
+        messagesReady: () => true,
+        working: () => false,
+        visibleUserMessages: () => [{ id: "tail-msg", role: "user" } as any],
+        turnStart: () => 0,
+        currentMessageId: () => undefined,
+        pendingMessage: () => undefined,
+        hasPendingMessage: () => false,
+        setPendingMessage: () => {},
+        setActiveMessage: () => {},
+        setTurnStart: () => {},
+        scheduleTurnBackfill: () => {},
+        autoScroll: {
+          pause: () => {
+            pausedAutoScroll = true
+          },
+          scrollToBottom: () => {
+            scrolledToBottom = true
+          },
+        },
+        scroller: () => scroller,
+        anchor,
+        scheduleScrollState: () => {
+          scheduledScrollState = true
+        },
+        consumePendingMessage: () => undefined,
+        userScrolled: () => false,
+      })
+
+      hashScroll.applyHash("auto")
+
+      expect(pausedAutoScroll).toBe(false)
+      expect(scrolledToBottom).toBe(true)
+      expect(scheduledScrollState).toBe(true)
+      expect(replaceStateCalls.length).toBeGreaterThan(0)
+      dispose()
+    })
+  })
+
+  test("does not replay valid message hash without pending navigation", () => {
+    expect(shouldReplayInitialHash(`#${anchor("msg-4")}`, false, false)).toBe(false)
+    expect(shouldReplayInitialHash(`#${anchor("msg-4")}`, true, false)).toBe(true)
+    expect(shouldReplayInitialHash(`#${anchor("msg-4")}`, true, true)).toBe(false)
+    expect(shouldReplayInitialHash("#review-panel", false, true)).toBe(true)
+  })
+
+  test("does not jump to message hash while free reading", () => {
+    window.location.hash = `#${anchor("msg-5")}`
+
+    createRoot((dispose) => {
+      const scroller = document.createElement("div")
+      const msgEl = document.createElement("div")
+      msgEl.id = anchor("msg-5")
+      document.body.appendChild(scroller)
+      document.body.appendChild(msgEl)
+      let pausedAutoScroll = false
+      let scrolledToBottom = false
+
+      const hashScroll = useSessionHashScroll({
+        sessionKey: () => "session-e",
+        sessionID: () => "session-e",
+        messagesReady: () => true,
+        working: () => false,
+        visibleUserMessages: () => [{ id: "msg-5", role: "user" } as any],
+        turnStart: () => 0,
+        currentMessageId: () => undefined,
+        pendingMessage: () => undefined,
+        hasPendingMessage: () => true,
+        setPendingMessage: () => {},
+        setActiveMessage: () => {},
+        setTurnStart: () => {},
+        scheduleTurnBackfill: () => {},
+        autoScroll: {
+          pause: () => {
+            pausedAutoScroll = true
+          },
+          scrollToBottom: () => {
+            scrolledToBottom = true
+          },
+        },
+        scroller: () => scroller,
+        anchor,
+        scheduleScrollState: () => {},
+        consumePendingMessage: () => undefined,
+        userScrolled: () => true,
+      })
+
+      hashScroll.applyHash("auto")
+
+      expect(pausedAutoScroll).toBe(false)
+      expect(scrolledToBottom).toBe(false)
+      expect(replaceStateCalls.length).toBeGreaterThan(0)
+      dispose()
     })
   })
 })

@@ -78,7 +78,8 @@ import { useSessionHashScroll } from "@/pages/session/use-session-hash-scroll"
 import { sessionPermissionRequest, sessionQuestionRequest } from "@/pages/session/session-request-tree"
 import { getAssistantSyncedSessionModel } from "@/pages/session/session-model-sync"
 import { startActivePoll } from "@/context/active-poll"
-import { restartStatus } from "@/context/restart-status"
+import { beginRestartWait, restartStatus } from "@/context/restart-status"
+import { useGlobalSDK } from "@/context/global-sdk"
 
 type HandoffSession = {
   prompt: string
@@ -120,6 +121,7 @@ export default function Page() {
   const params = useParams()
   const navigate = useNavigate()
   const sdk = useSDK()
+  const globalSDK = useGlobalSDK()
   const prompt = usePrompt()
   const comments = useComments()
   const permission = usePermission()
@@ -448,6 +450,31 @@ export default function Page() {
   const workflowChips = createMemo(() => getSessionWorkflowChips(info() as any))
   const revertMessageID = createMemo(() => info()?.revert?.messageID)
   const messages = createMemo(() => (params.id ? (sync.data.message[params.id] ?? []) : []))
+  let restartWaitToolPartID: string | undefined
+  createEffect(() => {
+    for (const message of messages()) {
+      if (message.role !== "assistant") continue
+      const parts = sync.data.part[message.id] ?? []
+      for (const part of parts) {
+        if (part.type !== "tool") continue
+        if (part.tool !== "system-manager_restart_self") continue
+        if (part.state.status !== "completed") continue
+        if (part.id === restartWaitToolPartID) continue
+        if (!part.state.output.includes("restart_self scheduled")) continue
+        if (typeof sessionStorage === "undefined") continue
+        const storageKey = `opencode.restart-wait.handled.${part.id}`
+        if (sessionStorage.getItem(storageKey)) continue
+        sessionStorage.setItem(storageKey, "1")
+        restartWaitToolPartID = part.id
+        beginRestartWait({
+          label: "Restarting daemon… reconnecting after recovery.",
+          healthUrl: `${globalSDK.url}/api/v2/global/health`,
+          initialDelayMs: 3000,
+          recoveryDeadlineMs: 90_000,
+        })
+      }
+    }
+  })
   const messagesReady = createMemo(() => {
     const id = params.id
     if (!id) return true
@@ -837,26 +864,32 @@ export default function Page() {
     // Re-fetch session_status to clear stale "busy" entries that survive
     // daemon restart (in-process status resets to idle but frontend store
     // retains old value → spinner never stops).
-    sdk.client.session.status().then((x) => {
-      if (!x.data) return
-      const now = Date.now()
-      const stamped: Record<string, any> = {}
-      for (const [sid, status] of Object.entries(x.data)) stamped[sid] = { ...status, receivedAt: now }
-      ;(sync.set as any)("session_status", stamped)
-    }).catch(() => {})
+    sdk.client.session
+      .status()
+      .then((x) => {
+        if (!x.data) return
+        const now = Date.now()
+        const stamped: Record<string, any> = {}
+        for (const [sid, status] of Object.entries(x.data)) stamped[sid] = { ...status, receivedAt: now }
+        ;(sync.set as any)("session_status", stamped)
+      })
+      .catch(() => {})
     // Re-fetch active_child for the same reason: events emitted while SSE was
     // dead never reach the reducer, leaving the active-child dock indicator
     // empty until the subagent terminates and publishes the cleanup event.
-    sdk.client.session.activeChild().then((x) => {
-      if (!x.data) return
-      const now = Date.now()
-      const stamped: Record<string, any> = {}
-      for (const [parentID, child] of Object.entries(x.data)) {
-        if (!child || typeof child !== "object") continue
-        stamped[parentID] = { ...child, receivedAt: now }
-      }
-      ;(sync.set as any)("active_child", stamped)
-    }).catch(() => {})
+    sdk.client.session
+      .activeChild()
+      .then((x) => {
+        if (!x.data) return
+        const now = Date.now()
+        const stamped: Record<string, any> = {}
+        for (const [parentID, child] of Object.entries(x.data)) {
+          if (!child || typeof child !== "object") continue
+          stamped[parentID] = { ...child, receivedAt: now }
+        }
+        ;(sync.set as any)("active_child", stamped)
+      })
+      .catch(() => {})
     // Force-reload messages so the user sees the current conversation
     // state, not stale data from before SSE died. SSE reconnect means
     // events were missed — the only way to recover is a full pull.
@@ -1241,18 +1274,6 @@ export default function Page() {
     ),
   )
 
-  createEffect(
-    on(
-      () => visibleUserMessages().at(-1)?.id,
-      (lastId, prevLastId) => {
-        if (lastId && prevLastId && lastId !== prevLastId) {
-          setStore("messageId", undefined)
-        }
-      },
-      { defer: true },
-    ),
-  )
-
   const status = createMemo(() => sync.data.session_status[params.id ?? ""] ?? idle)
 
   // SSE liveness watchdog: if SSE is dead, the message store is stale
@@ -1272,26 +1293,32 @@ export default function Page() {
         lastForceReloadAt = Date.now()
         console.info("[session] SSE dead, force-reloading", { sessionID })
         sync.session.forceReload(sessionID).catch(() => {})
-        sdk.client.session.status().then((x) => {
-          if (!x.data) return
-          const now = Date.now()
-          const stamped: Record<string, any> = {}
-          for (const [sid, st] of Object.entries(x.data)) stamped[sid] = { ...st, receivedAt: now }
-          ;(sync.set as any)("session_status", stamped)
-        }).catch(() => {})
+        sdk.client.session
+          .status()
+          .then((x) => {
+            if (!x.data) return
+            const now = Date.now()
+            const stamped: Record<string, any> = {}
+            for (const [sid, st] of Object.entries(x.data)) stamped[sid] = { ...st, receivedAt: now }
+            ;(sync.set as any)("session_status", stamped)
+          })
+          .catch(() => {})
         return
       }
 
       // SSE alive path: only fix stale-busy (server idle, frontend busy)
       const s = sync.data.session_status[sessionID]
       if (!s || s.type === "idle") return
-      sdk.client.session.status().then((x) => {
-        if (!x.data) return
-        const now = Date.now()
-        const stamped: Record<string, any> = {}
-        for (const [sid, st] of Object.entries(x.data)) stamped[sid] = { ...st, receivedAt: now }
-        ;(sync.set as any)("session_status", stamped)
-      }).catch(() => {})
+      sdk.client.session
+        .status()
+        .then((x) => {
+          if (!x.data) return
+          const now = Date.now()
+          const stamped: Record<string, any> = {}
+          for (const [sid, st] of Object.entries(x.data)) stamped[sid] = { ...st, receivedAt: now }
+          ;(sync.set as any)("session_status", stamped)
+        })
+        .catch(() => {})
     }, 15_000)
     onCleanup(() => clearInterval(livenessTimer))
   }
@@ -2081,6 +2108,7 @@ export default function Page() {
     turnStart: () => store.turnStart,
     currentMessageId: () => store.messageId,
     pendingMessage: () => ui.pendingMessage,
+    hasPendingMessage: () => ui.pendingMessage !== undefined,
     setPendingMessage: (value) => setUi("pendingMessage", value),
     setActiveMessage,
     setTurnStart: (value) => setStore("turnStart", value),
@@ -2092,6 +2120,18 @@ export default function Page() {
     consumePendingMessage: layout.pendingMessage.consume,
     userScrolled: autoScroll.userScrolled,
   })
+
+  createEffect(
+    on(
+      () => visibleUserMessages().at(-1)?.id,
+      (lastId, prevLastId) => {
+        if (!lastId || !prevLastId || lastId === prevLastId) return
+        setStore("messageId", undefined)
+        clearMessageHash()
+      },
+      { defer: true },
+    ),
+  )
 
   createEffect(() => {
     document.addEventListener("keydown", handleKeyDown)
