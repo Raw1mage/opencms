@@ -145,11 +145,6 @@
         "capability": "Knowledge-graph memory persistence and retrieval"
       },
       {
-        "name": "system-manager",
-        "enabled": false,
-        "capability": "Deprecated MCP compatibility surface. opencode runtime control now uses built-in direct tools with the same system-manager_* names; MCP startup is no longer required for system-manager tool calls. Use tool_loader alias `system-manager`, not `system_manager`."
-      },
-      {
         "name": "specbase",
         "enabled": true,
         "capability": "Plan / spec / wiki knowledge base — drives the plan-builder skill lifecycle (proposed → designed → planned → implementing → verified → living → archived). Use for plan creation, advancement, graduation, amendment, task ticking, decisions, code anchors, and wiki queries."

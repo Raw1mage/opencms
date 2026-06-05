@@ -828,7 +828,7 @@ export namespace MCP {
     return result
   }
 
-  const RETIRED_SERVER_APP_IDS = new Set(["gcp-grounding"])
+  const RETIRED_SERVER_APP_IDS = new Set(["gcp-grounding", "system-manager"])
 
   /** Metadata for built-in MCP servers — shown in app market cards */
   const SERVER_META: Record<string, { description: string; icon: string }> = {
@@ -847,10 +847,6 @@ export namespace MCP {
     "sequential-thinking": {
       description: "Step-by-step reasoning tool for complex multi-step problem solving.",
       icon: "🔗",
-    },
-    "system-manager": {
-      description: "System administration tools — process management, environment inspection, and runtime control.",
-      icon: "⚙️",
     },
     drawmiat: {
       description: "IDEF0 / Grafcet (IEC 60848) diagram renderer — generates SVG from structured JSON.",
