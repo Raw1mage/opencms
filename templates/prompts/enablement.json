@@ -72,6 +72,7 @@
       "system-manager_set_ui_config",
       "system-manager_export_transcript",
       "system-manager_set_log_level",
+      "system-manager_restart_self",
       "system-manager_install_mcp_app",
       "system-manager_list_mcp_apps",
       "system-manager_remove_mcp_app"
@@ -422,9 +423,7 @@
         "keywords": ["url", "docs", "documentation", "api", "endpoint", "fetch", "http"],
         "prefer": ["webfetch"],
         "fallback": ["webfetch"],
-        "notes": [
-          "fetch MCP server is not currently registered — use built-in webfetch tool."
-        ]
+        "notes": ["fetch MCP server is not currently registered — use built-in webfetch tool."]
       },
       {
         "intent": "db/schema/query troubleshooting",

@@ -82,6 +82,77 @@ export function buildCatalog(allTools: { id: string; description: string }[]) {
     .slice(0, CATALOG_MAX_ENTRIES)
 }
 
+function normalizeToolAlias(name: string) {
+  return name.trim().replace(/[:.]/g, "_")
+}
+
+function appAliasPrefix(name: string) {
+  const normalized = name.trim()
+  if (!normalized || normalized.includes("_") || normalized.includes(":")) return undefined
+  return `${normalized}_`
+}
+
+export interface ToolLoaderResolution {
+  found: string[]
+  notFound: string[]
+  aliases: Array<{ requested: string; resolved: string[] }>
+  ambiguous: Array<{ requested: string; candidates: string[] }>
+}
+
+export function resolveToolLoaderRequest(available: Set<string>, requested: string[]): ToolLoaderResolution {
+  const found = new Set<string>()
+  const notFound: string[] = []
+  const aliases: ToolLoaderResolution["aliases"] = []
+  const ambiguous: ToolLoaderResolution["ambiguous"] = []
+  const availableList = [...available].sort((a, b) => a.localeCompare(b))
+
+  for (const rawName of requested) {
+    const name = rawName.trim()
+    if (!name) {
+      notFound.push(rawName)
+      continue
+    }
+
+    if (available.has(name)) {
+      found.add(name)
+      continue
+    }
+
+    const normalized = normalizeToolAlias(name)
+    if (normalized !== name && available.has(normalized)) {
+      found.add(normalized)
+      aliases.push({ requested: name, resolved: [normalized] })
+      continue
+    }
+
+    const prefix = appAliasPrefix(name)
+    if (prefix) {
+      const expanded = availableList.filter((id) => id.startsWith(prefix))
+      if (expanded.length > 0) {
+        for (const id of expanded) found.add(id)
+        aliases.push({ requested: name, resolved: expanded })
+        continue
+      }
+    }
+
+    const suffixCandidates = availableList.filter((id) => id.endsWith(`_${normalized}`))
+    if (suffixCandidates.length === 1) {
+      found.add(suffixCandidates[0])
+      aliases.push({ requested: name, resolved: [suffixCandidates[0]] })
+      continue
+    }
+    if (suffixCandidates.length > 1) {
+      ambiguous.push({ requested: name, candidates: suffixCandidates })
+      notFound.push(name)
+      continue
+    }
+
+    notFound.push(name)
+  }
+
+  return { found: [...found], notFound, aliases, ambiguous }
+}
+
 // DD-21: STATIC tool_loader description for the cached tools block. The live,
 // per-unlock-changing catalog goes to the UNCACHED preface tail via
 // formatLazyCatalogPrompt — it must NOT be baked into the tool definition (which
@@ -113,9 +184,7 @@ export function formatCatalogDescription(catalog: CatalogEntry[], totalAvailable
  * what deferred tools exist so it can call them directly.  The LLM runtime
  * will auto-load any deferred tool on first call via `experimental_repairToolCall`.
  */
-export function formatLazyCatalogPrompt(
-  lazyTools: Map<string, { description?: string }>,
-): string | undefined {
+export function formatLazyCatalogPrompt(lazyTools: Map<string, { description?: string }>): string | undefined {
   if (!lazyTools || lazyTools.size === 0) return undefined
 
   // Categorise by prefix convention
@@ -173,16 +242,7 @@ export const ToolLoaderTool = Tool.define("tool_loader", async () => ({
   async execute(args, ctx) {
     log.info("tool_loader invoked", { sessionID: ctx.sessionID, requested: args.tools })
     const available = UnlockedTools.getAvailable(ctx.sessionID)
-
-    const found: string[] = []
-    const notFound: string[] = []
-    for (const name of args.tools) {
-      if (available.has(name)) {
-        found.push(name)
-      } else {
-        notFound.push(name)
-      }
-    }
+    const { found, notFound, aliases, ambiguous } = resolveToolLoaderRequest(available, args.tools)
 
     if (found.length > 0) {
       UnlockedTools.unlock(ctx.sessionID, found)
@@ -191,6 +251,16 @@ export const ToolLoaderTool = Tool.define("tool_loader", async () => ({
     const lines: string[] = []
     if (found.length > 0) {
       lines.push(`Loaded tools: ${found.join(", ")}. They are available on your next action.`)
+    }
+    if (aliases.length > 0) {
+      for (const alias of aliases) {
+        lines.push(`Resolved alias ${alias.requested} → ${alias.resolved.join(", ")}.`)
+      }
+    }
+    if (ambiguous.length > 0) {
+      for (const item of ambiguous) {
+        lines.push(`Ambiguous tool alias ${item.requested}; candidates: ${item.candidates.join(", ")}.`)
+      }
     }
     if (notFound.length > 0) {
       lines.push(
