@@ -233,7 +233,7 @@ async function defaultReaderRunner(input: {
       `session model ${model.providerId}/${model.id} does not support input modality "${required}" needed to read attachment_ref ${input.blob.refID} (${input.blob.mime}). Pin a model that does and retry.`,
     )
   }
-  const language = await Provider.getLanguage(model)
+  const language = await Provider.getLanguage(model, accountId ?? undefined)
   const headers = buildReaderHeaders({
     model,
     sessionID: input.sessionID,

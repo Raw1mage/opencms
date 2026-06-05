@@ -125,6 +125,26 @@ const parentPath = (path: string) => {
   return path.slice(0, idx)
 }
 
+const isAbsolutePath = (path: string) => path.startsWith("/") || /^[A-Za-z]:/.test(path)
+
+const resolveLogicalPath = (base: string, path: string) => {
+  const source = isAbsolutePath(path) ? path : `${base}/${path}`
+  const out: string[] = []
+  for (const part of source.replaceAll("\\", "/").split("/")) {
+    if (part === "") {
+      if (out.length === 0) out.push("")
+      continue
+    }
+    if (part === ".") continue
+    if (part === "..") {
+      if (out.length > 1) out.pop()
+      continue
+    }
+    out.push(part)
+  }
+  return out.length <= 1 ? "/" : out.join("/")
+}
+
 const isRecyclebinPath = (path: string) => path === "recyclebin" || path.startsWith("recyclebin/")
 
 export function fileTreeRowContextMenuTarget(node: FileNode): FileTreeContextMenuTarget {
@@ -663,31 +683,15 @@ export default function FileTree(props: {
     return raw.find((n) => n.name === "..")
   })
 
-  // Absolute path of the directory currently being viewed (= viewPath()
-  // resolved logically against the workspace). Computed by joining
-  // sdk.directory with viewPath() and resolving "." / ".." segments —
-  // this preserves the user-facing logical path even when entries are
-  // reached via symlinks (server's realpath would otherwise leak the
-  // physical target into the title, causing confusion).
+  // Absolute path of the directory currently being viewed. Relative paths
+  // resolve against the workspace; pinned absolute paths remain their own
+  // authority so parent navigation/display never jumps back to repo root.
   const currentAbsolute = createMemo(() => {
     if (!root) return undefined
     const base = sdk.directory
     const rel = effectivePath()
     if (!rel || rel === "." || rel === "./") return base
-    const out: string[] = []
-    for (const p of (base + "/" + rel).split("/")) {
-      if (p === "") {
-        if (out.length === 0) out.push("")
-        continue
-      }
-      if (p === ".") continue
-      if (p === "..") {
-        if (out.length > 1) out.pop()
-        continue
-      }
-      out.push(p)
-    }
-    return out.length <= 1 ? "/" : out.join("/")
+    return resolveLogicalPath(base, rel)
   })
 
   const nodes = createMemo(() => {
@@ -1479,10 +1483,11 @@ export default function FileTree(props: {
                   type="button"
                   class="cursor-pointer max-w-[14ch] truncate text-left"
                   onClick={() => {
+                    setViewHistory([])
                     if (isActive()) {
                       setViewPath(props.path)
                     } else {
-                      navigateInto(folder)
+                      setViewPath(folder)
                     }
                   }}
                 >

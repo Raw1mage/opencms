@@ -24,7 +24,7 @@ export type ProjectSidebarContext = {
   onProjectMouseEnter: (worktree: string, event: MouseEvent) => void
   onProjectMouseLeave: (worktree: string) => void
   onProjectFocus: (worktree: string) => void
-  navigateToProject: (directory: string) => void
+  navigateToProject: (directory: string, options?: { sessionList?: boolean }) => void
   openSidebar: (directory?: string) => void
   closeProject: (directory: string) => void
   showEditProjectDialog: (project: LocalProject) => void
@@ -65,7 +65,7 @@ const ProjectTile = (props: {
   onProjectMouseEnter: (worktree: string, event: MouseEvent) => void
   onProjectMouseLeave: (worktree: string) => void
   onProjectFocus: (worktree: string) => void
-  navigateToProject: (directory: string) => void
+  navigateToProject: (directory: string, options?: { sessionList?: boolean }) => void
   openSidebar: (directory?: string) => void
   showEditProjectDialog: (project: LocalProject) => void
   toggleProjectWorkspaces: (project: LocalProject) => void
@@ -129,7 +129,7 @@ const ProjectTile = (props: {
             props.openSidebar(props.project.worktree)
             return
           }
-          props.navigateToProject(props.project.worktree)
+          props.navigateToProject(props.project.worktree, { sessionList: true })
         }}
         onBlur={() => props.setOpen(false)}
       >

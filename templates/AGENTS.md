@@ -260,7 +260,12 @@ Next after reply:
    - 複雜 debug / 開發任務應優先讀取相關框架文件，而不是每次從原始碼重新建模整個系統。
    - 若框架文件不足，應在本次任務中補齊，而不是接受知識缺口常態化。
 
-8. **Plan / Spec Zone Contract（草稿區與 KB 區的物理隔離）**
+8. **Issue 紀錄預設策略（Local-first）**
+   - 本 repo 的 bug report / feature request 預設一律記錄在本地 `issues/` 目錄。
+   - 除非使用者明確要求「發 GitHub issue」，否則禁止使用 `gh issue create` 或其他方式建立遠端 GitHub issue。
+   - 本地 issue 檔名使用 `issues/issue_<YYYYMMDD>_<slug>.md`；已完成或關閉的 issue 移至 `issues/closed/`。
+
+9. **Plan / Spec Zone Contract（草稿區與 KB 區的物理隔離）**
    - **草稿區 `/plans/`**：plan-builder 進行中的 package 一律建立於 `/plans/<category>_<topic>/`，**扁平命名、底線分隔，不帶日期前綴**。range 涵蓋 `proposed → designed → planned → implementing → verified` 全部草稿期狀態。
    - **KB 區 `/specs/`**：已 graduate 的 spec 落於 `/specs/<category>/<topic>/`，semantic 子目錄結構，是 wiki / KB / Quartz 的可見來源。一旦進入 `/specs/`，後續 `amend` / `revise` / `extend` / `refactor` / `archive` 全部留在原地，**不回退到 `/plans/`**。
    - **`specs/architecture.md` 是架構單一真相來源**：長期架構、模組邊界、資料流、狀態機、runtime flows 以此為準。
@@ -270,13 +275,13 @@ Next after reply:
    - **Graduation Gate（`plan_graduate`）**：`verified → living` 升格、實體從 `/plans/<category>_<topic>/` 搬移至 `/specs/<category>/<topic>/`，**只允許使用者明確指示時觸發**；AI 偵測 `verified` 狀態僅可向使用者**提示** ready，不得自行呼叫 `plan_graduate`、不得使用模糊或 silent fallback wording 暗示稍後會自動升格。
    - **Beta/Test Branch Cleanup Rule**：`beta/*` 與 `test/*` 分支屬一次性執行面。測試完成且 merge/fetch-back 回主線後，必須立即刪除對應 branch 與 disposable worktree；未刪除不得宣告 workflow 完成。禁止長期保留已完成任務的 beta/test 分支，避免後續被誤當 authoritative mainline 而造成 branch pointer drift。
 
-9. **Web Runtime 單一啟動入口（Fail-Fast）**
+10. **Web Runtime 單一啟動入口（Fail-Fast）**
 
 - 本 repo 的 web runtime **只允許**透過 `./webctl.sh dev-start`（或 `dev-refresh`）啟動。
 - 禁止直接使用 `bun ... opencode ... web` / `opencode web` 手動啟動，避免載入錯誤前端 bundle 或錯誤 env。
 - 所有 server runtime 參數（含 `OPENCODE_FRONTEND_PATH`）必須集中定義於 `/etc/opencode/opencode.cfg`，作為單一事實來源。
 
-10. **禁止新增 fallback mechanism（使用者天條）**
+11. **禁止新增 fallback mechanism（使用者天條）**
 
 - 實作、重構、除錯時，**不允許主動新增任何 fallback mechanism**，除非使用者明確批准。
 - 尤其禁止以下行為：
@@ -285,7 +290,7 @@ Next after reply:
   - 在沒有 request-level evidence 前，以 fallback 當作「先讓系統能跑」的修補
 - 預設策略應為：**fail fast、顯式報錯、保留證據、要求決策**，而不是自動 fallback。
 
-11. **Daemon Lifecycle Authority（AI 自殺式重啟禁令）**
+12. **Daemon Lifecycle Authority（AI 自殺式重啟禁令）**
 
 - **AI 禁止自行 spawn / kill / restart opencode daemon 或 gateway 行程。** 唯一合法的自重啟路徑是 `system-manager:restart_self` tool（內部 POST `/api/v2/global/web/restart`，由 gateway + `webctl.sh` 負責 rebuild+install+restart orchestration）。
 - **Bash tool 的 denylist 會擋以下指令**（違規丟 `FORBIDDEN_DAEMON_SPAWN`）：
@@ -302,7 +307,7 @@ Next after reply:
   2.  是否能改成 explicit decision gate
   3.  是否能縮到單一可觀測且經使用者批准的例外
 
-11. **善用系統既有 Infrastructure，禁止重複造輪子（使用者天條）**
+13. **善用系統既有 Infrastructure，禁止重複造輪子（使用者天條）**
 
 **所有 coding agent 開工前必須先閱讀 `specs/architecture.md`**，掌握現有 infrastructure 後再動手，嚴禁以下行為：
 

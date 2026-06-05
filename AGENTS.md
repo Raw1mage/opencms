@@ -79,6 +79,12 @@
 - 本 repo 已作為獨立產品線維護，**預設不需要建立 PR**。
 - 除非使用者明確要求，否則預設流程停在 local commit / branch push 即可。
 
+### Issue 紀錄預設策略
+
+- 本 repo 的 bug report / feature request 預設一律記錄在本地 `issues/` 目錄。
+- 除非使用者明確要求「發 GitHub issue」，否則禁止使用 `gh issue create` 或其他方式建立遠端 GitHub issue。
+- 本地 issue 檔名使用 `issues/issue_<YYYYMMDD>_<slug>.md`；已完成或關閉的 issue 移至 `issues/closed/`。
+
 ---
 
 ## Enablement Registry（能力總表）

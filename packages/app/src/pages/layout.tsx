@@ -1109,7 +1109,7 @@ export default function Layout(props: ParentProps) {
     dialog.show(() => <DialogPublishedWeb />)
   }
 
-  async function navigateToProject(directory: string | undefined) {
+  async function navigateToProject(directory: string | undefined, options?: { sessionList?: boolean }) {
     if (!directory) return
     const project = layout.projects
       .list()
@@ -1120,6 +1120,11 @@ export default function Layout(props: ParentProps) {
       )
     const root = project?.worktree ?? directory
     server.projects.touch(root)
+
+    if (options?.sessionList) {
+      navigateWithSidebarReset(`/${base64Encode(root)}/session`)
+      return
+    }
 
     const dirs = Array.from(
       new Set([root, ...(store.workspaceOrder[root] ?? []), ...projectWorkspaceCandidates(project)]),
