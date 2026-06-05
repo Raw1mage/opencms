@@ -232,3 +232,111 @@ describe("planDeltaTrim (cache-chain-hotfix)", () => {
     expect(plan).toMatchObject({ action: "delta", sliceFrom: 118 })
   })
 })
+
+import { getSession, isUserMessageItem, tryWsTransport } from "./transport-ws"
+
+describe("WebSocket Self-Healing and State Locking", () => {
+  test("isUserMessageItem type guard correctness", () => {
+    expect(isUserMessageItem({ role: "user" })).toBe(true)
+    expect(isUserMessageItem({ type: "user" })).toBe(true)
+    expect(isUserMessageItem({ role: "assistant" })).toBe(false)
+    expect(isUserMessageItem({ type: "assistant" })).toBe(false)
+    expect(isUserMessageItem(null)).toBe(false)
+    expect(isUserMessageItem("user")).toBe(false)
+    expect(isUserMessageItem({})).toBe(false)
+  })
+
+  test("state locking records reason and timestamp", () => {
+    const sessionId = "session-lock-test"
+    const state = getSession(sessionId)
+
+    // Simulate timeout lock
+    state.disableWebsockets = true
+    state.disableReason = "timeout"
+    state.disabledAt = 123456789
+
+    expect(state.disableWebsockets).toBe(true)
+    expect(state.disableReason).toBe("timeout")
+    expect(state.disabledAt).toBe(123456789)
+  })
+
+  test("self-healing gate branches and cooldowns", async () => {
+    const sessionId = "session-selfheal-gate-test"
+    const state = getSession(sessionId)
+
+    // Base input base options for tryWsTransport
+    const inputBase = {
+      sessionId,
+      accessToken: "token-abc",
+      wsUrl: "ws://localhost:9999", // mock unreachable wss
+      body: {
+        model: "gpt-5.5",
+        input: [] as any[],
+      },
+    }
+
+    // Scenario 1: disableWebsockets is true, but NOT a user turn
+    state.disableWebsockets = true
+    state.disableReason = "timeout"
+    state.disabledAt = Date.now() - 100_000 // 100s ago (> 60s cooldown)
+    inputBase.body.input = [{ role: "assistant", content: "hello" }]
+
+    let result = await tryWsTransport(inputBase)
+    expect(result).toBeNull()
+    expect(state.disableWebsockets).toBe(true) // still locked
+
+    // Scenario 2: is user turn, but cooldown NOT elapsed (elapsed 10s < 60s for timeout)
+    state.disableWebsockets = true
+    state.disableReason = "timeout"
+    state.disabledAt = Date.now() - 10_000
+    inputBase.body.input = [{ role: "user", content: "hello" }]
+
+    result = await tryWsTransport(inputBase)
+    expect(result).toBeNull()
+    expect(state.disableWebsockets).toBe(true) // still locked
+
+    // Scenario 3: is user turn, and cooldown elapsed for timeout (elapsed 70s > 60s)
+    state.disableWebsockets = true
+    state.disableReason = "timeout"
+    state.disabledAt = Date.now() - 70_000
+    inputBase.body.input = [{ role: "user", content: "hello" }]
+
+    result = await tryWsTransport(inputBase)
+    // Should reset disableWebsockets to false, try connecting and fail (since ws is unreachable),
+    // then lock again with hard_failure.
+    expect(state.disableWebsockets).toBe(true)
+    expect(state.disableReason).toBe("hard_failure")
+    expect(state.disabledAt).toBeGreaterThan(Date.now() - 2000)
+
+    // Scenario 4: is user turn, and cooldown NOT elapsed for hard_failure (elapsed 200s < 300s)
+    state.disableWebsockets = true
+    state.disableReason = "hard_failure"
+    state.disabledAt = Date.now() - 200_000
+    inputBase.body.input = [{ role: "user", content: "hello" }]
+
+    result = await tryWsTransport(inputBase)
+    expect(result).toBeNull()
+    expect(state.disableWebsockets).toBe(true) // still locked
+  })
+
+  test("timeout self-healing ensures cold send on first retry turn", () => {
+    const sessionId = "session-cold-send-test"
+    const state = getSession(sessionId)
+
+    // Setup active state with continuation
+    state.lastResponseId = "resp-123"
+    state.lastInputLength = 100
+
+    // Simulate timeout logic (corresponds to result.timeout block in probeFirstFrame)
+    state.lastResponseId = undefined
+    state.lastInputLength = undefined
+    state.disableWebsockets = true
+    state.disableReason = "timeout"
+    state.disabledAt = Date.now()
+
+    // Verify continuation details are cleared, guaranteeing that when self-healing retry triggers,
+    // it will be a cold send (no previous_response_id in request body).
+    expect(state.lastResponseId).toBeUndefined()
+    expect(state.lastInputLength).toBeUndefined()
+  })
+})

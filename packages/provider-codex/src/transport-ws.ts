@@ -34,6 +34,8 @@ interface WsSessionState {
   lastResponseId?: string
   lastInputLength?: number
   disableWebsockets: boolean
+  disabledAt?: number
+  disableReason?: "timeout" | "done" | "hard_failure"
   continuationInvalidated?: boolean
   // True once a `response.completed` event has landed for this session
   // within the current daemon process. Starts false even when state is
@@ -89,7 +91,7 @@ function stopKeepalive(state: WsSessionState) {
   }
 }
 
-function getSession(sessionId: string): WsSessionState {
+export function getSession(sessionId: string): WsSessionState {
   let state = sessions.get(sessionId)
   if (!state) {
     const persisted = getContinuation(sessionId)
@@ -796,6 +798,11 @@ async function probeFirstFrame(
     state.lastInputLength = undefined
     invalidateContinuation(sessionId)
     state.disableWebsockets = true
+    state.disableReason = "timeout"
+    state.disabledAt = Date.now()
+    console.error(
+      `[CODEX-WS] probe first frame timeout, disabling websockets session=${sessionId}`
+    )
     try {
       state.ws?.close()
     } catch {}
@@ -806,6 +813,8 @@ async function probeFirstFrame(
 
   if (result.done) {
     state.disableWebsockets = true
+    state.disableReason = "done"
+    state.disabledAt = Date.now()
     return null
   }
 
@@ -844,6 +853,13 @@ export interface WsTransportInput {
   threadId?: string
   /** @deprecated since codex-update plan — prefer `threadId`. Kept for back-compat; mapped into headers via the threadId fallback chain. */
   conversationId?: string
+}
+
+export function isUserMessageItem(item: unknown): boolean {
+  if (!item || typeof item !== "object") return false
+  const role = (item as Record<string, unknown>).role
+  const type = (item as Record<string, unknown>).type
+  return role === "user" || type === "user"
 }
 
 /**
@@ -905,7 +921,27 @@ export async function tryWsTransport(
     state.lastInputLength = restored.lastInputLength
   }
 
-  if (state.disableWebsockets) return null
+  if (state.disableWebsockets) {
+    const inputArr = Array.isArray(body.input) ? body.input : undefined
+    const lastItem = inputArr ? inputArr[inputArr.length - 1] : undefined
+    const isUserTurn = isUserMessageItem(lastItem)
+    const elapsed = Date.now() - (state.disabledAt ?? 0)
+    const cooldown = state.disableReason === "timeout" ? 60_000 : 300_000
+
+    if (isUserTurn && elapsed > cooldown) {
+      console.error(
+        `[CODEX-WS] self-healing connection retry session=${sessionId} elapsed=${Math.round(elapsed / 1000)}s reason=${state.disableReason}`,
+      )
+      state.disableWebsockets = false
+      state.disableReason = undefined
+      state.disabledAt = undefined
+    } else {
+      console.error(
+        `[CODEX-WS] self-healing cooldown active session=${sessionId} elapsed=${Math.round(elapsed / 1000)}s reason=${state.disableReason} isUserTurn=${isUserTurn}`
+      )
+      return null
+    }
+  }
 
   stopKeepalive(state)
 
@@ -1006,6 +1042,8 @@ export async function tryWsTransport(
 
   // All failed → sticky HTTP fallback
   state.disableWebsockets = true
+  state.disableReason = "hard_failure"
+  state.disabledAt = Date.now()
   state.ws = null
   state.status = "failed"
   console.error(`[CODEX-ENTRY] tryWs:fallback_to_http session=${sessionId}`)
