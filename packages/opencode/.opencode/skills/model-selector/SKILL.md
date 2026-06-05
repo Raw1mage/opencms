@@ -70,7 +70,7 @@ _適用於：翻譯、格式化、簡單腳本、Log 分析_
     - Claude 失敗 -> 轉 OpenAI
     - _避免在同一個 Provider 的不同模型間切換 (通常共用 Quota)_。
 3.  **操作指令**:
-    - 使用 \`system-manager_switch_model\` 進行手動切換。
+    - 先以 tool loader 載入 \`system-manager\` alias，再使用 \`system-manager_switch_model\` 進行手動切換。
     - 在 \`Task\` 工具中明確指定 \`model\` 參數來繞過預設路由。
 
 ---

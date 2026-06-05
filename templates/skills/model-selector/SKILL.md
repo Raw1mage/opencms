@@ -74,7 +74,7 @@ _適用於：翻譯、格式化、簡單腳本、Log 分析_
     - _原則_：優先耗用訂閱制或寬鬆配額的資源，將受限資源 (如 OpenAI) 留給高難度任務。
     - _注意_：避免在同一個 Provider 的不同模型間切換 (通常共用 Quota)。
 3.  **操作指令**:
-    - 使用 \`system-manager_switch_model\` 進行手動切換。
+    - 先以 tool loader 載入 \`system-manager\` alias，再使用 \`system-manager_switch_model\` 進行手動切換。
     - 在 \`Task\` 工具中明確指定 \`model\` 參數來繞過預設路由。
 
 ---

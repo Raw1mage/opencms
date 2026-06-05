@@ -147,7 +147,7 @@
       {
         "name": "system-manager",
         "enabled": false,
-        "capability": "Deprecated MCP compatibility surface. OpenCMS runtime control now uses built-in direct tools with the same system-manager_* names; MCP startup is no longer required for system-manager tool calls."
+        "capability": "Deprecated MCP compatibility surface. opencode runtime control now uses built-in direct tools with the same system-manager_* names; MCP startup is no longer required for system-manager tool calls. Use tool_loader alias `system-manager`, not `system_manager`."
       },
       {
         "name": "specbase",
@@ -474,6 +474,7 @@
           "system-manager_switch_provider"
         ],
         "notes": [
+          "Use direct system-manager_* tools via the `system-manager` tool_loader alias; do not manually initialize the system-manager MCP server for these local control intents.",
           "Treat all switching as session-based; do not assume global control-plane semantics.",
           "If a natural-language request is ambiguous, use question before calling a switch tool.",
           "Do not silently fallback or guess provider/account/model/session targets."

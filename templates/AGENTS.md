@@ -191,6 +191,7 @@ Next after reply:
 ### 📊 系統狀態與資源監控 (System Manager)
 
 - **Tool**: `system-manager_get_system_status`
+- **Loader Alias**: `system-manager`（展開為 `system-manager_*` 直接工具；不要為 system-manager 手動跑 MCP initialize / tools-list）
 - **WHEN**:
   - 在規劃大型任務前 (Planning Phase)。
   - 當遇到 429 錯誤需要檢查冷卻時間時。
@@ -292,7 +293,7 @@ Next after reply:
 
 12. **Daemon Lifecycle Authority（AI 自殺式重啟禁令）**
 
-- **AI 禁止自行 spawn / kill / restart opencode daemon 或 gateway 行程。** 唯一合法的自重啟路徑是 `system-manager:restart_self` tool（內部 POST `/api/v2/global/web/restart`，由 gateway + `webctl.sh` 負責 rebuild+install+restart orchestration）。
+- **AI 禁止自行 spawn / kill / restart opencode daemon 或 gateway 行程。** 唯一合法的自重啟路徑是 `system-manager_restart_self` tool（內部 POST `/api/v2/global/web/restart`，由 gateway + `webctl.sh` 負責 rebuild+install+restart orchestration）。
 - **Bash tool 的 denylist 會擋以下指令**（違規丟 `FORBIDDEN_DAEMON_SPAWN`）：
   - `webctl.sh dev-start` / `dev-refresh` / `restart` / `web-restart` / `web-refresh` / `reload`
   - `bun ... serve --unix-socket ...`

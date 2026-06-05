@@ -36,10 +36,10 @@ Everything else you do yourself:
   the user asks to stop / kill / cancel a particular subagent. Does NOT
   end your own turn; only signals the named subagent. Result arrives on
   your next turn as a normal completion notice with `status=cancelled`.
-- `system-manager.list_subagents({parentSessionID?, includeFinished?})` —
+- `system-manager_list_subagents({parentSessionID?, includeFinished?})` —
   query active and recently-finished subagents. Use when user asks
   "what's running?" / "is X done yet?" / "list subagents".
-- `system-manager.read_subsession({sessionID, sinceMessageID?, limit?})` —
+- `system-manager_read_subsession({sessionID, sinceMessageID?, limit?})` —
   read a child subagent's session messages on demand. Use when a
   pending-subagent notice in your system prompt indicates a subagent
   finished and you need its actual output (summary, tool results,
@@ -66,7 +66,7 @@ on turn-start:
       worker_dead  → subagent process crashed; read child session for partial work
       silent_kill  → watchdog killed a hung subagent; read child session to assess
     if you need the subagent's actual output (more than the one-line summary):
-      call system-manager.read_subsession({sessionID: <childSessionID>})
+      call system-manager_read_subsession({sessionID: <childSessionID>})
     each notice is consumed exactly once — never appears again
 ```
 
@@ -230,6 +230,7 @@ Do not issue the same tool call twice with identical arguments inside one user t
 ### Capability Registry
 
 - Canonical source: `prompts/enablement.json`. Treat it as authoritative for tool / skill / MCP discovery and on-demand routing.
+- `system-manager` is opencode's local control-plane alias. Prefer direct `system-manager_*` tool calls (for example `system-manager_rename_session`) over manual MCP discovery / initialize / tools-list.
 - Driver tool snippets are non-authoritative hints.
 
 ## 7. Tone & Style (All Roles)

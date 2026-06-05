@@ -7,6 +7,10 @@ description: Search for, install, and configure Model Context Protocol (MCP) ser
 
 This skill enables the agent (Antigravity/OpenCMS) to autonomously find, download, and install MCP servers, seamlessly giving itself new tools and resources without requiring manual developer intervention.
 
+## Built-in Control Plane Exception
+
+Do **not** use this skill for opencode local runtime control intents such as session rename, session metadata, model/account/provider switching, subagent listing, log-level changes, or controlled self-restart. Those are exposed through the direct `system-manager` tool-loader alias and expanded `system-manager_*` tools. Manual MCP initialization / tools-list discovery for `system-manager` is a compatibility fallback, not the primary route.
+
 ## Philosophy
 
 The goal is to make OpenCMS a "self-growing organism." If you realize you lack the capability to fulfill a user's request (e.g., "Summarize my latest Slack messages" or "Query my Postgres database"), you should trigger this workflow to automatically acquire the necessary MCP server.
