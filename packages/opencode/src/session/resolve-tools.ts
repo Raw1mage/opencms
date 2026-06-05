@@ -315,6 +315,7 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
   }
 
   for (const [key, item] of Object.entries(await MCP.tools())) {
+    if (key.startsWith("system-manager_") && tools[key]) continue
     if (!toolAllowed(key)) continue
     const rawExecute = item.execute
     if (!rawExecute) continue

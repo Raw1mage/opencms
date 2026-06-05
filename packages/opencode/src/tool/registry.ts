@@ -34,6 +34,7 @@ import { ToolLoaderTool } from "./tool-loader"
 import { AttachmentTool } from "./attachment"
 import { RereadAttachmentTool } from "./reread-attachment"
 import { SessionRecallTool } from "./session_recall"
+import { SystemManagerTools } from "./system-manager"
 import { pathToFileURL } from "url"
 
 export namespace ToolRegistry {
@@ -160,6 +161,7 @@ export namespace ToolRegistry {
       CronListTool,
       CronDeleteTool,
       RefreshCapabilityLayerTool,
+      ...SystemManagerTools,
       ...(Flag.OPENCODE_EXPERIMENTAL_LSP_TOOL ? [LspTool] : []),
       ...(config.experimental?.batch_tool === true ? [BatchTool] : []),
       ...custom,

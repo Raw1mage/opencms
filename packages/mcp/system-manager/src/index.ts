@@ -1,6 +1,3 @@
-import { Server } from "@modelcontextprotocol/sdk/server/index.js"
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
 import { promises as fs, existsSync } from "fs"
 import { exec, execFile } from "child_process"
 import { promisify } from "util"
@@ -436,9 +433,7 @@ async function getCodexUsage(info: any, accountId: string, familyId: string) {
   }
 }
 
-const server = new Server({ name: "opencode-system-manager", version: "1.2.0" }, { capabilities: { tools: {} } })
-
-server.setRequestHandler(ListToolsRequestSchema, async () => {
+export async function listSystemManagerTools() {
   return {
     tools: [
       {
@@ -653,7 +648,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             messageID: { type: "string", description: "Message ID to fork from" },
             query: { type: "string", description: "Search keyword for session titles (used with 'search' operation)" },
             limit: { type: "number", description: "Max results for search (default 10)" },
-            title: { type: "string", description: "Session title. For operation='create', the new session's title. For operation='rename', the new title applied to sessionID." },
+            title: {
+              type: "string",
+              description:
+                "Session title. For operation='create', the new session's title. For operation='rename', the new title applied to sessionID.",
+            },
             handover: {
               type: "string",
               description:
@@ -775,7 +774,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         name: "install_mcp_app",
         description:
           "Install an MCP App from a GitHub URL or local path. Clones the repo (if GitHub), reads/infers mcp.json manifest, installs dependencies, probes via stdio tools/list, and registers in mcp-apps.json. The App becomes available in the session tool pool. " +
-          "Use `target: \"user\"` to register the App in the per-user registry (~/.config/opencode/mcp-apps.json) instead of the system-wide one — required when the App's runtime endpoint is per-user (e.g. a Unix socket under $XDG_RUNTIME_DIR). GitHub installs always go to system tier; only local-path installs honour `target`.",
+          'Use `target: "user"` to register the App in the per-user registry (~/.config/opencode/mcp-apps.json) instead of the system-wide one — required when the App\'s runtime endpoint is per-user (e.g. a Unix socket under $XDG_RUNTIME_DIR). GitHub installs always go to system tier; only local-path installs honour `target`.',
         inputSchema: {
           type: "object",
           properties: {
@@ -905,11 +904,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
     ],
   }
-})
+}
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params
-
+export async function callSystemManagerTool(name: string, args: unknown) {
   try {
     if (name === "get_system_status") {
       const accounts = JSON.parse(await fs.readFile(ACCOUNTS_PATH, "utf-8"))
@@ -1853,11 +1850,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     // ── MCP App Store handlers (Layer 3) ─────────────────────────────
 
     if (name === "install_mcp_app") {
-      const {
-        source,
-        id: providedId,
-        target,
-      } = args as { source: string; id?: string; target?: "system" | "user" }
+      const { source, id: providedId, target } = args as { source: string; id?: string; target?: "system" | "user" }
 
       const isGithub = source.startsWith("https://github.com/") || source.startsWith("git@")
       const inferredId =
@@ -1902,7 +1895,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             cause?: string
             tier?: string
           }
-          const detail = [err.error ?? res.statusText, err.cause ? `cause=${err.cause}` : null, err.tier ? `tier=${err.tier}` : null]
+          const detail = [
+            err.error ?? res.statusText,
+            err.cause ? `cause=${err.cause}` : null,
+            err.tier ? `tier=${err.tier}` : null,
+          ]
             .filter(Boolean)
             .join(" — ")
           return {
@@ -1923,7 +1920,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           result.manifest.description ? `  Description: ${result.manifest.description}` : null,
           `  Command: ${result.manifest.command.join(" ")}`,
           `  Status: ${result.status}`,
-          `  Tier: ${isGithub ? "system" : target ?? "system"}`,
+          `  Tier: ${isGithub ? "system" : (target ?? "system")}`,
         ].filter(Boolean)
         return { content: [{ type: "text", text: lines.join("\n") }] }
       } catch (e: any) {
@@ -2118,9 +2115,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: JSON.stringify({ action, result: parsed }, null, 2) }] }
       } catch (err) {
         return {
-          content: [
-            { type: "text", text: JSON.stringify({ error: "skill_loader_failed", detail: String(err) }) },
-          ],
+          content: [{ type: "text", text: JSON.stringify({ error: "skill_loader_failed", detail: String(err) }) }],
           isError: true,
         }
       }
@@ -2130,7 +2125,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   } catch (error: any) {
     return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true }
   }
-})
+}
 
-const transport = new StdioServerTransport()
-await server.connect(transport)
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  const [{ Server }, { StdioServerTransport }, { CallToolRequestSchema, ListToolsRequestSchema }] = await Promise.all([
+    import("@modelcontextprotocol/sdk/server/index.js"),
+    import("@modelcontextprotocol/sdk/server/stdio.js"),
+    import("@modelcontextprotocol/sdk/types.js"),
+  ])
+  const server = new Server({ name: "opencode-system-manager", version: "1.2.0" }, { capabilities: { tools: {} } })
+  server.setRequestHandler(ListToolsRequestSchema, listSystemManagerTools)
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params
+    return callSystemManagerTool(name, args)
+  })
+  const transport = new StdioServerTransport()
+  await server.connect(transport)
+}
