@@ -489,6 +489,255 @@ type CacheReadState = {
 }
 const lastCacheReadState = new Map<string, CacheReadState>()
 
+/**
+ * SL (stateless prompt-cache) cache-health path — claude + the rest of the
+ * Anthropic-style family. Two-part billing (read 0.1x / write 1.25x) means a
+ * low-read/high-write turn is the prefix being re-cached, NOT a loss, so this
+ * path NEVER chain-resets (the SS cliff predicate would cry wolf here). It
+ * emits cache-miss telemetry and runs the claude cold-cache size-gated
+ * B-compaction (DD-13/14/16/18/23). Returns "cache-aware" to compact, or
+ * undefined to fall through to the remaining triggers. Always records
+ * `nextState` before returning, exactly as the former inline branch did.
+ * (Move C / DD-28: verbatim extraction of the former inline SL branch.)
+ */
+async function evaluateSlCacheHealth(args: {
+  sessionID: string
+  step: number
+  pinnedProviderId: string
+  msgs: MessageV2.WithParts[]
+  finished: MessageV2.Assistant
+  prev: CacheReadState | undefined
+  nextState: CacheReadState
+}): Promise<SessionCompaction.Observed | undefined> {
+  const { sessionID, step, pinnedProviderId, msgs, finished, prev, nextState } = args
+  // read + write ≈ total ⇒ input ≈ 0 ⇒ the whole prompt was served from or
+  // written to cache: no cliff, however the read/write split moved this turn.
+  // Only a genuinely large uncached share (cache_control didn't cover the
+  // prompt) is worth surfacing. The invalidate path below is a codex-only
+  // no-op for SL, so this branch is telemetry-only — never return null.
+  const t = finished.tokens
+  const promptTotal = t.input + t.cache.read + t.cache.write
+  const uncachedFraction = promptTotal > 0 ? t.input / promptTotal : 0
+  if (promptTotal > 50_000 && uncachedFraction > 0.5) {
+    debugCheckpoint("prompt", "cache_miss_detected", {
+      sessionID,
+      step,
+      promptTotal,
+      uncachedInput: t.input,
+      cacheRead: t.cache.read,
+      cacheWrite: t.cache.write,
+      uncachedFraction,
+    })
+    void Session.appendRecentEvent(sessionID, {
+      ts: Date.now(),
+      kind: "cache-cliff",
+      cacheCliff: {
+        prevCacheRead: promptTotal,
+        currentCacheRead: t.cache.read + t.cache.write,
+      },
+    }).catch(() => {})
+  }
+  lastCacheReadState.set(sessionID, nextState)
+
+  // context/claude-refactor DD-13/14/16/18: claude cold-cache size-gated
+  // compaction. The SL telemetry above never compacts; claude must compact
+  // when the cold resend is BOTH expensive (cache served <half the prompt)
+  // AND large, so subsequent turns send a bounded supersede-framed
+  // anchor+tail instead of the full 1M array on every cold (>5min TTL)
+  // resend. The trigger gates on observable context SIZE + cache-read share
+  // only — NEVER on the codex `cache_read`-drop=chain-lost heuristic in the
+  // SS branch — so it is structurally cascade-immune (post-compaction
+  // the array shrinks below the gate → no re-trigger; negative feedback).
+  // Warm-near-window growth stays covered by the existing `overflow`
+  // trigger. claude-gated: other SL providers (gemini) keep the
+  // telemetry-only path byte-identical (INV-0). "cache-aware" → KIND_CHAIN
+  // ["narrative","ai_paid"] and is NOT a CLAUDE_NOOP_OBSERVED, so it
+  // produces a real supersede-framed anchor on the claude path.
+  // context/claude-refactor DD-23: B-compaction threshold is per-provider,
+  // absolute tokens, tunable via tweak config (compaction_ctx_<provider>_b_tokens).
+  // claude-cli default 100K; other providers fall back to the `default` profile.
+  const bCompactTokens = Tweaks.contextThresholdsSync(pinnedProviderId).bCompactTokens
+  if (resolvePolicy(pinnedProviderId).coldCacheBGate({ promptTotal, bCompactTokens })) {
+    // DD-16 cold detection has TWO sources, OR'd:
+    //  (1) cache_read share < half  → the LAST turn was cold (active-session).
+    //  (2) idle gap > cache TTL     → SESSION RESUME / rebind: enough time has
+    //      passed that the ephemeral cache is GONE, so the NEXT request is a
+    //      guaranteed cold full-prefill — regardless of the previous turn's
+    //      (now-stale) recorded cache split. Without (2), a session whose last
+    //      turn was warm would full-prefill its whole array on first cold
+    //      resume, unbounded. resume==rebind here: claude has no server chain
+    //      to rebind, so the resume work is purely "cache dead → bound the
+    //      resend"; codex's chain reset is handled separately in the SS branch.
+    const cacheReadFraction = promptTotal > 0 ? t.cache.read / promptTotal : 0
+    const lastCompletedAt = finished.time?.completed ?? finished.time?.created ?? 0
+    const idleMs = lastCompletedAt > 0 ? Date.now() - lastCompletedAt : 0
+    const idleColdResume = idleMs > CLAUDE_CACHE_TTL_MS
+    if (cacheReadFraction < 0.5 || idleColdResume) {
+      // F2 / DD-5 (claude-gated, loop-B defense-in-depth): if a compaction
+      // anchor was written AFTER our last observation, the current active-
+      // session cold is the EXPECTED post-compaction warm-up echo — the
+      // freshly rewritten prefix is not cached server-side yet — NOT cache
+      // thrash. Compacting again on it is exactly the self-feeding cascade
+      // (loop B). The top-of-function 30s Cooldown.shouldThrottle covers the
+      // within-30s window; this guard catches the FIRST cold turn after that
+      // window expires (e.g. a slow tool turn). It fires for at most one turn
+      // (prev.ts advances past the anchor on the next observation). Idiom
+      // mirrors the SS branch's `recent_compaction` planned-source classifier.
+      // idleColdResume (TTL elapsed) is a genuine cold prefill
+      // regardless of anchor age, so it is NEVER suppressed here.
+      const recentAnchor = findMostRecentAnchor(msgs)
+      const postCompactionEcho =
+        !idleColdResume && !!prev && !!recentAnchor?.createdAt && recentAnchor.createdAt > prev.ts
+      if (postCompactionEcho) {
+        debugCheckpoint("prompt", "claude_cold_gate_recent_compaction_skip", {
+          sessionID,
+          step,
+          promptTotal,
+          cacheReadFraction,
+          anchorCreatedAt: recentAnchor!.createdAt,
+          prevObservedAt: prev!.ts,
+        })
+        // fall through — do not compact on the expected post-compaction cold
+      } else {
+        debugCheckpoint("prompt", "claude_cold_compaction_gate", {
+          sessionID,
+          step,
+          promptTotal,
+          cacheRead: t.cache.read,
+          cacheReadFraction,
+          idleMs,
+          idleColdResume,
+          gate: bCompactTokens,
+        })
+        return "cache-aware"
+      }
+    }
+  }
+  return undefined
+}
+
+/**
+ * SS (stateful-chain) cache-health path — codex/OpenAI + unknown providers
+ * (classifyProvider undefined → here, preserving the former else-branch
+ * routing). A >50% cache_read drop from a substantial prior turn = the server
+ * silently dropped the chain and is reprocessing at full rate. Classify
+ * planned (WE caused it → telemetry only, fall through) vs unplanned (real
+ * server eviction → invalidate the WS continuation family and return null =
+ * chain-reset, NO compaction; compaction would rewrite the anchor → re-evict →
+ * cascade, the 2026-05-19 incident). Returns null to chain-reset, or undefined
+ * to fall through. Always records `nextState` before returning.
+ * (Move C / DD-28: verbatim extraction of the former inline SS else-if + else.)
+ */
+async function evaluateSsCacheHealth(args: {
+  sessionID: string
+  step: number
+  pinnedProviderId: string
+  pinnedAccountId: string | undefined
+  msgs: MessageV2.WithParts[]
+  currentCache: number
+  prev: CacheReadState | undefined
+  nextState: CacheReadState
+  continuationInvalidatedAt: number | undefined
+  currentInputTokens: number | undefined
+}): Promise<null | undefined> {
+  const {
+    sessionID,
+    step,
+    pinnedProviderId,
+    pinnedAccountId,
+    msgs,
+    currentCache,
+    prev,
+    nextState,
+    continuationInvalidatedAt,
+    currentInputTokens,
+  } = args
+  if (prev !== undefined && prev.cacheRead > 50_000 && currentCache < prev.cacheRead * 0.5) {
+    // Classify: did WE cause this drop? If yes it's planned — telemetry
+    // only, fall through to remaining triggers. If no it's a real
+    // unplanned server-side eviction — invalidate as before.
+    const plannedSources: string[] = []
+    if (prev.selfInvalidated) plannedSources.push("self_invalidate_echo")
+    if (prev.accountId !== pinnedAccountId) plannedSources.push("account_switch")
+    if (prev.providerId !== pinnedProviderId) plannedSources.push("provider_switch")
+    if (continuationInvalidatedAt !== undefined && continuationInvalidatedAt !== prev.continuationInvalidatedAt) {
+      plannedSources.push("continuation_invalidated_event")
+    }
+    // Anchor drift: the identity-drift handler may have run on a prior turn
+    // (which itself returns null and updates our prev to the new accountId) —
+    // but the anchor still carries the old account until a compaction rewrites
+    // it, so the cache won't rebind for several turns. Treat any unresolved
+    // anchor drift as planned.
+    const anchor = findMostRecentAnchor(msgs)
+    if (anchor) {
+      if (anchor.accountId && pinnedAccountId && anchor.accountId !== pinnedAccountId) {
+        plannedSources.push("anchor_account_drift")
+      }
+      if (anchor.providerId && anchor.providerId !== pinnedProviderId) {
+        plannedSources.push("anchor_provider_drift")
+      }
+      // Recent compaction echo: anchor was written *after* our last
+      // observation, so the new prefix wasn't cached on the server yet.
+      // The cooldown gate at the top already blocks the within-30s
+      // window; this catches the first turn after cooldown expires.
+      if (anchor.createdAt && anchor.createdAt > prev.ts) {
+        plannedSources.push("recent_compaction")
+      }
+    }
+
+    // Compaction shrinkage: if the current prompt size is smaller than the
+    // previous cache read, the drop is entirely expected due to context
+    // trimming or history truncation.
+    if (currentInputTokens !== undefined && currentInputTokens < prev.cacheRead) {
+      plannedSources.push("compaction_shrinkage")
+    }
+
+    if (plannedSources.length > 0) {
+      debugCheckpoint("prompt", "cache_cliff_planned", {
+        sessionID,
+        step,
+        prevCacheRead: prev.cacheRead,
+        currentCacheRead: currentCache,
+        dropRatio: currentCache / prev.cacheRead,
+        plannedSources,
+      })
+      lastCacheReadState.set(sessionID, nextState)
+      // Do not invalidate — drop was expected. Fall through.
+    } else {
+      debugCheckpoint("prompt", "cache_cliff_detected", {
+        sessionID,
+        step,
+        prevCacheRead: prev.cacheRead,
+        currentCacheRead: currentCache,
+        dropRatio: currentCache / prev.cacheRead,
+      })
+      void Session.appendRecentEvent(sessionID, {
+        ts: Date.now(),
+        kind: "cache-cliff",
+        cacheCliff: {
+          prevCacheRead: prev.cacheRead,
+          currentCacheRead: currentCache,
+        },
+      }).catch(() => {})
+      // Chain-reset only: invalidate WS continuation so the next call
+      // sends the full (unchanged) prompt instead of delta. The server
+      // re-caches the same prefix it already knows — no compaction needed.
+      try {
+        const { invalidateContinuationFamily } = await import("@opencode-ai/provider-codex/continuation")
+        invalidateContinuationFamily(sessionID)
+      } catch {}
+      nextState.selfInvalidated = true
+      lastCacheReadState.set(sessionID, nextState)
+      // Return null — no compaction. The runloop proceeds to the LLM
+      // call with the existing prompt, just without delta mode.
+      return null
+    }
+  } else {
+    lastCacheReadState.set(sessionID, nextState)
+  }
+  return undefined
+}
+
 export async function deriveObservedCondition(input: {
   sessionID: string
   step: number
@@ -557,212 +806,43 @@ export async function deriveObservedCondition(input: {
       selfInvalidated: false,
     }
 
-    // The cache_read-drop predicate below is a *stateful-chain* (SS) concept.
-    // codex/OpenAI report a single cached-vs-uncached axis, so a >50% drop in
-    // cache_read from a substantial prior turn means the server silently dropped
-    // the chain and is reprocessing at full rate — a real cliff. Anthropic and
-    // the rest of the SL (stateless prompt-cache) family bill cache in two parts
-    // — read (0.1x) and write/creation (1.25x) — so a low-read/high-write turn
-    // is just the prefix being (re)written while it is STILL fully cached, not a
-    // loss. Measuring cache_read alone there cried wolf on every re-cache turn.
-    // For SL the real "cache gave us nothing" signal is the uncached `input`
-    // share, which getUsage already isolates (Anthropic reports inputTokens
-    // EXCLUDING cached). classifyProvider throws on unknown ids (DD-11), so gate
-    // on the supported-key check; unknown providers keep the SS predicate.
+    // Cache-health dispatch (Move C / DD-28). The cache_read-drop cliff
+    // predicate is a *stateful-chain* (SS) concept: codex/OpenAI report a
+    // single cached-vs-uncached axis, so a >50% read drop from a substantial
+    // prior turn means the server silently dropped the chain. The SL
+    // (stateless prompt-cache) family — Anthropic et al. — bills read (0.1x) +
+    // write (1.25x) separately, so a low-read/high-write turn is a re-cache,
+    // not a loss; measuring cache_read there cried wolf on every re-cache. SL
+    // runs telemetry + the claude cold B-gate instead. classifyProvider throws
+    // on unknown ids (DD-11), so gate on the supported-key check; unknown
+    // providers keep the SS path (the former else-branch routing).
     const providerClass = isSupportedProviderKey(input.pinnedProviderId)
       ? classifyProvider(input.pinnedProviderId)
       : undefined
-
-    if (providerClass === "SL") {
-      // read + write ≈ total ⇒ input ≈ 0 ⇒ the whole prompt was served from or
-      // written to cache: no cliff, however the read/write split moved this turn.
-      // Only a genuinely large uncached share (cache_control didn't cover the
-      // prompt) is worth surfacing. The invalidate path below is a codex-only
-      // no-op for SL, so this branch is telemetry-only — never return null.
-      const t = finished.tokens
-      const promptTotal = t.input + t.cache.read + t.cache.write
-      const uncachedFraction = promptTotal > 0 ? t.input / promptTotal : 0
-      if (promptTotal > 50_000 && uncachedFraction > 0.5) {
-        debugCheckpoint("prompt", "cache_miss_detected", {
-          sessionID: input.sessionID,
-          step: input.step,
-          promptTotal,
-          uncachedInput: t.input,
-          cacheRead: t.cache.read,
-          cacheWrite: t.cache.write,
-          uncachedFraction,
-        })
-        void Session.appendRecentEvent(input.sessionID, {
-          ts: Date.now(),
-          kind: "cache-cliff",
-          cacheCliff: {
-            prevCacheRead: promptTotal,
-            currentCacheRead: t.cache.read + t.cache.write,
-          },
-        }).catch(() => {})
-      }
-      lastCacheReadState.set(input.sessionID, nextState)
-
-      // context/claude-refactor DD-13/14/16/18: claude cold-cache size-gated
-      // compaction. The SL telemetry above never compacts; claude must compact
-      // when the cold resend is BOTH expensive (cache served <half the prompt)
-      // AND large, so subsequent turns send a bounded supersede-framed
-      // anchor+tail instead of the full 1M array on every cold (>5min TTL)
-      // resend. The trigger gates on observable context SIZE + cache-read share
-      // only — NEVER on the codex `cache_read`-drop=chain-lost heuristic in the
-      // SS branch below — so it is structurally cascade-immune (post-compaction
-      // the array shrinks below the gate → no re-trigger; negative feedback).
-      // Warm-near-window growth stays covered by the existing `overflow`
-      // trigger. claude-gated: other SL providers (gemini) keep the
-      // telemetry-only path byte-identical (INV-0). "cache-aware" → KIND_CHAIN
-      // ["narrative","ai_paid"] and is NOT a CLAUDE_NOOP_OBSERVED, so it
-      // produces a real supersede-framed anchor on the claude path.
-      // context/claude-refactor DD-23: B-compaction threshold is per-provider,
-      // absolute tokens, tunable via tweak config (compaction_ctx_<provider>_b_tokens).
-      // claude-cli default 100K; other providers fall back to the `default` profile.
-      const bCompactTokens = Tweaks.contextThresholdsSync(input.pinnedProviderId).bCompactTokens
-      if (resolvePolicy(input.pinnedProviderId).coldCacheBGate({ promptTotal, bCompactTokens })) {
-        // DD-16 cold detection has TWO sources, OR'd:
-        //  (1) cache_read share < half  → the LAST turn was cold (active-session).
-        //  (2) idle gap > cache TTL     → SESSION RESUME / rebind: enough time has
-        //      passed that the ephemeral cache is GONE, so the NEXT request is a
-        //      guaranteed cold full-prefill — regardless of the previous turn's
-        //      (now-stale) recorded cache split. Without (2), a session whose last
-        //      turn was warm would full-prefill its whole array on first cold
-        //      resume, unbounded. resume==rebind here: claude has no server chain
-        //      to rebind, so the resume work is purely "cache dead → bound the
-        //      resend"; codex's chain reset is handled separately in the SS branch.
-        const cacheReadFraction = promptTotal > 0 ? t.cache.read / promptTotal : 0
-        const lastCompletedAt = finished.time?.completed ?? finished.time?.created ?? 0
-        const idleMs = lastCompletedAt > 0 ? Date.now() - lastCompletedAt : 0
-        const idleColdResume = idleMs > CLAUDE_CACHE_TTL_MS
-        if (cacheReadFraction < 0.5 || idleColdResume) {
-          // F2 / DD-5 (claude-gated, loop-B defense-in-depth): if a compaction
-          // anchor was written AFTER our last observation, the current active-
-          // session cold is the EXPECTED post-compaction warm-up echo — the
-          // freshly rewritten prefix is not cached server-side yet — NOT cache
-          // thrash. Compacting again on it is exactly the self-feeding cascade
-          // (loop B). The top-of-function 30s Cooldown.shouldThrottle covers the
-          // within-30s window; this guard catches the FIRST cold turn after that
-          // window expires (e.g. a slow tool turn). It fires for at most one turn
-          // (prev.ts advances past the anchor on the next observation). Idiom
-          // mirrors the SS branch's `recent_compaction` planned-source classifier
-          // below. idleColdResume (TTL elapsed) is a genuine cold prefill
-          // regardless of anchor age, so it is NEVER suppressed here.
-          const recentAnchor = findMostRecentAnchor(input.msgs)
-          const postCompactionEcho =
-            !idleColdResume && !!prev && !!recentAnchor?.createdAt && recentAnchor.createdAt > prev.ts
-          if (postCompactionEcho) {
-            debugCheckpoint("prompt", "claude_cold_gate_recent_compaction_skip", {
-              sessionID: input.sessionID,
-              step: input.step,
-              promptTotal,
-              cacheReadFraction,
-              anchorCreatedAt: recentAnchor!.createdAt,
-              prevObservedAt: prev!.ts,
-            })
-            // fall through — do not compact on the expected post-compaction cold
-          } else {
-            debugCheckpoint("prompt", "claude_cold_compaction_gate", {
-              sessionID: input.sessionID,
-              step: input.step,
-              promptTotal,
-              cacheRead: t.cache.read,
-              cacheReadFraction,
-              idleMs,
-              idleColdResume,
-              gate: bCompactTokens,
-            })
-            return "cache-aware"
-          }
-        }
-      }
-    } else if (prev !== undefined && prev.cacheRead > 50_000 && currentCache < prev.cacheRead * 0.5) {
-      // Classify: did WE cause this drop? If yes it's planned — telemetry
-      // only, fall through to remaining triggers. If no it's a real
-      // unplanned server-side eviction — invalidate as before.
-      const plannedSources: string[] = []
-      if (prev.selfInvalidated) plannedSources.push("self_invalidate_echo")
-      if (prev.accountId !== input.pinnedAccountId) plannedSources.push("account_switch")
-      if (prev.providerId !== input.pinnedProviderId) plannedSources.push("provider_switch")
-      if (
-        input.continuationInvalidatedAt !== undefined &&
-        input.continuationInvalidatedAt !== prev.continuationInvalidatedAt
-      ) {
-        plannedSources.push("continuation_invalidated_event")
-      }
-      // Anchor drift: the line-549 identity-drift handler may have run on
-      // a prior turn (which itself returns null and updates our prev to
-      // the new accountId) — but the anchor still carries the old account
-      // until a compaction rewrites it, so the cache won't rebind for
-      // several turns. Treat any unresolved anchor drift as planned.
-      const anchor = findMostRecentAnchor(input.msgs)
-      if (anchor) {
-        if (anchor.accountId && input.pinnedAccountId && anchor.accountId !== input.pinnedAccountId) {
-          plannedSources.push("anchor_account_drift")
-        }
-        if (anchor.providerId && anchor.providerId !== input.pinnedProviderId) {
-          plannedSources.push("anchor_provider_drift")
-        }
-        // Recent compaction echo: anchor was written *after* our last
-        // observation, so the new prefix wasn't cached on the server yet.
-        // The cooldown gate at the top already blocks the within-30s
-        // window; this catches the first turn after cooldown expires.
-        if (anchor.createdAt && anchor.createdAt > prev.ts) {
-          plannedSources.push("recent_compaction")
-        }
-      }
-
-      // Compaction shrinkage: if the current prompt size is smaller than the
-      // previous cache read, the drop is entirely expected due to context
-      // trimming or history truncation.
-      if (input.currentInputTokens !== undefined && input.currentInputTokens < prev.cacheRead) {
-        plannedSources.push("compaction_shrinkage")
-      }
-
-      if (plannedSources.length > 0) {
-        debugCheckpoint("prompt", "cache_cliff_planned", {
-          sessionID: input.sessionID,
-          step: input.step,
-          prevCacheRead: prev.cacheRead,
-          currentCacheRead: currentCache,
-          dropRatio: currentCache / prev.cacheRead,
-          plannedSources,
-        })
-        lastCacheReadState.set(input.sessionID, nextState)
-        // Do not invalidate — drop was expected. Fall through.
-      } else {
-        debugCheckpoint("prompt", "cache_cliff_detected", {
-          sessionID: input.sessionID,
-          step: input.step,
-          prevCacheRead: prev.cacheRead,
-          currentCacheRead: currentCache,
-          dropRatio: currentCache / prev.cacheRead,
-        })
-        void Session.appendRecentEvent(input.sessionID, {
-          ts: Date.now(),
-          kind: "cache-cliff",
-          cacheCliff: {
-            prevCacheRead: prev.cacheRead,
-            currentCacheRead: currentCache,
-          },
-        }).catch(() => {})
-        // Chain-reset only: invalidate WS continuation so the next call
-        // sends the full (unchanged) prompt instead of delta. The server
-        // re-caches the same prefix it already knows — no compaction needed.
-        try {
-          const { invalidateContinuationFamily } = await import("@opencode-ai/provider-codex/continuation")
-          invalidateContinuationFamily(input.sessionID)
-        } catch {}
-        nextState.selfInvalidated = true
-        lastCacheReadState.set(input.sessionID, nextState)
-        // Return null — no compaction. The runloop proceeds to the LLM
-        // call with the existing prompt, just without delta mode.
-        return null
-      }
-    } else {
-      lastCacheReadState.set(input.sessionID, nextState)
-    }
+    const cacheHealth =
+      providerClass === "SL"
+        ? await evaluateSlCacheHealth({
+            sessionID: input.sessionID,
+            step: input.step,
+            pinnedProviderId: input.pinnedProviderId,
+            msgs: input.msgs,
+            finished,
+            prev,
+            nextState,
+          })
+        : await evaluateSsCacheHealth({
+            sessionID: input.sessionID,
+            step: input.step,
+            pinnedProviderId: input.pinnedProviderId,
+            pinnedAccountId: input.pinnedAccountId,
+            msgs: input.msgs,
+            currentCache,
+            prev,
+            nextState,
+            continuationInvalidatedAt: input.continuationInvalidatedAt,
+            currentInputTokens: input.currentInputTokens,
+          })
+    if (cacheHealth !== undefined) return cacheHealth
   }
 
   // Item-count pressure: codex WS has an undocumented item-array limit.
