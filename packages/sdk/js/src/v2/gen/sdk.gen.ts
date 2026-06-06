@@ -7183,6 +7183,7 @@ export class Oauth extends HeyApiClient {
       directory?: string
       method?: number
       code?: string
+      accountName?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -7195,6 +7196,7 @@ export class Oauth extends HeyApiClient {
             { in: "query", key: "directory" },
             { in: "body", key: "method" },
             { in: "body", key: "code" },
+            { in: "body", key: "accountName" },
           ],
         },
       ],
@@ -7267,6 +7269,7 @@ export class Oauth extends HeyApiClient {
       directory?: string
       method?: number
       code?: string
+      accountName?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -7279,6 +7282,7 @@ export class Oauth extends HeyApiClient {
             { in: "query", key: "directory" },
             { in: "body", key: "method" },
             { in: "body", key: "code" },
+            { in: "body", key: "accountName" },
           ],
         },
       ],

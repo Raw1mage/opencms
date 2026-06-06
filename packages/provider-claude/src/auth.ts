@@ -207,9 +207,15 @@ export async function fetchProfile(accessToken: string): Promise<Profile> {
     throw new Error(`Profile fetch failed (${response.status})`)
   }
   const json = await response.json()
+  // Official claude-code reads identity from the nested `account`/`organization`
+  // objects (`account.email_address`, `organization.uuid`) — see
+  // refs/claude-code-npm/cli.js. The earlier top-level `emailAddress`/`email`
+  // reads never matched the real shape, so email always came back undefined,
+  // which downstream degrades to a token-hash slug + a NEW duplicate account on
+  // every re-login. Prefer the nested path; keep the legacy reads as fallback.
   return {
-    email: json.emailAddress || json.email,
-    orgID: json.organizationUuid || json.organization_uuid,
+    email: json.account?.email_address || json.account?.email || json.emailAddress || json.email,
+    orgID: json.organization?.uuid || json.organizationUuid || json.organization_uuid,
   }
 }
 

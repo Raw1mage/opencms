@@ -330,17 +330,20 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
   function OAuthCodeView() {
     const [formStore, setFormStore] = createStore({
       value: "",
+      accountName: "",
       error: undefined as string | undefined,
       autoDetecting: true,
     })
 
-    async function submitCode(code: string) {
+    async function submitCode(code: string, accountName: string) {
       if (!code?.trim()) return false
+      const trimmedName = accountName.trim()
       const result = await globalSDK.client.provider.oauth
         .callback({
           providerId: props.provider,
           method: store.methodIndex,
           code: code.trim(),
+          ...(trimmedName ? { accountName: trimmedName } : {}),
         })
         .then((value) => (value.error ? { ok: false as const, error: value.error } : { ok: true as const }))
         .catch((error) => ({ ok: false as const, error }))
@@ -357,6 +360,7 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
       const form = e.currentTarget as HTMLFormElement
       const formData = new FormData(form)
       let code = (formData.get("code") as string)?.trim() ?? ""
+      const accountName = (formData.get("accountName") as string)?.trim() ?? ""
 
       if (!code) {
         setFormStore("error", language.t("provider.connect.oauth.code.required"))
@@ -373,7 +377,7 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
       }
 
       setFormStore("error", undefined)
-      await submitCode(code)
+      await submitCode(code, accountName)
     }
 
     return (
@@ -389,7 +393,7 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
         <div class="text-14-regular text-text-dimmed">
           After login, paste the callback URL from the browser's address bar:
         </div>
-        <form onSubmit={handleSubmit} class="flex flex-col items-start gap-4">
+        <form onSubmit={handleSubmit} class="flex flex-col items-stretch gap-4">
           <TextField
             autofocus
             type="text"
@@ -399,6 +403,16 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
             onChange={(v) => setFormStore("value", v)}
             validationState={formStore.error ? "invalid" : undefined}
             error={formStore.error}
+          />
+          <div class="text-14-regular text-text-dimmed">
+            Account name (optional) — leave blank to use your account email:
+          </div>
+          <TextField
+            type="text"
+            placeholder="e.g. work-max, personal"
+            name="accountName"
+            value={formStore.accountName}
+            onChange={(v) => setFormStore("accountName", v)}
           />
           <Button class="w-auto" type="submit" size="large" variant="primary">
             {language.t("common.submit")}

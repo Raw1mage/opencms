@@ -3564,6 +3564,7 @@ export type OAuth = {
   username?: string
   orgID?: string
   enterpriseUrl?: string
+  label?: string
 }
 
 export type ApiAuth = {
@@ -7902,6 +7903,10 @@ export type ProviderOauthCallbackData = {
      * OAuth authorization code
      */
     code?: string
+    /**
+     * Optional user-chosen account label (overrides email-derived identity)
+     */
+    accountName?: string
   }
   path: {
     /**
@@ -16099,6 +16104,10 @@ export type ProviderOauthCallback2Data = {
      * OAuth authorization code
      */
     code?: string
+    /**
+     * Optional user-chosen account label (overrides email-derived identity)
+     */
+    accountName?: string
   }
   path: {
     /**

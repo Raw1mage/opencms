@@ -220,6 +220,26 @@ export namespace SessionProcessor {
     return false
   }
 
+  /**
+   * Transient server-capacity errors that should be retried IN PLACE on the same
+   * vector for a few seconds before sidelining the account and rotating away.
+   *
+   * Anthropic returns `overloaded_error` ("Overloaded", HTTP 529) when its model
+   * endpoint is momentarily saturated — subscription/OAuth traffic hits this more
+   * often at peak. Anthropic's own guidance is seconds-scale exponential retry,
+   * NOT a multi-minute account cooldown. Treating it like a real rate limit (the
+   * old behaviour) bounced a single user off Claude for 5 min + rotated to other
+   * providers on the very first blip. This is a strict subset of
+   * isModelTemporaryError — anything not matched here keeps the old rotate path.
+   * @event_20260606_claude-cli-phantom-accounts-529-and-login-label
+   */
+  export function isTransientCapacityError(error: unknown): boolean {
+    const { status, parts } = extractErrorDetails(error)
+    if (status === 529 || status === 503) return true
+    if (!parts) return false
+    return parts.includes("overloaded") || parts.includes("overloaded_error")
+  }
+
   // Helper to extract common error details
   function extractErrorDetails(error: unknown) {
     const errorObject = error && typeof error === "object" ? (error as Record<string, unknown>) : undefined
@@ -297,6 +317,12 @@ export namespace SessionProcessor {
     // Track fallback attempts to prevent infinite loops
     const triedVectors = new Set<string>()
     let fallbackAttempts = 0
+    // Transient-capacity (529/overloaded) in-place retry budget, keyed per
+    // vector. A momentary Anthropic overload is retried on the SAME account a
+    // few times with short backoff BEFORE the account is sidelined + rotated
+    // away. See isTransientCapacityError.
+    const capacityRetries = new Map<string, number>()
+    const MAX_CAPACITY_RETRIES = 3
     // Cap total rotation attempts to avoid high-frequency retry loops that
     // can trigger server-side abuse detection / IP bans.
     const MAX_FALLBACK_ATTEMPTS = 8
@@ -1392,6 +1418,43 @@ export namespace SessionProcessor {
             // and refuse to flag the error as temporary (preventing rotation
             // on classified empty turns).
             if (isModelTemporaryError(e, lastFinishProviderMetadata)) {
+              // Transient capacity blip (Anthropic 529 "Overloaded" / 503): retry
+              // the SAME vector a few times with short backoff BEFORE sidelining
+              // the account and rotating away. A 1-4s wait usually clears it; the
+              // old path punished a momentary overload with a 5-min cooldown + a
+              // bounce to other providers on the very first hit.
+              if (isTransientCapacityError(e)) {
+                const capacityVectorKey = `${streamInput.model.providerId}:${
+                  streamInput.accountId ?? input.accountId ?? input.assistantMessage.accountId
+                }:${streamInput.model.id}`
+                const usedRetries = capacityRetries.get(capacityVectorKey) ?? 0
+                if (usedRetries < MAX_CAPACITY_RETRIES) {
+                  capacityRetries.set(capacityVectorKey, usedRetries + 1)
+                  // 1s → 2s → 4s (cap 5s) + jitter. Not marked rate-limited, so the
+                  // top-of-loop pre-flight check re-streams the same vector.
+                  const backoffMs = Math.min(1000 * Math.pow(2, usedRetries), 5000) + Math.floor(Math.random() * 250)
+                  debugCheckpoint("syslog.rotation", "transient capacity error: in-place retry before rotation", {
+                    sessionID: input.sessionID,
+                    vectorKey: capacityVectorKey,
+                    attempt: usedRetries + 1,
+                    maxAttempts: MAX_CAPACITY_RETRIES,
+                    backoffMs,
+                    status: (e as any)?.status ?? (e as any)?.statusCode,
+                    error: e?.message,
+                  })
+                  await new Promise((resolve) => setTimeout(resolve, backoffMs))
+                  attempt = 0
+                  continue
+                }
+                // Retry budget exhausted — fall through to the normal sideline +
+                // rotate path (the overload is sustained, not a momentary blip).
+                debugCheckpoint("syslog.rotation", "transient capacity retries exhausted, rotating away", {
+                  sessionID: input.sessionID,
+                  vectorKey: capacityVectorKey,
+                  usedRetries,
+                })
+              }
+
               // SYSLOG: Rate limit or temporary error hit — rotation should kick in
               debugCheckpoint("syslog.rotation", "temporary error: rotation3d should activate", {
                 sessionID: input.sessionID,

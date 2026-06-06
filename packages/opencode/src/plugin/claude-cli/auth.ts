@@ -42,6 +42,12 @@ export const authMethods = [
           for (let attempt = 1; attempt <= 3; attempt++) {
             try {
               const profile = await fetchProfile(credentials.access)
+              // A 200 with no email is as useless as a throw: without it the account
+              // degrades to a token-hash slug and a fresh duplicate on every re-login.
+              // Treat it as a failed attempt so the retry/refuse path below applies.
+              if (!profile.email) {
+                throw new Error("Profile fetched but contained no email address")
+              }
               return {
                 ...credentials,
                 orgID: profile.orgID,

@@ -15,7 +15,7 @@
  *      §2.1 (authorize host) and §3.5 (token-endpoint UA throttle).
  */
 import { describe, expect, test, afterEach } from "bun:test"
-import { authorize, exchange, refreshToken } from "../src/auth.js"
+import { authorize, exchange, refreshToken, fetchProfile } from "../src/auth.js"
 
 const fakePKCE = async () => ({ challenge: "test-challenge", verifier: "test-verifier" })
 
@@ -121,5 +121,46 @@ describe("OAuth token-endpoint User-Agent — must be axios, never claude-code",
     expect(captured!.url).toBe("https://platform.claude.com/v1/oauth/token")
     expect(ua()).toMatch(/^axios\//)
     expect(ua()).not.toMatch(/claude-code/)
+  })
+})
+
+describe("fetchProfile() — identity parsing (phantom-account root cause)", () => {
+  const original = globalThis.fetch
+  afterEach(() => {
+    globalThis.fetch = original
+  })
+
+  function stubProfile(json: Record<string, unknown>) {
+    globalThis.fetch = (async () =>
+      ({ ok: true, status: 200, json: async () => json }) as unknown as Response) as typeof fetch
+  }
+
+  test("reads email from the nested account.email_address (official shape)", async () => {
+    // The real /api/oauth/profile response nests identity under account/organization.
+    stubProfile({
+      account: { uuid: "acc-uuid", email_address: "user@example.com" },
+      organization: { uuid: "org-uuid" },
+    })
+    const profile = await fetchProfile("access-token")
+    expect(profile.email).toBe("user@example.com")
+    expect(profile.orgID).toBe("org-uuid")
+  })
+
+  test("does NOT silently return an empty email for the nested shape", async () => {
+    // Regression guard: the old top-level `emailAddress||email` read returned
+    // undefined here, degrading every re-login into a fresh duplicate account.
+    stubProfile({
+      account: { uuid: "acc-uuid", email_address: "user@example.com" },
+      organization: { uuid: "org-uuid" },
+    })
+    const profile = await fetchProfile("access-token")
+    expect(profile.email).toBeTruthy()
+  })
+
+  test("still honors legacy top-level fields as a fallback", async () => {
+    stubProfile({ emailAddress: "legacy@example.com", organizationUuid: "org-legacy" })
+    const profile = await fetchProfile("access-token")
+    expect(profile.email).toBe("legacy@example.com")
+    expect(profile.orgID).toBe("org-legacy")
   })
 })

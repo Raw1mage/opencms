@@ -679,6 +679,17 @@ export namespace Account {
       }
 
       await save(storage)
+
+      // Drop any persisted rate-limit state for the removed account. Otherwise the
+      // entry survives in rotation-state.json as an orphan (the id never returns,
+      // since re-login mints a fresh account), accumulating stale cooldowns.
+      try {
+        const { getRateLimitTracker } = await import("./rotation")
+        getRateLimitTracker().clearAccount(accountId, provider)
+      } catch (e) {
+        log.warn("Failed to clear rate limits for removed account", { provider, accountId, error: e })
+      }
+
       log.info("Account removed", { provider, accountId })
 
       // @event_20260319_daemonization Phase ε.4 — publish account.removed

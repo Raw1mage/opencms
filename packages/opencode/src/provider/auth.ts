@@ -96,6 +96,7 @@ export namespace ProviderAuth {
       providerId: z.string(),
       method: z.number(),
       code: z.string().optional(),
+      accountName: z.string().optional(),
     }),
     async (input) => {
       const match = await state().then((s) => s.pending[input.providerId])
@@ -131,6 +132,12 @@ export namespace ProviderAuth {
             access: result.access,
             refresh: result.refresh,
             expires: result.expires,
+          }
+          // User-chosen account label from the login form (optional). Takes
+          // priority over email for the storage slug + display name.
+          const accountName = input.accountName?.trim()
+          if (accountName) {
+            info.label = accountName
           }
           if (result.accountId) {
             info.accountId = result.accountId

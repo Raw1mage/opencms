@@ -170,6 +170,8 @@ export class RateLimitTracker {
     this.loadFromFile()
 
     const key = this.makeKey(provider, accountId)
+    this.clearExpired(key)
+
     const providerLimits = this.limits.get(key)
     if (!providerLimits) return 0
 
@@ -217,16 +219,29 @@ export class RateLimitTracker {
   /**
    * Clear expired rate limits for an account
    */
-  private clearExpired(key: string): void {
+  private clearExpired(key: string): boolean {
     const providerLimits = this.limits.get(key)
-    if (!providerLimits) return
+    if (!providerLimits) return false
 
     const now = Date.now()
+    let changed = false
     for (const [innerKey, state] of providerLimits) {
       if (now >= state.resetTime) {
         providerLimits.delete(innerKey)
+        changed = true
       }
     }
+
+    if (providerLimits.size === 0) {
+      this.limits.delete(key)
+      changed = true
+    }
+
+    if (changed) {
+      this.persistToFile()
+    }
+
+    return changed
   }
 
   /**
@@ -253,6 +268,8 @@ export class RateLimitTracker {
     }> = []
 
     for (const [key, providerLimits] of this.limits) {
+      this.clearExpired(key)
+
       for (const [innerKey, state] of providerLimits) {
         // Skip expired entries
         if (now >= state.resetTime) continue
@@ -277,6 +294,20 @@ export class RateLimitTracker {
     }
 
     return result
+  }
+
+  /**
+   * Clear every rate limit entry for an account (all models) — e.g. when the
+   * account is removed. Without this, deleting an account leaves orphaned
+   * rate-limit entries in the persisted rotation state forever.
+   */
+  clearAccount(accountId: string, provider: string): void {
+    this.loadFromFile()
+    const key = this.makeKey(provider, accountId)
+    if (this.limits.delete(key)) {
+      this.persistToFile()
+      log.info("Cleared all rate limits for removed account", { provider, accountId })
+    }
   }
 
   /**

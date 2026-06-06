@@ -8862,6 +8862,10 @@
                   "code": {
                     "description": "OAuth authorization code",
                     "type": "string"
+                  },
+                  "accountName": {
+                    "description": "Optional user-chosen account label (overrides email-derived identity)",
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -30291,6 +30295,10 @@
                   "code": {
                     "description": "OAuth authorization code",
                     "type": "string"
+                  },
+                  "accountName": {
+                    "description": "Optional user-chosen account label (overrides email-derived identity)",
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -47617,7 +47625,7 @@
           },
           "id": {
             "description": "Unique identifier for the todo item (auto-generated if omitted)",
-            "default": "todo_mpoadejq_h747xi",
+            "default": "todo_mq28qs00_zu5wal",
             "type": "string"
           },
           "action": {
@@ -54231,6 +54239,9 @@
             "type": "string"
           },
           "enterpriseUrl": {
+            "type": "string"
+          },
+          "label": {
             "type": "string"
           }
         },

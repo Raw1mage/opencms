@@ -20,6 +20,14 @@ export namespace Auth {
       username: z.string().optional(),
       orgID: z.string().optional(),
       enterpriseUrl: z.string().optional(),
+      /**
+       * Explicit, user-chosen account label. When set it takes priority over
+       * email/username/token-hash for both the storage slug and the display
+       * name, so the user fully controls the account identity at login and
+       * re-login with the same label updates in place (no duplicate accounts)
+       * even when the provider profile carries no email.
+       */
+      label: z.string().optional(),
     })
     .meta({ ref: "OAuth" })
 
@@ -317,9 +325,12 @@ export namespace Auth {
         })
         return existingAccountId
       } else {
-        // Unified slug resolution: email > username > token-hash (never falls back to providerId)
+        // Unified slug resolution: explicit label > email > username > token-hash
+        // (never falls back to providerId). A user-chosen label wins so the
+        // account identity is stable and human-readable regardless of whether
+        // the provider profile returned an email.
         const tokenHash = createHash("sha256").update(baseToken).digest("hex").slice(0, 8)
-        const slug = email || username || `${providerId}-${tokenHash}`
+        const slug = info.label || email || username || `${providerId}-${tokenHash}`
         const accountId = Account.generateId(providerKey, "subscription", slug)
 
         // Re-auth with new refresh token: accountId matches by email but baseToken differs
@@ -338,7 +349,7 @@ export namespace Auth {
 
         await Account.add(providerKey, accountId, {
           type: "subscription",
-          name: email || username || providerId,
+          name: info.label || email || username || providerId,
           email: email,
           refreshToken: baseToken, // Store base token without projectId suffix
           accessToken: info.access,
