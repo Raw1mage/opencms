@@ -20,7 +20,7 @@ import {
   type CompletionsChunk,
   type ResponsesChunk,
 } from "./client"
-import { shouldUseResponsesApi } from "./models"
+import { shouldUseResponsesApi, AUTO_MODEL_ID, resolveAutoModel } from "./models"
 import { Log } from "../../util/log"
 
 const log = Log.create({ service: "copilot-cli.adapter" })
@@ -315,6 +315,40 @@ function readCopilotOptions(options: LanguageModelV2CallOptions): {
   }
 }
 
+/**
+ * Cheap text-only size proxy for the `auto` router. Pulls just the text /
+ * tool-call / tool-result payloads from the prompt — deliberately skips
+ * base64 image data so a single screenshot doesn't blow the size estimate and
+ * wrongly escalate the tier.
+ */
+function promptTextSize(prompt: LanguageModelV2CallOptions["prompt"]): string {
+  const parts: string[] = []
+  for (const msg of prompt) {
+    const content = (msg as any).content
+    if (typeof content === "string") {
+      parts.push(content)
+      continue
+    }
+    if (!Array.isArray(content)) continue
+    for (const p of content) {
+      if (p?.type === "text" && typeof p.text === "string") parts.push(p.text)
+      else if (p?.type === "tool-call") parts.push(typeof p.input === "string" ? p.input : JSON.stringify(p.input ?? {}))
+      else if (p?.type === "tool-result") parts.push(stringifyOutput((p as any).output))
+    }
+  }
+  return parts.join("\n")
+}
+
+/** Resolve the synthetic `auto` id to a concrete model; pass real ids through unchanged. */
+async function resolveModelId(modelId: string, options: LanguageModelV2CallOptions): Promise<string> {
+  if (modelId !== AUTO_MODEL_ID) return modelId
+  const copilotOpts = readCopilotOptions(options)
+  return resolveAutoModel({
+    promptText: promptTextSize(options.prompt),
+    reasoningEffort: copilotOpts.reasoningEffort,
+  })
+}
+
 /** Responses API nested shape: `reasoning: { effort, summary }` — only emit when at least one field is set. */
 function buildReasoningField(opts: { reasoningEffort?: string; reasoningSummary?: string }): any {
   if (opts.reasoningEffort == null && opts.reasoningSummary == null) return undefined
@@ -339,7 +373,8 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
 
     async doGenerate(options: LanguageModelV2CallOptions) {
       const warnings: LanguageModelV2CallWarning[] = []
-      const useResponses = shouldUseResponsesApi(modelId)
+      const effectiveModelId = await resolveModelId(modelId, options)
+      const useResponses = shouldUseResponsesApi(effectiveModelId)
       const copilotOpts = readCopilotOptions(options)
 
       if (useResponses) {
@@ -353,7 +388,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
 
         for await (const chunk of streamResponses(
           {
-            model: modelId,
+            model: effectiveModelId,
             input,
             tools,
             temperature: options.temperature ?? undefined,
@@ -361,7 +396,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
             reasoning: buildReasoningField(copilotOpts),
             text: buildTextField(copilotOpts),
           },
-          { model: modelId },
+          { model: effectiveModelId },
         )) {
           if (chunk.type === "response.output_text.delta") text += chunk.delta ?? ""
           else if (chunk.type === "response.completed") {
@@ -390,7 +425,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
       const tools = await toolsToCompletions(options.tools)
       const result = await callCompletions(
         {
-          model: modelId,
+          model: effectiveModelId,
           messages,
           tools,
           temperature: options.temperature ?? undefined,
@@ -398,7 +433,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
           reasoning_effort: copilotOpts.reasoningEffort,
           verbosity: copilotOpts.textVerbosity,
         },
-        { model: modelId },
+        { model: effectiveModelId },
       )
 
       const content: any[] = []
@@ -417,7 +452,8 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
 
     async doStream(options: LanguageModelV2CallOptions) {
       const warnings: LanguageModelV2CallWarning[] = []
-      const useResponses = shouldUseResponsesApi(modelId)
+      const effectiveModelId = await resolveModelId(modelId, options)
+      const useResponses = shouldUseResponsesApi(effectiveModelId)
       const copilotOpts = readCopilotOptions(options)
 
       // no-op (debug removed)
@@ -428,7 +464,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
         const tools = await toolsToResponses(options.tools)
         const chunks = streamResponses(
           {
-            model: modelId,
+            model: effectiveModelId,
             input,
             tools,
             temperature: options.temperature ?? undefined,
@@ -436,7 +472,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
             reasoning: buildReasoningField(copilotOpts),
             text: buildTextField(copilotOpts),
           },
-          { model: modelId },
+          { model: effectiveModelId },
         )
 
         const stream = new ReadableStream<LanguageModelV2StreamPart>({
@@ -513,7 +549,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
                 providerMetadata: undefined,
               })
             } catch (err) {
-              log.error("doStream error", { modelId, error: err instanceof Error ? err.message : String(err) })
+              log.error("doStream error", { modelId: effectiveModelId, error: err instanceof Error ? err.message : String(err) })
               controller.error(err)
               return
             }
@@ -529,7 +565,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
       const tools = await toolsToCompletions(options.tools)
       const chunks = streamCompletions(
         {
-          model: modelId,
+          model: effectiveModelId,
           messages,
           tools,
           temperature: options.temperature ?? undefined,
@@ -537,7 +573,7 @@ export function createCopilotCLIModel(modelId: string): LanguageModelV2 {
           reasoning_effort: copilotOpts.reasoningEffort,
           verbosity: copilotOpts.textVerbosity,
         },
-        { model: modelId },
+        { model: effectiveModelId },
       )
 
       const stream = new ReadableStream<LanguageModelV2StreamPart>({

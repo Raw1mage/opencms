@@ -125,6 +125,46 @@ export namespace Provider {
   ]
 
   /**
+   * Models verified supported on the copilot-cli RAW CAPI path
+   * (api.githubcopilot.com, Openai-Intent: conversation-edits, NO
+   * Copilot-Integration-Id) as of the 2026-06-08 live probe.
+   *
+   * IMPORTANT: this path only serves the low-cost tier. The premium frontier
+   * models (claude-sonnet-4.x / claude-opus-4.x, gpt-5.4 / gpt-5.5,
+   * gemini-3.5-flash) return `400 model_not_supported` here — they are gated
+   * behind the official Copilot agent integration id. They are intentionally
+   * omitted; adding them back produces hard 400s at request time.
+   *
+   * This is kept separate from GITHUB_COPILOT_DEFAULT_MODELS (the @ai-sdk
+   * github-copilot path) so a copilot-cli-specific correction does not touch
+   * the other provider. To re-probe: POST a 1-token request per id and treat
+   * 429 (quota) as supported, 400 (model_not_supported) as dead.
+   *
+   * The synthetic `auto` router is injected at registration time (see below);
+   * it resolves to one of these ids at request time in copilot-cli/adapter.ts.
+   */
+  const COPILOT_CLI_MODELS: Array<{
+    id: string
+    name: string
+    family: string
+    reasoning?: boolean
+  }> = [
+    // Lightweight — lowest premium-request cost, fast
+    { id: "gpt-5.4-mini", name: "GPT-5.4 mini", family: "openai", reasoning: true },
+    { id: "gpt-5-mini", name: "GPT-5 mini", family: "openai", reasoning: true },
+    { id: "claude-haiku-4.5", name: "Claude Haiku 4.5", family: "claude" },
+    { id: "gemini-3-flash-preview", name: "Gemini 3 Flash", family: "gemini" },
+    { id: "gpt-4o-mini", name: "GPT-4o mini", family: "openai" },
+    // Versatile generalists
+    { id: "gpt-4.1", name: "GPT-4.1", family: "openai" },
+    { id: "gpt-4o", name: "GPT-4o", family: "openai" },
+    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", family: "gemini" },
+    // Most capable available on this path
+    { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", family: "gemini" },
+    { id: "gpt-5.3-codex", name: "GPT-5.3 Codex", family: "openai", reasoning: true },
+  ]
+
+  /**
    * Fetch models dynamically from a provider's API.
    * Returns null if fetching fails (fallback to defaults).
    */
@@ -1037,11 +1077,24 @@ export namespace Provider {
       // copilot-cli: same model set, different provider family (DD-10)
       // DD-9: copilot-cli uses own adapter, no AI SDK npm needed — override api.npm
       const copilotCliModels: Record<string, Model> = {}
-      for (const m of GITHUB_COPILOT_DEFAULT_MODELS) {
+      for (const m of COPILOT_CLI_MODELS) {
         const model = createCopilotModel("copilot-cli", m)
         model.api.npm = "@opencode-ai/provider-copilot-cli" // dummy — loader handles everything
         copilotCliModels[m.id] = model
       }
+      // Synthetic low-cost "auto" router (copilot-cli only). It is NOT a real
+      // CAPI model id — copilot-cli/adapter.ts resolves it to one of the
+      // COPILOT_CLI_MODELS ids at request time (size heuristic + quota-aware
+      // downshift). Mirrors GitHub Copilot's "Auto" picker behaviourally; the
+      // server-side billing discount is not reachable on the raw CAPI path.
+      const autoModel = createCopilotModel("copilot-cli", {
+        id: "auto",
+        name: "Auto (lowest cost)",
+        family: "auto",
+        reasoning: true,
+      })
+      autoModel.api.npm = "@opencode-ai/provider-copilot-cli"
+      copilotCliModels["auto"] = autoModel
       if (!database["copilot-cli"]) {
         database["copilot-cli"] = {
           id: "copilot-cli",

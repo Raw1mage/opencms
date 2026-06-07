@@ -7,9 +7,38 @@
 
 import { Log } from "../../util/log"
 import { getBearer, getProfile } from "./auth"
-import type { CopilotQuotaResult } from "./types"
+import type { CopilotQuotaResult, CopilotQuotaSnapshot } from "./types"
 
 const log = Log.create({ service: "copilot-cli.quota" })
+
+// ---------------------------------------------------------------------------
+// Cached premium-interactions snapshot (used by the `auto` model router to
+// downshift to the cheapest model when the premium-request budget is nearly
+// exhausted). TTL-bounded so the auto router never adds a network round-trip
+// to the hot path more than once per minute. A null result (profile not
+// loaded, network error, endpoint shape mismatch) means "no opinion" — the
+// router proceeds on its size heuristic alone and never blocks on quota.
+// ---------------------------------------------------------------------------
+
+const QUOTA_TTL_MS = 60_000
+let _premiumQuotaCache: { at: number; value: CopilotQuotaSnapshot | null } | null = null
+
+export async function getCachedPremiumQuota(): Promise<CopilotQuotaSnapshot | null> {
+  const now = Date.now()
+  if (_premiumQuotaCache && now - _premiumQuotaCache.at < QUOTA_TTL_MS) {
+    return _premiumQuotaCache.value
+  }
+  let snapshot: CopilotQuotaSnapshot | null = null
+  try {
+    const result = await getCopilotQuota()
+    snapshot = result?.quotaSnapshots?.["premium_interactions"] ?? null
+  } catch (err) {
+    log.warn("cached premium quota fetch failed", { error: err })
+    snapshot = null
+  }
+  _premiumQuotaCache = { at: now, value: snapshot }
+  return snapshot
+}
 
 export async function getCopilotQuota(): Promise<CopilotQuotaResult | null> {
   const profile = getProfile()
