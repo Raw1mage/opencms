@@ -146,14 +146,26 @@ function TaskSidebarItem(props: {
   onDuplicate: () => void
   onDelete: () => void
 }) {
+  // scheduled-subsession: a one-shot `at` settles (enabled=false) after firing. Distinguish
+  // missed (fire-skip), done (fired ok), and waiting-to-fire from a plain disabled recurring job.
+  const isOneShot = () => props.job.schedule.kind === "at"
+  const isMissed = () => isOneShot() && !props.job.enabled && props.job.state.lastRunStatus === "skipped"
+  const isDone = () => isOneShot() && !props.job.enabled && props.job.state.lastRunStatus === "ok"
+  const isWaiting = () => props.job.enabled && !props.job.state.lastRunAtMs && !!props.job.state.nextRunAtMs
+
   const statusDot = () => {
+    if (isMissed()) return "bg-orange-400"
+    if (isDone()) return "bg-blue-400"
     if (!props.job.enabled) return "bg-neutral-500"
     if (props.job.state.lastRunStatus === "error") return "bg-red-400"
     if (props.job.state.runningAtMs) return "bg-yellow-400"
+    if (isWaiting()) return "bg-sky-400"
     return "bg-green-400"
   }
 
   const nextRun = () => {
+    if (isMissed()) return "Missed"
+    if (isDone()) return props.job.state.lastRunAtMs ? `Done · ${formatRelativeTime(props.job.state.lastRunAtMs)}` : "Done"
     if (!props.job.enabled) return "Disabled"
     if (props.job.state.nextRunAtMs) return formatRelativeTime(props.job.state.nextRunAtMs)
     return "—"
