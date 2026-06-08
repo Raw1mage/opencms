@@ -120,6 +120,18 @@ export const CronJobSchema = z.object({
   updatedAtMs: z.number(),
   schedule: CronScheduleSchema,
   sessionTarget: CronSessionTargetSchema,
+  /**
+   * Originating conversation sessionID. When set, isolated runs are created as a child
+   * subsession of this session (lineage) rather than a detached orphan top-level session.
+   * harness/scheduled-subsession DD-5.
+   */
+  parentID: z.string().optional(),
+  /**
+   * Eagerly pre-created dormant subsession id (harness/scheduled-subsession DD-2). Set at schedule
+   * time so the task is immediately visible/openable/editable; the heartbeat fires THIS session at
+   * fire time (and clears its `scheduled` marker) rather than creating one lazily.
+   */
+  dormantSessionID: z.string().optional(),
   wakeMode: CronWakeModeSchema,
   payload: CronPayloadSchema,
   delivery: CronDeliverySchema.optional(),

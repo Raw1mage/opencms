@@ -40,6 +40,10 @@ export type CronJob = {
   updatedAtMs: number
   schedule: CronSchedule
   sessionTarget: "main" | "isolated"
+  /** Originating conversation (scheduled-subsession DD-5 lineage). */
+  parentID?: string
+  /** Eagerly pre-created dormant task subsession (scheduled-subsession DD-2). */
+  dormantSessionID?: string
   wakeMode: "next-heartbeat" | "now"
   payload: CronPayload
   delivery?: CronDelivery

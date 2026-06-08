@@ -43,6 +43,70 @@ describe("CronStore", () => {
     expect(retrieved!.id).toBe(job.id)
   })
 
+  it("persists parentID round-trip (scheduled-subsession DD-5 lineage)", async () => {
+    const job = await CronStore.create({
+      name: "parented-job",
+      enabled: true,
+      schedule: { kind: "at", at: "2999-01-01T00:00:00Z" },
+      sessionTarget: "isolated",
+      wakeMode: "next-heartbeat",
+      parentID: "ses_parent123",
+      payload: { kind: "agentTurn", message: "deferred work" },
+    })
+
+    expect(job.parentID).toBe("ses_parent123")
+
+    const retrieved = await CronStore.get(job.id)
+    expect(retrieved!.parentID).toBe("ses_parent123")
+  })
+
+  it("defaults parentID to undefined when not provided (headless cron)", async () => {
+    const job = await CronStore.create({
+      name: "orphan-job",
+      enabled: true,
+      schedule: { kind: "every", everyMs: 60000 },
+      sessionTarget: "isolated",
+      wakeMode: "now",
+      payload: { kind: "agentTurn", message: "hi" },
+    })
+    expect(job.parentID).toBeUndefined()
+  })
+
+  it("creates a one-shot 'at' job and persists dormantSessionID (scheduled-subsession Phase 3)", async () => {
+    const job = await CronStore.create({
+      name: "one-shot",
+      enabled: true,
+      schedule: { kind: "at", at: "2999-01-01T15:00:00Z" },
+      sessionTarget: "isolated",
+      wakeMode: "next-heartbeat",
+      parentID: "ses_conv",
+      payload: { kind: "agentTurn", message: "do the deferred thing", lightContext: true },
+    })
+    expect(job.schedule).toEqual({ kind: "at", at: "2999-01-01T15:00:00Z" })
+
+    const updated = await CronStore.update(job.id, { dormantSessionID: "ses_dormant1" })
+    expect(updated!.dormantSessionID).toBe("ses_dormant1")
+
+    const retrieved = await CronStore.get(job.id)
+    expect(retrieved!.dormantSessionID).toBe("ses_dormant1")
+    expect(retrieved!.parentID).toBe("ses_conv")
+  })
+
+  it("one-shot 'at' fires at its timestamp even with wakeMode 'now' (scheduled-subsession e2e regression)", async () => {
+    const atMs = Date.now() + 3_600_000 // 1 hour out
+    const atIso = new Date(atMs).toISOString()
+    const job = await CronStore.create({
+      name: "at-respects-time",
+      enabled: true,
+      schedule: { kind: "at", at: atIso },
+      sessionTarget: "isolated",
+      wakeMode: "now", // must NOT collapse the `at` time to now
+      payload: { kind: "agentTurn", message: "later", lightContext: true },
+    })
+    // nextRunAtMs must be the `at` time (~1h out), not ~now.
+    expect(job.state.nextRunAtMs).toBeGreaterThan(Date.now() + 3_500_000)
+  })
+
   it("updates a job", async () => {
     const job = await CronStore.create({
       name: "update-test",

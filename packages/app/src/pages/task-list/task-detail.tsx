@@ -79,6 +79,9 @@ export function TaskDetail() {
         .catch(() => [] as CronRunLogEntry[])
       if (runs[0]?.sessionId) {
         setActiveSessionId(runs[0].sessionId)
+      } else if (data.dormantSessionID) {
+        // scheduled-subsession: not yet fired — show the dormant task subsession (the queued prompt).
+        setActiveSessionId(data.dormantSessionID)
       }
     } catch {
       setJob(undefined)

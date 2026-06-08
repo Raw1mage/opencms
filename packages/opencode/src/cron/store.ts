@@ -18,6 +18,10 @@ export namespace CronStore {
 
   function seededNextRunAtMs(job: Pick<CronJob, "enabled" | "schedule" | "wakeMode" | "state">, nowMs: number) {
     if (!job.enabled) return undefined
+    // harness/scheduled-subsession: a one-shot `at` fires at its explicit timestamp. wakeMode "now"
+    // ("fire from now") must not override a specific scheduled time, or every `at` task would fire on
+    // the next tick instead of when the user asked.
+    if (job.schedule.kind === "at") return Schedule.computeNextRunAtMs(job.schedule, nowMs)
     if (job.wakeMode === "now") return nowMs - 1
     return Schedule.computeNextRunAtMs(job.schedule, nowMs)
   }

@@ -370,11 +370,33 @@ export namespace Session {
       // by rendering each notice into a one-line system-prompt addendum
       // then atomically removing consumed entries.
       pendingSubagentNotices: MessageV2.PendingSubagentNotice.array().optional(),
+      // harness/scheduled-subsession DD-2: dormant scheduling marker. When present, this
+      // session is a deferred task whose runloop must NOT fire until the cron heartbeat
+      // releases it (by clearing this field). While set, every autonomous resume / enqueue /
+      // drain path skips the session; only the heartbeat may fire (or fire-skip) it.
+      scheduled: z
+        .object({
+          jobId: z.string(),
+          fireAtMs: z.number(),
+          createdAtMs: z.number(),
+        })
+        .optional(),
     })
     .meta({
       ref: "Session",
     })
   export type Info = z.output<typeof Info>
+
+  /**
+   * harness/scheduled-subsession DD-2: single source of truth for the dormant-skip predicate.
+   * A session is "dormant scheduled" while it carries a `scheduled` marker — created for a
+   * deferred task but not yet released by the cron heartbeat. Such a session must never be
+   * auto-prompted / auto-continued / drained by any autonomous path; only the heartbeat clears
+   * the marker and fires it. Read this everywhere instead of re-deriving the condition.
+   */
+  export function isDormantScheduled(session: Pick<Info, "scheduled">): boolean {
+    return !!session.scheduled
+  }
 
   export function defaultWorkflow(now = Date.now()): WorkflowInfo {
     return {

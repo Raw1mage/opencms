@@ -8,6 +8,7 @@ import {
   describeAutonomousNextAction,
   evaluateAutonomousContinuation,
   inspectPendingContinuationResumability,
+  shouldResumePendingContinuation,
   planAutonomousNextAction,
   shouldInterruptAutonomousRun,
   buildContinuationTrigger,
@@ -132,6 +133,55 @@ describe("planAutonomousNextAction", () => {
       todos: [],
     })
     expect(action).toEqual({ type: "stop", reason: "todo_complete" })
+  })
+})
+
+describe("dormant scheduled invariant (scheduled-subsession AC3)", () => {
+  const dormantMarker = { jobId: "cron_1", fireAtMs: 9_999_999_999_999, createdAtMs: 1 }
+
+  it("planAutonomousNextAction stops a dormant scheduled session even when armed with pending todos", () => {
+    const action = planAutonomousNextAction({
+      session: armedSession({ scheduled: dormantMarker }),
+      todos: [{ id: "a", content: "do it", status: "pending", priority: "high" }],
+    })
+    expect(action).toEqual({ type: "stop", reason: "dormant_scheduled" })
+  })
+
+  it("dormant_scheduled blocks resume UNCONDITIONALLY — overrides even task_completion bypass", () => {
+    const result = inspectPendingContinuationResumability({
+      session: baseSession({ scheduled: dormantMarker }),
+      status: { type: "idle" } as any,
+      inFlight: false,
+      triggerType: "task_completion",
+    })
+    expect(result.resumable).toBe(false)
+    expect(result.blockedReasons).toContain("dormant_scheduled")
+  })
+
+  it("shouldResumePendingContinuation is false for a dormant scheduled session", () => {
+    expect(
+      shouldResumePendingContinuation({
+        session: baseSession({ scheduled: dormantMarker }),
+        status: { type: "idle" } as any,
+        inFlight: false,
+        triggerType: "task_completion",
+      }),
+    ).toBe(false)
+  })
+
+  it("control: a non-scheduled session is not blocked by dormant_scheduled", () => {
+    const result = inspectPendingContinuationResumability({
+      session: baseSession(),
+      status: { type: "idle" } as any,
+      inFlight: false,
+      triggerType: "task_completion",
+    })
+    expect(result.blockedReasons).not.toContain("dormant_scheduled")
+  })
+
+  it("Session.isDormantScheduled reflects marker presence", () => {
+    expect(Session.isDormantScheduled(baseSession({ scheduled: dormantMarker }))).toBe(true)
+    expect(Session.isDormantScheduled(baseSession())).toBe(false)
   })
 })
 

@@ -48,11 +48,26 @@ export namespace CronSession {
       }
     }
 
-    // Isolated session: create a fresh session scoped to this run
-    log.info("creating isolated session", { jobId: job.id, runId, keyNamespace })
+    // harness/scheduled-subsession DD-2: prefer the eagerly pre-created dormant subsession. Firing
+    // the session the user has been watching/editing keeps lineage and avoids a duplicate orphan.
+    // Releasing clears its `scheduled` marker so it is no longer dormant when the runloop runs.
+    if (job.dormantSessionID) {
+      const existing = await Session.get(job.dormantSessionID).catch(() => undefined)
+      if (existing) {
+        await release(existing.id)
+        log.info("reusing dormant subsession", { jobId: job.id, runId, sessionId: existing.id })
+        return { sessionId: existing.id, isNew: false, keyNamespace, sessionTarget: "isolated" }
+      }
+    }
+
+    // Lazy fallback: create a fresh session scoped to this run.
+    // When the job carries a parentID (originating conversation), create the run as a child
+    // subsession for lineage rather than a detached orphan. harness/scheduled-subsession DD-5.
+    log.info("creating isolated session", { jobId: job.id, runId, keyNamespace, parentID: job.parentID })
     const session = await Session.createNext({
       title: `[cron] ${job.name} — ${runId.slice(0, 8)}`,
       directory: Instance.directory,
+      ...(job.parentID ? { parentID: job.parentID } : {}),
     })
 
     return {
@@ -64,10 +79,48 @@ export namespace CronSession {
   }
 
   /**
+   * Clear a session's dormant `scheduled` marker (harness/scheduled-subsession DD-2). Used to release
+   * a dormant subsession for firing, or to settle it when a one-shot is missed/cancelled. Idempotent.
+   */
+  export async function release(sessionID: string): Promise<void> {
+    await Session.update(sessionID, (draft) => {
+      draft.scheduled = undefined
+    }).catch((e) => log.warn("release scheduled marker failed", { sessionID, error: e }))
+  }
+
+  /**
+   * Eagerly create a dormant subsession for a scheduled task (harness/scheduled-subsession DD-2).
+   *
+   * Creates a child subsession (parentID = originating conversation) and stamps the `scheduled`
+   * marker so it is inert to every autonomous path until the heartbeat releases it. The deferred
+   * prompt's source of truth remains the CronJob payload; this session is the visible/editable
+   * carrier. Returns the new session id (to persist as job.dormantSessionID).
+   */
+  export async function createDormant(input: {
+    jobId: string
+    name: string
+    parentID?: string
+    fireAtMs: number
+    now?: number
+  }): Promise<string> {
+    const now = input.now ?? Date.now()
+    log.info("creating dormant scheduled subsession", { jobId: input.jobId, parentID: input.parentID })
+    const session = await Session.createNext({
+      title: `[scheduled] ${input.name}`,
+      directory: Instance.directory,
+      ...(input.parentID ? { parentID: input.parentID } : {}),
+    })
+    await Session.update(session.id, (draft) => {
+      draft.scheduled = { jobId: input.jobId, fireAtMs: input.fireAtMs, createdAtMs: now }
+    })
+    return session.id
+  }
+
+  /**
    * Check if a session is a cron-managed session by its title prefix.
    */
   export function isCronSession(title: string | undefined): boolean {
-    return title?.startsWith("[cron]") ?? false
+    return (title?.startsWith("[cron]") || title?.startsWith("[scheduled]")) ?? false
   }
 
   /**

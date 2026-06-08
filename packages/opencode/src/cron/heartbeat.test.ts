@@ -1,6 +1,7 @@
 import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test"
 import { Heartbeat } from "./heartbeat"
 import { CronStore } from "./store"
+import { CronSession } from "./session"
 import { ActiveHours } from "./active-hours"
 import { SystemEvents } from "./system-events"
 import { Scheduler } from "../scheduler"
@@ -110,6 +111,43 @@ describe("Heartbeat.tick integration", () => {
     expect(updateCalls[0][0]).toBe("job-hb-test")
     ;(CronStore as any).listEnabled = originalListEnabled
     ;(CronStore as any).updateState = originalUpdateState
+    ;(SystemEvents as any).drain = originalDrain
+  })
+
+  it("fire-skips a one-shot 'at' missed while the daemon was down (scheduled-subsession DD-4)", async () => {
+    const originalUpdate = CronStore.update
+    const originalRelease = CronSession.release
+    const staleAt = makeJob({
+      schedule: { kind: "at", at: "2020-01-01T00:00:00Z" },
+      sessionTarget: "isolated",
+      wakeMode: "now",
+      dormantSessionID: "ses_dormant",
+      // 10 minutes stale — beyond the 5-minute staleness threshold => daemon was down
+      state: { nextRunAtMs: Date.now() - 10 * 60 * 1000 },
+    })
+    ;(CronStore as any).listEnabled = mock(() => Promise.resolve([staleAt]))
+    const updateCalls: any[] = []
+    ;(CronStore as any).update = mock((id: string, patch: any) => {
+      updateCalls.push([id, patch])
+      return Promise.resolve(staleAt)
+    })
+    const releaseCalls: string[] = []
+    ;(CronSession as any).release = mock((sid: string) => {
+      releaseCalls.push(sid)
+      return Promise.resolve()
+    })
+    ;(SystemEvents as any).drain = mock(() => [])
+
+    await Heartbeat.tick()
+
+    expect(updateCalls.length).toBe(1)
+    expect(updateCalls[0][1].enabled).toBe(false)
+    expect(updateCalls[0][1].state.lastRunStatus).toBe("skipped")
+    expect(releaseCalls).toContain("ses_dormant")
+
+    ;(CronStore as any).listEnabled = originalListEnabled
+    ;(CronStore as any).update = originalUpdate
+    ;(CronSession as any).release = originalRelease
     ;(SystemEvents as any).drain = originalDrain
   })
 

@@ -252,6 +252,15 @@ export namespace Heartbeat {
           staleBy: nowMs - nextRun,
           nextRunAtMs: nextFireMs + stagger,
         })
+      } else if (job.schedule.kind === "at") {
+        // harness/scheduled-subsession DD-4: one-shot missed while the daemon was down — fire-skip.
+        // Settle the job and release its dormant subsession so it does not sit `scheduled` forever.
+        await CronStore.update(job.id, {
+          enabled: false,
+          state: { nextRunAtMs: undefined, lastRunAtMs: nowMs, lastRunStatus: "skipped" },
+        })
+        if (job.dormantSessionID) await CronSession.release(job.dormantSessionID)
+        log.info("fire-skip: one-shot missed while daemon down", { jobId: job.id, staleBy: nowMs - nextRun })
       }
       return { status: "skipped", hasActionableContent: false, eventsProcessed: 0 }
     }
@@ -346,11 +355,17 @@ export namespace Heartbeat {
     // Update state and schedule next run
     const nextFireMs = Schedule.computeNextRunAtMs(job.schedule, nowMs)
     const stagger = nextFireMs ? Schedule.computeStaggerMs(job.schedule, job.id) : 0
-    await CronStore.updateState(job.id, {
-      nextRunAtMs: nextFireMs ? nextFireMs + stagger : undefined,
-      lastRunAtMs: nowMs,
-      lastRunStatus: outcome.status,
-      consecutiveErrors: outcome.status === "error" ? (job.state.consecutiveErrors ?? 0) + 1 : 0,
+    // harness/scheduled-subsession DD-6: a one-shot `at` with no future fire time settles after firing
+    // (disabled) so the still-enabled job does not re-fire every tick.
+    const settleOneShot = !nextFireMs && job.schedule.kind === "at"
+    await CronStore.update(job.id, {
+      ...(settleOneShot ? { enabled: false } : {}),
+      state: {
+        nextRunAtMs: nextFireMs ? nextFireMs + stagger : undefined,
+        lastRunAtMs: nowMs,
+        lastRunStatus: outcome.status,
+        consecutiveErrors: outcome.status === "error" ? (job.state.consecutiveErrors ?? 0) + 1 : 0,
+      },
     })
 
     // Handle deleteAfterRun

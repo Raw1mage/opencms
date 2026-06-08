@@ -50,6 +50,7 @@ export type ContinuationDecisionReason =
   | "todo_complete"
   | "todo_in_progress"
   | "todo_pending"
+  | "dormant_scheduled"
 
 export type AutonomousNextAction =
   | {
@@ -109,6 +110,7 @@ export type PendingContinuationResumeBlockReason =
   | `waiting_user_non_resumable:${string}`
   | "supervisor_retry_backoff"
   | "supervisor_foreign_lease"
+  | "dormant_scheduled"
 
 export type PendingContinuationQueueInspection = {
   hasPendingContinuation: boolean
@@ -282,7 +284,7 @@ function healthRankForResume(health: AutonomousWorkflowHealth["summary"]["health
 }
 
 export function shouldResumePendingContinuation(input: {
-  session: Pick<Session.Info, "workflow">
+  session: Pick<Session.Info, "workflow" | "scheduled">
   status: SessionStatus.Info
   inFlight: boolean
   health?: AutonomousWorkflowHealth
@@ -294,7 +296,7 @@ export function shouldResumePendingContinuation(input: {
 }
 
 export function inspectPendingContinuationResumability(input: {
-  session: Pick<Session.Info, "workflow">
+  session: Pick<Session.Info, "workflow" | "scheduled">
   status: SessionStatus.Info
   inFlight: boolean
   health?: AutonomousWorkflowHealth
@@ -303,6 +305,10 @@ export function inspectPendingContinuationResumability(input: {
   triggerType?: string
 }) {
   const blockedReasons: PendingContinuationResumeBlockReason[] = []
+  // harness/scheduled-subsession DD-2: a dormant scheduled session never resumes — and this
+  // gate is unconditional (it overrides even task_completion triggers). Only the cron heartbeat
+  // may release a scheduled session by clearing its `scheduled` marker.
+  if (Session.isDormantScheduled(input.session)) blockedReasons.push("dormant_scheduled")
   if (input.inFlight) blockedReasons.push("in_flight")
   if (input.status.type === "busy") blockedReasons.push("status_busy")
   if (input.status.type === "retry") blockedReasons.push("status_retry")
@@ -568,10 +574,17 @@ export function evaluateAutonomousContinuation(input: {
  * a first-time completion-verify nudge) or stop (subagent / todo_complete).
  */
 export function planAutonomousNextAction(input: {
-  session: Pick<Session.Info, "parentID" | "workflow" | "time">
+  session: Pick<Session.Info, "parentID" | "workflow" | "time" | "scheduled">
   todos: Todo.Info[]
   lastDecisionReason?: ContinuationDecisionReason
 }): AutonomousNextAction {
+  // harness/scheduled-subsession DD-2: a dormant scheduled session is inert to the autonomous
+  // engine until the cron heartbeat releases it. Robust even for a future self-target where the
+  // session is not a child (so the parentID gate below would not cover it).
+  if (Session.isDormantScheduled(input.session)) {
+    return { type: "stop", reason: "dormant_scheduled" }
+  }
+
   // Structural boundary: subagents are driven by their parent; they never
   // run the autonomous continuation engine themselves.
   if (input.session.parentID) {
@@ -624,6 +637,11 @@ export function describeAutonomousNextAction(action: AutonomousNextAction): Auto
       return { kind: "pause", text: "Autonomous continuation only runs for root sessions." }
     case "not_armed":
       return { kind: "pause", text: "Autonomous continuation is not armed for this session." }
+    case "dormant_scheduled":
+      return {
+        kind: "pause",
+        text: "Session is a dormant scheduled task; it fires on its schedule, not via autonomous continuation.",
+      }
   }
 }
 
@@ -1091,6 +1109,13 @@ export async function enqueueAutonomousContinue(input: {
 }) {
   const now = Date.now()
   const session = await Session.get(input.sessionID)
+  // harness/scheduled-subsession DD-2: defense in depth — never enqueue a synthetic continuation
+  // for a dormant scheduled session. Nothing should target one, but if it does, drop it here so it
+  // never reaches the supervisor drain.
+  if (Session.isDormantScheduled(session)) {
+    log.info("enqueueAutonomousContinue: refusing dormant scheduled session", { sessionID: input.sessionID })
+    return undefined
+  }
   const text = input.text ?? AUTONOMOUS_RESUME_TEXT
   const pinnedModel = session.execution
     ? {
