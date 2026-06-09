@@ -81,7 +81,8 @@ export namespace Tweaks {
    * When the 5H hourly window drops below `lowQuotaThresholdPercent`
    * at the end of a runloop, mark the account rate-limited so the next
    * turn rotates away from it (QUOTA_EXHAUSTED path in rate-limit-judge).
-   * Disabled when threshold <= 0.
+   * Disabled when threshold <= 0 — which is the default; opt in via
+   * codex_rotation_low_quota_percent in tweaks.cfg.
    */
   export interface CodexRotationConfig {
     lowQuotaThresholdPercent: number
@@ -421,7 +422,10 @@ export namespace Tweaks {
   }
 
   const CODEX_ROTATION_DEFAULTS: CodexRotationConfig = {
-    lowQuotaThresholdPercent: 10,
+    // Disabled by default: do not preemptively rotate a codex/openai account
+    // just because its 5H window is low. Set codex_rotation_low_quota_percent
+    // > 0 in tweaks.cfg to re-enable proactive low-quota rotation.
+    lowQuotaThresholdPercent: 0,
   }
 
   const SUBAGENT_DEFAULTS: SubagentConfig = {
