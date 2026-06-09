@@ -12,8 +12,10 @@ import { readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import {
   assembleBetas,
+  buildBillingHeader,
   isFirstPartyish,
   isHaikuModel,
+  modelIsOpus48,
   modelSupportsContextManagement,
   supports1MContext,
   type AssembleBetasOptions,
@@ -144,6 +146,93 @@ describe("structural guardrails", () => {
     // Must not be exported, must not appear at all (we deleted the constant)
     expect(protocolSource).not.toMatch(/export\s+const\s+MINIMUM_BETAS/)
     expect(protocolSource).not.toMatch(/\bMINIMUM_BETAS\b/)
+  })
+})
+
+// align-2.1.169 DD-1: mid-conversation-system gate (upstream O98)
+describe("mid-conversation-system (opus-4-8 gate, align-2.1.169)", () => {
+  const MCS = "mid-conversation-system-2026-04-07"
+  const base = { isOAuth: true, provider: "firstParty" as ProviderRoute }
+
+  test("opus-4-8 first-party OAuth includes it (TV-01)", () => {
+    expect(assembleBetas({ ...base, modelId: "claude-opus-4-8" })).toContain(MCS)
+  })
+  test("opus-4-8[1m] alias still gated true (TV-02)", () => {
+    expect(assembleBetas({ ...base, modelId: "claude-opus-4-8[1m]" })).toContain(MCS)
+  })
+  test("opus-4-8 date alias gated true", () => {
+    expect(assembleBetas({ ...base, modelId: "claude-opus-4-8-20251101" })).toContain(MCS)
+  })
+  test("opus-4-7 / sonnet-4-6 / haiku-4-5 exclude it (TV-03/04)", () => {
+    for (const modelId of ["claude-opus-4-7", "claude-sonnet-4-6", "claude-haiku-4-5"]) {
+      expect(assembleBetas({ ...base, modelId })).not.toContain(MCS)
+    }
+  })
+  test("explicit midConversationSystem:false disables on opus-4-8 (TV-05)", () => {
+    expect(
+      assembleBetas({ ...base, modelId: "claude-opus-4-8", midConversationSystem: false }),
+    ).not.toContain(MCS)
+  })
+  test("hipaa disables on opus-4-8 (TV-06)", () => {
+    expect(
+      assembleBetas({ ...base, modelId: "claude-opus-4-8", hipaa: true }),
+    ).not.toContain(MCS)
+  })
+  test("non-first-party (bedrock) excludes it even on opus-4-8 (TV-07)", () => {
+    expect(
+      assembleBetas({ isOAuth: true, provider: "bedrock", modelId: "claude-opus-4-8" }),
+    ).not.toContain(MCS)
+  })
+  test("modelIsOpus48 normalizes aliases", () => {
+    expect(modelIsOpus48("claude-opus-4-8")).toBe(true)
+    expect(modelIsOpus48("CLAUDE-OPUS-4-8[1m]")).toBe(true)
+    expect(modelIsOpus48("us-claude-opus-4-8-20251101")).toBe(true)
+    expect(modelIsOpus48("claude-opus-4-7")).toBe(false)
+  })
+})
+
+// align-2.1.169 DD-2: billing-header conditional segments
+describe("buildBillingHeader (cc_workload / cc_is_subagent, align-2.1.169)", () => {
+  const C = "the quick brown fox jumps"
+
+  test("no options → byte-identical, no new segments (TV-08, AC5)", () => {
+    const h = buildBillingHeader(C, "cli")
+    expect(h).toMatch(/^cc_version=[^;]+; cc_entrypoint=cli; cch=00000;$/)
+    expect(h).not.toContain("cc_workload")
+    expect(h).not.toContain("cc_is_subagent")
+  })
+
+  test("empty options object is also byte-identical to no-options", () => {
+    expect(buildBillingHeader(C, "cli", {})).toBe(buildBillingHeader(C, "cli"))
+  })
+
+  test("workload appends cc_workload (TV-09, AC6)", () => {
+    expect(buildBillingHeader(C, "cli", { workload: "cron" })).toEndWith(
+      " cc_workload=cron;",
+    )
+  })
+
+  test("subagent non-main appends cc_is_subagent (TV-10, AC7)", () => {
+    expect(
+      buildBillingHeader(C, "cli", { isSubagent: true, isMainSession: false }),
+    ).toEndWith(" cc_is_subagent=true;")
+  })
+
+  test("main-session subagent flag → no cc_is_subagent (TV-11)", () => {
+    expect(
+      buildBillingHeader(C, "cli", { isSubagent: true, isMainSession: true }),
+    ).not.toContain("cc_is_subagent")
+  })
+
+  test("both segments, order: cc_workload before cc_is_subagent", () => {
+    const h = buildBillingHeader(C, "cli", {
+      workload: "cron",
+      isSubagent: true,
+      isMainSession: false,
+    })
+    expect(h).toBe(
+      `${buildBillingHeader(C, "cli")} cc_workload=cron; cc_is_subagent=true;`,
+    )
   })
 })
 

@@ -1766,6 +1766,20 @@ export namespace LLM {
       const opts = requestProviderOptions as Record<string, any>
       opts["claude-cli"] = { ...(opts["claude-cli"] ?? {}), lowFreqContext: lowFreqContextText }
     }
+    // align-2.1.169 DD-2: hand the subagent signal to the native claude provider
+    // so the billing header (HTTP + system block[0]) carries cc_is_subagent=true
+    // for sub-sessions, matching the real CLI. Main sessions emit nothing →
+    // billing header byte-identical, cache prefix unaffected. Only claude-cli reads
+    // this key (codex ignores it → DD-4 byte-identical invariant holds).
+    if (input.model.providerId === "claude-cli") {
+      const isSubagent = await isSubagentSession(input.sessionID)
+      const opts = requestProviderOptions as Record<string, any>
+      opts["claude-cli"] = {
+        ...(opts["claude-cli"] ?? {}),
+        isSubagent,
+        isMainSession: !isSubagent,
+      }
+    }
     const outboundFingerprint = Bun.hash(
       JSON.stringify({
         sessionID: input.sessionID,

@@ -26,11 +26,12 @@ import {
  * validated server-side (any non-`claude-code` UA passes); we track the real
  * bundled version purely for fidelity.
  *
- * Value source: claude-code npm bundle ships axios `YPH = "1.13.6"`, and its
- * http adapter sends `"axios/" + YPH`. Re-sync this when refs/claude-code-npm
- * bumps axios (grep cli.js for `"axios/"+` then resolve the version var).
+ * Value source: claude-code npm bundle (2.1.169) ships axios `TvH = "1.15.2"`,
+ * and its http adapter sends `"axios/" + TvH`. Re-sync this when
+ * refs/claude-code-npm bumps axios (grep cli.js for `"axios/"+` then resolve
+ * the version var — the var name itself changes between minified builds).
  */
-export const OAUTH_USER_AGENT = "axios/1.13.6"
+export const OAUTH_USER_AGENT = "axios/1.15.2"
 
 /**
  * Headers for the OAuth token endpoint (exchange + refresh). Matches the

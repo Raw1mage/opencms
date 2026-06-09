@@ -1,7 +1,7 @@
 /**
  * Claude model catalog.
  *
- * Source of truth: @anthropic-ai/claude-code@2.1.156 (LMH() output table)
+ * Source of truth: @anthropic-ai/claude-code@2.1.169 (LMH() output table)
  * + protocol-datasheet.md § 9. Verify/realign with:
  *   bun packages/provider-claude/scripts/sync-from-cli.ts
  *
@@ -42,7 +42,7 @@ export interface OutputLimit {
 
 /**
  * Output-token table — faithful replica of upstream `LMH()` in
- * @anthropic-ai/claude-code (verified against 2.1.141 + 2.1.156, 2026-05-29).
+ * @anthropic-ai/claude-code (verified against 2.1.141 + 2.1.156 + 2.1.169).
  *
  * Keys are NORMALIZED base model IDs (date / -vN / -fast / -latest / [1m]
  * suffixes and provider prefixes stripped — see {@link normalizeModelId}).

@@ -1,6 +1,9 @@
-# Protocol Datasheets — Claude Code CLI 2.1.144
+# Protocol Datasheets — Claude Code CLI 2.1.169
 
-> Source: `refs/claude-code-npm/cli.js` (2.1.144, extracted from `@anthropic-ai/claude-code-linux-x64@2.1.144`, build 2026-05-18)
+> Source: native binary `@anthropic-ai/claude-code-linux-x64@2.1.169`
+> (`BUILD_TIME 2026-06-08T03:22:12Z`, `GIT_SHA eb44edf196b8a320135d5a27a3cfba37773ce0cd`),
+> re-verified 2026-06-09 via `bun packages/provider-claude/scripts/sync-from-cli.ts`.
+> Delta-from-2.1.144 notes are retained inline where the registry/constants moved.
 
 ---
 
@@ -8,7 +11,7 @@
 
 | Constant | Value | Notes |
 |----------|-------|-------|
-| VERSION | `2.1.144` | Build time `2026-05-18T18:44:14Z`, SHA `32281b6` |
+| VERSION | `2.1.169` | Build time `2026-06-08T03:22:12Z`, SHA `eb44edf196b8a320135d5a27a3cfba37773ce0cd` |
 | API_VERSION | `2023-06-01` | Unchanged since initial release |
 | CLIENT_ID | `9d1c250a-e61b-44d9-88ed-5944d1962f5e` | Unchanged |
 | ATTRIBUTION_SALT | `59cf53e54c78` | Present but `cch` now hardcoded `00000` |
@@ -140,7 +143,12 @@ The User-Agent values above apply to the **inference** path (`api.anthropic.com`
 The OAuth **token endpoint** (`platform.claude.com/v1/oauth/token`, i.e. the
 `authorization_code` exchange and `refresh_token` grant) behaves differently:
 the official CLI's OAuth calls (`Zn8` / refresh) go through **plain axios**, so
-they carry `User-Agent: axios/{ver}` — **not** `claude-code/{VERSION}`.
+they carry `User-Agent: axios/{ver}` — **not** `claude-code/{VERSION}`. The
+bundled axios version is built as `"axios/"+TvH` where `TvH="1.15.2"` in 2.1.169
+(was `1.13.6` in 2.1.144; the minified var name also drifts between builds, so
+re-resolve `"axios/"+` each sync). The provider mirrors this as
+`OAUTH_USER_AGENT = "axios/1.15.2"`. The exact version is not validated
+server-side (any non-`claude-code` UA passes); we track it purely for fidelity.
 
 Probed 2026-05-30 (POST with a deliberately invalid `refresh_token`, observing
 the status *before* credential validation):
@@ -163,37 +171,60 @@ just `Content-Type: application/json`; the profile call adds
 
 ## §4 Beta Flags
 
-### §4.1 Complete Registry (U31 array, 2.1.144)
+### §4.1 Complete Registry (U31 array, 2.1.169)
 
-| # | Internal Name | Beta Header | Status vs 2.1.126 |
+| # | Internal Name | Beta Header | Status vs 2.1.144 |
 |---|---------------|-------------|-------------------|
 | 1 | `claude_code` | `claude-code-20250219` | Same |
 | 2 | `oauth_auth` | `oauth-2025-04-20` | Same |
 | 3 | `interleaved_thinking` | `interleaved-thinking-2025-05-14` | Same |
 | 4 | `long_context` | `context-1m-2025-08-07` | Same |
 | 5 | `context_management` | `context-management-2025-06-27` | Same |
-| 6 | `structured_outputs` | `structured-outputs-2025-12-15` | **NEW** |
-| 7 | `web_search` | `web-search-2025-03-05` | **NEW** |
-| 8 | `tool_search` (a) | `advanced-tool-use-2025-11-20` | **NEW** |
-| 9 | `tool_search` (b) | `tool-search-tool-2025-10-19` | **NEW** |
-| 10 | `effort` | `effort-2025-11-24` | **NEW** |
-| 11 | `task_budgets` | `task-budgets-2026-03-13` | **NEW** |
+| 6 | `structured_outputs` | `structured-outputs-2025-12-15` | Same |
+| 7 | `web_search` | `web-search-2025-03-05` | Same |
+| 8 | `tool_search` (a) | `advanced-tool-use-2025-11-20` | Same |
+| 9 | `tool_search` (b) | `tool-search-tool-2025-10-19` | Same |
+| 10 | `effort` | `effort-2025-11-24` | Same |
+| 11 | `task_budgets` | `task-budgets-2026-03-13` | Same |
 | 12 | `prompt_caching_scope` | `prompt-caching-scope-2026-01-05` | Same |
-| 13 | `extended_cache_ttl` | `extended-cache-ttl-2025-04-11` | **NEW** |
-| 14 | `speed` | `fast-mode-2026-02-01` | **NEW** |
+| 13 | `extended_cache_ttl` | `extended-cache-ttl-2025-04-11` | Same |
+| 14 | `speed` | `fast-mode-2026-02-01` | Same |
 | 15 | `redact_thinking` | `redact-thinking-2026-02-12` | Same |
-| 16 | `afk_mode` | `afk-mode-2026-01-31` | **NEW** |
-| 17 | `advisor_tool` | `advisor-tool-2026-03-01` | **NEW** |
-| 18 | `cache_diagnosis` | `cache-diagnosis-2026-04-07` | **NEW** |
-| 19 | `context_hint` | `context-hint-2026-04-09` | **NEW** |
-| 20 | `mcp_servers` | `mcp-servers-2025-12-04` | **NEW** |
-| 21 | `files_api` | `files-api-2025-04-14` | **NEW** |
-| 22 | `environments` | `environments-2025-11-01` | **NEW** |
-| 23 | `ccr_byoc` | `ccr-byoc-2025-07-29` | **NEW** |
-| 24 | `mid_conversation_system` | `mid-conversation-system-2026-04-07` | **NEW** |
-| — | *(2 null slots)* | *(filtered out)* | Reserved |
+| 16 | `thinking_token_count` | `thinking-token-count-2026-05-13` | **NEW (2.1.169)** |
+| 17 | `narration_summaries` | `summarize-connector-text-2026-03-13` | **NEW in U31** (undocumented in 2.1.144 datasheet) |
+| 18 | `afk_mode` | `afk-mode-2026-01-31` | Same |
+| 19 | `advisor_tool` | `advisor-tool-2026-03-01` | Same |
+| 20 | `cache_diagnosis` | `cache-diagnosis-2026-04-07` | Same |
+| 21 | `context_hint` | `context-hint-2026-04-09` | Same |
+| 22 | `mcp_servers` | `mcp-servers-2025-12-04` | Same |
+| 23 | `files_api` | `files-api-2025-04-14` | Same |
+| 24 | `environments` | `environments-2025-11-01` | Same |
+| 25 | `ccr_byoc` | `ccr-byoc-2025-07-29` | Same |
+| 26 | `mid_conversation_system` | `mid-conversation-system-2026-04-07` | Same |
+| 27 | `server_side_fallback` | `server-side-fallback-2026-06-01` | **NEW (2.1.169)** |
+| 28 | `fallback_credit` | `fallback-credit-2026-06-09` | **NEW (2.1.169)** |
 
-**Expansion**: 7 flags in 2.1.126 → 24 active in 2.1.144.
+**Expansion**: 7 flags in 2.1.126 → 24 in 2.1.144 → 28 in 2.1.169.
+
+> **Gating ≠ registry.** Presence in this table is *not* "sent on every request".
+> The actual per-request assembly (`WW6`/`QU`/`cH`/`GW6`) and the exact gate for
+> each beta are torn down in
+> [`betas-and-fallback-teardown-2.1.169.md`](./betas-and-fallback-teardown-2.1.169.md).
+> That teardown also flags one live divergence: the CLI emits
+> `mid-conversation-system-2026-04-07` on **opus-4-8** (gate `O98`), which
+> opencode's `assembleBetas` does not.
+
+> **Provider stance (unchanged by this bump).** `packages/provider-claude` only
+> *sends* the subset attached under normal subscription inference: `claude_code`,
+> `oauth_auth`, `interleaved_thinking`, `long_context`, `context_management`,
+> `prompt_caching_scope`, `extended_cache_ttl`, `speed`, `effort`, `task_budgets`,
+> `redact_thinking` (each gated on the matching request condition in
+> `assembleBetas`). The rest of the registry — including the 4 new 2.1.169 entries
+> (`thinking_token_count`, `narration_summaries`, `server_side_fallback`,
+> `fallback_credit`) — are feature-/statsig-gated in the real CLI and are **not**
+> emitted by opencode. Cataloguing them is for fingerprint fidelity, **not** a
+> signal to add them to the betas array (doing so would send betas the real client
+> only sends with those features toggled on).
 
 ### §4.2 Additional API-Specific Betas (not in U31)
 

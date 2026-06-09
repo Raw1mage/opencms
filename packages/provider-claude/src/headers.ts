@@ -4,6 +4,8 @@
  * Phase 2A: No header inheritance from any upstream layer.
  * Ref: claude-code@2.1.126 official header set.
  */
+import { appendFileSync } from "node:fs"
+import { homedir } from "node:os"
 import {
   VERSION,
   API_VERSION,
@@ -11,6 +13,7 @@ import {
   buildBillingHeader,
   clientPlatform,
   CLAUDE_CACHE_TTL,
+  BETA_MID_CONVERSATION_SYSTEM,
   type AssembleBetasOptions,
   type ProviderRoute,
 } from "./protocol.js"
@@ -50,6 +53,16 @@ export interface BuildHeadersOptions {
   disableInterleavedThinking?: boolean
   /** True iff running in interactive TTY. opencode daemon always false (DD-17). */
   isInteractive?: boolean
+  /** HIPAA mode — disables mid-conversation-system (align-2.1.169 DD-1). */
+  hipaa?: boolean
+  /** Explicit mid-conversation-system override; false force-disables on opus-4-8. */
+  midConversationSystem?: boolean
+  /** Workload tag for billing header (e.g. "cron"). align-2.1.169 DD-2. */
+  workload?: string
+  /** Subagent session — billing header cc_is_subagent. align-2.1.169 DD-2. */
+  isSubagent?: boolean
+  /** Whether this is the main session (subagent && !main → cc_is_subagent). */
+  isMainSession?: boolean
 }
 
 export function buildHeaders(options: BuildHeadersOptions): Headers {
@@ -77,15 +90,43 @@ export function buildHeaders(options: BuildHeadersOptions): Headers {
     disableExperimentalBetas: options.disableExperimentalBetas,
     disableInterleavedThinking: options.disableInterleavedThinking,
     isInteractive: options.isInteractive,
+    hipaa: options.hipaa,
+    midConversationSystem: options.midConversationSystem,
   }
   const betas = assembleBetas(betaOptions)
   headers.set("anthropic-beta", betas.join(","))
 
-  // Billing header
+  // Per-request beta-fingerprint diagnostic (align-2.1.169). Mirrors
+  // claude-cache-breakpoints.jsonl: one line per request recording the exact
+  // anthropic-beta sent on the wire + the model, so opus-4-8 mid-conversation-
+  // system parity (and future betas drift) is observable without external
+  // capture. Diagnostic only — must never affect the request path.
+  try {
+    appendFileSync(
+      `${homedir()}/.local/share/opencode/log/claude-betas.jsonl`,
+      JSON.stringify({
+        t: new Date().toISOString(),
+        model: options.modelId,
+        provider: options.provider ?? "firstParty",
+        betas,
+        midConversationSystem: betas.includes(BETA_MID_CONVERSATION_SYSTEM),
+      }) + "\n",
+    )
+  } catch {
+    /* diagnostic only */
+  }
+
+  // Billing header — workload/subagent segments are strictly conditional, so the
+  // common-case (main-session, no workload) value is byte-identical to before
+  // (align-2.1.169 DD-2: keep the cache-prefix-feeding header stable).
   if (options.billingContent) {
     headers.set(
       "x-anthropic-billing-header",
-      buildBillingHeader(options.billingContent, options.entrypoint),
+      buildBillingHeader(options.billingContent, options.entrypoint, {
+        workload: options.workload,
+        isSubagent: options.isSubagent,
+        isMainSession: options.isMainSession,
+      }),
     )
   }
 

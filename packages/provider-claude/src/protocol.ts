@@ -1,17 +1,18 @@
 /**
- * Protocol constants extracted from @anthropic-ai/claude-code@2.1.156
+ * Protocol constants extracted from @anthropic-ai/claude-code@2.1.169
  *
  * Single file to update when official CLI upgrades.
  * Source of truth: plans/claude-provider/protocol-datasheet.md
  * Verify with: bun packages/provider-claude/scripts/sync-from-cli.ts
  */
 import { createHash } from "node:crypto"
+import { normalizeModelId } from "./models.js"
 
 // ---------------------------------------------------------------------------
 // § 0.2  Core Constants
 // ---------------------------------------------------------------------------
 
-export const VERSION = "2.1.156"
+export const VERSION = "2.1.169"
 export const CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 export const ATTRIBUTION_SALT = "59cf53e54c78"
 export const API_VERSION = "2023-06-01"
@@ -109,6 +110,12 @@ export const BETA_FAST_MODE = "fast-mode-2026-02-01" // upstream: lv1
 export const BETA_EFFORT = "effort-2025-11-24" // upstream: dv1
 export const BETA_TASK_BUDGETS = "task-budgets-2026-03-13" // upstream: cv1
 export const BETA_EXTENDED_CACHE_TTL = "extended-cache-ttl-2025-04-11" // upstream: IWH (extended_cache_ttl)
+// upstream: $a. WW6 pushes it when O98(model) is true. O98 returns true ONLY for
+// claude-opus-4-8 among current models (all others explicitly false), off under
+// HIPAA / explicit disable. opencode emits it for opus-4-8 to match the real CLI
+// fingerprint on its primary model (see specs/claude-cli/cli-reversed-spec/
+// chapters/betas-and-fallback-teardown-2.1.169.md §5).
+export const BETA_MID_CONVERSATION_SYSTEM = "mid-conversation-system-2026-04-07"
 
 // Extended prompt-cache TTL — single source of truth (issues/enhancement_20260601_claude_1h_cache_ttl.md).
 // Official claude-cli applies "1h" to cache_control breakpoints AND emits the
@@ -210,6 +217,17 @@ function supportsFastMode(modelId: string): boolean {
   return true
 }
 
+/**
+ * upstream O98 mid_conversation_system gate, narrowed to its model branch.
+ * O98 enumerates every other current model (claude-3-*, opus-4-0/4-1/4-5/4-6/4-7,
+ * sonnet-4-0/4-5/4-6, haiku-4-5) → false and returns true ONLY for opus-4-8.
+ * normalizeModelId strips date / [1m] / -vN / -fast / -latest / region prefixes
+ * so every opus-4-8 alias resolves here.
+ */
+export function modelIsOpus48(modelId: string): boolean {
+  return normalizeModelId(modelId) === "claude-opus-4-8"
+}
+
 // ---------------------------------------------------------------------------
 // § 0.6.3  AssembleBetasOptions
 // ---------------------------------------------------------------------------
@@ -239,6 +257,14 @@ export interface AssembleBetasOptions {
   disableInterleavedThinking?: boolean
   /** True iff running in interactive TTY. opencode daemon → false. upstream: !I7() */
   isInteractive?: boolean
+  /** HIPAA mode — disables mid-conversation-system (upstream O98 first branch). */
+  hipaa?: boolean
+  /**
+   * Explicit override for mid-conversation-system. `false` force-disables even on
+   * opus-4-8 (mirrors upstream O98's per-request override). Default undefined →
+   * the model gate decides.
+   */
+  midConversationSystem?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -324,6 +350,20 @@ export function assembleBetas(options: AssembleBetasOptions): string[] {
   // 9. prompt-caching-scope — upstream ZR1 step 9 (gated on ja(), NOT isOAuth — DD-11)
   if (jaEquivalent) betas.push(BETA_PROMPT_CACHING_SCOPE)
 
+  // 9b. mid-conversation-system — upstream WW6 step `if (O98(H)) push $a`.
+  // O98 → true for claude-opus-4-8 ONLY (every other current model explicitly
+  // false), off under HIPAA / explicit disable / non-first-party. This is the
+  // 2.1.169 alignment fix (align-2.1.169 DD-1): the real CLI sends it on every
+  // opus-4-8 request and opencode previously omitted it.
+  if (
+    modelIsOpus48(modelId) &&
+    isFirstPartyish(provider) &&
+    !options.hipaa &&
+    options.midConversationSystem !== false
+  ) {
+    betas.push(BETA_MID_CONVERSATION_SYSTEM)
+  }
+
   // extended-cache-ttl — upstream pushes IWH during cache application when
   // ttl==="1h". Paired with cache_control.ttl:"1h" via CLAUDE_CACHE_TTL (convert.ts).
   if (options.extendedCacheTtl) betas.push(BETA_EXTENDED_CACHE_TTL)
@@ -359,16 +399,41 @@ export function calculateAttributionHash(content: string): string {
 }
 
 /**
+ * Optional contextual segments for the billing header. Both are STRICTLY
+ * conditional (align-2.1.169 DD-2): for a normal main-session interactive turn
+ * neither is set, so the header is byte-identical to the pre-2.1.169 output. This
+ * matters because the billing header is also system block[0] text feeding the
+ * static cache prefix — unconditional new bytes would thrash it.
+ */
+export interface BillingHeaderOptions {
+  /** Workload tag (e.g. "cron"); truthy → ` cc_workload=<workload>;`. upstream H68()/z */
+  workload?: string
+  /** Running as a subagent session. upstream Y.isMainSession check. */
+  isSubagent?: boolean
+  /** Whether this is the main session. `isSubagent && !isMainSession` → segment. */
+  isMainSession?: boolean
+}
+
+/**
  * Build the x-anthropic-billing-header value.
  * Also used as system prompt block[0] text.
+ *
+ * Upstream (2.1.169): `cc_version=…; cc_entrypoint=…;${cch}${workload}${subagent}`
+ *   cch       = " cch=00000;" for non-bedrock/anthropicAws/mantle (opencode = always)
+ *   workload  = workload ? ` cc_workload=${workload};` : ""
+ *   subagent  = (subagent && !isMainSession) ? " cc_is_subagent=true;" : ""
  */
 export function buildBillingHeader(
   content: string,
   entrypoint?: string,
+  opts?: BillingHeaderOptions,
 ): string {
   const hash = calculateAttributionHash(content)
   const ep = entrypoint || process.env.CLAUDE_CODE_ENTRYPOINT || "unknown"
-  return `cc_version=${VERSION}.${hash}; cc_entrypoint=${ep}; cch=00000;`
+  let header = `cc_version=${VERSION}.${hash}; cc_entrypoint=${ep}; cch=00000;`
+  if (opts?.workload) header += ` cc_workload=${opts.workload};`
+  if (opts?.isSubagent && !opts.isMainSession) header += ` cc_is_subagent=true;`
+  return header
 }
 
 /**

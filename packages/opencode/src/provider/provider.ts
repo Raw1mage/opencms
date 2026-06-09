@@ -1347,7 +1347,7 @@ export namespace Provider {
     // `context` = 1_000_000 for 1M-eligible models (opus-4-5/6/7/8, sonnet-4-5/6)
     // because the provider sends the context-1m-2025-08-07 beta for them; 200000
     // otherwise (haiku, claude-3). `output` mirrors upstream LMH().default
-    // (verified @anthropic-ai/claude-code 2.1.156): opus-4-6/4-7/4-8 = 64000,
+    // (verified @anthropic-ai/claude-code 2.1.169): opus-4-6/4-7/4-8 = 64000,
     // other 4.x = 32000, legacy claude-3 per family.
     const M = 1_000_000
     const claudeCliModels = [

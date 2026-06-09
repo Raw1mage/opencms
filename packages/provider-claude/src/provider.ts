@@ -226,6 +226,14 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
       // system block instead of the uncached tail preface. Arrives under the
       // "claude-cli" providerId key (same channel as thinking, read into `po`).
       lowFreqText: typeof po.lowFreqContext === "string" ? po.lowFreqContext : undefined,
+      // align-2.1.169 DD-2: same conditional billing segments as the HTTP header,
+      // so block[0] and x-anthropic-billing-header stay byte-consistent. Absent
+      // for normal main-session turns.
+      billingOptions: {
+        workload: typeof po.workload === "string" ? po.workload : undefined,
+        isSubagent: po.isSubagent === true,
+        isMainSession: po.isMainSession,
+      },
     })
 
     // P0 causation telemetry (DD-7): record the final cache_control breakpoint
@@ -265,6 +273,13 @@ class ClaudeCodeLanguageModel implements LanguageModelV2 {
       showThinkingSummaries: !!po.showThinkingSummaries,
       disableExperimentalBetas: !!process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS,
       disableInterleavedThinking: !!process.env.DISABLE_INTERLEAVED_THINKING,
+      // align-2.1.169: mid-conversation-system gate inputs + billing segments.
+      hipaa: po.hipaa === true,
+      midConversationSystem:
+        typeof po.midConversationSystem === "boolean" ? po.midConversationSystem : undefined,
+      workload: typeof po.workload === "string" ? po.workload : undefined,
+      isSubagent: po.isSubagent === true,
+      isMainSession: po.isMainSession,
     })
 
     // § 4.2.6  Build request body — single serialize

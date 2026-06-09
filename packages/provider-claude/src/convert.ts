@@ -14,6 +14,7 @@ import {
   IDENTITY_INTERACTIVE,
   buildBillingHeader,
   CLAUDE_CACHE_TTL,
+  type BillingHeaderOptions,
 } from "./protocol.js"
 
 // ---------------------------------------------------------------------------
@@ -363,6 +364,12 @@ export interface ConvertSystemOptions {
   /** Entrypoint for billing header */
   entrypoint?: string
   /**
+   * Conditional billing segments (align-2.1.169 DD-2). MUST mirror what
+   * buildHeaders sends, since block[0] and the HTTP header carry the same billing
+   * string upstream. Absent for normal main-session turns → block[0] byte-identical.
+   */
+  billingOptions?: BillingHeaderOptions
+  /**
    * DD-22 Part B: low-frequency per-session context (T1 — README summary, cwd
    * listing, today's date, pinned skills) routed out of the uncached tail into a
    * cached system block placed AFTER the static systemText. T1 is low-CHANGE (not
@@ -384,6 +391,7 @@ export function convertSystemBlocks(options: ConvertSystemOptions): AnthropicSys
     identity = IDENTITY_INTERACTIVE,
     billingContent,
     entrypoint,
+    billingOptions,
     lowFreqText,
   } = options
 
@@ -392,7 +400,7 @@ export function convertSystemBlocks(options: ConvertSystemOptions): AnthropicSys
 
   // Block 0: billing header (no cache)
   if (billingContent) {
-    const headerText = `x-anthropic-billing-header: ${buildBillingHeader(billingContent, entrypoint)}`
+    const headerText = `x-anthropic-billing-header: ${buildBillingHeader(billingContent, entrypoint, billingOptions)}`
     blocks.push({ type: "text", text: headerText, cache_control: null })
   }
 

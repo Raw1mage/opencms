@@ -41,12 +41,14 @@ import {
   OAUTH,
   BETA_CLAUDE_CODE,
   BETA_OAUTH,
+  BETA_MID_CONVERSATION_SYSTEM,
+  assembleBetas,
 } from "../src/protocol.js"
 import { MODEL_CATALOG, getOutputLimit, normalizeModelId } from "../src/models.js"
 import { OAUTH_USER_AGENT } from "../src/auth.js"
 
 /** The CLI version this provider is currently aligned to. Bump deliberately. */
-const PINNED_VERSION = "2.1.156"
+const PINNED_VERSION = "2.1.169"
 
 const args = process.argv.slice(2)
 const versionArg = args.includes("--version") ? args[args.indexOf("--version") + 1] : undefined
@@ -124,6 +126,28 @@ for (const scope of AUTHORIZE_SCOPES.split(" ")) check(`scope ${scope}`, has(sco
 for (const scope of REFRESH_SCOPES) check(`refresh-scope ${scope}`, has(scope))
 check(`beta ${BETA_CLAUDE_CODE}`, has(BETA_CLAUDE_CODE))
 check(`beta ${BETA_OAUTH}`, has(BETA_OAUTH))
+
+// ── 1b. align-2.1.169 behavioural guards (DD-5) ───────────────────────────────
+// String presence is not enough — these assert the *gating logic* still matches
+// so a future CLI bump that moves the opus-4-8 gate or the billing template
+// surfaces as DRIFT instead of silently reverting parity.
+check(`beta ${BETA_MID_CONVERSATION_SYSTEM} (binary)`, has(BETA_MID_CONVERSATION_SYSTEM))
+check("billing template cc_workload= (binary)", has("cc_workload="))
+check("billing template cc_is_subagent (binary)", has("cc_is_subagent"))
+{
+  const opus48 = assembleBetas({ isOAuth: true, provider: "firstParty", modelId: "claude-opus-4-8" })
+  const opus47 = assembleBetas({ isOAuth: true, provider: "firstParty", modelId: "claude-opus-4-7" })
+  check(
+    "logic: opus-4-8 emits mid-conversation-system",
+    opus48.includes(BETA_MID_CONVERSATION_SYSTEM),
+    "assembleBetas(opus-4-8)",
+  )
+  check(
+    "logic: opus-4-7 omits mid-conversation-system",
+    !opus47.includes(BETA_MID_CONVERSATION_SYSTEM),
+    "assembleBetas(opus-4-7)",
+  )
+}
 
 // ── 2. model catalog presence ─────────────────────────────────────────────────
 const baseOf = (id: string) => id.replace(/-\d{8}$/, "")
