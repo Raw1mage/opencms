@@ -74,7 +74,6 @@ import {
 } from "./context-fragments"
 import { Session } from "."
 import { InstructionPrompt } from "./instruction"
-import { Global } from "@/global"
 import path from "path"
 
 /**
@@ -318,9 +317,9 @@ export namespace LLM {
       ].join("\n")
     }
     const lines = ["# Freerun state snapshot", "## Todos (the single source of truth for what you're doing)"]
-    const groups: Record<string, typeof todos> = {}
+    const groups: Record<string, Array<(typeof todos)[number]>> = {}
     for (const t of todos) {
-      ;(groups[t.status] ??= [] as any).push(t)
+      ;(groups[t.status] ??= []).push(t)
     }
     const order: Array<"in_progress" | "pending" | "blocked" | "completed"> = [
       "in_progress",
