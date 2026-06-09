@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "living",
+  "state": "implementing",
   "profile": [],
   "history": [
     {
@@ -50,6 +50,30 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "user-confirmed graduation: three-tier recall shipped, verified, MEMORY.md retired"
+    },
+    {
+      "from": "living",
+      "to": "designed",
+      "at": "2026-06-09T20:06:21.980Z",
+      "by": "pkcs12",
+      "mode": "revise",
+      "reason": "Event-tier storage model changes from index-over-md to NATIVE SQLite: sqlite IS the event log (canonical write target), not a derived index. Events are AI-only/gitignored/non-human-read; the in-package events/ layer (a later accretion, never in the original plan-builder design and not a gate artifact) is removed — all events INSERT into the event-log sqlite tagged by scope. Removes the staleness/auto-rebuild/index-over-md machinery."
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-06-09T20:16:42.901Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "revise design complete (DD-10..12 native-sqlite pivot); tasks updated with Phase 8."
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-06-09T20:16:47.461Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Native pivot implemented + committed (specbase ed8dfc1, skill 2de59c8); P8-5 verified. Pending P8-6 (3R deploy, user-gated) before verified/living."
     }
   ]
 }

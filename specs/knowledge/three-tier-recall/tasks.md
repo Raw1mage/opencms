@@ -50,3 +50,13 @@ Implementation order is load-bearing: **index first (prove retrieval) → AGENTS
 
 - [x] P7-1 Walk AC1–AC9; attach evidence.
 - [x] P7-2 `spec_record_event` with the rebuild metrics, isolation proof, and migration verification list.
+
+## Phase 8 — Native-sqlite pivot (revise, DD-10..12)
+
+- [x] P8-1 `recordEventToDb()` native direct-INSERT writer + MCP `event_record` tool (specbase ed8dfc1).
+- [x] P8-2 Repoint `spec_record_event` → INSERT into the event log scoped by slug; drop md write + README embed.
+- [x] P8-3 Remove index-over-md runtime: `event_rebuild`, lazy auto-materialization, repo-keyed `SPECBASE_EVENTS_EXTRA` (kept `indexEvents`/CLI as one-time bulk importer only).
+- [x] P8-4 plan-builder SKILL.md: remove the in-package `events/` layer (skill 2de59c8).
+- [x] P8-5 Verify native write: `recordEventToDb` INSERTs scoped/tagged row, FTS-searchable; spec index untouched; typecheck clean.
+- [ ] P8-6 Deploy via 3R (re-spawn specbase MCP with native code) — user-gated.
+- [ ] P8-7 (deferred) Clean up pre-existing in-package `events/*.md` (content already in sqlite; frozen archive for now).
