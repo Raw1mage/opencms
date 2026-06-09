@@ -2060,6 +2060,31 @@ export default function Page() {
     if (store.turnStart > maxStart) setStore("turnStart", maxStart)
   })
 
+  // Self-heal a collapsed timeline. The tail-first fetch loads the last N
+  // messages by raw COUNT (session_tail_mobile=20 / session_tail_desktop=100).
+  // A single long agentic turn emits many assistant-step messages, so when one
+  // turn has more steps than that window, the turn's leading user message falls
+  // outside the loaded tail. visibleUserMessages then filters to role==="user"
+  // and yields empty while historyMore stays true (complete=false), so the
+  // timeline collapses to just the "load earlier" button. The scroll-spy that
+  // would normally backfill is gated on userScrolled(), but an empty timeline
+  // has nothing to scroll — so it never fires and the collapse is permanent.
+  // Pull older history until at least one user turn is visible (or history runs
+  // out). Bounded: gated by historyMore (false once complete) + historyLoading
+  // (no concurrent loads); loadMore appends older messages and converges on the
+  // turn's user message. Also covers all-synthetic-user and compaction-only
+  // tails — any case where the loaded window holds messages but no visible turn.
+  createEffect(() => {
+    const id = params.id
+    if (!id) return
+    if (!messagesReady()) return
+    if (visibleUserMessages().length > 0) return
+    if (messages().length === 0) return
+    if (!historyMore()) return
+    if (historyLoading()) return
+    void sync.session.history.loadMore(id)
+  })
+
   createResizeObserver(
     () => promptDock,
     (_contentRect, target) => {

@@ -69,12 +69,15 @@ export const SidebarContent = (props: {
             <DragDropSensors />
             <ConstrainDragXAxis />
             <div class={projectListClass()}>
-              <ScheduledTasksTile
-                mobile={props.mobile}
-                placement={placement}
-                onClick={props.onOpenTasks}
-                label={props.tasksLabel}
-              />
+              {/* Cron task tile temporarily retired (2026-06-09). Re-enable by restoring this block. */}
+              <Show when={false}>
+                <ScheduledTasksTile
+                  mobile={props.mobile}
+                  placement={placement}
+                  onClick={props.onOpenTasks}
+                  label={props.tasksLabel}
+                />
+              </Show>
               <SortableProvider ids={props.projects().map((p) => p.worktree)}>
                 <For each={props.projects()}>{(project) => props.renderProject(project)}</For>
               </SortableProvider>
