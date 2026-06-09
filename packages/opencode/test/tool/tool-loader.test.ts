@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { resolveToolLoaderRequest } from "../../src/tool/tool-loader"
+import { ALWAYS_PRESENT_TOOLS, buildCatalog, resolveToolLoaderRequest } from "../../src/tool/tool-loader"
 
 describe("tool-loader alias resolution", () => {
   const available = new Set([
@@ -44,5 +44,24 @@ describe("tool-loader alias resolution", () => {
     expect(conflict.ambiguous).toEqual([
       { requested: "restart_self", candidates: ["other_restart_self", "system-manager_restart_self"] },
     ])
+  })
+})
+
+describe("tool-loader catalog priority", () => {
+  test("keeps skill discoverable without making it always-present", () => {
+    const tools = Array.from({ length: 80 }, (_, index) => ({
+      id: `aaa_tool_${String(index).padStart(2, "0")}`,
+      description: "Filler tool used to exceed the lazy catalog cap.",
+    }))
+    tools.push({
+      id: "skill",
+      description: "Load domain-specific operational skills.",
+    })
+
+    const catalog = buildCatalog(tools)
+
+    expect(ALWAYS_PRESENT_TOOLS.has("skill")).toBe(false)
+    expect(catalog).toHaveLength(50)
+    expect(catalog[0].id).toBe("skill")
   })
 })

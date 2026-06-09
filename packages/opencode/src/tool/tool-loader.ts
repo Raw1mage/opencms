@@ -6,6 +6,7 @@ import { Log } from "../util/log"
 
 const log = Log.create({ service: "tool.tool-loader" })
 const CATALOG_MAX_ENTRIES = 50
+const PRIORITY_CATALOG_TOOLS = new Set(["skill"])
 
 export const ALWAYS_PRESENT_TOOLS = new Set([
   "task",
@@ -75,11 +76,15 @@ function extractParamSignature(tool: unknown): string {
 }
 
 export function buildCatalog(allTools: { id: string; description: string }[]) {
-  return allTools
+  const entries = allTools
     .filter((tool) => !ALWAYS_PRESENT_TOOLS.has(tool.id))
     .map((tool) => ({ id: tool.id, summary: extractSummary(tool.description) }))
     .sort((a, b) => a.id.localeCompare(b.id))
-    .slice(0, CATALOG_MAX_ENTRIES)
+
+  const priority = entries.filter((tool) => PRIORITY_CATALOG_TOOLS.has(tool.id))
+  const regular = entries.filter((tool) => !PRIORITY_CATALOG_TOOLS.has(tool.id))
+
+  return [...priority, ...regular].slice(0, CATALOG_MAX_ENTRIES)
 }
 
 function normalizeToolAlias(name: string) {
