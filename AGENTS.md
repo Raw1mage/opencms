@@ -52,6 +52,7 @@
 - **Why**：2026-04-20 事件——AI 透過 Bash 跑 `webctl.sh dev-start` 留下 orphan daemon 霸佔 gateway lock，使用者被踢登入 3+ 次直到人工清除。Daemon 生命週期的唯一權威是 gateway；daemon 自己 spawn / kill 兄弟 = 脫軌。
 - **需要改 code 後讓它生效？** 呼叫 `restart_self`；webctl.sh 會 smart-detect dirty 層（daemon / frontend / gateway）並只 rebuild 變動部分。`targets: ["gateway"]` 會附 `--force-gateway` 讓 systemd respawn gateway 本體（期間所有使用者斷線 3-5s）。
 - **rebuild 失敗怎麼辦？** `restart_self` 回 5xx 並帶 `errorLogPath`；系統維持舊版本可用。AI 讀 log、修正、再呼叫。絕不嘗試繞過。
+- **「3R」術語**：使用者說「3R / self 3r」= rebuild + reinstall + restart 的部署授權，走上述合法路徑（`restart_self` 或 `cd ~/projects/opencode && ./webctl.sh restart --force`，繞過 smart-skip）。驗收三證綠：daemon pid 變 / binary inode 變 / `strings binary` 或 health version 含新 marker。細節可 `event_search "3R rebuild reinstall restart"`。
 
 ### 系統自癒（opencms-specific）
 
@@ -84,6 +85,26 @@
 - 本 repo 的 bug report / feature request 預設一律記錄在本地 `issues/` 目錄。
 - 除非使用者明確要求「發 GitHub issue」，否則禁止使用 `gh issue create` 或其他方式建立遠端 GitHub issue。
 - 本地 issue 檔名使用 `issues/issue_<YYYYMMDD>_<slug>.md`；已完成或關閉的 issue 移至 `issues/closed/`。
+
+---
+
+## 知識回憶（三層精煉梯度）
+
+知識分三層，按「需要多細」選層查詢——常駐的只有這條路由規則，**知識本體一律 on-demand**：
+
+- **「我剛才做了什麼 / 本 session 的原始上下文」** → **session** 層（最粗、最全）：`session_recall`。
+- **「X 當初為何這樣決定 / 那次 RCA 結論 / 過往部署」** → **event log** 層（編年中層）：specbase MCP 的 `event_search`（關鍵字，多詞自動 AND）或 `event_query`（date/tag/status）。事件檔在 `docs/events/` 與 `plans/**/events/`，索引在獨立的 `.specbase/events.sqlite`（與 spec 語料分庫，互不污染）。
+- **「X 現在的設計/契約是什麼」** → **specwiki** 層（最細、權威）：specbase MCP 的 `wiki_search` / `wiki_query`。
+
+寫入向上蒸餾（session → 提煉成 event → 結晶成 spec）；讀取向下鑽取（spec 順 `event_log` link 找 events，event 順 session id 回原始 session）。
+
+**不要**把可檢索的累積知識（根因、過往修法、決策）塞進常駐 prompt——那是 retrieval 問題，用上面的工具按需撈。
+
+### 暫行偏好（Provisional）
+
+尚未升格為正式規則的行為偏好暫存於此；驗證穩定後上移為正式規則，淘汰則刪除。
+
+- （目前無）
 
 ---
 
