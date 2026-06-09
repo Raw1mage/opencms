@@ -1,0 +1,74 @@
+[
+  {
+    "id": "TV1",
+    "ac": "AC1",
+    "name": "full index covers all events",
+    "given": "docs/events/*.md (912) + plans/**/events/*.md (81)",
+    "when": "full rebuild of events.sqlite",
+    "then": "entries where type='event' is approximately 993; fts_rows == entries"
+  },
+  {
+    "id": "TV2",
+    "ac": "AC2",
+    "name": "spec corpus isolation",
+    "given": "baseline .specbase/index.sqlite counts (entries=22, links, fts_rows=22)",
+    "when": "events.sqlite is built",
+    "then": "spec index counts and a fixed spec query's BM25 ranking are byte-identical to baseline"
+  },
+  {
+    "id": "TV3",
+    "ac": "AC3",
+    "name": "ranked event recall",
+    "given": "an event file containing a known RCA keyword (e.g. 'phantom account 529')",
+    "when": "event_search('phantom account 529')",
+    "then": "that event is in the top results with a <mark> snippet; latency < 50ms"
+  },
+  {
+    "id": "TV4",
+    "ac": "AC4",
+    "name": "date-range filter",
+    "given": "events spanning multiple months",
+    "when": "event_query(since=2026-06-01, until=2026-06-09)",
+    "then": "only events whose filename date is within range are returned"
+  },
+  {
+    "id": "TV5",
+    "ac": "AC5",
+    "name": "undated filename degrades gracefully",
+    "given": "an event file whose name has no parseable date",
+    "when": "full rebuild",
+    "then": "rebuild completes; that entry has created=null and is still full-text searchable"
+  },
+  {
+    "id": "TV6",
+    "ac": "AC6",
+    "name": "routing rule is small",
+    "given": "AGENTS.md after wiring",
+    "when": "the three-tier routing rule is counted",
+    "then": "the rule block is < 25 lines and contains no knowledge bodies"
+  },
+  {
+    "id": "TV7",
+    "ac": "AC7",
+    "name": "migration gate blocks premature empty",
+    "given": "at least one migrated MEMORY.md item not yet verified findable",
+    "when": "attempt to empty MEMORY.md",
+    "then": "the empty action is refused"
+  },
+  {
+    "id": "TV8",
+    "ac": "AC8",
+    "name": "unified retired to stub",
+    "given": "live events index",
+    "when": "EVENT_LOG_UNIFIED.md retired",
+    "then": "file is < 5 lines pointing at event_search; prior content recoverable from git"
+  },
+  {
+    "id": "TV9",
+    "ac": "AC9",
+    "name": "rebuild cost and size",
+    "given": "993 event files (~7.8MB)",
+    "when": "full rebuild",
+    "then": "duration ~1-5s; events.sqlite < 35MB"
+  }
+]

@@ -1,0 +1,29 @@
+{
+  "diagram_title": "Three-Tier Knowledge Recall (A0)",
+  "node_reference": "A0",
+  "activities": [
+    { "id": "A1", "title": "Index Event Log", "description": "Build a separate FTS5 store over 993 event markdown files, reusing the specbase engine.", "decomposition": null },
+    { "id": "A2", "title": "Serve Event Recall", "description": "Answer recall queries with BM25-ranked snippets over the events index.", "decomposition": null },
+    { "id": "A3", "title": "Route Tiered Retrieval", "description": "Select session, event, or spec tier by required granularity and dispatch the query.", "decomposition": null },
+    { "id": "A4", "title": "Retire Memory File", "description": "Classify and route MEMORY.md entries, verify findability, then empty the file.", "decomposition": null }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "Event Markdown Files", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "Filename-Date And Separate-Store Rules", "type": "control" },
+    { "id": "AR3", "source": "EXTERNAL", "target": "A1:mechanism", "label": "Specbase Engine", "type": "mechanism" },
+    { "id": "AR4", "source": "A1:output", "target": "A2:input", "label": "Events SQLite Index", "type": "output" },
+    { "id": "AR5", "source": "A3:output", "target": "A2:input", "label": "Dispatched Event Query", "type": "input" },
+    { "id": "AR6", "source": "EXTERNAL", "target": "A2:control", "label": "BM25 Ranking", "type": "control" },
+    { "id": "AR7", "source": "EXTERNAL", "target": "A2:mechanism", "label": "Event Search Tools", "type": "mechanism" },
+    { "id": "AR8", "source": "A2:output", "target": "EXTERNAL", "label": "Ranked Snippets", "type": "output" },
+    { "id": "AR9", "source": "EXTERNAL", "target": "A3:input", "label": "Recall Need", "type": "input" },
+    { "id": "AR10", "source": "A4:output", "target": "A3:control", "label": "Three-Tier Routing Rule", "type": "control" },
+    { "id": "AR11", "source": "EXTERNAL", "target": "A3:mechanism", "label": "Agent And Eager Rule", "type": "mechanism" },
+    { "id": "AR12", "source": "A3:output", "target": "EXTERNAL", "label": "Tier Selection", "type": "output" },
+    { "id": "AR13", "source": "EXTERNAL", "target": "A4:input", "label": "Memory File Entries", "type": "input" },
+    { "id": "AR14", "source": "EXTERNAL", "target": "A4:control", "label": "Retirement Taxonomy And Gated Ordering", "type": "control" },
+    { "id": "AR15", "source": "EXTERNAL", "target": "A4:mechanism", "label": "Classification Pass", "type": "mechanism" },
+    { "id": "AR16", "source": "A4:output", "target": "A1:input", "label": "Migrated Event Entries", "type": "output" },
+    { "id": "AR17", "source": "A4:output", "target": "EXTERNAL", "label": "Emptied Memory File", "type": "output" }
+  ]
+}

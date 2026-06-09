@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-06-09T17:32:47.443Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-06-09T17:47:59.378Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "All designed-state artifacts present and validated (spec.md now includes Acceptance Checks AC1-AC9)."
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-06-09T17:50:13.282Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "test-vectors.json now a non-empty array (TV1-9); errors.md has Error Catalogue; observability.md has Events + Metrics."
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-06-09T18:58:39.651Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Implementation done across phases 0-7; advancing through the lifecycle to verified."
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-06-09T18:59:02.225Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "All tasks checked; AC1-AC9 green (evidence in events/). Engine + 3 MCP tools + external sources committed (specbase b59b37d/4596558/d73e258); AGENTS.md + CLAUDE.md landed; MEMORY.md retired 61KB→1KB + EVENT_LOG_UNIFIED stubbed; 153 topic bodies preserved+indexed; spec corpus byte-identical."
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-06-09T18:59:12.958Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "user-confirmed graduation: three-tier recall shipped, verified, MEMORY.md retired"
+    }
+  ]
+}

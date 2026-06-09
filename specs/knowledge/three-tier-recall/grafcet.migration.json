@@ -1,0 +1,7 @@
+[
+  { "StepNumber": 0, "ModuleRef": "A4", "StepType": "initial", "StepAction": "Idle until a MEMORY.md retirement is requested", "LinkInputType": [], "LinkInputNumber": [], "LinkOutputType": "track", "LinkOutputNumber": [1], "Condition": ["migration_started"], "SubGrafcet": [] },
+  { "StepNumber": 1, "ModuleRef": "A4", "StepType": "normal", "StepAction": "Classify each MEMORY.md entry by taxonomy", "LinkInputType": ["track"], "LinkInputNumber": [0], "LinkOutputType": "track", "LinkOutputNumber": [2], "Condition": ["all_classified"], "SubGrafcet": [] },
+  { "StepNumber": 2, "ModuleRef": "A4", "StepType": "normal", "StepAction": "Route entries: rule to AGENTS.md, history to event log, procedure to skill, churn dropped", "LinkInputType": ["track"], "LinkInputNumber": [1], "LinkOutputType": "track", "LinkOutputNumber": [3], "Condition": ["all_routed"], "SubGrafcet": [] },
+  { "StepNumber": 3, "ModuleRef": "A4", "StepType": "normal", "StepAction": "Verify migrated content is findable via the index", "LinkInputType": ["track"], "LinkInputNumber": [2], "LinkOutputType": "track", "LinkOutputNumber": [4], "Condition": ["all_verified_findable"], "SubGrafcet": [] },
+  { "StepNumber": 4, "ModuleRef": "A4", "StepType": "normal", "StepAction": "Empty MEMORY.md (gated last), then return to idle", "LinkInputType": ["track"], "LinkInputNumber": [3], "LinkOutputType": "track", "LinkOutputNumber": [0], "Condition": ["retirement_done"], "SubGrafcet": [] }
+]

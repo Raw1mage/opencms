@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ThreeTierKnowledgeRecallContracts",
+  "$comment": "Mirrors the specbase entries/links schema (packages/lib/src/schema.ts) as reused for the separate events.sqlite store, plus the new event-source ingestion options and event query result shape. Authoritative shapes live in the specbase repo; this document is for contract tests and review.",
+  "definitions": {
+    "eventEntry": {
+      "type": "object",
+      "$comment": "An event-log markdown file projected into the reused entries schema, with type='event'.",
+      "required": ["slug", "title", "type", "body_md"],
+      "properties": {
+        "slug": { "type": "string", "$comment": "Derived from filename (event_<date>_<name>)." },
+        "title": { "type": "string", "$comment": "First H1 or frontmatter summary, falling back to slug." },
+        "type": { "const": "event" },
+        "status": { "type": ["string", "null"], "$comment": "From new-event frontmatter (DD-9); null for legacy files." },
+        "tags": { "type": ["array", "null"], "items": { "type": "string" } },
+        "created": {
+          "type": ["string", "null"],
+          "$comment": "ISO date parsed from filename (YYYYMMDD or YYYY-MM-DD); null when filename has no parseable date."
+        },
+        "source_path": { "type": "string", "$comment": "Relative path under docs/events or plans/**/events." },
+        "body_md": { "type": "string", "$comment": "Whole file body, indexed into events_fts. body_html is NOT generated for events." }
+      }
+    },
+    "eventSourceOptions": {
+      "type": "object",
+      "$comment": "New IndexOptions extension to point the reused indexer at flat event files and a separate DB.",
+      "required": ["eventGlobs", "dbPath"],
+      "properties": {
+        "eventGlobs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["docs/events/*.md", "plans/**/events/*.md"]
+        },
+        "dbPath": { "type": "string", "default": ".specbase/events.sqlite" },
+        "deriveSlugDateFromFilename": { "type": "boolean", "const": true },
+        "renderHtml": { "type": "boolean", "const": false }
+      }
+    },
+    "eventSearchHit": {
+      "type": "object",
+      "$comment": "Return row of event_search (BM25), mirrors specbase SearchHit.",
+      "required": ["slug", "title", "snippet", "rank"],
+      "properties": {
+        "slug": { "type": "string" },
+        "title": { "type": "string" },
+        "snippet": { "type": "string", "$comment": "FTS5 snippet with <mark> context." },
+        "rank": { "type": "number", "$comment": "bm25() score; lower is more relevant." }
+      }
+    },
+    "eventQueryDsl": {
+      "type": "object",
+      "$comment": "event_query filter tokens; date range derived from filename-date.",
+      "properties": {
+        "since": { "type": ["string", "null"], "$comment": "ISO date lower bound." },
+        "until": { "type": ["string", "null"], "$comment": "ISO date upper bound." },
+        "tag": { "type": ["string", "null"] },
+        "status": { "type": ["string", "null"] }
+      }
+    },
+    "tierRoute": {
+      "type": "string",
+      "$comment": "Output of the three-tier routing rule.",
+      "enum": ["session", "event", "spec"]
+    },
+    "newEventFrontmatter": {
+      "type": "object",
+      "$comment": "DD-9 minimal convention for NEW events only; old files exempt.",
+      "required": ["date", "summary"],
+      "properties": {
+        "date": { "type": "string" },
+        "summary": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+[
+  { "StepNumber": 0, "ModuleRef": "A1", "StepType": "initial", "StepAction": "Wait idle for indexing work", "LinkInputType": [], "LinkInputNumber": [], "LinkOutputType": "track", "LinkOutputNumber": [1], "Condition": ["event_committed OR rebuild_requested"], "SubGrafcet": [] },
+  { "StepNumber": 1, "ModuleRef": "A1", "StepType": "normal", "StepAction": "Scan event files; derive slug and date from filename; skip html render", "LinkInputType": ["track"], "LinkInputNumber": [0], "LinkOutputType": "track", "LinkOutputNumber": [2], "Condition": ["files_scanned"], "SubGrafcet": [] },
+  { "StepNumber": 2, "ModuleRef": "A1", "StepType": "normal", "StepAction": "Write events.sqlite in one atomic full rebuild", "LinkInputType": ["track"], "LinkInputNumber": [1], "LinkOutputType": "track", "LinkOutputNumber": [0], "Condition": ["index_ready"], "SubGrafcet": [] }
+]

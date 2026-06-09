@@ -1,0 +1,7 @@
+[
+  { "StepNumber": 0, "ModuleRef": "A3", "StepType": "initial", "StepAction": "Wait idle for a recall need", "LinkInputType": [], "LinkInputNumber": [], "LinkOutputType": "track", "LinkOutputNumber": [1], "Condition": ["recall_need_arises"], "SubGrafcet": [] },
+  { "StepNumber": 1, "ModuleRef": "A3", "StepType": "normal", "StepAction": "Route by required granularity to session, event, or spec tier", "LinkInputType": ["track"], "LinkInputNumber": [0], "LinkOutputType": "track", "LinkOutputNumber": [2], "Condition": ["tier_selected"], "SubGrafcet": [] },
+  { "StepNumber": 2, "ModuleRef": "A2", "StepType": "normal", "StepAction": "Issue FTS query to the selected tier", "LinkInputType": ["track"], "LinkInputNumber": [1], "LinkOutputType": "track", "LinkOutputNumber": [3], "Condition": ["query_returned"], "SubGrafcet": [] },
+  { "StepNumber": 3, "ModuleRef": "A2", "StepType": "normal", "StepAction": "Return BM25-ranked snippets", "LinkInputType": ["track"], "LinkInputNumber": [2], "LinkOutputType": "track", "LinkOutputNumber": [4], "Condition": ["more_detail_needed"], "SubGrafcet": [] },
+  { "StepNumber": 4, "ModuleRef": "A2", "StepType": "normal", "StepAction": "Drill down via event_log link toward the coarser tier, then idle", "LinkInputType": ["track"], "LinkInputNumber": [3], "LinkOutputType": "track", "LinkOutputNumber": [0], "Condition": ["returned_to_idle"], "SubGrafcet": [] }
+]

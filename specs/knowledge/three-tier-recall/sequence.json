@@ -1,0 +1,57 @@
+[
+  {
+    "id": "SEQ1",
+    "title": "Rebuild Event Index",
+    "participants": [
+      { "id": "P1", "name": "Trigger (commit hook or on-demand)", "componentRef": "A1" },
+      { "id": "P2", "name": "Events Indexer", "componentRef": "A1" },
+      { "id": "P3", "name": "Filename Slug/Date Deriver", "componentRef": "A1" },
+      { "id": "P4", "name": "events.sqlite (FTS5)", "componentRef": "A1" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "name": "request full rebuild" },
+      { "id": "MSG2", "from": "P2", "to": "P3", "name": "glob docs/events/*.md + plans/**/events/*.md" },
+      { "id": "MSG3", "from": "P3", "to": "P2", "name": "return slug + created (from filename), body (whole file)" },
+      { "id": "MSG4", "from": "P2", "to": "P4", "name": "atomic transaction: replace all event rows, skip html render" },
+      { "id": "MSG5", "from": "P4", "to": "P2", "name": "FTS triggers sync; return written/removed counts" },
+      { "id": "MSG6", "from": "P2", "to": "P1", "name": "report index ready" }
+    ]
+  },
+  {
+    "id": "SEQ2",
+    "title": "Route And Serve Recall",
+    "participants": [
+      { "id": "P1", "name": "Agent (recall need)", "componentRef": "A3" },
+      { "id": "P2", "name": "Three-Tier Router (AGENTS.md rule)", "componentRef": "A3" },
+      { "id": "P3", "name": "event_search / event_query", "componentRef": "A2" },
+      { "id": "P4", "name": "events.sqlite (FTS5)", "componentRef": "A1" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "name": "recall need with required granularity" },
+      { "id": "MSG2", "from": "P2", "to": "P3", "name": "dispatch event-tier query", "condition": "granularity == event" },
+      { "id": "MSG3", "from": "P3", "to": "P4", "name": "BM25 MATCH over events_fts" },
+      { "id": "MSG4", "from": "P4", "to": "P3", "name": "ranked rows + snippets" },
+      { "id": "MSG5", "from": "P3", "to": "P1", "name": "return ranked snippets (~KB)" },
+      { "id": "MSG6", "from": "P1", "to": "P3", "name": "drill down via event_log link", "condition": "more detail needed" }
+    ]
+  },
+  {
+    "id": "SEQ3",
+    "title": "Migrate And Retire MEMORY.md",
+    "participants": [
+      { "id": "P1", "name": "Migration Pass", "componentRef": "A4" },
+      { "id": "P2", "name": "AGENTS.md", "componentRef": "A4" },
+      { "id": "P3", "name": "Event Log", "componentRef": "A1" },
+      { "id": "P4", "name": "Skill/Command Store", "componentRef": "A4" },
+      { "id": "P5", "name": "MEMORY.md", "componentRef": "A4" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P1", "name": "classify each entry by taxonomy" },
+      { "id": "MSG2", "from": "P1", "to": "P2", "name": "write operating rules (+ provisional)", "condition": "entry is a rule" },
+      { "id": "MSG3", "from": "P1", "to": "P3", "name": "write historical/RCA/decision as event", "condition": "entry is history" },
+      { "id": "MSG4", "from": "P1", "to": "P4", "name": "create skill/command (e.g. /3r)", "condition": "entry is a procedure" },
+      { "id": "MSG5", "from": "P1", "to": "P3", "name": "verify migrated content findable via event_search" },
+      { "id": "MSG6", "from": "P1", "to": "P5", "name": "empty MEMORY.md", "condition": "all verified findable (gated last)" }
+    ]
+  }
+]
