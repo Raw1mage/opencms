@@ -937,10 +937,15 @@ export async function deriveObservedCondition(input: {
       return "stall-recovery"
     }
 
-    if (input.predictedCacheMiss === "miss" && ctxRatio > compactionTweak.cacheLossFloor) {
-      const cacheRead = input.lastFinished.tokens.cache.read ?? 0
-      const predictedUncached = Math.max(0, currentInputTokens - cacheRead)
-      if (predictedUncached >= compactionTweak.minUncachedTokens) return "cache-aware"
+    if (
+      input.predictedCacheMiss === "miss" &&
+      SessionCompaction.shouldCompactOnPredictedCacheLoss({
+        currentInputTokens,
+        cacheRead: input.lastFinished.tokens.cache.read ?? 0,
+        window,
+      })
+    ) {
+      return "cache-aware"
     }
 
     if (await input.isCacheAware()) return "cache-aware"

@@ -314,6 +314,67 @@ describe("session.prompt trigger inventory", () => {
   })
 })
 
+describe("session.compaction.shouldCompactOnPredictedCacheLoss", () => {
+  // Central decision authority shared by deriveObservedCondition's
+  // predicted-cache-miss trigger and processor.ts's rotation cold-send guard.
+  // Defaults: cacheLossFloor=0.5, minUncachedTokens=40_000.
+
+  test("codex rotation cold send (cacheRead=0, large high-context prompt) → compact", () => {
+    // 190k cache cliff on a 272k codex window: ratio 0.70 > 0.5, uncached 190k >= 40k.
+    expect(
+      SessionCompaction.shouldCompactOnPredictedCacheLoss({
+        currentInputTokens: 190_000,
+        cacheRead: 0,
+        window: 272_000,
+      }),
+    ).toBe(true)
+  })
+
+  test("small context → full send (no compaction)", () => {
+    // 50k on 272k window: ratio 0.18 ≤ 0.5. This is the post-compaction state,
+    // so a subsequent rotation will NOT re-trigger → no cascade.
+    expect(
+      SessionCompaction.shouldCompactOnPredictedCacheLoss({
+        currentInputTokens: 50_000,
+        cacheRead: 0,
+        window: 272_000,
+      }),
+    ).toBe(false)
+  })
+
+  test("high ratio but mostly cached (small uncached payload) → full send", () => {
+    // ratio 0.73 > 0.5 but uncached = 200k-190k = 10k < 40k.
+    expect(
+      SessionCompaction.shouldCompactOnPredictedCacheLoss({
+        currentInputTokens: 200_000,
+        cacheRead: 190_000,
+        window: 272_000,
+      }),
+    ).toBe(false)
+  })
+
+  test("ratio exactly at floor is not above it → full send", () => {
+    // 50k / 100k = 0.5, strict `> cacheLossFloor` → false.
+    expect(
+      SessionCompaction.shouldCompactOnPredictedCacheLoss({
+        currentInputTokens: 50_000,
+        cacheRead: 0,
+        window: 100_000,
+      }),
+    ).toBe(false)
+  })
+
+  test("unknown window (0) → full send", () => {
+    expect(
+      SessionCompaction.shouldCompactOnPredictedCacheLoss({
+        currentInputTokens: 190_000,
+        cacheRead: 0,
+        window: 0,
+      }),
+    ).toBe(false)
+  })
+})
+
 describe("session.prompt cache-cliff classification", () => {
   // Helper: small assistant frame with controllable cache.read.
   const finished = (sessionID: string, cacheRead: number) =>

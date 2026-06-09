@@ -510,6 +510,40 @@ export namespace SessionCompaction {
     return true
   }
 
+  /**
+   * Predicted-cache-loss compaction decision — the single authority for
+   * "the cache is (about to be) gone; is a full cold send worth it, or
+   * should we compact first?".
+   *
+   * Two callers consume this, so the threshold logic lives in exactly one
+   * place (compaction decision layer):
+   *   1. deriveObservedCondition's `predicted-cache-miss` trigger
+   *      (prompt.ts) — codex turns where the continuation chain was
+   *      invalidated, so the next send re-bills uncached.
+   *   2. The rate-limit rotation re-send path (processor.ts). A rotation to
+   *      a fresh account/provider is an UNCONDITIONAL cache loss
+   *      (cacheRead = 0 on the cold account), so re-sending a large prompt
+   *      in-place is pure waste — compact first, then send the smaller
+   *      prompt to the new account.
+   *
+   * Decision (mirrors the by-token economics of shouldCacheAwareCompact):
+   * sending full context is only worthwhile when the context is small.
+   * Above `cacheLossFloor` of the window AND with a large uncached payload
+   * (`>= minUncachedTokens`), compact-then-send is strictly cheaper than the
+   * cold full send. Pure + sync so both callers share identical thresholds.
+   */
+  export function shouldCompactOnPredictedCacheLoss(input: {
+    currentInputTokens: number
+    cacheRead: number
+    window: number
+  }): boolean {
+    const tw = Tweaks.compactionSync()
+    const ratio = input.window > 0 ? input.currentInputTokens / input.window : 0
+    if (ratio <= tw.cacheLossFloor) return false
+    const predictedUncached = Math.max(0, input.currentInputTokens - input.cacheRead)
+    return predictedUncached >= tw.minUncachedTokens
+  }
+
   // Phase 13 follow-up (2026-04-28): tool-output prune retired. The 80%
   // utilization GC was cache-hostile (every prune mutates mid-prompt bytes
   // → kills codex prefix-cache for 80%→90% window) and only delayed the

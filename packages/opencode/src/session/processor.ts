@@ -369,6 +369,46 @@ export namespace SessionProcessor {
           }
         }
 
+        // Rotation cold-send guard (codex_rotation-cache-cliff). A rate-limit
+        // rotation switches to a fresh account whose prompt cache is cold
+        // (cacheRead = 0), yet the rotation paths below re-send the same full
+        // prompt IN-PLACE — bypassing the runloop's pre-send compaction check
+        // (deriveObservedCondition) and re-billing the entire context uncached
+        // ("cache cliff 190k→0k"). Funnel the decision through the single
+        // compaction-decision authority (shouldCompactOnPredictedCacheLoss):
+        // when the cold full send isn't worth it, return "compact" so the
+        // runloop compacts (keeping a tail) and the next iteration sends the
+        // smaller prompt to the new account. Returns true when the caller
+        // should `return "compact"` instead of re-sending.
+        const shouldDeferColdResend = async (): Promise<boolean> => {
+          const window = streamInput.model.limit.input ?? streamInput.model.limit.context
+          const currentInputTokens = streamInput.contextBudget?.used ?? 0
+          if (currentInputTokens <= 0) return false
+          if (
+            !SessionCompaction.shouldCompactOnPredictedCacheLoss({
+              currentInputTokens,
+              cacheRead: 0,
+              window,
+            })
+          )
+            return false
+          // Disk-terminal cleanup before returning "compact" — same minimum
+          // the post-while block does (1970-1971) and the ContextOverflowError
+          // path does (1783-1784) — so the parent's watchdog A doesn't poll
+          // forever on an unfinished assistant row.
+          input.assistantMessage.time.completed = Date.now()
+          await Session.updateMessage(input.assistantMessage)
+          log.info("rotation: deferring cold re-send to compaction (predicted cache loss)", {
+            sessionID: input.sessionID,
+            providerId: streamInput.model.providerId,
+            modelID: streamInput.model.id,
+            accountId: streamInput.accountId,
+            currentInputTokens,
+            window,
+          })
+          return true
+        }
+
         while (true) {
           if (input.abort.aborted) break
 
@@ -614,6 +654,9 @@ export namespace SessionProcessor {
                         fallbackAttempts,
                         note: "preflight switched away from rate-limited vector",
                       })
+                      // Cold-send guard: switched to a fresh (cold) account at
+                      // pre-flight — defer to compaction before the full send.
+                      if (await shouldDeferColdResend()) return "compact"
                     } else {
                       // FIX(Bug #5): Pre-flight null fallback — all same-identity candidates
                       // are exhausted. Surface error and stop instead of proceeding to call
@@ -1587,6 +1630,9 @@ export namespace SessionProcessor {
                     error: e?.message,
                     note: "temporary error triggered fallback switch",
                   })
+                  // Cold-send guard: rotated to a fresh (cold) account — defer
+                  // to compaction before re-billing the full prompt uncached.
+                  if (await shouldDeferColdResend()) return "compact"
                   attempt = 0
                   // Exponential backoff: 500ms → 1s → 2s → 4s → 8s (cap) to prevent retry storms
                   const backoffMs = Math.min(500 * Math.pow(2, Math.max(0, fallbackAttempts - 1)), 8000)
@@ -1892,6 +1938,9 @@ export namespace SessionProcessor {
                     fallbackAttempts,
                     note: "rate limit retry redirected to rotation",
                   })
+                  // Cold-send guard: rotated to a fresh (cold) account — defer
+                  // to compaction before re-billing the full prompt uncached.
+                  if (await shouldDeferColdResend()) return "compact"
                   attempt = 0
                   // Exponential backoff: 500ms → 1s → 2s → 4s → 8s (cap) to prevent retry storms
                   const backoffMs = Math.min(500 * Math.pow(2, Math.max(0, fallbackAttempts - 1)), 8000)
