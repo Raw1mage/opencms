@@ -1,5 +1,5 @@
 import { Show, createEffect, createMemo, createResource } from "solid-js"
-import { useParams, useSearchParams } from "@solidjs/router"
+import { useNavigate, useParams, useSearchParams } from "@solidjs/router"
 import { Terminal } from "@/components/terminal"
 import { useLanguage } from "@/context/language"
 import { useTerminal } from "@/context/terminal"
@@ -12,6 +12,21 @@ export default function TerminalPopoutRoute() {
   const sdk = useSDK()
   const params = useParams<{ dir?: string; id?: string }>()
   const [searchParams] = useSearchParams<{ pty?: string }>()
+  const navigate = useNavigate()
+
+  const sessionBasePath = () => (params.id ? `/${params.dir}/session/${params.id}` : `/${params.dir}/session`)
+
+  const handleClose = () => {
+    // Desktop pop-out is a script-opened window (window.opener set) — window.close()
+    // works there. On mobile this same page is reached via in-tab navigate(), so the
+    // tab was NOT script-opened and window.close() is a silent no-op; route back to
+    // the session instead so the close "×" actually returns the user to their page.
+    if (typeof window !== "undefined" && window.opener && !window.opener.closed) {
+      window.close()
+      return
+    }
+    navigate(sessionBasePath())
+  }
 
   const requestedID = createMemo(() => searchParams.pty)
 
@@ -74,7 +89,7 @@ export default function TerminalPopoutRoute() {
   })
 
   return (
-    <div class="min-h-screen w-full flex flex-col bg-slate-900 text-slate-100">
+    <div class="h-full w-full overflow-hidden flex flex-col bg-slate-900 text-slate-100">
       <div
         role="banner"
         class="h-8 flex items-center gap-2 px-3 border-b border-slate-700 bg-slate-800 select-none"
@@ -84,7 +99,7 @@ export default function TerminalPopoutRoute() {
         <button
           type="button"
           class="text-12-regular text-text-weak hover:text-text-base"
-          onClick={() => window.close()}
+          onClick={handleClose}
           aria-label={language.t("common.close") ?? "Close"}
         >
           ×

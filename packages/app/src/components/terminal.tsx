@@ -11,6 +11,7 @@ import { useLanguage } from "@/context/language"
 import { showToast } from "@opencode-ai/ui/toast"
 import { disposeIfDisposable, getHoveredLinkText, setOptionIfSupported } from "@/utils/runtime-adapters"
 import { terminalWriter } from "@/utils/terminal-writer"
+import { isMobile } from "@/utils/store-cap"
 
 const TOGGLE_TERMINAL_ID = "terminal.toggle"
 const DEFAULT_TOGGLE_TERMINAL_KEYBIND = "ctrl+`"
@@ -160,7 +161,10 @@ const useTerminalUiBindings = (input: {
     input.term.options.cursorBlink = true
     // Only scroll into view when NOT inside a session scroller — otherwise
     // it hijacks the session's auto-scroll and yanks the viewport mid-stream.
-    if (!input.container.closest(".session-scroller")) {
+    // Skip on mobile: the keyboard-aware root height (MobileKeyboardViewportFix)
+    // already keeps the panel above the soft keyboard, and scrollIntoView here
+    // yanks the whole page off-screen when the keyboard opens.
+    if (!isMobile() && !input.container.closest(".session-scroller")) {
       input.container.scrollIntoView({ block: "end", behavior: "smooth" })
     }
   }
@@ -601,10 +605,12 @@ export const Terminal = (props: TerminalProps) => {
         const visualViewport = window.visualViewport
         if (visualViewport) {
           const handleVisualViewportChange = () => {
+            // Refit the terminal grid to the new visual viewport (e.g. when the
+            // soft keyboard opens/closes). Do NOT scrollIntoView here: the
+            // keyboard-aware root height (MobileKeyboardViewportFix) keeps the
+            // panel visible, and scrollIntoView({block:"end"}) yanked the whole
+            // page off-screen on mobile every time the keyboard resized.
             scheduleFit()
-            if (container.ownerDocument.activeElement === t.textarea && !container.closest(".session-scroller")) {
-              requestAnimationFrame(() => container.scrollIntoView({ block: "end", behavior: "smooth" }))
-            }
           }
           visualViewport.addEventListener("resize", handleVisualViewportChange)
           visualViewport.addEventListener("scroll", handleVisualViewportChange)

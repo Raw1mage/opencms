@@ -1,4 +1,4 @@
-import { createEffect, createMemo, For, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, onCleanup, For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Portal } from "solid-js/web"
 import { createMediaQuery } from "@solid-primitives/media"
@@ -310,16 +310,37 @@ export function SessionHeader() {
         : "border-border-base bg-surface-panel text-text-strong hover:bg-surface-raised-base-hover"
     }`
 
-  const leftMount = createMemo(
-    () => document.getElementById("opencode-titlebar-left") ?? document.getElementById("opencode-titlebar-center"),
-  )
-  const rightMount = createMemo(() => document.getElementById("opencode-titlebar-right"))
+  // The titlebar mount nodes live in <Titlebar>, which is unmounted on popout
+  // routes and recreated on return. A one-shot getElementById would cache a
+  // stale/missing node after that remount, leaving the header portals (all the
+  // tool icons) targeting a detached element. Resolve reactively: re-query on
+  // every route change and retry across frames until both nodes are in the DOM.
+  const [leftMount, setLeftMount] = createSignal<HTMLElement | null>(null)
+  const [rightMount, setRightMount] = createSignal<HTMLElement | null>(null)
+  createEffect(() => {
+    location.pathname // re-resolve whenever the route changes (e.g. popout → session)
+    let frame: number | undefined
+    const resolve = (attempt: number) => {
+      const left =
+        document.getElementById("opencode-titlebar-left") ?? document.getElementById("opencode-titlebar-center")
+      const right = document.getElementById("opencode-titlebar-right")
+      setLeftMount(left)
+      setRightMount(right)
+      // Titlebar may mount a frame or two after this route's content; keep
+      // retrying briefly until both targets exist.
+      if ((!left || !right) && attempt < 30) frame = requestAnimationFrame(() => resolve(attempt + 1))
+    }
+    resolve(0)
+    onCleanup(() => {
+      if (frame !== undefined) cancelAnimationFrame(frame)
+    })
+  })
 
   return (
     <>
-      <Show when={leftMount()}>
+      <Show when={leftMount()} keyed>
         {(mount) => (
-          <Portal mount={mount()}>
+          <Portal mount={mount}>
             <Show when={subpageTitle()}>
               {(title) => (
                 <button
@@ -335,9 +356,9 @@ export function SessionHeader() {
           </Portal>
         )}
       </Show>
-      <Show when={rightMount()}>
+      <Show when={rightMount()} keyed>
         {(mount) => (
-          <Portal mount={mount()}>
+          <Portal mount={mount}>
             <div class="flex items-center gap-3">
               <Show when={projectDirectory() && canOpen()}>
                 <div class="hidden xl:flex items-center">

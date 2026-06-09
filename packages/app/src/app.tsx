@@ -160,11 +160,49 @@ function SessionProviders(props: ParentProps) {
 function RouterRoot(props: ParentProps<{ appChildren?: JSX.Element }>) {
   return (
     <AppShellProviders>
+      <MobileKeyboardViewportFix />
       <WebSessionSelectBridge />
       {props.appChildren}
       {props.children}
     </AppShellProviders>
   )
+}
+
+// Keep the app above the soft keyboard on mobile. The root uses `h-dvh`, which
+// (like 100vh) does NOT shrink when the virtual keyboard opens, so the bottom of
+// the layout — prompt input and terminal panel — slides under the keyboard, off
+// the visible visualViewport. Chromium honours `interactive-widget=resizes-content`
+// (set in index.html) and shrinks the layout viewport for us; this JS is the
+// fallback for browsers that don't (e.g. iOS Safari): bind #root height to the
+// visual viewport whenever the keyboard meaningfully reduces it.
+function MobileKeyboardViewportFix() {
+  createEffect(() => {
+    if (typeof window === "undefined") return
+    const vv = window.visualViewport
+    const root = document.getElementById("root")
+    if (!vv || !root) return
+
+    const apply = () => {
+      const onMobile = window.innerWidth < 768
+      const keyboardInset = window.innerHeight - vv.height - vv.offsetTop
+      // Engage only on small viewports when a soft keyboard is clearly open.
+      if (onMobile && keyboardInset > 120) {
+        root.style.height = `${Math.round(vv.height)}px`
+      } else {
+        root.style.height = ""
+      }
+    }
+
+    apply()
+    vv.addEventListener("resize", apply)
+    vv.addEventListener("scroll", apply)
+    onCleanup(() => {
+      vv.removeEventListener("resize", apply)
+      vv.removeEventListener("scroll", apply)
+      root.style.height = ""
+    })
+  })
+  return null
 }
 
 function WebSessionSelectBridge() {
