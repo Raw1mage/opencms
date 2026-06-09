@@ -203,11 +203,17 @@ export function TerminalPanel(props: {
                 <div class="flex-1 min-h-0 relative">
                   <Show when={props.terminal.active()} keyed>
                     {(id) => (
-                      <Show when={byId().get(id)} keyed>
+                      // NOT keyed: the active terminal id (outer Show) is the only
+                      // legitimate remount trigger. byId() hands back a fresh {...pty}
+                      // object on every store.all mutation, and Terminal's onCleanup
+                      // persists its buffer back into store.all — so a keyed inner Show
+                      // remounts the live terminal on its own persist write, looping
+                      // every few seconds (Ghostty reload + WS reconnect = screen reset).
+                      <Show when={byId().get(id)}>
                         {(pty) => (
                           <div id={`terminal-wrapper-${id}`} class="absolute inset-0">
                             <Terminal
-                              pty={pty}
+                              pty={pty()}
                               onCleanup={props.terminal.update}
                               onConnectError={() => props.terminal.clone(id)}
                             />
