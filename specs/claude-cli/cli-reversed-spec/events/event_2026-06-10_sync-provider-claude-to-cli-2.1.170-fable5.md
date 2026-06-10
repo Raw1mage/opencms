@@ -60,8 +60,25 @@ tests pass.
   provider-claude's gates (mid-conv, 1M, max-output) so a credentialed user who
   selects it by id behaves byte-identically to the official CLI.
 
+## Verification (live, post-restart)
+
+Confirmed end-to-end after a legitimate daemon restart, in a real mixed-model
+session (`ses_14eeefee1ffejFiXqc5Yke5rVS`, project `/home/pkcs12/projects/documents`):
+
+- `providerId=claude-cli, modelId=claude-fable-5` ran 15+ rounds with non-zero
+  `outputTokens` each round (208 → 570 → 1286 …) — the model actually responds,
+  not just dispatches. The same session also drove `codex/gpt-5.5` (84 rounds),
+  i.e. Fable was exercised by direct model-switch comparison.
+- **Zero error/warn** runtime events for the Fable rounds (all `level: info`):
+  no missing-model, no auth/beta rejection.
+- **Prompt cache intact across the VERSION bump:** round N `cacheWrite=42684` →
+  round N+1 `cacheRead=42684`, accumulating cleanly (50864 …). The 2.1.170
+  `cc_version=` change (system block[0]) did not thrash the static cache prefix —
+  the fingerprint change is clean.
+
 ## Cross-refs
 
 - refactor-anthropic skill §1–3
 - Prior sync: `event_2026-06-09_sync-provider-claude-to-cli-2.1.169.md`
 - Drift tool: `packages/provider-claude/scripts/sync-from-cli.ts`
+- Live verification session: `ses_14eeefee1ffejFiXqc5Yke5rVS`
