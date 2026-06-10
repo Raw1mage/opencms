@@ -63,3 +63,27 @@ describe("CompactionManager — enrichment dedup (S1)", () => {
     expect(calls).toHaveLength(2)
   })
 })
+
+// DD-10: the central layer routes by provider class to a per-provider strategy.
+describe("CompactionManager — provider routing (DD-10)", () => {
+  it("classifies provider id into the 3-class taxonomy", () => {
+    expect(CompactionManager.__test__.classifyProvider("claude-cli")).toBe("claude")
+    expect(CompactionManager.__test__.classifyProvider("codex")).toBe("codex")
+    expect(CompactionManager.__test__.classifyProvider("github-copilot")).toBe("general")
+    expect(CompactionManager.__test__.classifyProvider(undefined)).toBe("general")
+  })
+
+  it("routes an enrich request through the strategy registry (reaches the executor)", () => {
+    CompactionManager.__test__.reset()
+    const seen: Array<string | undefined> = []
+    CompactionManager.setEnrichExecutor((_sid, _obs, model) => seen.push(model?.providerId))
+    CompactionManager.requestEnrich({
+      sessionID: "ses_a",
+      anchorId: "anchor_1",
+      observed: "overflow",
+      model: { providerId: "claude-cli" } as any,
+      origin: "x",
+    })
+    expect(seen).toEqual(["claude-cli"])
+  })
+})
