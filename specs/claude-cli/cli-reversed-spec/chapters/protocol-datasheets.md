@@ -1,9 +1,15 @@
-# Protocol Datasheets — Claude Code CLI 2.1.169
+# Protocol Datasheets — Claude Code CLI 2.1.170
 
-> Source: native binary `@anthropic-ai/claude-code-linux-x64@2.1.169`
-> (`BUILD_TIME 2026-06-08T03:22:12Z`, `GIT_SHA eb44edf196b8a320135d5a27a3cfba37773ce0cd`),
-> re-verified 2026-06-09 via `bun packages/provider-claude/scripts/sync-from-cli.ts`.
+> Source: native binary `@anthropic-ai/claude-code-linux-x64@2.1.170`
+> (`BUILD_TIME 2026-06-09T15:09:09Z`, `GIT_SHA 1cda84def004ef3a8f569f8e8284a153a6b98c3a`),
+> re-verified 2026-06-10 via `bun packages/provider-claude/scripts/sync-from-cli.ts`.
 > Delta-from-2.1.144 notes are retained inline where the registry/constants moved.
+>
+> **2.1.170 (Mythos-class launch — Fable 5 / Mythos 5):** new model IDs
+> `claude-fable-5` (public) and `claude-mythos-5` (access-restricted), both in the
+> 64000/128000 max-output tier (`K==="claude-fable-5"||K==="claude-mythos-5")$=64000,q=128000`)
+> and the 1M-context capability tier. The **mid-conversation-system** gate (O98)
+> widened from opus-4-8-only to `{opus-4-8, fable-5, mythos-5}` — opus-4-7 stays false.
 
 ---
 
@@ -11,7 +17,7 @@
 
 | Constant | Value | Notes |
 |----------|-------|-------|
-| VERSION | `2.1.169` | Build time `2026-06-08T03:22:12Z`, SHA `eb44edf196b8a320135d5a27a3cfba37773ce0cd` |
+| VERSION | `2.1.170` | Build time `2026-06-09T15:09:09Z`, SHA `1cda84def004ef3a8f569f8e8284a153a6b98c3a` |
 | API_VERSION | `2023-06-01` | Unchanged since initial release |
 | CLIENT_ID | `9d1c250a-e61b-44d9-88ed-5944d1962f5e` | Unchanged |
 | ATTRIBUTION_SALT | `59cf53e54c78` | Present but `cch` now hardcoded `00000` |
@@ -210,9 +216,10 @@ just `Content-Type: application/json`; the profile call adds
 > The actual per-request assembly (`WW6`/`QU`/`cH`/`GW6`) and the exact gate for
 > each beta are torn down in
 > [`betas-and-fallback-teardown-2.1.169.md`](./betas-and-fallback-teardown-2.1.169.md).
-> That teardown also flags one live divergence: the CLI emits
-> `mid-conversation-system-2026-04-07` on **opus-4-8** (gate `O98`), which
-> opencode's `assembleBetas` does not.
+> The CLI emits `mid-conversation-system-2026-04-07` via gate `O98`; since the
+> 2.1.169 alignment opencode's `assembleBetas` matches it. As of **2.1.170** the
+> gate covers `{opus-4-8, fable-5, mythos-5}` (was opus-4-8-only); opus-4-7 stays
+> false. Mirrored by `modelEmitsMidConversationSystem` in `protocol.ts`.
 
 > **Provider stance (unchanged by this bump).** `packages/provider-claude` only
 > *sends* the subset attached under normal subscription inference: `claude_code`,

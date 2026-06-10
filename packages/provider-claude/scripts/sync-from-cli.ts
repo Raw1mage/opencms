@@ -48,7 +48,7 @@ import { MODEL_CATALOG, getOutputLimit, normalizeModelId } from "../src/models.j
 import { OAUTH_USER_AGENT } from "../src/auth.js"
 
 /** The CLI version this provider is currently aligned to. Bump deliberately. */
-const PINNED_VERSION = "2.1.169"
+const PINNED_VERSION = "2.1.170"
 
 const args = process.argv.slice(2)
 const versionArg = args.includes("--version") ? args[args.indexOf("--version") + 1] : undefined
@@ -135,18 +135,15 @@ check(`beta ${BETA_MID_CONVERSATION_SYSTEM} (binary)`, has(BETA_MID_CONVERSATION
 check("billing template cc_workload= (binary)", has("cc_workload="))
 check("billing template cc_is_subagent (binary)", has("cc_is_subagent"))
 {
-  const opus48 = assembleBetas({ isOAuth: true, provider: "firstParty", modelId: "claude-opus-4-8" })
-  const opus47 = assembleBetas({ isOAuth: true, provider: "firstParty", modelId: "claude-opus-4-7" })
-  check(
-    "logic: opus-4-8 emits mid-conversation-system",
-    opus48.includes(BETA_MID_CONVERSATION_SYSTEM),
-    "assembleBetas(opus-4-8)",
-  )
-  check(
-    "logic: opus-4-7 omits mid-conversation-system",
-    !opus47.includes(BETA_MID_CONVERSATION_SYSTEM),
-    "assembleBetas(opus-4-7)",
-  )
+  const mid = (modelId: string) =>
+    assembleBetas({ isOAuth: true, provider: "firstParty", modelId }).includes(
+      BETA_MID_CONVERSATION_SYSTEM,
+    )
+  // 2.1.170 widened O98 from opus-4-8-only to {opus-4-8, fable-5, mythos-5}.
+  check("logic: opus-4-8 emits mid-conversation-system", mid("claude-opus-4-8"), "assembleBetas(opus-4-8)")
+  check("logic: fable-5 emits mid-conversation-system", mid("claude-fable-5"), "assembleBetas(fable-5)")
+  check("logic: mythos-5 emits mid-conversation-system", mid("claude-mythos-5"), "assembleBetas(mythos-5)")
+  check("logic: opus-4-7 omits mid-conversation-system", !mid("claude-opus-4-7"), "assembleBetas(opus-4-7)")
 }
 
 // ── 2. model catalog presence ─────────────────────────────────────────────────

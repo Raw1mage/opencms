@@ -15,7 +15,7 @@ import {
   buildBillingHeader,
   isFirstPartyish,
   isHaikuModel,
-  modelIsOpus48,
+  modelEmitsMidConversationSystem,
   modelSupportsContextManagement,
   supports1MContext,
   type AssembleBetasOptions,
@@ -149,13 +149,18 @@ describe("structural guardrails", () => {
   })
 })
 
-// align-2.1.169 DD-1: mid-conversation-system gate (upstream O98)
-describe("mid-conversation-system (opus-4-8 gate, align-2.1.169)", () => {
+// align-2.1.169 DD-1 + 2.1.170 widening: mid-conversation-system gate (upstream O98)
+describe("mid-conversation-system ({opus-4-8,fable-5,mythos-5} gate, 2.1.170)", () => {
   const MCS = "mid-conversation-system-2026-04-07"
   const base = { isOAuth: true, provider: "firstParty" as ProviderRoute }
 
   test("opus-4-8 first-party OAuth includes it (TV-01)", () => {
     expect(assembleBetas({ ...base, modelId: "claude-opus-4-8" })).toContain(MCS)
+  })
+  test("fable-5 / mythos-5 include it (2.1.170 widening)", () => {
+    for (const modelId of ["claude-fable-5", "claude-mythos-5"]) {
+      expect(assembleBetas({ ...base, modelId })).toContain(MCS)
+    }
   })
   test("opus-4-8[1m] alias still gated true (TV-02)", () => {
     expect(assembleBetas({ ...base, modelId: "claude-opus-4-8[1m]" })).toContain(MCS)
@@ -183,11 +188,13 @@ describe("mid-conversation-system (opus-4-8 gate, align-2.1.169)", () => {
       assembleBetas({ isOAuth: true, provider: "bedrock", modelId: "claude-opus-4-8" }),
     ).not.toContain(MCS)
   })
-  test("modelIsOpus48 normalizes aliases", () => {
-    expect(modelIsOpus48("claude-opus-4-8")).toBe(true)
-    expect(modelIsOpus48("CLAUDE-OPUS-4-8[1m]")).toBe(true)
-    expect(modelIsOpus48("us-claude-opus-4-8-20251101")).toBe(true)
-    expect(modelIsOpus48("claude-opus-4-7")).toBe(false)
+  test("modelEmitsMidConversationSystem normalizes aliases", () => {
+    expect(modelEmitsMidConversationSystem("claude-opus-4-8")).toBe(true)
+    expect(modelEmitsMidConversationSystem("CLAUDE-OPUS-4-8[1m]")).toBe(true)
+    expect(modelEmitsMidConversationSystem("us-claude-opus-4-8-20251101")).toBe(true)
+    expect(modelEmitsMidConversationSystem("claude-fable-5")).toBe(true)
+    expect(modelEmitsMidConversationSystem("claude-mythos-5[1m]")).toBe(true)
+    expect(modelEmitsMidConversationSystem("claude-opus-4-7")).toBe(false)
   })
 })
 

@@ -1,7 +1,7 @@
 /**
  * Claude model catalog.
  *
- * Source of truth: @anthropic-ai/claude-code@2.1.169 (LMH() output table)
+ * Source of truth: @anthropic-ai/claude-code@2.1.170 (LMH() output table)
  * + protocol-datasheet.md § 9. Verify/realign with:
  *   bun packages/provider-claude/scripts/sync-from-cli.ts
  *
@@ -9,6 +9,10 @@
  * max-output table to upstream LMH() — opus-4-6/4-7/4-8 = 64000, other 4.x =
  * 32000. The old hand-copied "zz8" table capped opus at 8192 and was stale
  * since ≥2.1.141, truncating replies at 8192 output tokens.
+ * 2026-06-10: 2.1.170 Mythos-class launch — added Fable 5 (claude-fable-5) to
+ * the catalog and the 64000 max-output tier alongside Mythos 5 (claude-mythos-5,
+ * wire-gate only, not in the picker: access-restricted). Upstream groups both as
+ * `K==="claude-fable-5"||K==="claude-mythos-5")$=64000,q=128000`.
  */
 
 export interface ClaudeModelSpec {
@@ -50,6 +54,8 @@ export interface OutputLimit {
  * stale by ≥2.1.141 — the real CLI sends 64000 for opus-4-6/4-7/4-8.
  */
 const OUTPUT_LIMITS: Record<string, OutputLimit> = {
+  "claude-fable-5": { default: 64000, upperLimit: 128000 },
+  "claude-mythos-5": { default: 64000, upperLimit: 128000 },
   "claude-opus-4-8": { default: 64000, upperLimit: 128000 },
   "claude-opus-4-7": { default: 64000, upperLimit: 128000 },
   "claude-opus-4-6": { default: 64000, upperLimit: 128000 },
@@ -115,6 +121,15 @@ export function getMaxOutput(modelId: string): number {
  * For API-key auth, pricing should come from the API or be configured.
  */
 export const MODEL_CATALOG: ClaudeModelSpec[] = [
+  {
+    id: "claude-fable-5",
+    name: "Claude Fable 5",
+    context: 200_000,
+    maxOutput: 64000,
+    supports1MContext: true,
+    supportsThinking: true,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  },
   {
     id: "claude-opus-4-8",
     name: "Claude Opus 4.8",

@@ -1344,13 +1344,16 @@ export namespace Provider {
 
     // Initialize claude-cli provider (Official Protocol Mimicry)
     // Replacing the legacy 'anthropic' provider entirely.
-    // `context` = 1_000_000 for 1M-eligible models (opus-4-5/6/7/8, sonnet-4-5/6)
-    // because the provider sends the context-1m-2025-08-07 beta for them; 200000
-    // otherwise (haiku, claude-3). `output` mirrors upstream LMH().default
-    // (verified @anthropic-ai/claude-code 2.1.169): opus-4-6/4-7/4-8 = 64000,
-    // other 4.x = 32000, legacy claude-3 per family.
+    // `context` = 1_000_000 for 1M-eligible models (fable-5, opus-4-5/6/7/8,
+    // sonnet-4-5/6) because the provider sends the context-1m-2025-08-07 beta for
+    // them; 200000 otherwise (haiku, claude-3). `output` mirrors upstream
+    // LMH().default (verified @anthropic-ai/claude-code 2.1.170): fable-5 /
+    // opus-4-6/4-7/4-8 = 64000, other 4.x = 32000, legacy claude-3 per family.
+    // (claude-mythos-5 is access-restricted and intentionally NOT in the picker;
+    // it still gets wire parity in provider-claude's gates.)
     const M = 1_000_000
     const claudeCliModels = [
+      { id: "claude-fable-5", name: "Claude Fable 5", reasoning: true, context: M, output: 64000 },
       { id: "claude-3-haiku-20240307", name: "Claude Haiku 3", reasoning: false, context: 200000, output: 4096 },
       { id: "claude-haiku-4-5", name: "Claude Haiku 4.5", reasoning: false, context: 200000, output: 32000 },
       { id: "claude-3-opus-20240229", name: "Claude Opus 3", reasoning: true, context: 200000, output: 4096 },
