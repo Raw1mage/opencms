@@ -11,6 +11,7 @@ import { Provider } from "../provider/provider"
 import { classifyProvider } from "../provider/chain-semantics"
 import { isSupportedProviderKey } from "../provider/supported-provider-registry"
 import { SessionCompaction } from "./compaction"
+import { CompactionManager } from "./compaction-manager"
 import { detectIdentityChange } from "./identity-change"
 import { transformPostAnchorTail, LayerPurityViolation } from "./post-anchor-transform"
 import { expandAnchorCompactedPrefix } from "./anchor-prefix-expand"
@@ -2347,11 +2348,10 @@ export namespace SessionPrompt {
                 priorRecoveryCount: paralysisRecoveryCount,
               })
               try {
-                await SessionCompaction.run({
-                  sessionID,
-                  observed,
-                  step,
-                  abort,
+                await CompactionManager.requestCompact({
+                  input: { sessionID, observed, step, abort },
+                  origin: "paralysis-recovery",
+                  cause: { observed },
                 })
                 // Compaction succeeded: reset recovery counter so a future
                 // post-compaction paralysis (under the new, smaller context)
@@ -2622,11 +2622,10 @@ export namespace SessionPrompt {
               tokenLimit,
             })
             try {
-              await SessionCompaction.run({
-                sessionID,
-                observed,
-                step,
-                abort,
+              await CompactionManager.requestCompact({
+                input: { sessionID, observed, step, abort },
+                origin: "rebind-preemptive",
+                cause: { observed },
               })
               continue
             } catch (err) {
@@ -2901,12 +2900,16 @@ export namespace SessionPrompt {
           step,
           observed,
         })
-        const result = await SessionCompaction.run({
-          sessionID,
-          observed,
-          step,
-          intent: task?.type === "compaction-request" && task.auto === false ? "default" : "default",
-          abort,
+        const result = await CompactionManager.requestCompact({
+          input: {
+            sessionID,
+            observed,
+            step,
+            intent: task?.type === "compaction-request" && task.auto === false ? "default" : "default",
+            abort,
+          },
+          origin: "mainloop",
+          cause: { observed },
         })
         if (result === "continue") {
           continue

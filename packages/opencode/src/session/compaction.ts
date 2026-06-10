@@ -671,10 +671,10 @@ export namespace SessionCompaction {
       return
     }
 
-    await run({
-      sessionID: input.sessionID,
-      observed: "idle",
-      step: 0,
+    await CompactionManager.requestCompact({
+      input: { sessionID: input.sessionID, observed: "idle", step: 0 },
+      origin: "idle",
+      cause: { observed: "idle" },
     })
   }
 
@@ -2172,6 +2172,15 @@ When constructing the summary, try to stick to this template:
   CompactionManager.setPublishExecutor((sessionID, meta) => {
     void publishCompactedAndResetChain(sessionID, meta)
   })
+
+  // compaction/central-manager S3: register the compaction executor. Trigger
+  // points report their decided `observed` + cause to requestCompact, which
+  // monitors (structured log) and delegates to run() — bringing execution onto
+  // the same single monitored track as enrich/publish (resolves the dual-track),
+  // while the decision (deriveObservedCondition) stays with the reporter.
+  CompactionManager.setCompactExecutor((input) =>
+    run({ sessionID: input.sessionID, observed: input.observed as Observed, step: input.step, intent: input.intent, abort: input.abort }),
+  )
 
   // ───────────────────────────────────────────────────────────────────
   // dialog-replay-redaction DD-4: codex provider recompress dispatch

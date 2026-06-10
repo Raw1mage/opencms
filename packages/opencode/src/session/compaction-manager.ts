@@ -94,6 +94,49 @@ export namespace CompactionManager {
     strategy?.enrich({ sessionID, observed, model })
   }
 
+  // ── Compact (trigger execution) — S3 ──────────────────────────────────
+  // The trigger DECISION (deriveObservedCondition + cooldown) stays with the
+  // reporter — it is already centralized, so re-wrapping it here would be
+  // redundant. What S3 fixes is the DUAL-TRACK tech debt: compaction EXECUTION
+  // used to bypass the manager (callers invoked run() directly) while
+  // enrich/publish flowed through it, leaving "why/whether a compaction ran"
+  // out of the RCA ledger. Execution now flows through this monitored intake
+  // too — one single track, complete ledger — WITHOUT duplicating the decision.
+  // Transparent pass-through: always delegates to run(), never suppresses. The
+  // per-provider kind-chain / claude-noop gate stays inside run() (like publish
+  // keeps its per-provider reset in Continuation.run, DD-9).
+
+  export type CompactInput = {
+    sessionID: string
+    observed: string
+    step: number
+    intent?: "default" | "rich"
+    abort?: AbortSignal
+  }
+  type CompactExecutor = (input: CompactInput) => Promise<"continue" | "stop">
+  let compactExecutor: CompactExecutor | undefined
+
+  export function setCompactExecutor(fn: CompactExecutor): void {
+    compactExecutor = fn
+  }
+
+  export type CompactRequest = {
+    input: CompactInput
+    /** Stable call-site id (DD-4). */
+    origin: string
+    /** Structured cause — the signals that justified the trigger (DD-7). */
+    cause?: unknown
+  }
+
+  export async function requestCompact(req: CompactRequest): Promise<"continue" | "stop"> {
+    const { input, origin, cause } = req
+    log.info("compact requested", { sessionID: input.sessionID, observed: input.observed, origin, cause })
+    if (!compactExecutor) return "continue"
+    const result = await compactExecutor(input)
+    log.info("compact done", { sessionID: input.sessionID, observed: input.observed, origin, result })
+    return result
+  }
+
   // ── Publish (post-anchor chain-reset) — S2 ────────────────────────────
   // The chain-reset's per-PROVIDER behaviour (codex SS-break vs claude SL-noop)
   // already lives downstream in Continuation.run (the DD-9 precedent), so the
@@ -161,12 +204,14 @@ export namespace CompactionManager {
   export const __test__ = Object.freeze({
     requestEnrich,
     requestPublish,
+    requestCompact,
     classifyProvider,
     reset() {
       lastEnrichedAnchor.clear()
       lastPublishedAnchor.clear()
       strategies = undefined
       publishExecutor = undefined
+      compactExecutor = undefined
     },
     peekLastEnriched(sessionID: string) {
       return lastEnrichedAnchor.get(sessionID)

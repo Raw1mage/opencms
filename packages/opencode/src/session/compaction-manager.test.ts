@@ -119,3 +119,31 @@ describe("CompactionManager — publish monitoring (S2)", () => {
     expect(calls).toHaveLength(2)
   })
 })
+
+// S3: compaction execution flows through the manager too (resolves the dual-track).
+describe("CompactionManager — compact execution (S3)", () => {
+  beforeEach(() => CompactionManager.__test__.reset())
+
+  it("delegates to the executor and returns its result", async () => {
+    const seen: Array<{ observed: string; origin: string }> = []
+    CompactionManager.setCompactExecutor(async (input) => {
+      seen.push({ observed: input.observed, origin: "" })
+      return "continue"
+    })
+    const r = await CompactionManager.requestCompact({
+      input: { sessionID: "ses_a", observed: "overflow", step: 3 },
+      origin: "mainloop",
+      cause: { observed: "overflow" },
+    })
+    expect(r).toBe("continue")
+    expect(seen).toEqual([{ observed: "overflow", origin: "" }])
+  })
+
+  it("returns 'continue' (no-op) when no executor is registered", async () => {
+    const r = await CompactionManager.requestCompact({
+      input: { sessionID: "ses_a", observed: "manual", step: 0 },
+      origin: "manual-route",
+    })
+    expect(r).toBe("continue")
+  })
+})
