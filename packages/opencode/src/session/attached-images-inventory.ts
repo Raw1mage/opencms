@@ -66,17 +66,17 @@ export function buildAttachedImagesInventory(
   if (activeNames.length === 0) {
     lines.push(
       `IMPORTANT: filesystem tools (read / grep / glob) CANNOT decode image bytes. ` +
-        `To inspect / view / examine any image listed below, call ` +
-        `reread_attachment() with no arguments to inline the most recent image, ` +
-        `or reread_attachment(filename="...") to pick a specific one. ` +
-        `Pixels appear in the NEXT preface and PERSIST across subsequent turns of the current task — call ONCE, not every turn.`,
+        `To view an image listed below, call reread_attachment() with no arguments ` +
+        `for the most recent one, or reread_attachment(filename="...") for a specific one. ` +
+        `Pixels appear in your NEXT response for that ONE turn, then drop back to a link here; ` +
+        `your written analysis of them persists in the conversation. ` +
+        `Call again only when you need to RE-EXAMINE the actual pixels — not to keep seeing an image you already described.`,
     )
   } else {
     lines.push(
-      `Active inline (pixels available in this preface, persists across turns): ${activeNames.join(", ")}.`,
-    )
-    lines.push(
-      `Already-active images do NOT need re-calling. For other inventory entries below, call reread_attachment(filename="...") if you need them too.`,
+      `Shown in full this turn (recognition pass): ${activeNames.join(", ")}. ` +
+        `Capture what you need now — next turn these drop back to on-demand links below ` +
+        `(call reread_attachment to view again). The written description persists; the pixels do not.`,
     )
   }
   lines.push(`Inventory:`)

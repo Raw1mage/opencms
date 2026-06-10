@@ -56,7 +56,10 @@ describe("buildAttachedImagesInventory (v5 DD-22.1)", () => {
   it("annotates active inline when activeImageRefs intersects", () => {
     const messages = [{ parts: [img("a.png"), img("b.png"), img("c.png")] }]
     const out = buildAttachedImagesInventory(messages, { activeImageRefs: ["a.png", "c.png"] })
-    expect(out).toContain("Active inline (pixels available in this preface, persists across turns): a.png, c.png")
+    // Consume-on-use framing: shown THIS turn, drops to a link next turn —
+    // no "persists across turns" claim.
+    expect(out).toContain("Shown in full this turn (recognition pass): a.png, c.png")
+    expect(out).not.toContain("persists across turns")
     // Inventory entries get [ACTIVE] tag.
     expect(out).toContain("- a.png [ACTIVE]")
     expect(out).toContain("- c.png [ACTIVE]")

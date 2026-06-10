@@ -1012,12 +1012,32 @@ export namespace LLM {
                 activeImageBlocks = await buildActiveImageContentBlocks(refs, refsByFilename)
               }
             }
-            // attachment-lifecycle v6: do not drain here. `addOnReread`
-            // enforces a FIFO cap (`Tweaks.attachmentInline.activeSetMax`,
-            // default 8) so refs cannot grow unbounded; images persist
-            // across turns of the same task and new reread calls FIFO-evict
-            // older ones. Token cost: up to activeSetMax images × bytes
-            // inline per turn while in the active set.
+            // attachment-lifecycle v7 (BR stale-attachment-persists /
+            // tool-output-redirection parity): consume-on-use. The pixels have
+            // now been emitted into THIS turn's preface — the "active turn",
+            // where the model sees what it just requested. Drain the active set
+            // so the NEXT turn carries only the lightweight handle (the
+            // <attached_images> inventory line + the model's own first-pass
+            // description, already in history), never the full body again. This
+            // is exactly the redirection invariant tool results already obey
+            // (spec session/tool-output-redirection DD-3: active turn inline,
+            // past turns → preview + handle). Re-examining pixels is an explicit
+            // reread_attachment fetch, not an every-turn re-send.
+            //
+            // Drained AFTER the preface consumed the voucher (the post-emit site
+            // commit 78a8e1b3c proved correct — draining at processor
+            // step-finish wiped the voucher BEFORE emit and looped). Drain
+            // whenever refs were present so a missing-file emit also clears the
+            // voucher rather than retrying forever. v6 (416b775f3) removed this
+            // drain in favour of persist-across-turns; that persistence is what
+            // re-injected stale screenshots every turn and caused the 跳針 loop.
+            if (refs.length > 0) {
+              await SessionMod.setActiveImageRefs(input.sessionID, []).catch((err) => {
+                l.warn("activeImageRefs drain after preface emit failed", {
+                  error: err instanceof Error ? err.message : String(err),
+                })
+              })
+            }
           } catch (err) {
             l.warn("active image inline failed; preface continues without images", {
               error: err instanceof Error ? err.message : String(err),

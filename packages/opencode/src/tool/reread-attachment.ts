@@ -90,8 +90,8 @@ export function findMostRecentInlineableAttachment(
 export const RereadAttachmentTool = Tool.define("reread_attachment", {
   description:
     "INSPECT / VIEW / EXAMINE / LOOK AT an image the user uploaded. Call this BEFORE any filesystem tool when the user's question references a screenshot, diagram, photo, chart, or other uploaded picture — `read`, `grep`, and `glob` CANNOT decode image binaries. " +
-    "After calling, the image's pixels appear inline in your context preface starting on your NEXT response and PERSIST across subsequent turns of the current task (no need to re-call each turn). " +
-    "Older active images are evicted FIFO when the active set fills up. Call again ONLY if a previous image was evicted or the user uploaded a new image you have not yet inlined. " +
+    "After calling, the image's pixels appear inline in your context preface on your NEXT response for that ONE turn, then drop back to a link in the <attached_images> inventory; your written analysis of the image persists in the conversation. " +
+    "Call again only when you need to RE-EXAMINE the actual pixels (e.g. a follow-up that needs visual detail), not to keep an image you already described in view. " +
     "If the current preface does not yet show pixels for an image you need, call this tool with no arguments to inline the most recent attachment, or with `filename` matching an entry in the <attached_images> inventory exactly.",
   parameters,
   async execute(
