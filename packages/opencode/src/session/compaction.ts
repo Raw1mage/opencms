@@ -2549,15 +2549,9 @@ When constructing the summary, try to stick to this template:
     // distilled quality anchor for these triggers too. Leave `idle` out
     // (no pressure → don't burn LLM tokens) and `empty-response` out
     // (already uses low-cost-server as first attempt).
-    const hybridEnrichmentEligible: ReadonlySet<Observed> = new Set([
-      "overflow",
-      "cache-aware",
-      "manual",
-      "rebind",
-      "continuation-invalidated",
-      "provider-switched",
-      "stall-recovery",
-    ])
+    // S4: the hybrid-enrichment observed-eligibility 7-set moved to
+    // CompactionManager (isEnrichObservedEligible) — one provider-agnostic gate
+    // instead of a run()-local set racing an unconditional writeAnchorFromBody.
 
     const target = await resolveTargetPromptTokens()
     const hasPaidKindLater = (idx: number) => chain.slice(idx + 1).some((k) => !isLocalKind(k))
@@ -2699,23 +2693,20 @@ When constructing the summary, try to stick to this template:
           // fire a background distillation that supersedes the chain's
           // anchor with a higher-quality one. Always non-blocking; failures
           // are logged but don't affect the runloop or the user.
-          if (hybridEnrichmentEligible.has(observed)) {
-            console.error(`[ENRICH-CALL] observed=${observed} kind=${attempt.kind} session=${sessionID}`)
-            // compaction/central-manager S1: route through the single manager
-            // intake, deduped on the just-written anchor's id, so this run()-path
-            // request and the writeAnchorFromBody-path request can no longer both
-            // schedule enrichment for the same anchor.
-            const enrichAnchorId = await readMostRecentAnchorId(sessionID)
-            CompactionManager.requestEnrich({
-              sessionID,
-              anchorId: enrichAnchorId,
-              observed,
-              model,
-              origin: "run-postchain",
-            })
-          } else {
-            console.error(`[ENRICH-INELIGIBLE] observed=${observed} session=${sessionID}`)
-          }
+          // compaction/central-manager S1+S4: route through the single manager
+          // intake. The manager owns BOTH the per-anchor dedup AND the
+          // observed-eligibility predicate (formerly this run()-local 7-set), so
+          // this site no longer gates — and the writeAnchorFromBody site stops
+          // over-enriching idle. Both paths target the same anchor; the manager
+          // serves it at most once.
+          const enrichAnchorId = await readMostRecentAnchorId(sessionID)
+          CompactionManager.requestEnrich({
+            sessionID,
+            anchorId: enrichAnchorId,
+            observed,
+            model,
+            origin: "run-postchain",
+          })
           // compaction_simplification T8 (2026-05-14): rev5 sustainability
           // watermark backstop retired. The 0.9 overflowThreshold (codex
           // tuned) is now the sole synchronous overflow guard. The 20%

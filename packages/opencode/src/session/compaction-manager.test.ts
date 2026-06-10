@@ -97,6 +97,38 @@ describe("CompactionManager — provider routing (DD-10)", () => {
   })
 })
 
+// S4: the observed-eligibility 7-set is one predicate at the manager (was split
+// between run()'s 7-set and the unconditional writeAnchorFromBody site).
+describe("CompactionManager — enrichment observed-eligibility (S4)", () => {
+  beforeEach(() => CompactionManager.__test__.reset())
+
+  it("eligible observeds enrich; idle / empty-response / reload do not", () => {
+    expect(CompactionManager.isEnrichObservedEligible("overflow")).toBe(true)
+    expect(CompactionManager.isEnrichObservedEligible("cache-aware")).toBe(true)
+    expect(CompactionManager.isEnrichObservedEligible("rebind")).toBe(true)
+    expect(CompactionManager.isEnrichObservedEligible("manual")).toBe(true)
+    expect(CompactionManager.isEnrichObservedEligible("idle")).toBe(false)
+    expect(CompactionManager.isEnrichObservedEligible("empty-response")).toBe(false)
+    expect(CompactionManager.isEnrichObservedEligible("reload")).toBe(false)
+  })
+
+  it("an ineligible observed (idle) is skipped at the intake — executor not reached", () => {
+    const calls: string[] = []
+    CompactionManager.setEnrichExecutor((sid) => calls.push(sid))
+    // This is the case that used to slip through writeAnchorFromBody's
+    // unconditional enrich call and over-enrich idle compactions.
+    CompactionManager.requestEnrich({ sessionID: "ses_a", anchorId: "anchor_1", observed: "idle", model: undefined, origin: "writeAnchorFromBody" })
+    expect(calls).toHaveLength(0)
+  })
+
+  it("an eligible observed reaches the executor", () => {
+    const calls: string[] = []
+    CompactionManager.setEnrichExecutor((sid) => calls.push(sid))
+    CompactionManager.requestEnrich({ sessionID: "ses_a", anchorId: "anchor_1", observed: "overflow", model: undefined, origin: "run-postchain" })
+    expect(calls).toHaveLength(1)
+  })
+})
+
 // S2: publish is brought under the same monitored intake. The wrapper is a
 // transparent pass-through — it monitors (log + duplicate-publish anomaly) but
 // NEVER suppresses, so a needed chain-reset can't be dropped.

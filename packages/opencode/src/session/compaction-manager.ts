@@ -63,6 +63,29 @@ export namespace CompactionManager {
   }
 
   /**
+   * S4: observed conditions eligible for background enrichment. This is
+   * PROVIDER-AGNOSTIC (the same set for every provider), so it belongs at the
+   * manager layer rather than at the call sites. idle / empty-response / reload
+   * are intentionally excluded (no context pressure / already handled by another
+   * path). Previously this 7-set lived only at run():2678 while the
+   * writeAnchorFromBody site enriched unconditionally — so idle slipped through
+   * and got over-enriched. One predicate here closes that gap.
+   */
+  const ENRICH_ELIGIBLE_OBSERVED: ReadonlySet<string> = new Set([
+    "overflow",
+    "cache-aware",
+    "manual",
+    "rebind",
+    "continuation-invalidated",
+    "provider-switched",
+    "stall-recovery",
+  ])
+
+  export function isEnrichObservedEligible(observed: string): boolean {
+    return ENRICH_ELIGIBLE_OBSERVED.has(observed)
+  }
+
+  /**
    * Single intake for background enrichment. Provider-agnostic dedup first
    * (per anchor id), then route by provider class to the strategy. The first
    * request for an anchor schedules enrichment; any later request for the SAME
@@ -72,6 +95,13 @@ export namespace CompactionManager {
   export function requestEnrich(req: EnrichRequest): void {
     const { sessionID, anchorId, observed, model, origin } = req
     const provider = classifyProvider(model?.providerId)
+
+    // S4: the single observed-eligibility gate (was split between run()'s 7-set
+    // and the unconditional writeAnchorFromBody site). Provider-agnostic.
+    if (!ENRICH_ELIGIBLE_OBSERVED.has(observed)) {
+      log.info("enrich skipped: observed not eligible", { sessionID, anchorId, origin, observed })
+      return
+    }
 
     if (anchorId && lastEnrichedAnchor.get(sessionID) === anchorId) {
       log.info("enrich rejected: duplicate anchor", { sessionID, anchorId, origin, observed, provider })
