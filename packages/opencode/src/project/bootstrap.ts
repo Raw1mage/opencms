@@ -14,6 +14,7 @@ import { debugCheckpoint, debugSpan } from "@/util/debug"
 import { ShareNext } from "@/share/share-next"
 import { Snapshot } from "../snapshot"
 import { Truncate } from "../tool/truncation"
+import { SessionIncomingPaths } from "../incoming/session-paths"
 import { WorkspaceService } from "./workspace"
 
 export async function InstanceBootstrap() {
@@ -49,6 +50,9 @@ export async function InstanceBootstrap() {
     ),
     debugSpan("bootstrap", "Snapshot.init", {}, () => Snapshot.init()),
     debugSpan("bootstrap", "Truncate.init", {}, () => Truncate.init()),
+    debugSpan("bootstrap", "SessionIncomingPaths.init", {}, () =>
+      Promise.resolve(SessionIncomingPaths.init()),
+    ),
 
     // Group B: FileWatcher → Vcs chain (Vcs subscribes to FileWatcher events)
     debugSpan("bootstrap", "FileWatcher.init", {}, () => FileWatcher.init()).then(() =>

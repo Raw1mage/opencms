@@ -3,6 +3,7 @@ import fs from "node:fs"
 import { promises as fsp } from "node:fs"
 
 import { Global } from "@/global"
+import { Scheduler } from "@/scheduler"
 
 import { IncomingPaths } from "./paths"
 
@@ -120,5 +121,81 @@ export namespace SessionIncomingPaths {
 
   function relativeFromDataRoot(sessionID: string, filename: string): string {
     return path.join(SESSIONS_DIR, sessionID, ATTACHMENTS_DIR, filename)
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Garbage collection (BR: session-attachment images accumulate with no GC)
+  //
+  // These binaries are session-scoped runtime state under ~/.local/share, NOT
+  // repo files — the v4 hotfix moved them here precisely because they are
+  // throwaway debug/screenshot uploads. The original "no GC, user git-cleans
+  // them" decision (attachment-lifecycle DD-4') assumed the dead worktree path
+  // and no longer applies, so nothing reclaimed them. Mirror Truncate's
+  // tool-output retention: a 24h sweep + immediate removal on session delete.
+  // Under attachment-lifecycle v7 (consume-on-use) the pixels were already
+  // shown + described once; a rare reread of a >24h image just errors
+  // attachment_not_found, the same outcome as a manually-deleted file.
+  // ───────────────────────────────────────────────────────────────────────
+
+  /** 24h, matching Truncate.RETENTION_MS for tool-output blobs. */
+  export const RETENTION_MS = 24 * 60 * 60 * 1000
+  const HOUR_MS = 60 * 60 * 1000
+
+  export function init() {
+    Scheduler.register({
+      id: "incoming.session-attachments.cleanup",
+      interval: HOUR_MS,
+      run: async () => {
+        await sweepExpired()
+      },
+      scope: "global",
+    })
+  }
+
+  /** Remove a single session's entire attachments folder (called on session delete). */
+  export async function removeSessionAttachments(sessionID: string): Promise<void> {
+    await fsp.rm(attachmentsDir(sessionID), { recursive: true, force: true }).catch(() => {})
+  }
+
+  /**
+   * Sweep attachment binaries older than the retention window by file mtime,
+   * then prune now-empty `attachments/` dirs. Parameterized on root/now/
+   * retention for testability; defaults to the live data root and 24h.
+   */
+  export async function sweepExpired(
+    opts: { root?: string; now?: number; retentionMs?: number } = {},
+  ): Promise<{ removed: number }> {
+    const root = opts.root ?? Global.Path.data
+    const now = opts.now ?? Date.now()
+    const retentionMs = opts.retentionMs ?? RETENTION_MS
+    const cutoff = now - retentionMs
+
+    const sessionsRoot = path.join(root, SESSIONS_DIR)
+    const glob = new Bun.Glob(`*/${ATTACHMENTS_DIR}/*`)
+    const entries = await Array.fromAsync(glob.scan({ cwd: sessionsRoot, onlyFiles: true })).catch(
+      () => [] as string[],
+    )
+
+    let removed = 0
+    for (const entry of entries) {
+      const full = path.join(sessionsRoot, entry)
+      const stat = await fsp.stat(full).catch(() => undefined)
+      if (!stat || stat.mtimeMs >= cutoff) continue
+      await fsp.unlink(full).catch(() => {})
+      removed++
+    }
+
+    // Prune empty attachments dirs left behind.
+    const dirGlob = new Bun.Glob(`*/${ATTACHMENTS_DIR}`)
+    const dirs = await Array.fromAsync(dirGlob.scan({ cwd: sessionsRoot, onlyFiles: false })).catch(
+      () => [] as string[],
+    )
+    for (const dir of dirs) {
+      const full = path.join(sessionsRoot, dir)
+      const files = await fsp.readdir(full).catch(() => [])
+      if (files.length === 0) await fsp.rmdir(full).catch(() => {})
+    }
+
+    return { removed }
   }
 }

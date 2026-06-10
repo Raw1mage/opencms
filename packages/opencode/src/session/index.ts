@@ -1098,6 +1098,13 @@ export namespace Session {
       }
       await unshare(sessionID).catch(() => {})
       await StorageRouter.deleteSession(sessionID)
+      // Sweep the session's image attachments too — deleteSession only clears
+      // the message/part stores, not the session-scoped attachments folder
+      // under Global.Path.data. Dynamic import avoids a static cycle through
+      // the Scheduler the GC module registers with.
+      await import("@/incoming/session-paths")
+        .then((m) => m.SessionIncomingPaths.removeSessionAttachments(sessionID))
+        .catch(() => {})
       await Storage.remove(["session", ownerProjectID, sessionID])
       Bus.publish(Event.Deleted, {
         info: session,
