@@ -704,6 +704,14 @@ export namespace SessionCompaction {
      * direct API callers).
      */
     observed?: Observed
+    /**
+     * compaction/central-manager S2: the committed anchor's kind, threaded so
+     * the post-anchor publish records the ACTUAL kind instead of a hardcoded
+     * "narrative". ai_free (codex server-side) was previously published as
+     * narrative here, wrongly SS-breaking a chain that should be preserved.
+     * Defaults to "narrative" (the legacy behaviour for narrative anchors).
+     */
+    kind?: KindName
   }) {
     log.info("compacting with shared context", { sessionID: input.sessionID })
 
@@ -786,9 +794,11 @@ export namespace SessionCompaction {
     // Phase 13.2-B: disk-file checkpoint write removed. The anchor message
     // written above IS the durable record; rebind reads it via stream scan.
 
-    void publishCompactedAndResetChain(input.sessionID, {
-      observed: input.observed ?? "manual",
-      kind: "narrative",
+    CompactionManager.requestPublish({
+      sessionID: input.sessionID,
+      anchorId: summaryMsg.id,
+      origin: "writeAnchorFromBody",
+      meta: { observed: input.observed ?? "manual", kind: input.kind ?? "narrative" },
     })
 
     // compaction/central-manager S1: route enrichment through the single
@@ -1645,9 +1655,10 @@ When constructing the summary, try to stick to this template:
       auto: input.auto,
     })
 
-    void publishCompactedAndResetChain(input.sessionID, {
-      observed: input.observed,
-      kind: "ai_paid",
+    CompactionManager.requestPublish({
+      sessionID: input.sessionID,
+      origin: "ai_paid-inline",
+      meta: { observed: input.observed, kind: "ai_paid" },
     })
 
     // Read summary text out for the caller (and the checkpoint save below).
@@ -2152,6 +2163,15 @@ When constructing the summary, try to stick to this template:
   CompactionManager.setEnrichExecutor((sessionID, observed, model) =>
     scheduleHybridEnrichment(sessionID, observed as Observed, model),
   )
+
+  // compaction/central-manager S2: register the publish executor. All
+  // post-anchor chain-reset publishes route through CompactionManager.requestPublish
+  // for monitoring (structured log + duplicate-publish tripwire); the manager
+  // delegates here, and Continuation.run (inside) still does the per-provider
+  // SS-break/SL-noop reset (DD-9).
+  CompactionManager.setPublishExecutor((sessionID, meta) => {
+    void publishCompactedAndResetChain(sessionID, meta)
+  })
 
   // ───────────────────────────────────────────────────────────────────
   // dialog-replay-redaction DD-4: codex provider recompress dispatch
@@ -2694,13 +2714,12 @@ When constructing the summary, try to stick to this template:
           // tuned) is now the sole synchronous overflow guard. The 20%
           // local→ai_paid upgrade trigger (T4) provides preemptive size
           // control without the watermark recursion machinery.
-          // Some kinds (low-cost-server) do not self-publish Event.Compacted;
-          // others (compactWithSharedContext / tryLlmAgent / tryHybridLlm) do.
-          // Publishing here for the kinds that don't ensures the frontend
-          // statusFooter reliably clears on every successful exit.
-          if (attempt.kind === "ai_free") {
-            void publishCompactedAndResetChain(sessionID, { observed, kind: attempt.kind })
-          }
+          // compaction/central-manager S2: the ai_free double-publish is
+          // REMOVED. ai_free goes through _writeAnchor → writeAnchorFromBody,
+          // which now publishes with the ACTUAL kind (ai_free → preserved) via
+          // CompactionManager.requestPublish. A second publish here was the
+          // duplicate that first SS-broke the chain as narrative, then re-marked
+          // it preserved as ai_free — contradictory chain-reset semantics.
           return "continue"
         }
       }
@@ -2709,7 +2728,7 @@ When constructing the summary, try to stick to this template:
       // Chain exhausted without writing an anchor — still publish Compacted
       // so the frontend statusFooter clears (otherwise spinner sticks
       // indefinitely after a silent failure).
-      void publishCompactedAndResetChain(sessionID, { observed, success: false })
+      CompactionManager.requestPublish({ sessionID, origin: "chain-exhausted", meta: { observed, success: false } })
       return "stop"
     } finally {
       // Bulletproof clear: monitor.ts:474 treats any truthy time.compacting
@@ -3327,9 +3346,10 @@ When constructing the summary, try to stick to this template:
     }
 
     // Chain reset
-    void publishCompactedAndResetChain(sessionID, {
-      observed: "reload",
-      kind: "text-only rebuild",
+    CompactionManager.requestPublish({
+      sessionID,
+      origin: "reload-rebuild",
+      meta: { observed: "reload", kind: "text-only rebuild" },
     })
 
     log.info("rebuildStreamFromText complete", {
@@ -3521,6 +3541,9 @@ When constructing the summary, try to stick to this template:
       model: input.model,
       auto: replayEnabled ? false : input.auto,
       observed: input.observed,
+      // S2: thread the real kind so ai_free publishes as ai_free (preserved),
+      // not narrative (SS-break). narrative/replay-tail stay narrative.
+      kind: input.kind,
     })
 
     // user-msg-replay-unification DD-3: after the anchor is persisted,
@@ -4552,9 +4575,10 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         // failure / timeout. Subscribers that need success/failure
         // discrimination should look at the LlmCompactResult.ok flag
         // returned to the caller.
-        void publishCompactedAndResetChain(sessionID, {
-          observed: opts.observed ?? "manual",
-          kind: "ai_paid",
+        CompactionManager.requestPublish({
+          sessionID,
+          origin: "runLlmCompact",
+          meta: { observed: opts.observed ?? "manual", kind: "ai_paid" },
         })
       }
     }

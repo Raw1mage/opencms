@@ -87,3 +87,35 @@ describe("CompactionManager — provider routing (DD-10)", () => {
     expect(seen).toEqual(["claude-cli"])
   })
 })
+
+// S2: publish is brought under the same monitored intake. The wrapper is a
+// transparent pass-through — it monitors (log + duplicate-publish anomaly) but
+// NEVER suppresses, so a needed chain-reset can't be dropped.
+describe("CompactionManager — publish monitoring (S2)", () => {
+  beforeEach(() => CompactionManager.__test__.reset())
+
+  it("delegates every publish to the executor with its meta", () => {
+    const calls: Array<{ sid: string; kind?: string }> = []
+    CompactionManager.setPublishExecutor((sid, meta) => calls.push({ sid, kind: meta?.kind }))
+    CompactionManager.requestPublish({ sessionID: "ses_a", anchorId: "anchor_1", origin: "writeAnchorFromBody", meta: { observed: "overflow", kind: "narrative" } })
+    expect(calls).toEqual([{ sid: "ses_a", kind: "narrative" }])
+  })
+
+  it("a duplicate publish for the same anchor is MONITORED but still published (never suppressed)", () => {
+    const calls: string[] = []
+    CompactionManager.setPublishExecutor((sid, meta) => calls.push(`${sid}:${meta?.kind}`))
+    CompactionManager.requestPublish({ sessionID: "ses_a", anchorId: "anchor_1", origin: "writeAnchorFromBody", meta: { kind: "ai_free" } })
+    CompactionManager.requestPublish({ sessionID: "ses_a", anchorId: "anchor_1", origin: "run-ai_free", meta: { kind: "ai_free" } }) // the regressed double
+    // Both delegate (chain-reset is never dropped); the second raises the
+    // duplicate-publish tripwire (asserted via never-suppress here).
+    expect(calls).toHaveLength(2)
+  })
+
+  it("anchor-less publishes (failure / reload) still delegate, without dedup", () => {
+    const calls: string[] = []
+    CompactionManager.setPublishExecutor((sid, meta) => calls.push(`${sid}:${meta?.success}`))
+    CompactionManager.requestPublish({ sessionID: "ses_a", origin: "chain-exhausted", meta: { success: false } })
+    CompactionManager.requestPublish({ sessionID: "ses_a", origin: "reload-rebuild", meta: { observed: "reload" } })
+    expect(calls).toHaveLength(2)
+  })
+})

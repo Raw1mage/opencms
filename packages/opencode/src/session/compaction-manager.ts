@@ -94,18 +94,79 @@ export namespace CompactionManager {
     strategy?.enrich({ sessionID, observed, model })
   }
 
+  // ── Publish (post-anchor chain-reset) — S2 ────────────────────────────
+  // The chain-reset's per-PROVIDER behaviour (codex SS-break vs claude SL-noop)
+  // already lives downstream in Continuation.run (the DD-9 precedent), so the
+  // manager does NOT re-route publish through provider strategies — it brings
+  // publish under the same monitored intake (structured log + duplicate-publish
+  // tripwire) and delegates. The wrapper is a TRANSPARENT pass-through: it
+  // ALWAYS delegates and NEVER suppresses, so a monitoring bug can't break a
+  // needed chain-reset.
+
+  type PublishMeta = { observed?: string; kind?: string; success?: boolean; tokensBefore?: number; tokensAfter?: number }
+  type PublishExecutor = (sessionID: string, meta?: PublishMeta) => void
+  let publishExecutor: PublishExecutor | undefined
+
+  /** Per-session: the last anchor id we published for (duplicate-publish tripwire). */
+  const lastPublishedAnchor = new Map<string, string>()
+
+  export function setPublishExecutor(fn: PublishExecutor): void {
+    publishExecutor = fn
+  }
+
+  export type PublishRequest = {
+    sessionID: string
+    /** The committed anchor's id, when this is an anchor-commit publish. */
+    anchorId?: string
+    /** Stable call-site id (DD-4). */
+    origin: string
+    meta?: PublishMeta
+  }
+
+  export function requestPublish(req: PublishRequest): void {
+    const { sessionID, anchorId, origin, meta } = req
+
+    if (anchorId && lastPublishedAnchor.get(sessionID) === anchorId) {
+      // Tripwire only — never suppress (suppressing a publish would break the
+      // chain-reset). This catches a regressed double-publish (the ai_free bug)
+      // the moment it happens instead of via post-hoc log archaeology.
+      log.warn("duplicate publish for anchor (monitored, not suppressed)", {
+        sessionID,
+        anchorId,
+        origin,
+        kind: meta?.kind,
+      })
+      void RuntimeEventService.append({
+        sessionID,
+        level: "info",
+        domain: "telemetry",
+        eventType: "compaction.anomaly",
+        anomalyFlags: ["duplicate-publish"],
+        payload: { code: "duplicate-publish", anchorId, origin, kind: meta?.kind ?? null, observed: meta?.observed ?? null },
+      }).catch(() => undefined)
+    }
+
+    if (anchorId) lastPublishedAnchor.set(sessionID, anchorId)
+    log.info("publish", { sessionID, anchorId, origin, observed: meta?.observed, kind: meta?.kind, success: meta?.success })
+    publishExecutor?.(sessionID, meta)
+  }
+
   /** Drop per-session dedup state (call on session delete to avoid growth). */
   export function forget(sessionID: string): void {
     lastEnrichedAnchor.delete(sessionID)
+    lastPublishedAnchor.delete(sessionID)
   }
 
   /** Test-only seam. */
   export const __test__ = Object.freeze({
     requestEnrich,
+    requestPublish,
     classifyProvider,
     reset() {
       lastEnrichedAnchor.clear()
+      lastPublishedAnchor.clear()
       strategies = undefined
+      publishExecutor = undefined
     },
     peekLastEnriched(sessionID: string) {
       return lastEnrichedAnchor.get(sessionID)
