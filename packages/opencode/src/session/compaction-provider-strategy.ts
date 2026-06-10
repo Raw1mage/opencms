@@ -44,6 +44,14 @@ export interface CompactionProviderStrategy {
   readonly provider: ProviderClass
   /** Execute background enrichment for this provider. */
   enrich(ctx: EnrichContext): void
+  /**
+   * On provider takeover (the session just switched TO this provider), does
+   * this provider need a narrative compaction to hand the context over?
+   * (DD-12). Provider switch is no longer a global compaction trigger — each
+   * provider decides. Chain-reset is separate (Continuation.run, already
+   * provider-aware) and not affected by this.
+   */
+  shouldCompactOnTakeover(): boolean
 }
 
 // ── Per-provider strategies ──────────────────────────────────────────────
@@ -59,6 +67,13 @@ class ClaudeCompactionStrategy implements CompactionProviderStrategy {
   enrich(ctx: EnrichContext): void {
     this.exec(ctx)
   }
+  shouldCompactOnTakeover(): boolean {
+    // claude is stateless full-retransmit with a 1M window and no server chain
+    // to reset — taking over a session needs no narrative compaction; the next
+    // request just re-sends the context. Compacting here only forces a needless
+    // SS-break amnesia + recall round-trip (CLAUDE_NOOP_OBSERVED / DD-4 intent).
+    return false
+  }
 }
 
 class CodexCompactionStrategy implements CompactionProviderStrategy {
@@ -67,6 +82,12 @@ class CodexCompactionStrategy implements CompactionProviderStrategy {
   enrich(ctx: EnrichContext): void {
     this.exec(ctx)
   }
+  shouldCompactOnTakeover(): boolean {
+    // codex has a smaller window than claude and its server-side context
+    // representation does not carry across a provider change — hand the context
+    // over as a compacted narrative anchor. (Chain-reset itself is Continuation.run.)
+    return true
+  }
 }
 
 class GeneralCompactionStrategy implements CompactionProviderStrategy {
@@ -74,6 +95,11 @@ class GeneralCompactionStrategy implements CompactionProviderStrategy {
   constructor(private readonly exec: EnrichExecutor) {}
   enrich(ctx: EnrichContext): void {
     this.exec(ctx)
+  }
+  shouldCompactOnTakeover(): boolean {
+    // general providers (copilot etc.) have small windows (often 128K) where an
+    // accumulated context is a large fraction — compact on takeover.
+    return true
   }
 }
 

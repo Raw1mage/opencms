@@ -188,3 +188,19 @@ describe("CompactionManager — compact execution (S3)", () => {
     expect(r).toBe("continue")
   })
 })
+
+// DD-12: provider switch is not a global compaction trigger — each provider's
+// strategy decides on takeover. Surfaced by live fetch-back validation.
+describe("CompactionManager — provider-switch takeover decision (DD-12)", () => {
+  beforeEach(() => {
+    CompactionManager.__test__.reset()
+    SessionCompaction.__test__.wireCompactionManager()
+  })
+
+  it("claude does NOT compact on takeover; codex / general DO", () => {
+    expect(CompactionManager.shouldCompactOnTakeover("claude-cli")).toBe(false)
+    expect(CompactionManager.shouldCompactOnTakeover("codex")).toBe(true)
+    expect(CompactionManager.shouldCompactOnTakeover("github-copilot")).toBe(true)
+    expect(CompactionManager.shouldCompactOnTakeover(undefined)).toBe(true) // general default
+  })
+})

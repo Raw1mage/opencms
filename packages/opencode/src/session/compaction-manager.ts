@@ -167,6 +167,23 @@ export namespace CompactionManager {
     return result
   }
 
+  /**
+   * S3/DD-12: provider-switch takeover decision. Provider switch is a fact, not
+   * a global compaction trigger — the new provider's strategy decides whether a
+   * narrative compaction is warranted on takeover. Routed here so the decision
+   * is monitored (this path used to bypass the manager entirely). Chain-reset is
+   * separate (Continuation.run) and unaffected.
+   */
+  export function shouldCompactOnTakeover(providerId: string | undefined): boolean {
+    const provider = classifyProvider(providerId)
+    const strategy = strategies?.get(provider) ?? strategies?.get("general")
+    // Default true when unwired (tests/edge) — preserve the safe "compact" side
+    // so a needed codex/general takeover compaction is never silently skipped.
+    const decision = strategy ? strategy.shouldCompactOnTakeover() : true
+    log.info("provider-switch takeover decision", { providerId, provider, shouldCompact: decision })
+    return decision
+  }
+
   // ── Publish (post-anchor chain-reset) — S2 ────────────────────────────
   // The chain-reset's per-PROVIDER behaviour (codex SS-break vs claude SL-noop)
   // already lives downstream in Continuation.run (the DD-9 precedent), so the
