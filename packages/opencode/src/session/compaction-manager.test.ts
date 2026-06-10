@@ -204,3 +204,28 @@ describe("CompactionManager — provider-switch takeover decision (DD-12)", () =
     expect(CompactionManager.shouldCompactOnTakeover(undefined)).toBe(true) // general default
   })
 })
+
+// DD-13: provider-switch compaction EXECUTION is monitored (ledger parity) and
+// transparently delegates to the caller's writeAnchorFromBody thunk.
+describe("CompactionManager — provider-switch execution monitor (DD-13)", () => {
+  it("requestProviderSwitchCompact delegates to the executor exactly once", async () => {
+    let calls = 0
+    await CompactionManager.requestProviderSwitchCompact(
+      { sessionID: "ses_ps", cause: { prevProvider: "codex", nextProvider: "claude-cli" } },
+      async () => {
+        calls++
+      },
+    )
+    expect(calls).toBe(1)
+  })
+
+  it("never suppresses — a throwing executor surfaces (no silent swallow)", async () => {
+    let threw = false
+    await CompactionManager.requestProviderSwitchCompact({ sessionID: "ses_ps2" }, async () => {
+      throw new Error("boom")
+    }).catch(() => {
+      threw = true
+    })
+    expect(threw).toBe(true)
+  })
+})
