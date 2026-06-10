@@ -1122,13 +1122,22 @@ export namespace SessionProcessor {
                   // late genuine 5xx after an empty-turn-classified earlier turn
                   // doesn't reuse stale classification metadata.
                   lastFinishProviderMetadata = value.providerMetadata
-                  // Diagnostic: trace empty responses to stderr for root-cause analysis
+                  // Faithful stop-reason: providers may map an unrecognized raw
+                  // stop_reason to the lossy "other"/"unknown" bucket. The raw
+                  // value is preserved verbatim on providerMetadata (e.g.
+                  // provider-claude's anthropic.rawStopReason) so it is never
+                  // lost to the catch-all.
+                  const rawStopReason = (value.providerMetadata as any)?.anthropic?.rawStopReason
+                  // Diagnostic: trace empty / unrecognized-finish responses to
+                  // stderr for root-cause analysis. Also fires on "other" (not
+                  // just "unknown") so the empty-"other" loop class (Fable at
+                  // large context) carries the raw stop_reason into the logs.
                   if (
-                    value.finishReason === "unknown" &&
-                    (!value.usage || ((value.usage.totalTokens ?? 0) === 0 && (value.usage.inputTokens ?? 0) === 0))
+                    (value.finishReason === "unknown" || value.finishReason === "other") &&
+                    (!value.usage || ((value.usage.outputTokens ?? 0) <= 2 && (value.usage.inputTokens ?? 0) <= 2))
                   ) {
                     process.stderr.write(
-                      `[DIAG:empty-response] session=${input.sessionID} model=${input.model.id} provider=${input.model.providerId} account=${input.accountId ?? "?"} finishReason=${value.finishReason} usage=${JSON.stringify(value.usage)} providerMeta=${JSON.stringify(value.providerMetadata ?? {}).slice(0, 300)}\n`,
+                      `[DIAG:empty-response] session=${input.sessionID} model=${input.model.id} provider=${input.model.providerId} account=${input.accountId ?? "?"} finishReason=${value.finishReason} rawStopReason=${rawStopReason ?? "?"} usage=${JSON.stringify(value.usage)} providerMeta=${JSON.stringify(value.providerMetadata ?? {}).slice(0, 300)}\n`,
                     )
                   }
                   const usage = Session.getUsage({

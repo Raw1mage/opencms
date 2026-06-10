@@ -3642,7 +3642,22 @@ export namespace SessionPrompt {
       //   • Root session: evaluate autonomous continuation. If there's a
       //     pending todo, enqueue a synthetic continuation and loop again.
       //     Otherwise persist the stop reason and break.
-      if (processor.message.finish && !["tool-calls", "unknown", "other"].includes(processor.message.finish)) {
+      // Defense-in-depth against the empty-"other" re-fire loop: a turn that
+      // finished "other" but actually PRODUCED output (and therefore made no
+      // tool call — a tool call would finish "tool-calls") is a real, complete
+      // model turn whose raw stop_reason we simply didn't recognise. The
+      // 0-token empty-response recovery above only catches the 0/0 shape, so a
+      // non-zero "other" turn (e.g. Claude Fable 5 at large context returning a
+      // terminal stop_reason with output=2) otherwise falls through to the
+      // `continue` below and re-fires the identical prompt forever (session
+      // ses_14eeefee…: 150+ output=2/finish=other rounds at 213K). Treat it as
+      // terminal. The raw stop_reason is preserved on the assistant message's
+      // provider metadata (provider-claude rawStopReason) for inspection.
+      const isCleanTerminal =
+        processor.message.finish && !["tool-calls", "unknown", "other"].includes(processor.message.finish)
+      const isUnrecognizedTerminalWithOutput =
+        processor.message.finish === "other" && (processor.message.tokens.output ?? 0) > 0
+      if (isCleanTerminal || isUnrecognizedTerminalWithOutput) {
         if (session.parentID) {
           log.info("loop: subagent terminal finish", {
             sessionID,

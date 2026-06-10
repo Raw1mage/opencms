@@ -331,13 +331,16 @@ export function parseAnthropicSSE(body: ReadableStream<Uint8Array>): ReadableStr
         }
         // Finish reason comes from the cached message_delta stop_reason
         // (overridden to tool-calls above when an ANTML call was salvaged).
+        // rawStopReason carries the verbatim Anthropic stop_reason so the host
+        // can record/inspect the original even when `mapped` is the lossy
+        // "other" bucket (faithful-stop-reason requirement). null = absent.
+        const anthropicMeta: Record<string, string | number | null> = { rawStopReason: lastStopReason ?? null }
+        if (cacheCreationTokens != null) anthropicMeta.cacheCreationInputTokens = cacheCreationTokens
         controller.enqueue({
           type: "finish",
           finishReason: mapped,
           usage,
-          ...(cacheCreationTokens != null
-            ? { providerMetadata: { anthropic: { cacheCreationInputTokens: cacheCreationTokens } } }
-            : {}),
+          providerMetadata: { anthropic: anthropicMeta },
         })
         break
       }
@@ -362,15 +365,37 @@ export function parseAnthropicSSE(body: ReadableStream<Uint8Array>): ReadableStr
 // § 1B.5  Finish reason mapping
 // ---------------------------------------------------------------------------
 
+/**
+ * Map Anthropic `stop_reason` → AI-SDK `LanguageModelV2FinishReason`.
+ *
+ * EVERY documented Anthropic stop_reason must map to a TERMINAL finish reason —
+ * collapsing a real, clean model stop to the catch-all `"other"` is a host-loop
+ * bug: opencode's runloop excludes `"other"` from its terminal-finish boundary
+ * (prompt.ts: `!["tool-calls","unknown","other"].includes(finish)`), so a turn
+ * that finished with an unrecognized-but-real reason and produced little/no
+ * content (e.g. Claude Fable 5 at large context returning `refusal` /
+ * `model_context_window_exceeded` with ~2 output tokens) never breaks — it
+ * re-fires the same prompt forever (session ses_14eeefee… : 150+ identical
+ * `output=2, finish=other` rounds at 213K context).
+ *
+ * `"other"` is now reserved for a genuinely UNKNOWN/absent reason only. The raw
+ * value is additionally preserved verbatim on the finish part's
+ * `providerMetadata.anthropic.rawStopReason` so the original is never lost even
+ * when a future reason isn't enumerated here.
+ */
 export function mapFinishReason(reason: string | undefined): LanguageModelV2FinishReason {
   switch (reason) {
     case "end_turn":
     case "stop":
+    case "stop_sequence":
+    case "pause_turn": // server-side pause; no server-tool continuation in this path → terminal
       return "stop"
     case "max_tokens":
+    case "model_context_window_exceeded":
       return "length"
     case "tool_use":
       return "tool-calls"
+    case "refusal":
     case "content_filter":
       return "content-filter"
     default:

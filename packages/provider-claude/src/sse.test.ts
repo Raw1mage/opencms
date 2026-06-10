@@ -97,4 +97,46 @@ describe("mapFinishReason", () => {
     expect(mapFinishReason("max_tokens")).toBe("length")
     expect(mapFinishReason(undefined)).toBe("other")
   })
+
+  // Regression: every documented stop_reason must map to a TERMINAL finish, not
+  // the catch-all "other" — collapsing a real stop to "other" is the host
+  // re-fire loop (Fable at large context: refusal/model_context_window_exceeded
+  // → "other" → never breaks). Only a genuinely unknown reason may be "other".
+  test("all current Anthropic stop_reasons map to terminal finishes", () => {
+    expect(mapFinishReason("stop_sequence")).toBe("stop")
+    expect(mapFinishReason("pause_turn")).toBe("stop")
+    expect(mapFinishReason("refusal")).toBe("content-filter")
+    expect(mapFinishReason("content_filter")).toBe("content-filter")
+    expect(mapFinishReason("model_context_window_exceeded")).toBe("length")
+    // Only a truly unknown reason falls back to "other".
+    expect(mapFinishReason("some_future_reason")).toBe("other")
+  })
+})
+
+describe("finish part preserves raw stop_reason (faithful record)", () => {
+  test("rawStopReason carries the verbatim Anthropic stop_reason", async () => {
+    const stream =
+      `event: message_start\n` +
+      `data: {"type":"message_start","message":{"id":"msg_1","model":"claude-fable-5","usage":{"input_tokens":2}}}\n\n` +
+      `event: message_delta\n` +
+      `data: {"type":"message_delta","delta":{"stop_reason":"refusal"},"usage":{"output_tokens":2}}\n\n` +
+      `event: message_stop\n` +
+      `data: {"type":"message_stop"}\n\n`
+    const parts = await collectParts(stream)
+    const finish = parts.find((p) => p.type === "finish") as any
+    expect(finish).toBeDefined()
+    expect(finish.finishReason).toBe("content-filter")
+    expect(finish.providerMetadata?.anthropic?.rawStopReason).toBe("refusal")
+  })
+
+  test("rawStopReason is null (not dropped) when absent", async () => {
+    const stream =
+      `event: message_start\n` +
+      `data: {"type":"message_start","message":{"id":"msg_1","model":"claude-fable-5","usage":{"input_tokens":2}}}\n\n` +
+      `event: message_stop\n` +
+      `data: {"type":"message_stop"}\n\n`
+    const parts = await collectParts(stream)
+    const finish = parts.find((p) => p.type === "finish") as any
+    expect(finish.providerMetadata?.anthropic?.rawStopReason).toBeNull()
+  })
 })
