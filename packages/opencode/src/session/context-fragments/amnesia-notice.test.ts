@@ -88,6 +88,23 @@ describe("decideAmnesiaInjection", () => {
     ).toBe(true)
   })
 
+  it("DD-2: a trailing enrichment event does NOT suppress the real compaction's notice", () => {
+    // Regression (post-compaction-continuity TV-1): enrichment used to be stored
+    // as kind:"compaction" (no enrichment kind existed), landing most-recent in
+    // the ring. The reverse scan hit it first, saw a non-client-side sub-kind,
+    // and returned inject:false — masking the real narrative compaction behind it.
+    // Now enrichment is kind:"enrichment" and is skipped by the kind!=="compaction"
+    // guard, so the scan reaches the narrative anchor.
+    const events = [
+      { ts: 1000, kind: "compaction" as const, compaction: { observed: "cache-aware", kind: "narrative", success: true } },
+      { ts: 2000, kind: "enrichment" as const, enrichment: { status: "success" as const } },
+    ]
+    const d = decideAmnesiaInjection(events)
+    expect(d.inject).toBe(true)
+    expect(d.anchorKind).toBe("narrative")
+    expect(d.ts).toBe(1000)
+  })
+
   it("ignores rotation events", () => {
     const events = [
       { ts: 1000, kind: "compaction" as const, compaction: { observed: "rebind", kind: "narrative", success: true } },

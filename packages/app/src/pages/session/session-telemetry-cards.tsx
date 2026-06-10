@@ -152,7 +152,7 @@ export function PromptTelemetryCard(props: {
  */
 export type RecentExecutionEvent = {
   ts: number
-  kind: "rotation" | "compaction" | "cache-cliff"
+  kind: "rotation" | "compaction" | "enrichment" | "cache-cliff"
   rotation?: {
     fromProviderId?: string
     fromAccountId?: string
@@ -164,6 +164,14 @@ export type RecentExecutionEvent = {
     observed: string
     kind?: string
     success: boolean
+    tokensBefore?: number
+    tokensAfter?: number
+  }
+  // post-compaction-continuity DD-1: enrichment is its own kind, no longer
+  // rendered under the "compaction:" prefix (which faked a second compaction).
+  enrichment?: {
+    status: "success" | "failed"
+    detail?: string
     tokensBefore?: number
     tokensAfter?: number
   }
@@ -206,6 +214,15 @@ function formatRecentEventLine(
         ? ` (${(c.tokensBefore / 1000).toFixed(0)}k → ${(c.tokensAfter / 1000).toFixed(0)}k)`
         : ""
     return `${hh}:${mm} compaction: ${c.observed}${kind}${c.success ? "" : " ✗"}${tokens}`
+  }
+  if (e.kind === "enrichment" && e.enrichment) {
+    const en = e.enrichment
+    const detail = en.detail ? ` (${en.detail})` : ""
+    const tokens =
+      en.tokensBefore !== undefined && en.tokensAfter !== undefined
+        ? ` (${(en.tokensBefore / 1000).toFixed(0)}k → ${(en.tokensAfter / 1000).toFixed(0)}k)`
+        : ""
+    return `${hh}:${mm} enrichment: ${en.status}${en.status === "failed" ? " ✗" : ""}${detail}${tokens}`
   }
   if (e.kind === "cache-cliff" && e.cacheCliff) {
     const prev = (e.cacheCliff.prevCacheRead / 1000).toFixed(0)

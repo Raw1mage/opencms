@@ -1734,13 +1734,18 @@ When constructing the summary, try to stick to this template:
     const emitEnrichmentStatus = (status: "started" | "success" | "failed", detail?: string) => {
       // "started" is noise in the sidebar — only emit success/failed
       if (status === "started") return
+      // post-compaction-continuity DD-1: enrichment is its own recentEvent kind.
+      // Was forced into kind:"compaction" (no enrichment kind existed), which (a)
+      // rendered as a phantom second compaction in the Q-card tile and (b)
+      // short-circuited decideAmnesiaInjection — that scan walks back for the most
+      // recent kind:"compaction" and hit this fake one first, suppressing the
+      // amnesia notice for the real anchor behind it.
       void Session.appendRecentEvent(sessionID, {
         ts: Date.now(),
-        kind: "compaction",
-        compaction: {
-          observed: `enrichment:${status}`,
-          kind: "enrichment",
-          success: status === "success",
+        kind: "enrichment",
+        enrichment: {
+          status: status as "success" | "failed",
+          detail,
         },
       }).catch(() => undefined)
     }
