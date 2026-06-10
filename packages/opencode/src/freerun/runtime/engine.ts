@@ -139,19 +139,23 @@ export namespace Engine {
 
     // Write or refresh meta.json at session start (idempotent across resumes).
     if (priorMeta === null) {
-      await MetaFS.write(opts.sessionId, {
-        session_id: opts.sessionId,
-        trigger_mode: opts.triggerMode,
-        provider_id: opts.providerId,
-        user_id: opts.userId,
-        root_node_id: opts.rootNodeId,
-        started_at: startedAt,
-        final_status: "in_progress",
-        total_iterations: 0,
-        experiment_config: opts.config,
-        experiment_config_id: opts.experimentConfigId,
-        protocol_version: "v0",
-      }, opts.dataHome).catch(() => undefined)
+      await MetaFS.write(
+        opts.sessionId,
+        {
+          session_id: opts.sessionId,
+          trigger_mode: opts.triggerMode,
+          provider_id: opts.providerId,
+          user_id: opts.userId,
+          root_node_id: opts.rootNodeId,
+          started_at: startedAt,
+          final_status: "in_progress",
+          total_iterations: 0,
+          experiment_config: opts.config,
+          experiment_config_id: opts.experimentConfigId,
+          protocol_version: "v0",
+        },
+        opts.dataHome,
+      ).catch(() => undefined)
     } else if (priorMeta.final_status !== "in_progress") {
       // Resuming a terminal session: flip back to in_progress so the engine
       // can continue (and the next-iteration loop can see new actionable work).
@@ -172,7 +176,9 @@ export namespace Engine {
     // iteration. These supply project conventions + operational rules to the
     // model so the freerun engine inherits the same safety/governance
     // language the turn-mode pipeline uses.
-    const rules = await loadRulesContent({ directory: process.cwd() }).catch(() => ({}))
+    const rules = await loadRulesContent({ directory: process.cwd() }).catch(
+      (): { agentsMdContent?: string; systemMdContent?: string } => ({}),
+    )
 
     try {
       while (iterations < cap) {

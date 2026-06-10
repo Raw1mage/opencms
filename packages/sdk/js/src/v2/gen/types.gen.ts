@@ -973,7 +973,7 @@ export type PermissionRuleset = Array<PermissionRule>
 
 export type SessionRecentEvent = {
   ts: number
-  kind: "rotation" | "compaction" | "cache-cliff"
+  kind: "rotation" | "compaction" | "enrichment" | "cache-cliff"
   rotation?: {
     fromProviderId?: string
     fromAccountId?: string
@@ -985,6 +985,12 @@ export type SessionRecentEvent = {
     observed: string
     kind?: string
     success: boolean
+    tokensBefore?: number
+    tokensAfter?: number
+  }
+  enrichment?: {
+    status: "success" | "failed"
+    detail?: string
     tokensBefore?: number
     tokensAfter?: number
   }

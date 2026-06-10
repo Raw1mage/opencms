@@ -46224,6 +46224,7 @@
             "enum": [
               "rotation",
               "compaction",
+              "enrichment",
               "cache-cliff"
             ]
           },
@@ -46269,6 +46270,30 @@
             "required": [
               "observed",
               "success"
+            ]
+          },
+          "enrichment": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failed"
+                ]
+              },
+              "detail": {
+                "type": "string"
+              },
+              "tokensBefore": {
+                "type": "number"
+              },
+              "tokensAfter": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "status"
             ]
           },
           "cacheCliff": {
@@ -47692,7 +47717,7 @@
           },
           "id": {
             "description": "Unique identifier for the todo item (auto-generated if omitted)",
-            "default": "todo_mq7io7ap_a700b2",
+            "default": "todo_mq8h91n6_ktdfsj",
             "type": "string"
           },
           "action": {
