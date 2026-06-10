@@ -686,20 +686,6 @@ export namespace MCP {
 
       const expandedEnvironment = expandEnvironment(mcp.environment)
 
-      // Ensure memory storage directory exists when MEMORY_FILE_PATH is configured.
-      if (key.startsWith("memory")) {
-        const memoryFilePath = expandedEnvironment?.MEMORY_FILE_PATH
-        if (memoryFilePath) {
-          await fs.mkdir(path.dirname(memoryFilePath), { recursive: true }).catch((error) => {
-            log.warn("failed to prepare memory directory", {
-              key,
-              memoryFilePath,
-              error: error instanceof Error ? error.message : String(error),
-            })
-          })
-        }
-      }
-
       // Auto-inject CWD for filesystem MCP if not already present
       const finalArgs = [...args]
       if (key === "filesystem") {

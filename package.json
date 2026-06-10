@@ -87,7 +87,6 @@
     "@babel/core": "7.28.5",
     "@eslint/js": "10.0.1",
     "@modelcontextprotocol/server-filesystem": "2026.1.14",
-    "@modelcontextprotocol/server-memory": "2026.1.26",
     "@modelcontextprotocol/server-sequential-thinking": "2025.12.18",
     "@octokit/webhooks-types": "7.6.1",
     "@opencode-ai/script": "workspace:*",

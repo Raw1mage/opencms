@@ -626,19 +626,18 @@ storage), and `recall_toolcall_digest` (L1 entries). The post-compaction
 provider becomes a Phase B awareness manifest under a 120-token budget rather
 than a full-table render. Only L1 is shipped today; L2 and the retrieval tools
 remain in the plan package and ship in subsequent slices. Subagent ↔ parent
-cache promotion, repo/domain scopes, and memory-graph promotion are explicitly
-deferred. See `plans/20260507_working-cache-local-cache/design.md` for the
-authoritative current spec.
+cache promotion and repo/domain scopes are explicitly deferred. See
+`plans/20260507_working-cache-local-cache/design.md` for the authoritative
+current spec.
 
-Memory Graph MCP boundary (2026-05-07, same plan): `/memory` is an optional
-GraphRAG promotion/retrieval layer for canonical cross-session knowledge; it is
-not the primary Working Cache store. Local MCP environment values are normalized
-before launch: memory server commands are recognized for both npm-style
-`@modelcontextprotocol/server-memory` and installed `server-memory/dist/index.js`
-paths, and `$HOME` / `${HOME}` environment values are expanded before directory
-creation and stdio transport injection. Memory write failures must surface as
-explicit MCP/tool errors; an empty graph is not treated as proof of successful
-durable memory persistence.
+> **Knowledge-graph memory MCP retired (2026-06-10, `cleanup_memory-mcp-retire`)**:
+> the optional `@modelcontextprotocol/server-memory` GraphRAG layer (`memory_*`
+> tools + `memory.jsonl`) has been fully removed across dependency, config
+> normalization, MCP bootstrap, enablement registry, the `graphrag-memory`
+> skill, and user config. Cross-session knowledge now lives solely in the
+> three-tier recall model (`session_recall` → event log → specwiki). This is
+> distinct from compaction's `SessionMemory` (`session/memory.ts`, above), which
+> is unaffected.
 
 ### Subagent compaction (DD-12)
 

@@ -62,21 +62,6 @@ export namespace Config {
     return merged
   }
 
-  function isMemoryServerCommand(command: string[]) {
-    return command.some(
-      (part) => part.includes("@modelcontextprotocol/server-memory") || part.includes("server-memory/dist/index.js"),
-    )
-  }
-
-  function getLocalMemoryMcp(config: Info) {
-    const memory = config.mcp?.memory
-    if (!memory || typeof memory !== "object") return undefined
-    if (!("type" in memory) || memory.type !== "local") return undefined
-    if (!("command" in memory) || !Array.isArray(memory.command)) return undefined
-    if (!isMemoryServerCommand(memory.command)) return undefined
-    return memory
-  }
-
   const INTERNAL_MCP_SOURCES = {
     "system-manager": "packages/mcp/system-manager/src/index.ts",
     "gcp-grounding": "packages/mcp/gcp-grounding/index.ts",
@@ -170,57 +155,6 @@ export namespace Config {
     }
 
     return { ...config, mcp }
-  }
-
-  function normalizeMemoryConfig(config: Info): Info {
-    const memory = getLocalMemoryMcp(config)
-    if (!memory) return config
-
-    // Use XDG data path with project ID to avoid creating ~/.opencode/ in user home
-    // when the daemon's cwd is home (non-git directory).
-    const projectMemoryPath = path.join(Global.Path.data, "memory", Instance.project.id, "project.jsonl")
-
-    return {
-      ...config,
-      mcp: {
-        ...(config.mcp ?? {}),
-        // Keep a single memory MCP entry. Default to repo-scoped memory.
-        memory: {
-          ...memory,
-          environment: {
-            ...memory.environment,
-            MEMORY_FILE_PATH: projectMemoryPath,
-          },
-        },
-      },
-    }
-  }
-
-  function validateMemoryConfig(config: Info) {
-    const memory = getLocalMemoryMcp(config)
-    if (!memory) return
-
-    // Validate that environment variables are properly set
-    if (!memory.environment?.MEMORY_FILE_PATH) {
-      log.warn("Memory MCP is missing MEMORY_FILE_PATH environment variable")
-    }
-
-    // Validate command exists and is executable
-    const [cmd] = memory.command
-    if (!cmd) {
-      log.warn("Memory MCP command is empty")
-      return
-    }
-
-    try {
-      // Check if command is found in PATH
-      const resolved = Bun.which(cmd)
-      if (!resolved) {
-        log.error(`Memory MCP command not found: ${cmd}`)
-      }
-    } catch (error) {
-      log.error(`Error validating Memory MCP command: ${cmd}`, { error })
-    }
   }
 
   const LKG_FILE = "config-lkg.json"
@@ -510,14 +444,8 @@ export namespace Config {
 
     result.plugin = deduplicatePlugins(result.plugin ?? [])
 
-    // @event_2026-02-23_single_memory_mcp: keep one memory MCP surface
-    result = normalizeMemoryConfig(result)
-
     // @event_2026-03-03_system_mcp_binary: prioritize system binaries over repo paths
     result = normalizeMcpCommands(result)
-
-    // Validate layered memory configuration
-    validateMemoryConfig(result)
 
     return {
       config: result,

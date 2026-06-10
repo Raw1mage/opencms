@@ -564,12 +564,11 @@ list_orphan_mcp_candidates() {
 
             is_internal_mcp_binary = (cmd ~ /\/usr\/local\/lib\/opencode\/mcp\/(system-manager|gcp-grounding)( |$)/)
             is_internal_mcp_source = (cmd ~ /\/packages\/mcp\/(system-manager\/src\/index\.ts|gcp-grounding\/index\.ts)( |$)/)
-            is_memory_mcp = ((cmd ~ /@modelcontextprotocol\/server-memory/) || (cmd ~ /server-memory( |$)/))
             is_filesystem_mcp = ((cmd ~ /@modelcontextprotocol\/server-filesystem/) || (cmd ~ /server-filesystem( |$)/))
             is_fetch_mcp = ((cmd ~ /@modelcontextprotocol\/server-fetch/) || (cmd ~ /server-fetch( |$)/))
             is_sequential_thinking_mcp = ((cmd ~ /@modelcontextprotocol\/server-sequential-thinking/) || (cmd ~ /server-sequential-thinking( |$)/))
 
-            if (is_internal_mcp_binary || is_internal_mcp_source || is_memory_mcp || is_filesystem_mcp || is_fetch_mcp || is_sequential_thinking_mcp) {
+            if (is_internal_mcp_binary || is_internal_mcp_source || is_filesystem_mcp || is_fetch_mcp || is_sequential_thinking_mcp) {
                 printf "%s\t%s\t%s\n", "mcp", pid, cmd
             }
         }
@@ -588,12 +587,11 @@ list_all_mcp_processes() {
 
             is_internal_mcp_binary = (cmd ~ /\/usr\/local\/lib\/opencode\/mcp\/(system-manager|gcp-grounding)( |$)/)
             is_internal_mcp_source = (cmd ~ /\/packages\/mcp\/(system-manager\/src\/index\.ts|gcp-grounding\/index\.ts)( |$)/)
-            is_memory_mcp = ((cmd ~ /@modelcontextprotocol\/server-memory/) || (cmd ~ /server-memory( |$)/))
             is_filesystem_mcp = ((cmd ~ /@modelcontextprotocol\/server-filesystem/) || (cmd ~ /server-filesystem( |$)/))
             is_fetch_mcp = ((cmd ~ /@modelcontextprotocol\/server-fetch/) || (cmd ~ /server-fetch( |$)/))
             is_sequential_thinking_mcp = ((cmd ~ /@modelcontextprotocol\/server-sequential-thinking/) || (cmd ~ /server-sequential-thinking( |$)/))
 
-            if (is_internal_mcp_binary || is_internal_mcp_source || is_memory_mcp || is_filesystem_mcp || is_fetch_mcp || is_sequential_thinking_mcp) {
+            if (is_internal_mcp_binary || is_internal_mcp_source || is_filesystem_mcp || is_fetch_mcp || is_sequential_thinking_mcp) {
                 printf "%s\t%s\n", pid, cmd
             }
         }
@@ -840,11 +838,10 @@ list_interactive_process_candidates() {
 
             is_internal_mcp_binary = (cmd ~ /\/usr\/local\/lib\/opencode\/mcp\/(system-manager|gcp-grounding)( |$)/)
             is_internal_mcp_source = (cmd ~ /\/packages\/mcp\/(system-manager\/src\/index\.ts|gcp-grounding\/index\.ts)( |$)/)
-            is_memory_mcp = ((cmd ~ /@modelcontextprotocol\/server-memory/) || (cmd ~ /server-memory( |$)/))
             is_filesystem_mcp = ((cmd ~ /@modelcontextprotocol\/server-filesystem/) || (cmd ~ /server-filesystem( |$)/))
             is_fetch_mcp = ((cmd ~ /@modelcontextprotocol\/server-fetch/) || (cmd ~ /server-fetch( |$)/))
             is_sequential_thinking_mcp = ((cmd ~ /@modelcontextprotocol\/server-sequential-thinking/) || (cmd ~ /server-sequential-thinking( |$)/))
-            is_mcp = is_internal_mcp_binary || is_internal_mcp_source || is_memory_mcp || is_filesystem_mcp || is_fetch_mcp || is_sequential_thinking_mcp
+            is_mcp = is_internal_mcp_binary || is_internal_mcp_source || is_filesystem_mcp || is_fetch_mcp || is_sequential_thinking_mcp
 
             if (is_runtime || is_mcp) {
                 kind = is_runtime ? "runtime" : "mcp"

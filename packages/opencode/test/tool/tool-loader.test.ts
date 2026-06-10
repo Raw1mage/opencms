@@ -7,7 +7,7 @@ describe("tool-loader alias resolution", () => {
     "system-manager_get_system_status",
     "system-manager_restart_self",
     "system-manager_set_log_level",
-    "memory_create_entities",
+    "fetch_get_raw_text",
   ])
 
   test("resolves colon and dot MCP namespace aliases", () => {
