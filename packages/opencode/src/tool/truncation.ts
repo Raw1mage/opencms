@@ -6,10 +6,18 @@ import { PermissionNext } from "../permission/next"
 import type { Agent } from "../agent/agent"
 import { Scheduler } from "../scheduler"
 import { Storage } from "../storage/storage"
+import { ToolBudget } from "./budget"
 
 export namespace Truncate {
   export const MAX_LINES = 2000
   export const MAX_BYTES = 256 * 1024
+  // session_tool-output-redirection DD-1/DD-3: the externalization decision is in
+  // TOKENS (the context-budget currency), not bytes; and when a result IS
+  // externalized the inline preview is a SMALL token-bounded head/tail (not the
+  // old byte-capped near-full preview that left a redirected result still huge in
+  // the prompt every turn). The full body lives in the output file (the handle);
+  // PREVIEW_TOKENS is what stays inline.
+  export const PREVIEW_TOKENS = 600
   // @event_2026-02-11_session_storage_unify:
   // Store truncated outputs under each session folder:
   // storage/session/<project>/<session>/output/output_tool_*
@@ -23,6 +31,10 @@ export namespace Truncate {
   export interface Options {
     maxLines?: number
     maxBytes?: number
+    /** Externalization gate in TOKENS (DD-1). Defaults to the ToolBudget cap. */
+    maxTokens?: number
+    /** Inline preview size in TOKENS when externalizing (DD-3). Default PREVIEW_TOKENS. */
+    previewTokens?: number
     direction?: "head" | "tail"
   }
 
@@ -72,44 +84,50 @@ export namespace Truncate {
     sessionID?: string,
   ): Promise<Result> {
     const maxLines = options.maxLines ?? MAX_LINES
-    const maxBytes = options.maxBytes ?? MAX_BYTES
+    // DD-1: externalization gate is in TOKENS (ToolBudget cap, default 50K), not
+    // bytes. maxBytes is retained only as an explicit per-call override.
+    const maxTokens = options.maxTokens ?? ToolBudget.resolve({ outputBudget: undefined }).tokens
+    const previewTokens = options.previewTokens ?? PREVIEW_TOKENS
     const direction = options.direction ?? "head"
     const lines = text.split("\n")
-    const totalBytes = Buffer.byteLength(text, "utf-8")
+    const totalTokens = ToolBudget.estimateTokens(text)
 
-    if (lines.length <= maxLines && totalBytes <= maxBytes) {
+    // Behaviour-preserving for small results: inline unchanged.
+    if (lines.length <= maxLines && totalTokens <= maxTokens) {
       return { content: text, truncated: false }
     }
 
+    // DD-3: the inline preview is a SMALL token-bounded head/tail. The full body
+    // goes to the output file (the handle); only PREVIEW_TOKENS stays in the prompt.
     const out: string[] = []
     let i = 0
-    let bytes = 0
-    let hitBytes = false
+    let toks = 0
+    let hitCap = false
 
     if (direction === "head") {
       for (i = 0; i < lines.length && i < maxLines; i++) {
-        const size = Buffer.byteLength(lines[i], "utf-8") + (i > 0 ? 1 : 0)
-        if (bytes + size > maxBytes) {
-          hitBytes = true
+        const size = ToolBudget.estimateTokens(lines[i]) + (i > 0 ? 1 : 0)
+        if (toks + size > previewTokens) {
+          hitCap = true
           break
         }
         out.push(lines[i])
-        bytes += size
+        toks += size
       }
     } else {
       for (i = lines.length - 1; i >= 0 && out.length < maxLines; i--) {
-        const size = Buffer.byteLength(lines[i], "utf-8") + (out.length > 0 ? 1 : 0)
-        if (bytes + size > maxBytes) {
-          hitBytes = true
+        const size = ToolBudget.estimateTokens(lines[i]) + (out.length > 0 ? 1 : 0)
+        if (toks + size > previewTokens) {
+          hitCap = true
           break
         }
         out.unshift(lines[i])
-        bytes += size
+        toks += size
       }
     }
 
-    const removed = hitBytes ? totalBytes - bytes : lines.length - out.length
-    const unit = hitBytes ? "bytes" : "lines"
+    const removed = hitCap ? totalTokens - toks : lines.length - out.length
+    const unit = hitCap ? "tokens" : "lines"
     const preview = out.join("\n")
 
     const id = Identifier.ascending("tool")

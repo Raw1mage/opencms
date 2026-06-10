@@ -261,7 +261,7 @@ export namespace Session {
   export const SessionRecentEvent = z
     .object({
       ts: z.number(),
-      kind: z.enum(["rotation", "compaction", "cache-cliff"]),
+      kind: z.enum(["rotation", "compaction", "enrichment", "cache-cliff"]),
       rotation: z
         .object({
           fromProviderId: z.string().optional(),
@@ -276,6 +276,17 @@ export namespace Session {
           observed: z.string(),
           kind: z.string().optional(),
           success: z.boolean(),
+          tokensBefore: z.number().optional(),
+          tokensAfter: z.number().optional(),
+        })
+        .optional(),
+      // post-compaction-continuity DD-1: enrichment is a first-class kind, no
+      // longer forced into `compaction` (which faked a second compaction in the
+      // tile AND short-circuited decideAmnesiaInjection).
+      enrichment: z
+        .object({
+          status: z.enum(["success", "failed"]),
+          detail: z.string().optional(),
           tokensBefore: z.number().optional(),
           tokensAfter: z.number().optional(),
         })

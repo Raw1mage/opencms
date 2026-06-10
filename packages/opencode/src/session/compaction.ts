@@ -1734,13 +1734,18 @@ When constructing the summary, try to stick to this template:
     const emitEnrichmentStatus = (status: "started" | "success" | "failed", detail?: string) => {
       // "started" is noise in the sidebar — only emit success/failed
       if (status === "started") return
+      // post-compaction-continuity DD-1: enrichment is its own recentEvent kind.
+      // Was forced into kind:"compaction" (no enrichment kind existed), which (a)
+      // rendered as a phantom second compaction in the Q-card tile and (b)
+      // short-circuited decideAmnesiaInjection — that scan walks back for the most
+      // recent kind:"compaction" and hit this fake one first, suppressing the
+      // amnesia notice for the real anchor behind it.
       void Session.appendRecentEvent(sessionID, {
         ts: Date.now(),
-        kind: "compaction",
-        compaction: {
-          observed: `enrichment:${status}`,
-          kind: "enrichment",
-          success: status === "success",
+        kind: "enrichment",
+        enrichment: {
+          status: status as "success" | "failed",
+          detail,
         },
       }).catch(() => undefined)
     }
@@ -3017,7 +3022,18 @@ When constructing the summary, try to stick to this template:
       // exits silently, stranding the in-flight work (ses_17d9df5dcffe). A later
       // child that DID reach stop (firstStopIdx > 0) means the request was truly
       // answered after some tool calls — keep tool-calls-as-answered there.
-      const toolCallsInterrupted = observed === "overflow" && finish === "tool-calls" && firstStopIdx === -1
+      // post-compaction-continuity S3/DD-3: an interrupted tool-call chain
+      // (finish=tool-calls with NO terminal `stop` anywhere — firstStopIdx === -1)
+      // is the user request still IN FLIGHT, i.e. UNANSWERED — regardless of which
+      // observed triggered the compaction. The original Path C scoped this to
+      // `overflow` only, so a `cache-aware` (or any other) compaction firing mid
+      // tool-chain skipped the snapshot, replayed nothing, hit
+      // loop:no_user_after_compaction and STRANDED the in-flight task (incident
+      // ses_14d8b1edeffegiR0uf52A2ZbT8). Generalized to all observeds. The
+      // firstStopIdx > 0 / finish === "stop" branches below still classify a
+      // genuinely-completed turn as answered, so a finished turn is never re-fired
+      // (no resume loop).
+      const toolCallsInterrupted = finish === "tool-calls" && firstStopIdx === -1
       const toolCallsAnswered = finish === "tool-calls" && !toolCallsInterrupted
       if (finish === "stop" || toolCallsAnswered || (lengthIsAnswered && finish === "length")) {
         log.info("compaction.snapshot.skipped", {

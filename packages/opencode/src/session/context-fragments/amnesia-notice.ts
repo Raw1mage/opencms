@@ -56,7 +56,11 @@ const CLIENT_SIDE_COMPACTION_KINDS = new Set(["narrative", "hybrid_llm", "ai_pai
 export function decideAmnesiaInjection(
   recentEvents: ReadonlyArray<{
     ts: number
-    kind: "rotation" | "compaction" | "cache-cliff"
+    // post-compaction-continuity DD-2: "enrichment" is now a first-class kind;
+    // the `e.kind !== "compaction"` guard below correctly skips it, so the
+    // reverse scan reaches the real compaction instead of short-circuiting on a
+    // mislabeled enrichment entry (which used to be stored as kind:"compaction").
+    kind: "rotation" | "compaction" | "enrichment" | "cache-cliff"
     compaction?: { observed: string; kind?: string; success: boolean }
   }> | undefined,
 ): AmnesiaDecision {
