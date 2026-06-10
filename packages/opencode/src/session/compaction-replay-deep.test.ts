@@ -182,9 +182,51 @@ function userMsgWP(id: string, text: string): MessageV2.WithParts {
   }
 }
 
+// A completed (answered) turn: a user message followed by an assistant that
+// ran to a clean `stop` with real text. Narrative compaction excludes the
+// trailing *unanswered* user message, so a session must contain at least one
+// such completed round for tryLocalRedactedDialog to emit a non-empty body
+// (the `messagesEmitted === 0 && prevBody === ""` guard added 2026-05-10 in
+// 545d16ea2). Tests that assert the anchor-write + replay wiring therefore
+// seed one of these BEFORE the unanswered user message they snapshot.
+function asstMsgWP(id: string, parentID: string, text: string): MessageV2.WithParts {
+  return {
+    info: {
+      id,
+      role: "assistant",
+      sessionID: "ses_deep",
+      parentID,
+      modelID: "gpt-5.5",
+      providerId: "codex",
+      mode: "primary",
+      agent: "default",
+      path: { cwd: ".", root: "." },
+      summary: false,
+      cost: 0,
+      tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+      finish: "stop",
+      time: { created: 2, completed: 3 },
+    } as MessageV2.Assistant,
+    parts: [
+      {
+        id: `prt_${id}`,
+        messageID: id,
+        sessionID: "ses_deep",
+        type: "text",
+        text,
+        time: { start: 2, end: 3 },
+      } as MessageV2.TextPart,
+    ],
+  }
+}
+
 describe("DEEP integration: defaultWriteAnchor → _replayHelper wiring", () => {
   it("observed=rebind: defaultWriteAnchor invokes _replayHelper with snapshot", async () => {
-    const captured = setupDeepMocks("ses_deep", [userMsgWP("msg_user_x", "the question")])
+    const captured = setupDeepMocks("ses_deep", [
+      userMsgWP("msg_u_prior", "earlier question"),
+      asstMsgWP("msg_a_prior", "msg_u_prior", "earlier answer"),
+      userMsgWP("msg_user_x", "the question"),
+    ])
 
     const replayCalls: any[] = []
     SessionCompaction.__test__.setReplayHelper(async (input) => {
@@ -254,6 +296,8 @@ describe("DEEP integration: defaultWriteAnchor → _replayHelper wiring", () => 
 
   it("observed=empty-response with empty assistant child: replay called with emptyAssistantID", async () => {
     setupDeepMocks("ses_deep", [
+      userMsgWP("msg_u_prior", "earlier question"),
+      asstMsgWP("msg_a_prior", "msg_u_prior", "earlier answer"),
       userMsgWP("msg_user_empty", "asked but got blank"),
       {
         info: {
