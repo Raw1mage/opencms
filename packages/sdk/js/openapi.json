@@ -46336,7 +46336,8 @@
               "rate_limited",
               "quota_low",
               "worker_dead",
-              "silent_kill"
+              "silent_kill",
+              "content_filter"
             ]
           },
           "finish": {
@@ -46349,7 +46350,8 @@
               "rate_limited",
               "quota_low",
               "worker_exited",
-              "no_progress_timeout"
+              "no_progress_timeout",
+              "content-filter"
             ]
           },
           "elapsedMs": {
@@ -47717,7 +47719,7 @@
           },
           "id": {
             "description": "Unique identifier for the todo item (auto-generated if omitted)",
-            "default": "todo_mq8h91n6_ktdfsj",
+            "default": "todo_mq8njxl0_klc690",
             "type": "string"
           },
           "action": {
@@ -48026,7 +48028,8 @@
                   "rate_limited",
                   "quota_low",
                   "worker_dead",
-                  "silent_kill"
+                  "silent_kill",
+                  "content_filter"
                 ]
               },
               "finish": {

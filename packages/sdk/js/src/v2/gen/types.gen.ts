@@ -1003,7 +1003,15 @@ export type SessionRecentEvent = {
 export type PendingSubagentNotice = {
   jobId: string
   childSessionID: string
-  status: "success" | "error" | "canceled" | "rate_limited" | "quota_low" | "worker_dead" | "silent_kill"
+  status:
+    | "success"
+    | "error"
+    | "canceled"
+    | "rate_limited"
+    | "quota_low"
+    | "worker_dead"
+    | "silent_kill"
+    | "content_filter"
   finish:
     | "stop"
     | "error"
@@ -1013,6 +1021,7 @@ export type PendingSubagentNotice = {
     | "quota_low"
     | "worker_exited"
     | "no_progress_timeout"
+    | "content-filter"
   elapsedMs: number
   at: string
   errorDetail?: {
@@ -1455,7 +1464,15 @@ export type EventTaskCompleted = {
     jobId: string
     parentSessionID: string
     childSessionID: string
-    status: "success" | "error" | "canceled" | "rate_limited" | "quota_low" | "worker_dead" | "silent_kill"
+    status:
+      | "success"
+      | "error"
+      | "canceled"
+      | "rate_limited"
+      | "quota_low"
+      | "worker_dead"
+      | "silent_kill"
+      | "content_filter"
     finish: string
     elapsedMs: number
     errorDetail?: {

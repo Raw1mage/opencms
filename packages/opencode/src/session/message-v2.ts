@@ -736,8 +736,34 @@ export namespace MessageV2 {
     .object({
       jobId: z.string(),
       childSessionID: Identifier.schema("session"),
-      status: z.enum(["success", "error", "canceled", "rate_limited", "quota_low", "worker_dead", "silent_kill"]),
-      finish: z.enum(["stop", "error", "length", "canceled", "rate_limited", "quota_low", "worker_exited", "no_progress_timeout"]),
+      status: z.enum([
+        "success",
+        "error",
+        "canceled",
+        "rate_limited",
+        "quota_low",
+        "worker_dead",
+        "silent_kill",
+        // content_filter: provider content filter blocked the subagent's own
+        // response — the turn ends with finish="content-filter", ~0 output
+        // tokens, zero tool calls, zero product. Distinct from "error" so the
+        // orchestrator can treat it as a (likely false-positive) provider
+        // block and retry with a rephrased prompt / different model rather
+        // than silently accepting it as success. See
+        // issues/subagent-content-filter-false-success.md.
+        "content_filter",
+      ]),
+      finish: z.enum([
+        "stop",
+        "error",
+        "length",
+        "canceled",
+        "rate_limited",
+        "quota_low",
+        "worker_exited",
+        "no_progress_timeout",
+        "content-filter",
+      ]),
       elapsedMs: z.number().int().nonnegative(),
       at: z.string(),
       errorDetail: z

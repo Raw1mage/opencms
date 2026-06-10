@@ -157,9 +157,11 @@ export function renderNoticeAddendum(n: MessageV2.PendingSubagentNotice): string
           ? ` Switch to a different account before any further dispatch.${readSubsessionHint}`
           : n.status === "canceled"
             ? ` The subagent was canceled; its work may be partial.${readSubsessionHint}`
-            : n.status === "worker_dead" || n.status === "silent_kill"
-              ? ` The subagent did not complete cleanly.${readSubsessionHint}`
-              : readSubsessionHint
+            : n.status === "content_filter"
+              ? ` A provider content filter blocked the subagent's response — it produced no output and did NO work; treat this as a failed dispatch, not a result. This is often a false positive on benign input. Retry with a rephrased task, a different model, or escalate to the user; do not assume the task is done.${readSubsessionHint}`
+              : n.status === "worker_dead" || n.status === "silent_kill"
+                ? ` The subagent did not complete cleanly.${readSubsessionHint}`
+                : readSubsessionHint
   return `${base}${tailStr}]${hint}`
 }
 

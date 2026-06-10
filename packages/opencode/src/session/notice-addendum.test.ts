@@ -72,6 +72,16 @@ describe("renderNoticeAddendum — read_subsession hint", () => {
     expect(out).toContain("exhaustedAccount=acc_x")
   })
 
+  it("content_filter: hint present, framed as failed dispatch not a result", () => {
+    const out = renderNoticeAddendum(makeNotice({ status: "content_filter", finish: "content-filter" }))
+    expect(out).toContain(READ_SUBSESSION_NEEDLE)
+    expect(out).toContain("status=content_filter")
+    expect(out).toContain("content filter")
+    expect(out).toContain("did NO work")
+    // It must NOT read as success/done — that was the original silent-loss bug.
+    expect(out).not.toContain("status=success")
+  })
+
   it("worker_dead: hint present", () => {
     const out = renderNoticeAddendum(
       makeNotice({ status: "worker_dead", finish: "worker_exited" }),

@@ -276,7 +276,16 @@ export const TaskCompletedEvent = BusEvent.define(
     jobId: z.string(),
     parentSessionID: Identifier.schema("session"),
     childSessionID: Identifier.schema("session"),
-    status: z.enum(["success", "error", "canceled", "rate_limited", "quota_low", "worker_dead", "silent_kill"]),
+    status: z.enum([
+      "success",
+      "error",
+      "canceled",
+      "rate_limited",
+      "quota_low",
+      "worker_dead",
+      "silent_kill",
+      "content_filter",
+    ]),
     finish: z.string(),
     elapsedMs: z.number().int().nonnegative(),
     errorDetail: z
@@ -383,10 +392,10 @@ export async function registryRemove(toolCallID: string) {
  * will never come (issue_20260611_3r-orphans-active-subagent-eternal-wait).
  */
 export function classifyOrphanFinish(childFinish: string | undefined): {
-  status: "success" | "error" | "canceled" | "rate_limited" | "quota_low" | "worker_dead"
+  status: "success" | "error" | "canceled" | "rate_limited" | "quota_low" | "worker_dead" | "content_filter"
   finish: string
 } {
-  const TERMINAL = ["stop", "error", "length", "canceled", "rate_limited", "quota_low"]
+  const TERMINAL = ["stop", "error", "length", "canceled", "rate_limited", "quota_low", "content-filter"]
   if (childFinish && TERMINAL.includes(childFinish)) {
     const status =
       childFinish === "stop"
@@ -397,7 +406,9 @@ export function classifyOrphanFinish(childFinish: string | undefined): {
             ? ("quota_low" as const)
             : childFinish === "canceled"
               ? ("canceled" as const)
-              : ("error" as const)
+              : childFinish === "content-filter"
+                ? ("content_filter" as const)
+                : ("error" as const)
     return { status, finish: childFinish }
   }
   return { status: "worker_dead", finish: "worker_exited" }
@@ -429,7 +440,8 @@ export async function recoverOrphanTasks() {
       // notice pipeline could deliver it. Honor that window: a child that
       // actually finished should be reported success/error — not as a
       // dead worker — so the parent gets its real result back.
-      let childStatus: "success" | "error" | "canceled" | "rate_limited" | "quota_low" | "worker_dead" = "worker_dead"
+      let childStatus: "success" | "error" | "canceled" | "rate_limited" | "quota_low" | "worker_dead" | "content_filter" =
+        "worker_dead"
       let childFinish = "worker_exited"
       let inlineResult: string | undefined
       try {
@@ -2173,7 +2185,11 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         // no_progress_timeout) outside this set; they do not need to appear
         // here because they are produced from /proc + silence detection,
         // not read from disk.
-        const TERMINAL_FINISHES = ["stop", "error", "length", "canceled", "rate_limited", "quota_low"]
+        //   content-filter — provider blocked the model's own response; the
+        //     child wrote a terminal finish to disk like any natural stop, so
+        //     the disk-terminal watchdog must recognise it (ok=false since it
+        //     is not "stop"; the completion path then maps it to content_filter).
+        const TERMINAL_FINISHES = ["stop", "error", "length", "canceled", "rate_limited", "quota_low", "content-filter"]
 
         type ProcSample = {
           state: string // R/S/D/Z/T/X from /proc/<pid>/stat
@@ -2513,7 +2529,8 @@ export const TaskTool = Tool.define("task", async (ctx) => {
               | "rate_limited"
               | "quota_low"
               | "worker_dead"
-              | "silent_kill" = (() => {
+              | "silent_kill"
+              | "content_filter" = (() => {
               if (watchdogResolution === "worker_dead") return "worker_dead"
               if (watchdogResolution === "silent_kill") return "silent_kill"
               // Map child session's last finish to user-facing status.
@@ -2576,23 +2593,46 @@ export const TaskTool = Tool.define("task", async (ctx) => {
               // Non-fatal — event still emitted with defaults
             }
 
-            // Resolve actual status using finishForEvent when watchdog didn't already classify
-            let resolvedStatus = notifyStatus
+            // Resolve actual status using finishForEvent when watchdog didn't already classify.
+            // Annotate explicitly: inferring from notifyStatus narrows to the IIFE's returned
+            // values (which never include content_filter), so the content-filter branch below
+            // would otherwise be flagged as an out-of-union assignment.
+            let resolvedStatus:
+              | "success"
+              | "error"
+              | "canceled"
+              | "rate_limited"
+              | "quota_low"
+              | "worker_dead"
+              | "silent_kill"
+              | "content_filter" = notifyStatus
             if (resolvedStatus !== "worker_dead" && resolvedStatus !== "silent_kill" && resolvedStatus !== "canceled") {
               if (finishForEvent === "rate_limited") resolvedStatus = "rate_limited"
               else if (finishForEvent === "quota_low") resolvedStatus = "quota_low"
               else if (finishForEvent === "canceled") resolvedStatus = "canceled"
+              // content-filter: the worker exits cleanly (run.done resolves, so
+              // workerOk stays true), but the assistant turn is empty — the
+              // provider blocked the model's own response. Without this branch
+              // it would fall through to "success" and the orchestrator would
+              // silently accept a zero-product task (the original BR). Map it
+              // to its own status so the parent can retry / switch model.
+              else if (finishForEvent === "content-filter") resolvedStatus = "content_filter"
               else resolvedStatus = workerOk ? "success" : "error"
             }
 
-            const resultForEvent = workerOk
-              ? await routeSubagentResultForNotice({
-                  parentSessionID: ctx.sessionID,
-                  parentMessageID: ctx.messageID,
-                  childSessionID: session.id,
-                  raw: childResultRaw || childOutput,
-                })
-              : undefined
+            // Suppress the child result for a content_filter turn: it has ~0
+            // output tokens, so routing its empty body as a "result=" would
+            // reinforce the false-success this status fix is meant to kill.
+            // Other dispositions keep their prior behaviour (workerOk-gated).
+            const resultForEvent =
+              workerOk && resolvedStatus !== "content_filter"
+                ? await routeSubagentResultForNotice({
+                    parentSessionID: ctx.sessionID,
+                    parentMessageID: ctx.messageID,
+                    childSessionID: session.id,
+                    raw: childResultRaw || childOutput,
+                  })
+                : undefined
 
             await Bus.publish(TaskCompletedEvent, {
               jobId: ctx.callID ?? `job_${session.id}`,

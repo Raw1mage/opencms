@@ -32,4 +32,12 @@ describe("classifyOrphanFinish", () => {
     expect(classifyOrphanFinish("rate_limited")).toEqual({ status: "rate_limited", finish: "rate_limited" })
     expect(classifyOrphanFinish("quota_low")).toEqual({ status: "quota_low", finish: "quota_low" })
   })
+
+  it("content-filter finish → content_filter, never success or worker_dead", () => {
+    // A content-filtered child reaches a terminal finish on disk like any
+    // natural stop; it must be classified as content_filter so the parent
+    // does not mistake the empty turn for a successful result
+    // (issues/subagent-content-filter-false-success.md).
+    expect(classifyOrphanFinish("content-filter")).toEqual({ status: "content_filter", finish: "content-filter" })
+  })
 })
