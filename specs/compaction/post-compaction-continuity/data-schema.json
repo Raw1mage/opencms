@@ -1,0 +1,43 @@
+{
+  "title": "Post-compaction continuity — schema deltas",
+  "description": "The schema changes this spec introduces: a first-class `enrichment` recentEvent kind (DD-1), the amnesia-injection decision input (DD-2), and the per-provider compaction-gate decision (DD-4). The CompactionManager intake contract is unchanged and not re-specified here.",
+  "types": {
+    "SessionRecentEventKind": {
+      "kind": "enum",
+      "before": ["rotation", "compaction", "cache-cliff"],
+      "after": ["rotation", "compaction", "enrichment", "cache-cliff"],
+      "note": "DD-1: `enrichment` becomes first-class; enrichment events stop being forced into `compaction`."
+    },
+    "EnrichmentRecentEvent": {
+      "kind": "object",
+      "fields": {
+        "ts": "number",
+        "kind": "\"enrichment\"",
+        "enrichment": {
+          "status": "\"success\" | \"failed\"",
+          "detail": "string?",
+          "tokensBefore": "number?",
+          "tokensAfter": "number?"
+        }
+      },
+      "note": "Replaces the prior `{kind:'compaction', compaction:{observed:'enrichment:success', kind:'enrichment'}}` shape."
+    },
+    "AmnesiaDecisionInput": {
+      "kind": "object",
+      "fields": {
+        "recentEvents": "ReadonlyArray<{ ts; kind; compaction?:{observed;kind?;success} }>"
+      },
+      "rule": "DD-2: reverse-scan; `kind !== 'compaction'` is skipped (now correctly excludes enrichment); first successful client-side compaction (kind ∈ CLIENT_SIDE_COMPACTION_KINDS) ⇒ inject:true."
+    },
+    "ProviderCompactionGate": {
+      "kind": "function",
+      "signature": "shouldCompact(provider: ProviderClass, observed: Observed, windowHeadroom: number): boolean",
+      "rule": "DD-4: claude + sufficient windowHeadroom on cache-aware/legacy-large-policy ⇒ false (decline); codex/general ⇒ unchanged. Provider-aware, NOT a global threshold change.",
+      "note": "Reuses the central-manager compaction-provider-strategy seam."
+    }
+  },
+  "notes": [
+    "Behaviour-preserving for real compaction recentEvents and for codex/general compaction.",
+    "SDK types (packages/sdk/js) must be regenerated for the new kind."
+  ]
+}

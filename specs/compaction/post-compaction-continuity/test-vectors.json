@@ -1,0 +1,67 @@
+[
+  {
+    "id": "TV-1",
+    "title": "Amnesia notice is not suppressed by a mislabeled enrichment entry",
+    "slice": "S1",
+    "given": {
+      "recentEvents": [
+        { "kind": "compaction", "compaction": { "observed": "cache-aware", "kind": "narrative", "success": true } },
+        { "kind": "enrichment", "enrichment": { "status": "success" } }
+      ]
+    },
+    "when": "decideAmnesiaInjection scans the ring (most-recent first)",
+    "then": {
+      "inject": true,
+      "anchorKind": "narrative",
+      "note": "Today (enrichment stored as kind:'compaction') this returns inject:false on the first iteration — the regression this locks."
+    }
+  },
+  {
+    "id": "TV-2",
+    "title": "Tile shows one compaction + one enrichment, not two compactions",
+    "slice": "S1",
+    "given": { "events": ["compaction(cache-aware,narrative)", "enrichment(success)"] },
+    "when": "the Q-card recentEvents tile renders",
+    "then": {
+      "compaction_lines": 1,
+      "enrichment_lines": 1,
+      "false_double_compaction": false
+    }
+  },
+  {
+    "id": "TV-3",
+    "title": "claude declines an unnecessary cache-aware/legacy compaction",
+    "slice": "S2",
+    "given": { "provider": "claude-cli", "observed": "cache-aware", "trigger": "legacy-large-policy", "windowUsed": 8358, "windowLimit": 1000000 },
+    "when": "the compaction decision is routed through the provider strategy",
+    "then": { "compacts": false, "ss_break": false }
+  },
+  {
+    "id": "TV-4",
+    "title": "codex/general compaction on the same trigger is unchanged",
+    "slice": "S2",
+    "given": { "provider": ["codex", "github-copilot"], "observed": "cache-aware" },
+    "when": "the same trigger is raised",
+    "then": { "compacts": true, "behaviour": "byte-identical to pre-change" }
+  },
+  {
+    "id": "TV-5",
+    "title": "Mid-task compaction resumes the interrupted turn",
+    "slice": "S3",
+    "given": { "hasLastFinished": false, "followUpCount": 0 },
+    "when": "a compaction commits mid-turn and the post-compaction path runs",
+    "then": {
+      "task_resumed": true,
+      "exited_via_no_user_after_compaction": false,
+      "mechanism": "replay unanswered user request (or minimal Continue)"
+    }
+  },
+  {
+    "id": "TV-6",
+    "title": "Finished turn is not re-fired (no infinite loop)",
+    "slice": "S3",
+    "given": { "hasLastFinished": true },
+    "when": "a compaction commits at the turn boundary",
+    "then": { "synthetic_continue_injected": false, "loop": "exits cleanly as today" }
+  }
+]

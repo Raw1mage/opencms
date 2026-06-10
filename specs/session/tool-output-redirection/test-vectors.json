@@ -1,0 +1,50 @@
+[
+  {
+    "id": "TV-1",
+    "title": "Token gate, not byte gate",
+    "slice": "R1",
+    "given": { "resultA": "200KB ASCII (~50K tok)", "resultB": "200KB CJK/base64 (~100K tok)" },
+    "when": "the seam evaluates each",
+    "then": { "decision_tracks": "estimated tokens, not bytes", "byte_cap_used": false }
+  },
+  {
+    "id": "TV-2",
+    "title": "Headroom-adaptive externalization",
+    "slice": "R2",
+    "given": { "resultTokens": 6000, "absFloor": 8000 },
+    "when": "context window is near-empty vs near-full",
+    "then": { "near_empty": "inline", "near_full": "externalize (headroom fraction binds)" }
+  },
+  {
+    "id": "TV-3",
+    "title": "Redirected result is bounded on every later send (the re-send fix)",
+    "slice": "R3",
+    "given": { "redirectedResultTokensFull": 50000, "previewTokens": 300 },
+    "when": "three later cold turns re-send the conversation",
+    "then": { "prompt_contribution_each_turn": "~300 tok (preview+handle)", "full_body_reinlined": false }
+  },
+  {
+    "id": "TV-4",
+    "title": "Small result stays inline (behaviour-preserving)",
+    "slice": "R1",
+    "given": { "resultTokens": 1200 },
+    "when": "the seam evaluates it",
+    "then": { "inline": true, "handle_minted": false }
+  },
+  {
+    "id": "TV-5",
+    "title": "Handle resolves after compaction",
+    "slice": "R4",
+    "given": { "redirected_result_in_collapsed_turn": true },
+    "when": "a compaction anchors over the producing turn, then the model fetches the handle",
+    "then": { "resolves": true, "full_body_returned": true }
+  },
+  {
+    "id": "TV-6",
+    "title": "MCP result flows through the seam",
+    "slice": "R5",
+    "given": { "provider": "mcp/docxmcp", "resultTokens": 60000 },
+    "when": "the MCP result returns",
+    "then": { "externalized_via_seam": true, "bypassed": false }
+  }
+]

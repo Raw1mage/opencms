@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-06-10T18:01:29.297Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-06-10T18:06:20.832Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "D1/D2/D3 designed: proposal.md (+Capabilities), spec.md (Requirement/Scenario blocks), design.md (DD-1..DD-4, Goals/Non-Goals, Risks/Trade-offs), idef0.json, grafcet.json, sequence.json, data-schema.json all authored."
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-06-10T18:08:12.800Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Full planned artifact set complete (errors.md Error Catalogue added)."
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-06-10T19:42:19.591Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "S1+S3 shipped to main (1977aac7b); S2/DD-4 moot (resolved upstream); final live-verification item open."
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-06-10T19:42:30.038Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "S1+S3 shipped + live-verified on main (1977aac7b); touched suites 98/0; S2/DD-4 moot (upstream). All tasks resolved (done or justified-deferred/moot)."
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-06-10T19:43:05.334Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "User-directed (收尾plans). S1+S3 shipped + live-verified on main (1977aac7b); S2/DD-4 moot upstream. All 13 artifacts valid at verified."
+    }
+  ]
+}

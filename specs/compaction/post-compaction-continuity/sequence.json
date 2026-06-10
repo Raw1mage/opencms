@@ -1,0 +1,38 @@
+[
+  {
+    "id": "SEQ-1",
+    "title": "Post-compaction: honest report, amnesia notice, task resume",
+    "description": "After the CompactionManager commits an anchor (unchanged), the post-compaction path reports the compaction and its enrichment under DISTINCT kinds, decides the amnesia notice against the real compaction, and resumes an unfinished turn.",
+    "participants": [
+      { "id": "mgr", "name": "CompactionManager (committed anchor)", "kind": "component" },
+      { "id": "ring", "name": "recentEvents ring (Session.appendRecentEvent)", "kind": "component" },
+      { "id": "amnesia", "name": "decideAmnesiaInjection", "kind": "component" },
+      { "id": "loop", "name": "runloop (prompt.ts) / injectContinueAfterAnchor", "kind": "component" },
+      { "id": "tile", "name": "Q-card tile", "kind": "actor" }
+    ],
+    "messages": [
+      { "from": "mgr", "to": "ring", "label": "append {kind:'compaction', observed, success}", "kind": "async" },
+      { "from": "mgr", "to": "ring", "label": "append {kind:'enrichment', status} — DD-1 (was kind:'compaction')", "kind": "async" },
+      { "from": "ring", "to": "tile", "label": "render: 1 compaction line + 1 enrichment line (no false double)", "kind": "async" },
+      { "from": "loop", "to": "amnesia", "label": "decideAmnesiaInjection(recentEvents)", "kind": "call" },
+      { "from": "amnesia", "to": "amnesia", "label": "reverse-scan; skip kind!=='compaction' (enrichment skipped); reach real compaction — DD-2", "kind": "call" },
+      { "from": "amnesia", "to": "loop", "label": "inject:true for the real narrative anchor", "kind": "return" },
+      { "from": "loop", "to": "loop", "label": "unfinished turn? resume via replay/minimal Continue — DD-3", "kind": "call" }
+    ]
+  },
+  {
+    "id": "SEQ-2",
+    "title": "Provider gate declines unnecessary claude compaction",
+    "description": "A cache-aware / legacy-large-policy trigger is routed through the per-provider strategy; claude with window headroom declines, codex/general proceed unchanged (DD-4).",
+    "participants": [
+      { "id": "trig", "name": "compaction trigger (observed=cache-aware/legacy-large-policy)", "kind": "actor" },
+      { "id": "strat", "name": "compaction-provider-strategy", "kind": "component" },
+      { "id": "mgr", "name": "CompactionManager", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "trig", "to": "strat", "label": "shouldCompact(provider, observed, windowHeadroom)?", "kind": "call" },
+      { "from": "strat", "to": "mgr", "label": "claude + headroom → decline (no SS-break)", "kind": "return" },
+      { "from": "strat", "to": "mgr", "label": "codex/general → proceed (byte-identical)", "kind": "return" }
+    ]
+  }
+]

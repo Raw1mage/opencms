@@ -1,0 +1,50 @@
+{
+  "diagram_title": "Resolve Post-Compaction State Correctly",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Gate Compaction By Provider",
+      "description": "Before a cache-aware / legacy-large-policy compaction runs, route the decision through the per-provider strategy: claude (stateless, large window) declines when there is no real context pressure; codex/general keep behaviour byte-identical (DD-4).",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Report Compaction Outcome Honestly",
+      "description": "Push the compaction event under kind 'compaction' and the enrichment lifecycle event under a first-class kind 'enrichment' — never forcing enrichment to wear the compaction label (DD-1).",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Decide Amnesia Notice",
+      "description": "Scan the recentEvents ring in reverse for the most recent real client-side compaction and inject the amnesia notice for it; enrichment entries are skipped because they are no longer kind 'compaction' (DD-2).",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Resume Interrupted Task",
+      "description": "When the compaction interrupted an unfinished turn, continue the task (replay the unanswered user request post-anchor, or inject a minimal Continue) so the loop does not exit via no_user_after_compaction; a legitimately finished turn stays finished (DD-3).",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "compaction trigger (observed=cache-aware / legacy-large-policy)", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "per-provider compaction policy (claude window headroom; codex/general unchanged)", "type": "control" },
+    { "id": "AR3", "source": "EXTERNAL", "target": "A1:mechanism", "label": "compaction-provider-strategy (central-manager seam)", "type": "mechanism" },
+    { "id": "AR4", "source": "A1:output", "target": "A2:input", "label": "committed compaction (anchor written) | declined no-op", "type": "output" },
+
+    { "id": "AR5", "source": "EXTERNAL", "target": "A2:control", "label": "SessionRecentEvent schema (kinds: rotation|compaction|enrichment|cache-cliff)", "type": "control" },
+    { "id": "AR6", "source": "EXTERNAL", "target": "A2:mechanism", "label": "appendRecentEvent ring buffer", "type": "mechanism" },
+    { "id": "AR7", "source": "A2:output", "target": "A3:input", "label": "recentEvents ring (compaction + enrichment, distinctly typed)", "type": "output" },
+    { "id": "AR8", "source": "A2:output", "target": "EXTERNAL", "label": "Q-card tile entries (enrichment NOT shown as compaction)", "type": "output" },
+
+    { "id": "AR9", "source": "EXTERNAL", "target": "A3:control", "label": "CLIENT_SIDE_COMPACTION_KINDS + kind!=='compaction' skip rule", "type": "control" },
+    { "id": "AR10", "source": "EXTERNAL", "target": "A3:mechanism", "label": "decideAmnesiaInjection", "type": "mechanism" },
+    { "id": "AR11", "source": "A3:output", "target": "A4:input", "label": "amnesia decision (inject for the real anchor) + anchor state", "type": "output" },
+    { "id": "AR12", "source": "A3:output", "target": "EXTERNAL", "label": "amnesia notice fragment (recall affordance) for the real compaction", "type": "output" },
+
+    { "id": "AR13", "source": "EXTERNAL", "target": "A4:control", "label": "continuation policy (resume unfinished; never re-fire a finished turn; coexist with unproductive-round breaker)", "type": "control" },
+    { "id": "AR14", "source": "EXTERNAL", "target": "A4:mechanism", "label": "injectContinueAfterAnchor + user-msg-replay-unification replay", "type": "mechanism" },
+    { "id": "AR15", "source": "A4:output", "target": "EXTERNAL", "label": "resumed in-flight task (no manual go-on) | clean exit if finished", "type": "output" }
+  ]
+}

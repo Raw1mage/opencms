@@ -1,0 +1,57 @@
+{
+  "diagram_title": "Govern Tool-Output Carriage By Token Budget",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Gauge Result Token Cost",
+      "description": "Estimate the tool result's token cost (not byte length) using the existing token estimator, so the decision is in the same currency as the context window it protects (DD-1).",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Decide Externalization By Headroom",
+      "description": "Compare the estimate against min(absolute floor, fraction of remaining context window); externalize above it, tightening as the window fills (DD-2).",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Externalize And Mint Handle",
+      "description": "Write the full body to the output store and mint a stable, re-accessible handle (not a raw fs path); produce a bounded preview. One seam for built-in and MCP results (DD-4/DD-5).",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Emit Bounded Handle Every Send",
+      "description": "On every prompt build, serialize a redirected part as handle + preview — never the full body again — so cold re-sends stay bounded (DD-3).",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Resolve Handle On Demand",
+      "description": "When the model needs the full result, resolve the handle (Read/Grep/recall-by-handle); the handle survives compaction so a post-amnesia agent can still fetch it (DD-4).",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "tool result output (built-in or MCP)", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:mechanism", "label": "token estimator", "type": "mechanism" },
+    { "id": "AR3", "source": "A1:output", "target": "A2:input", "label": "estimated token cost", "type": "output" },
+
+    { "id": "AR4", "source": "EXTERNAL", "target": "A2:control", "label": "gate policy: min(absolute floor, headroom fraction × remaining window)", "type": "control" },
+    { "id": "AR5", "source": "EXTERNAL", "target": "A2:input", "label": "current context headroom", "type": "input" },
+    { "id": "AR6", "source": "A2:output", "target": "A3:input", "label": "externalize verdict (large)", "type": "output" },
+    { "id": "AR7", "source": "A2:output", "target": "EXTERNAL", "label": "inline verdict (small) — carried as today", "type": "output" },
+
+    { "id": "AR8", "source": "EXTERNAL", "target": "A3:mechanism", "label": "output store + handle minter (one seam)", "type": "mechanism" },
+    { "id": "AR9", "source": "A3:output", "target": "A4:input", "label": "{handle, preview} record on the part", "type": "output" },
+    { "id": "AR10", "source": "A3:output", "target": "A5:control", "label": "stored full body keyed by handle", "type": "control" },
+
+    { "id": "AR11", "source": "EXTERNAL", "target": "A4:control", "label": "prompt serializer rule: redirected part → handle+preview only", "type": "control" },
+    { "id": "AR12", "source": "A4:output", "target": "EXTERNAL", "label": "bounded prompt contribution every send", "type": "output" },
+
+    { "id": "AR13", "source": "EXTERNAL", "target": "A5:input", "label": "model fetch request (by handle)", "type": "input" },
+    { "id": "AR14", "source": "EXTERNAL", "target": "A5:mechanism", "label": "Read/Grep/recall-by-handle (survives compaction)", "type": "mechanism" },
+    { "id": "AR15", "source": "A5:output", "target": "EXTERNAL", "label": "full result body on demand", "type": "output" }
+  ]
+}

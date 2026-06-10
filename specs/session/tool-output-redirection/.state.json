@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-06-10T18:40:48.638Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-06-10T18:47:46.494Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Rebuild designed: proposal (+Capabilities), spec (Requirement/Scenario), design (DD-1..DD-6, Goals/Non-Goals, Risks/Trade-offs), idef0, grafcet, sequence, data-schema."
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-06-10T18:48:49.487Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Full planned set: tasks.md (R1-R5), handoff.md, test-vectors.json (TV-1..6), errors.md (Error Catalogue), observability.md."
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-06-10T19:42:42.946Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "R1+R3-core+R4+R5 shipped to main (70f836a9b); R2/sliding-window justified-deferred (DD-7); final live-verification item open."
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-06-10T19:42:55.200Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "R1+R3-core+R4+R5 shipped + live-verified on main (70f836a9b); tool suite green; R2/sliding-window/first-class-handle justified-deferred (DD-7). All tasks resolved."
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-06-10T19:43:07.096Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "User-directed (收尾plans). R1+R3-core+R4+R5 shipped + live-verified on main (70f836a9b); R2/sliding-window justified-deferred. All 13 artifacts valid at verified."
+    }
+  ]
+}

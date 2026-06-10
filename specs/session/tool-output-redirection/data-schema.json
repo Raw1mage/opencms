@@ -1,0 +1,45 @@
+{
+  "title": "Tool-output redirection — token gate, handle, and bounded part",
+  "description": "The token-based externalization gate (replacing the byte cap), the first-class tool-output handle, and the redirected-part shape the serializer emits every send.",
+  "types": {
+    "RedirectionGate": {
+      "kind": "function",
+      "signature": "shouldExternalize(estimatedTokens: number, remainingWindowTokens: number): boolean",
+      "rule": "DD-1/DD-2: externalize when estimatedTokens > min(ABS_FLOOR_TOKENS, HEADROOM_FRACTION * remainingWindowTokens). Replaces Truncate.MAX_BYTES (256*1024 bytes).",
+      "defaults": { "ABS_FLOOR_TOKENS": 8000, "HEADROOM_FRACTION": 0.25 },
+      "note": "Defaults are the committed starting point; tune against live measurement."
+    },
+    "ToolOutputHandle": {
+      "kind": "object",
+      "fields": {
+        "id": "string (stable, e.g. output_tool_<asc-id>)",
+        "store": "\"session-output\"",
+        "tokensFull": "number (estimated full token cost)",
+        "bytesFull": "number"
+      },
+      "note": "DD-4: first-class handle, not a raw fs path string; resolvable by Read/Grep/recall and stable across compaction."
+    },
+    "RedirectedToolPart": {
+      "kind": "object",
+      "fields": {
+        "type": "\"tool\"",
+        "redirected": "true",
+        "handle": "ToolOutputHandle",
+        "preview": "string (bounded head/tail + shape)"
+      },
+      "rule": "DD-3: the prompt serializer emits {preview + handle reference} for this part on EVERY send; the full body is never re-inlined.",
+      "note": "Replaces today's behaviour where an un-truncated result's full body is re-sent every turn."
+    },
+    "TruncateResult": {
+      "kind": "discriminated_union",
+      "before": "{content; truncated:false} | {content; truncated:true; outputPath:string}",
+      "after": "{content; redirected:false} | {content(preview); redirected:true; handle:ToolOutputHandle}",
+      "note": "Byte-path → token-path; outputPath string → first-class handle."
+    }
+  },
+  "notes": [
+    "Built-in (grep/bash/read/registry/resolve-tools) and MCP results converge on the one seam (DD-4/DD-5).",
+    "Small results stay inline — behaviour-preserving.",
+    "Handle retention must outlive a compaction that collapses the producing turn."
+  ]
+}

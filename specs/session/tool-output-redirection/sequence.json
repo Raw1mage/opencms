@@ -1,0 +1,37 @@
+[
+  {
+    "id": "SEQ-1",
+    "title": "Large tool result is externalized and bounded on every send",
+    "description": "A tool returns a result over the token gate; the seam externalizes it and the prompt carries only handle+preview thereafter.",
+    "participants": [
+      { "id": "tool", "name": "tool / MCP result", "kind": "actor" },
+      { "id": "seam", "name": "redirection seam (Truncate rebuilt)", "kind": "component" },
+      { "id": "store", "name": "output store (handle-keyed)", "kind": "component" },
+      { "id": "ser", "name": "prompt serializer", "kind": "component" },
+      { "id": "model", "name": "model", "kind": "actor" }
+    ],
+    "messages": [
+      { "from": "tool", "to": "seam", "label": "result.output", "kind": "call" },
+      { "from": "seam", "to": "seam", "label": "estimate tokens; tokens > min(floor, headroom×window)?", "kind": "call" },
+      { "from": "seam", "to": "store", "label": "write full body → mint handle", "kind": "call" },
+      { "from": "seam", "to": "ser", "label": "part = {handle, preview}", "kind": "return" },
+      { "from": "ser", "to": "model", "label": "every send: emit handle+preview (never full body)", "kind": "async" },
+      { "from": "model", "to": "store", "label": "on demand: resolve(handle) → full body", "kind": "call" }
+    ]
+  },
+  {
+    "id": "SEQ-2",
+    "title": "Small result stays inline; handle survives compaction",
+    "description": "Behaviour-preserving for small results; a redirected handle still resolves after an anchor collapses the producing turn.",
+    "participants": [
+      { "id": "seam", "name": "redirection seam", "kind": "component" },
+      { "id": "compaction", "name": "compaction (anchor collapse)", "kind": "component" },
+      { "id": "recall", "name": "recall / handle fetch", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "seam", "to": "seam", "label": "small result → inline as today", "kind": "call" },
+      { "from": "compaction", "to": "recall", "label": "producing turn collapsed; handle retained", "kind": "async" },
+      { "from": "recall", "to": "recall", "label": "resolve(handle) post-amnesia → full body", "kind": "call" }
+    ]
+  }
+]
