@@ -372,6 +372,38 @@ export async function registryRemove(toolCallID: string) {
 }
 
 /**
+ * Classify an orphaned subagent's terminal disposition from the child
+ * session's last on-disk `finish`, for the daemon-restart reconcile path.
+ *
+ * A child that reached a terminal finish before the old daemon died is
+ * reported with its real disposition (success/error/…) so the parent gets
+ * the result back. A child with no terminal finish was interrupted mid-run
+ * (its worker died with the daemon) → `worker_dead`, so the parent learns
+ * the subagent died rather than parking forever waiting for a notice that
+ * will never come (issue_20260611_3r-orphans-active-subagent-eternal-wait).
+ */
+export function classifyOrphanFinish(childFinish: string | undefined): {
+  status: "success" | "error" | "canceled" | "rate_limited" | "quota_low" | "worker_dead"
+  finish: string
+} {
+  const TERMINAL = ["stop", "error", "length", "canceled", "rate_limited", "quota_low"]
+  if (childFinish && TERMINAL.includes(childFinish)) {
+    const status =
+      childFinish === "stop"
+        ? ("success" as const)
+        : childFinish === "rate_limited"
+          ? ("rate_limited" as const)
+          : childFinish === "quota_low"
+            ? ("quota_low" as const)
+            : childFinish === "canceled"
+              ? ("canceled" as const)
+              : ("error" as const)
+    return { status, finish: childFinish }
+  }
+  return { status: "worker_dead", finish: "worker_exited" }
+}
+
+/**
  * Recover orphan tasks from previous daemon instance.
  * Reads the persisted registry (a handful of entries at most),
  * marks each as error, then deletes the registry file.
@@ -390,7 +422,40 @@ export async function recoverOrphanTasks() {
 
   for (const [toolCallID, entry] of Object.entries(entries)) {
     try {
-      // Find the specific message + part to mark as error
+      // ── Read the child session's disk truth ──────────────────────
+      // The old daemon died mid-flight and the child worker died with it.
+      // But there is a narrow window where the child wrote its terminal
+      // finish to disk *before* the old daemon died, yet *after* the
+      // notice pipeline could deliver it. Honor that window: a child that
+      // actually finished should be reported success/error — not as a
+      // dead worker — so the parent gets its real result back.
+      let childStatus: "success" | "error" | "canceled" | "rate_limited" | "quota_low" | "worker_dead" = "worker_dead"
+      let childFinish = "worker_exited"
+      let inlineResult: string | undefined
+      try {
+        const { messages: childMsgs } = await MessageV2.filterCompacted(MessageV2.stream(entry.sessionID))
+        const lastAssistant = childMsgs.findLast((m) => m.info.role === "assistant")
+        const finish = lastAssistant ? (lastAssistant.info as MessageV2.Assistant).finish : undefined
+        const classified = classifyOrphanFinish(finish)
+        childStatus = classified.status
+        childFinish = classified.finish
+        if (childStatus === "success") {
+          const texts: string[] = []
+          for (const m of childMsgs) {
+            if (m.info.role !== "assistant") continue
+            for (const p of m.parts) if (p.type === "text" && p.text?.trim()) texts.push(p.text.trim())
+          }
+          if (texts.length) inlineResult = texts.slice(-3).join("\n\n---\n\n").slice(0, 6000)
+        }
+      } catch {
+        // Child transcript unreadable — treat as interrupted (worker_dead).
+      }
+
+      // ── Mark the parent tool part terminal (legacy non-stub path) ─
+      // Under STUB-RETURN FLIP (R1) the part is already "completed" with
+      // the dispatched stub, so this branch only fires for the pre-R1
+      // synchronous shape. Either way the notice below is what reconciles
+      // the parent's expectation; the part update is cosmetic.
       for await (const msg of MessageV2.stream(entry.parentSessionID)) {
         if (msg.info.id !== entry.parentMessageID) continue
         for (const part of msg.parts) {
@@ -434,11 +499,42 @@ export async function recoverOrphanTasks() {
             toolCallID,
             partID: part.id,
           })
-
-          recovered++
         }
         break // found the target message, no need to keep streaming
       }
+
+      // ── THE FIX: deliver a terminal notice through the canonical
+      // pipeline (issue_20260611_3r-orphans-active-subagent-eternal-wait).
+      //
+      // Re-fire task.completed so pending-notice-appender both appends a
+      // PendingSubagentNotice to the parent AND auto-resumes the parent
+      // runloop. Without this, a 3R restart during active subagent work
+      // left the parent parked forever, with no awareness the child had
+      // died: SessionActiveChild is in-memory (gone on restart) and the
+      // detached completion promise that normally fires this event died
+      // with the old daemon. The registry is the persisted source of
+      // truth that lets the new daemon re-fire it. Idempotent by jobId
+      // (the appender replaces latest-wins); a notice already delivered
+      // before the crash would have removed this registry entry.
+      await Bus.publish(TaskCompletedEvent, {
+        jobId: toolCallID,
+        parentSessionID: entry.parentSessionID,
+        childSessionID: entry.sessionID,
+        status: childStatus,
+        finish: childFinish,
+        elapsedMs: Math.max(0, Date.now() - (entry.registeredAt ?? Date.now())),
+        result: inlineResult ? { type: "inline", text: inlineResult } : undefined,
+      })
+
+      scanLog.info("orphan reconciled via task.completed notice", {
+        parentSessionID: entry.parentSessionID,
+        childSessionID: entry.sessionID,
+        toolCallID,
+        status: childStatus,
+        finish: childFinish,
+      })
+
+      recovered++
     } catch (err) {
       scanLog.error("failed to recover orphan", {
         toolCallID,
