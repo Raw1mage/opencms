@@ -411,6 +411,20 @@ export function evaluateUnproductiveRound(input: {
   return { productive: false, nextCount, tripped: nextCount >= input.limit }
 }
 
+/**
+ * A `content-filter` terminal finish with no usable output means the model
+ * blocked its own response — the assistant turn is empty and the loop stops
+ * silently (reads as "spinning ~2s then dead"; ses_14dda7667: Claude Fable 5
+ * returned finishReason=content-filter / output≈0 every round while Opus on the
+ * same session was fine). When true, the loop surfaces a visible notice on the
+ * empty turn so the user can rephrase / drop flagged content / switch model
+ * instead of facing a silent stop. The ≤8-token gate keeps a genuine (rare)
+ * non-empty content-filter turn from getting a spurious notice.
+ */
+export function shouldSurfaceContentFilterNotice(input: { finish: string | undefined; outputTokens: number }): boolean {
+  return input.finish === "content-filter" && input.outputTokens <= 8
+}
+
 function findContextBudgetSource(messages: MessageV2.WithParts[]): MessageV2.Assistant | undefined {
   for (let i = messages.length - 1; i >= 0; i--) {
     const info = messages[i].info
@@ -3749,6 +3763,34 @@ export namespace SessionPrompt {
             result,
           })
           break
+        }
+        // content-filter-notice: a `content-filter` terminal finish leaves an
+        // EMPTY assistant turn (the model blocked its own response) → the UI shows
+        // a blank turn and the loop stops silently, which reads as "spinning ~2s
+        // then dead" (ses_14dda7667: Claude Fable 5 returned finishReason=
+        // content-filter with output≈0 EVERY round; Opus on the same session was
+        // fine). Surface a visible notice on the empty turn so the user knows the
+        // response was filtered and can rephrase / drop flagged content / switch
+        // model — instead of a silent stop with no explanation.
+        if (
+          shouldSurfaceContentFilterNotice({
+            finish: processor.message.finish,
+            outputTokens: processor.message.tokens.output ?? 0,
+          })
+        ) {
+          await Session.updatePart({
+            id: Identifier.ascending("part"),
+            messageID: processor.message.id,
+            sessionID,
+            type: "text",
+            text: "⚠️ The model returned no usable output — its response was blocked by the content filter (finishReason=content-filter). Try rephrasing, removing any flagged content (e.g. an image), or switching to a different model.",
+            time: { start: Date.now(), end: Date.now() },
+          }).catch(() => undefined)
+          log.info("loop:content_filter_notice_surfaced", {
+            sessionID,
+            step,
+            outputTokens: processor.message.tokens.output ?? 0,
+          })
         }
         const decision = await decideAutonomousContinuation({
           sessionID,

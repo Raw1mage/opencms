@@ -1,5 +1,21 @@
 import { describe, expect, it } from "bun:test"
-import { evaluateEmptyResponseGate, evaluateUnproductiveRound } from "./prompt"
+import { evaluateEmptyResponseGate, evaluateUnproductiveRound, shouldSurfaceContentFilterNotice } from "./prompt"
+
+describe("shouldSurfaceContentFilterNotice (content-filter silent-stop UX, ses_14dda7667)", () => {
+  it("surfaces a notice for an empty content-filter turn", () => {
+    expect(shouldSurfaceContentFilterNotice({ finish: "content-filter", outputTokens: 2 })).toBe(true)
+    expect(shouldSurfaceContentFilterNotice({ finish: "content-filter", outputTokens: 0 })).toBe(true)
+    expect(shouldSurfaceContentFilterNotice({ finish: "content-filter", outputTokens: 8 })).toBe(true)
+  })
+  it("does NOT surface for a content-filter turn that actually produced output", () => {
+    expect(shouldSurfaceContentFilterNotice({ finish: "content-filter", outputTokens: 500 })).toBe(false)
+  })
+  it("does NOT surface for other finish reasons", () => {
+    expect(shouldSurfaceContentFilterNotice({ finish: "stop", outputTokens: 0 })).toBe(false)
+    expect(shouldSurfaceContentFilterNotice({ finish: "tool-calls", outputTokens: 2 })).toBe(false)
+    expect(shouldSurfaceContentFilterNotice({ finish: undefined, outputTokens: 0 })).toBe(false)
+  })
+})
 
 describe("evaluateEmptyResponseGate (storm-prevention 2026-05-05)", () => {
   it("returns overflowSuspected=false at low usage (transient blip lane)", () => {
