@@ -319,10 +319,15 @@ describe("regression: 2026-04-27 rebind-compaction infinite loop", () => {
     // the defense of last resort even if cooldown / state-driven evaluation
     // both miss.
     const t = SessionCompaction.__test__.INJECT_CONTINUE
+    // The 2026-04-27 regression is specifically about `rebind` never emitting a
+    // synthetic Continue — that invariant still holds.
     expect(t["rebind"]).toBe(false)
-    expect(t["continuation-invalidated"]).toBe(false)
     expect(t["provider-switched"]).toBe(false)
     expect(t["manual"]).toBe(false)
+    // `continuation-invalidated` was deliberately flipped to true on 2026-05-19
+    // (a cache-cliff IS a real point to continue work from); it is not part of
+    // the 2026-04-27 rebind loop class.
+    expect(t["continuation-invalidated"]).toBe(true)
     // The table is frozen — accidental mutation would TypeError, not silently
     // re-enable the bug
     expect(Object.isFrozen(t)).toBe(true)
