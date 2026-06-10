@@ -582,30 +582,10 @@ export namespace SessionCompaction {
   // DEFAULT_TARGET_PROMPT_TOKENS block. Single 90%-overflow gate via
   // `run({observed: "overflow"})` is the only context-management path.
 
-  /**
-   * @deprecated Phase 7 deleted the only caller (`prompt.ts` legacy
-   * compaction-request branch). Kept as a shim that delegates to the new
-   * single entry point so any pre-phase-7 caller still compiles. Phase 9
-   * (next release) removes it. Emits `log.warn` so missed callers surface
-   * in CI.
-   */
-  export async function process(input: {
-    parentID: string
-    messages: MessageV2.WithParts[]
-    sessionID: string
-    abort: AbortSignal
-    auto: boolean
-  }): Promise<"continue" | "stop"> {
-    log.warn("SessionCompaction.process is deprecated; use SessionCompaction.run", {
-      sessionID: input.sessionID,
-    })
-    return run({
-      sessionID: input.sessionID,
-      observed: input.auto ? "overflow" : "manual",
-      step: 0,
-      abort: input.abort,
-    })
-  }
+  // S5/DD-14: the deprecated `SessionCompaction.process` shim was removed here —
+  // it had zero live callers (Phase 7 deleted the last one; every remaining
+  // `.process(` in the tree is an unrelated `processor.process(`). Compaction
+  // entry is `run()` only, and run() flows through CompactionManager.requestCompact.
 
   /**
    * Idle compaction: triggered at turn boundary when a completed task dispatch
@@ -3223,6 +3203,13 @@ When constructing the summary, try to stick to this template:
   // Demotes ALL old anchors. Resets codex chain.
   // ─────────────────────────────────────────────────────────────
 
+  // S5/DD-14: DORMANT — `rebuildStreamFromText` has NO live caller (its only
+  // reference is a comment in command/index.ts). It is therefore NOT on the live
+  // compaction track and not a manager bypass in practice; its publish already
+  // routes through CompactionManager.requestPublish below. Physical removal is
+  // deferred (low value). If a /reload rebuild is reintroduced, route it through
+  // CompactionManager (requestCompact + writeAnchorFromBody) — do NOT revive the
+  // inline direct-anchor-write this function does.
   export async function rebuildStreamFromText(sessionID: string): Promise<{
     roundsIncluded: number
     charsBudget: number

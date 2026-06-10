@@ -1805,15 +1805,21 @@ export namespace SessionPrompt {
             ).catch(() => undefined)
             // Phase 13.1: Memory.markCompacted call removed (Memory.lastCompactedAt
             // is derived from the most recent anchor's time.created, not stored).
-            await SessionCompaction.compactWithSharedContext({
-              sessionID,
-              snapshot:
-                snap ??
-                `[Provider switched from ${prevProvider} to ${nextProvider}. Previous conversation context was not recoverable. The user may re-state their request.]`,
-              model,
-              auto: false,
-              observed: "provider-switched",
-            })
+            // S5/DD-13: route the EXECUTION through the manager (ledger parity) —
+            // transparent monitor wrapping the existing writeAnchorFromBody write.
+            await CompactionManager.requestProviderSwitchCompact(
+              { sessionID, cause: { prevProvider, nextProvider } },
+              () =>
+                SessionCompaction.compactWithSharedContext({
+                  sessionID,
+                  snapshot:
+                    snap ??
+                    `[Provider switched from ${prevProvider} to ${nextProvider}. Previous conversation context was not recoverable. The user may re-state their request.]`,
+                  model,
+                  auto: false,
+                  observed: "provider-switched",
+                }),
+            )
             if (replaySnapshot) {
               const postWriteMsgs = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
               const anchorMsg = postWriteMsgs.findLast(
