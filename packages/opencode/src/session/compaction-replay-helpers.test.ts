@@ -134,10 +134,16 @@ describe("SessionCompaction.snapshotUnansweredUserMessage", () => {
     expect(result).toBeUndefined()
   })
 
-  it("returns undefined when assistant child has finish=tool-calls", async () => {
+  it("S3: returns a snapshot when assistant child finish=tool-calls with NO terminal stop (interrupted, any observed)", async () => {
+    // post-compaction-continuity S3/DD-3: an interrupted tool-call chain (no
+    // terminal stop) is the request still in flight — UNANSWERED — regardless of
+    // observed. Previously scoped to overflow only, which stranded cache-aware /
+    // manual mid-tool-chain (incident ses_14d8b1ed).
     stubMessages([userMsg("msg_u"), assistantMsg("msg_a", "tool-calls")])
     const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual")
-    expect(result).toBeUndefined()
+    expect(result).toBeDefined()
+    expect(result!.info.id).toBe("msg_u")
+    expect(result!.emptyAssistantID).toBe("msg_a")
   })
 
   it("returns undefined when assistant child has finish=length", async () => {
@@ -274,12 +280,15 @@ describe("SessionCompaction.snapshotUnansweredUserMessage", () => {
     expect(result).toBeUndefined()
   })
 
-  // Path C guard: tool-calls-as-interrupted is OVERFLOW-ONLY. A non-overflow
-  // observed (e.g. manual) keeps tool-calls-as-answered (no replay).
-  it("Path C guard: returns undefined when observed=manual + tool-calls child (no stop)", async () => {
+  // post-compaction-continuity S3/DD-3: tool-calls-as-interrupted now applies to
+  // ALL observeds (was overflow-only, which stranded cache-aware mid-tool-chain —
+  // incident ses_14d8b1ed). A non-overflow observed interrupted mid-tool-chain
+  // snapshots + replays so the in-flight task resumes.
+  it("S3: returns a snapshot when observed=cache-aware + tool-calls child (no stop) — interrupted, resumes", async () => {
     stubMessages([userMsg("msg_u"), assistantMsg("msg_a", "tool-calls")])
-    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "manual")
-    expect(result).toBeUndefined()
+    const result = await SessionCompaction.snapshotUnansweredUserMessage("ses_test", "cache-aware")
+    expect(result).toBeDefined()
+    expect(result!.emptyAssistantID).toBe("msg_a")
   })
 
   // Path B: SessionCompaction.create writes a user-role msg whose only part
