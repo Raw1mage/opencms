@@ -385,6 +385,32 @@ export function evaluateEmptyResponseGate(input: { used: number; window: number;
   return { overflowSuspected: ratio >= input.floor, ratio }
 }
 
+/**
+ * Self-heal circuit breaker decision for the "polluted by many low-value rounds"
+ * class. Generalizes the 0/0 empty-round detector to ANY non-productive round —
+ * one that neither dispatched a tool call nor produced real output — so a
+ * degenerate model/transport state can't flood (and later poison the compaction
+ * of) a session regardless of the exact finish reason (Claude Fable 5 at large
+ * context: 150+ output=2/finish=other rounds re-firing the identical prompt).
+ *
+ * Productive (tool call OR output beyond the ceiling) resets the streak. The
+ * breaker trips only after `limit` CONSECUTIVE non-productive rounds — a real
+ * short answer never reaches it (it finishes "stop" and exits at the terminal
+ * boundary before the streak can grow).
+ */
+export function evaluateUnproductiveRound(input: {
+  finish: string | undefined
+  outputTokens: number
+  consecutive: number
+  ceiling: number
+  limit: number
+}): { productive: boolean; nextCount: number; tripped: boolean } {
+  const productive = input.finish === "tool-calls" || input.outputTokens > input.ceiling
+  if (productive) return { productive: true, nextCount: 0, tripped: false }
+  const nextCount = input.consecutive + 1
+  return { productive: false, nextCount, tripped: nextCount >= input.limit }
+}
+
 function findContextBudgetSource(messages: MessageV2.WithParts[]): MessageV2.Assistant | undefined {
   for (let i = messages.length - 1; i >= 0; i--) {
     const info = messages[i].info
@@ -1585,6 +1611,18 @@ export namespace SessionPrompt {
     let emptyRoundCount = 0
     let paralysisRecoveryCount = 0
     let consecutiveCompactions = 0
+    // Self-heal circuit breaker for the "polluted by many low-value rounds"
+    // class (Claude Fable 5 at large context: 150+ output=2/finish=other rounds
+    // that re-fired the identical prompt). Generalizes the 0/0-token empty-round
+    // detector to ANY non-productive round — no tool call dispatched AND
+    // negligible output — regardless of the exact finish reason or token count.
+    // Counts CONSECUTIVE such rounds; a productive round (tool call OR real
+    // output) resets it. At the cap the loop force-stops instead of re-firing.
+    // Real short answers never accumulate: they finish "stop" and the terminal
+    // boundary ends the loop before the count can grow.
+    let unproductiveRoundCount = 0
+    const UNPRODUCTIVE_OUTPUT_CEILING = 16 // tokens; below this + no tool call = non-productive
+    const UNPRODUCTIVE_ROUND_LIMIT = 3 // consecutive non-productive rounds → force stop
     const session = await Session.get(sessionID)
     const cachedInstructionPrompts = await InstructionPrompt.system()
     const environmentCache = new Map<string, string[]>()
@@ -3642,6 +3680,45 @@ export namespace SessionPrompt {
       } else {
         consecutiveCompactions = 0
       }
+
+      // ── Self-heal: consecutive non-productive round circuit breaker ──
+      // (see UNPRODUCTIVE_* declarations). Generalizes the 0/0 empty-round
+      // detector to ANY non-productive round so the session can't be flooded /
+      // poisoned by a degenerate model or transport state regardless of the
+      // exact finish reason. A round is "productive" if it dispatched a tool
+      // call (finish==="tool-calls") or produced real output (> ceiling); a
+      // productive round resets the counter. Compaction rounds are skipped
+      // (not a model answer). At the cap, force a clean stop instead of
+      // re-firing — the assistant's real finish reason is left intact (faithful
+      // stop-reason), only the workflow state records the breaker.
+      if (result !== "compact") {
+        const verdict = evaluateUnproductiveRound({
+          finish: processor.message.finish,
+          outputTokens: processor.message.tokens.output ?? 0,
+          consecutive: unproductiveRoundCount,
+          ceiling: UNPRODUCTIVE_OUTPUT_CEILING,
+          limit: UNPRODUCTIVE_ROUND_LIMIT,
+        })
+        unproductiveRoundCount = verdict.nextCount
+        if (verdict.tripped) {
+          log.warn("loop: non-productive round circuit breaker tripped — forcing stop", {
+            sessionID,
+            step,
+            finish: processor.message.finish,
+            outputTokens: processor.message.tokens.output ?? 0,
+            consecutive: unproductiveRoundCount,
+            isSubagent: !!session.parentID,
+          })
+          await Session.setWorkflowState({
+            sessionID,
+            state: "waiting_user",
+            stopReason: "unproductive_loop",
+            lastRunAt: Date.now(),
+          }).catch(() => undefined)
+          break
+        }
+      }
+
       // Terminal finish boundary: decide whether the session continues.
       //   • Subagent: always break (child is done). The parent-side watchdog
       //     in task.ts owns hang recovery — no retry needed here.
