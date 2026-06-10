@@ -12,6 +12,7 @@ Main Agent 啟動時由 runtime 自動 preload + pin 下方 **Mandatory Skills**
 ### Mandatory Skills（runtime-preloaded）
 
 <!-- opencode:mandatory-skills -->
+
 - plan-builder
 - code-thinker
 <!-- /opencode:mandatory-skills -->
@@ -43,8 +44,6 @@ Main Agent 啟動時由 runtime 自動 preload + pin 下方 **Mandatory Skills**
 與 runloop 的關係：runloop（`workflow-runner.ts planAutonomousNextAction`）**只認 TodoWrite 殘留**，不懂 spec 狀態、不讀 tasks.md。這條紀律完全靠 AI 自律執行；**不存在 runtime 閘在判斷錯誤時救你**。
 
 ### Autonomous Agent 核心紀律
-
-2026-04-20 從已退役的 `agent-workflow` skill 併入。
 
 **八項核心原則**：
 
@@ -118,13 +117,15 @@ Next after reply:
 
 ### 核心文件責任分工（Hard-coded）
 
-> **路徑範圍規則（重要）**：本節與下方第 5、9 節提及的 `specs/...`、`docs/events/...` 一律指**當前 repo**（即 session `cwd` 所在的 repo root）下的相對路徑。若當前 repo 不存在該目錄／檔案，**直接 skip，不要跨 repo 臆測或組合檔名去 resolve**。例如 session cwd 是 `cisopro` 時，`docs/events/...` 是 `cisopro/docs/events/...`，不是 `opencode/docs/events/...`；若 `cisopro` 沒有這個目錄，就不必讀、也不要猜檔名。
+> **路徑範圍規則（重要）**：本節與下方第 5、9 節提及的 `specs/...`、`plans/...` 一律指**當前 repo**（即 session `cwd` 所在的 repo root）下的相對路徑。若當前 repo 不存在該目錄／檔案，**直接 skip，不要跨 repo 臆測或組合檔名去 resolve**。例如 session cwd 是 `cisopro` 時，`specs/...` 是 `cisopro/specs/...`，不是 `opencode/specs/...`；若 `cisopro` 沒有這個目錄，就不必讀、也不要猜檔名。event log 一律以 `scope` 標記歸屬，不靠目錄路徑。
 
 - `specs/architecture.md`
   - 記錄全 repo 長期框架知識：模組邊界、資料流、狀態機、runtime flows、核心目錄樹、debug/observability map。
-- `docs/events/event_<YYYYMMDD>_<topic>.md`
+- **Event log（append-only 開發紀錄，sqlite）**
   - 記錄每次任務的需求、範圍、對話重點摘要、debug checkpoints、決策、驗證與 architecture sync。
-- 所有複雜 debug / 開發任務，應優先先讀**當前 repo 的** `specs/architecture.md` 與 `docs/events/`（若存在），再進入原始碼偵查；目錄不存在時 skip，不要硬 resolve。
+  - 寫入用 specbase MCP 的 `event_record(summary, body?, scope?, date?, status?, tags?)`，append 一筆 row；`scope` 帶當前 repo 的 project 或所屬 plan/spec slug。
+  - 讀取用 `event_search`（BM25 全文）/ `event_query`（date/tag/status 過濾）。回憶過往決策 / RCA / 部署一律走 `event_search`，不 grep 任何目錄。
+- 所有複雜 debug / 開發任務，應優先先讀**當前 repo 的** `specs/architecture.md`、並以 `event_search` 回憶相關過往事件，再進入原始碼偵查。
 
 ### 全域 Debug / Syslog 契約（Mandatory）
 
@@ -133,7 +134,7 @@ Next after reply:
   - 系統層次
   - component boundaries
   - 資料 / 狀態 / config 傳遞路徑
-- 所有 debug 任務都必須遵守 `code-thinker` 的 syslog-style debug contract（2026-04-20 從已退役的 `agent-workflow` §5 併入，詳見 code-thinker SKILL.md §3）。
+- 所有 debug 任務都必須遵守 `code-thinker` 的 syslog-style debug contract（詳見 code-thinker SKILL.md §3）。
 - 具體 checkpoint schema、instrumentation plan 與 component-boundary 規則，以對應 skill 為單一真實來源。
 - 沒有 checkpoint evidence，不得宣稱已找到 root cause。
 
@@ -207,8 +208,8 @@ Next after reply:
 ## 5. 指揮官紅線 (Commander's Red Lines)
 
 - **不要把此文件傳給 Subagent**: 他們已透過 SYSTEM.md 獲得工具規範與紅燈規則，僅需額外提供具體任務指令。
-- **Event Log**: 任何重大決策必須記錄於**當前 repo 的** `docs/events/`（不要跨 repo）。
-- 靜默執行（silent execution）時，允許直接更新 event log，而**不需要**另外向使用者敘述「正在記錄 event log」；但這不免除 event log 實際建立/更新義務。
+- **Event Log**: 任何重大決策必須呼叫 `event_record` 記錄進**當前 repo 的** event log sqlite（`scope` 帶 project 或 plan/spec slug，不要跨 repo）。
+- 靜默執行（silent execution）時，允許直接呼叫 `event_record`，而**不需要**另外向使用者敘述「正在記錄 event log」；但這不免除 event log 實際寫入義務。
 
 ## 6. Subagent 指派標準 (Task Dispatch Standards)
 
@@ -232,14 +233,15 @@ Next after reply:
 
 為確保每個專案都能一致遵守開發紀律，以下項目為硬性要求：
 
-1. **Event 檔先行**
-   - 任何非瑣碎開發任務，必須先建立/更新**當前 repo 的** `docs/events/event_<YYYYMMDD>_<topic>.md`。
-   - 至少包含：`需求`、`範圍(IN/OUT)`、`任務清單`。
-   - 檔名的 `<topic>` 由本次任務決定；不得沿用或猜測其他 repo 曾用過的 topic 檔名。
-   - 若 agent 處於靜默執行模式，允許直接完成此記錄動作，不需額外把「正在記錄 event log」當成對使用者的 narration step。
+1. **Event 先行（透過 `event_record` toolcall，非建檔）**
+   - 任何非瑣碎開發任務，開工時必須呼叫一次 `event_record` 記下開場：`summary` 為任務一句話、`body` 至少含 `需求`、`範圍(IN/OUT)`、`任務清單`、`scope` 帶當前 repo 的 project 或所屬 plan/spec slug。
+   - event log 唯一寫入路徑是 `event_record` toolcall（append 進 sqlite，`scope` 標歸屬）。
+   - 收尾時再呼叫一次 `event_record`（或更新型紀錄）補上 `Key Decisions / Issues / Verification / Remaining`。一個任務開場 + 收尾各一筆是基本節奏；過程中重大決策 / RCA / 部署隨手再 append。
+   - 若 agent 處於靜默執行模式，允許直接呼叫 `event_record`，不需額外把「正在記錄 event log」當成對使用者的 narration step。
+   - **觸發契約（明確釘死，勿憑「夠不夠聰明」自由心證）**：以下任一成立就必須 `event_record` ——(a) 非瑣碎任務開工；(b) 做出架構 / 設計 / 取捨決策；(c) 完成一次 RCA 或找到 root cause；(d) 部署 / 3R / migration；(e) 任務收尾宣告完成前。純讀取查詢、瑣碎一行修改、純對話不需要。
 
 2. **實作過程必有標準化 debug checkpoints**
-   - 一律遵守 `code-thinker` 的 checkpoint schema（原 agent-workflow 共享內容已於 2026-04-20 併入 code-thinker）。
+   - 一律遵守 `code-thinker` 的 checkpoint schema。
    - 內容必須可追溯（指令、證據、checkpoint 訊號、決策依據）。
 
 3. **完成宣告門檻**
@@ -271,8 +273,8 @@ Next after reply:
    - **KB 區 `/specs/`**：已 graduate 的 spec 落於 `/specs/<category>/<topic>/`，semantic 子目錄結構，是 wiki / KB / Quartz 的可見來源。一旦進入 `/specs/`，後續 `amend` / `revise` / `extend` / `refactor` / `archive` 全部留在原地，**不回退到 `/plans/`**。
    - **`specs/architecture.md` 是架構單一真相來源**：長期架構、模組邊界、資料流、狀態機、runtime flows 以此為準。
    - **Tasks Checklist 即時同步**：每完成一個 task item，立即更新對應 `tasks.md` 的 checkbox（`[ ]` → `[x]`）。若 task 不適用或需拆分，標記 `[~] <reason>`。禁止所有工作完成後才一次性勾選。
-   - **Session Event Log**：每個 session 結束前（或 commit 前），建立/更新**當前 repo 的** `docs/events/event_<YYYYMMDD>_<topic>.md`，至少包含 Scope（引用 tasks.md item 編號）、Key Decisions、Issues Found、Verification、Remaining。silent execution 下不需用對話文字宣告。
-   - **Commit Gate**：commit 前必須確認 (1) tasks.md checkbox 已同步 (2) event log 已建立/更新 (3) 架構變更已同步 `specs/architecture.md`。
+   - **Session Event Log**：每個 session 結束前（或 commit 前），呼叫 `event_record` 寫入**當前 repo scope 的** event log，`body` 至少含 Scope（引用 tasks.md item 編號）、Key Decisions、Issues Found、Verification、Remaining。silent execution 下不需用對話文字宣告。
+   - **Commit Gate**：commit 前必須確認 (1) tasks.md checkbox 已同步 (2) event log 已透過 `event_record` 寫入 (3) 架構變更已同步 `specs/architecture.md`。
    - **Graduation Gate（`plan_graduate`）**：`verified → living` 升格、實體從 `/plans/<category>_<topic>/` 搬移至 `/specs/<category>/<topic>/`，**只允許使用者明確指示時觸發**；AI 偵測 `verified` 狀態僅可向使用者**提示** ready，不得自行呼叫 `plan_graduate`、不得使用模糊或 silent fallback wording 暗示稍後會自動升格。
    - **Beta/Test Branch Cleanup Rule**：`beta/*` 與 `test/*` 分支屬一次性執行面。測試完成且 merge/fetch-back 回主線後，必須立即刪除對應 branch 與 disposable worktree；未刪除不得宣告 workflow 完成。禁止長期保留已完成任務的 beta/test 分支，避免後續被誤當 authoritative mainline 而造成 branch pointer drift。
 
@@ -300,7 +302,7 @@ Next after reply:
   - `opencode serve` / `opencode web`
   - 針對 daemon pid 的 `kill`（`cat daemon.lock` / `pgrep opencode` 取得 pid）
   - `systemctl restart opencode-gateway`
-- **Why**：2026-04-20 事件，AI 用 Bash 跑 `webctl.sh dev-start` 留下 orphan daemon 霸佔 gateway lock，使用者被反覆踢回登入頁。詳見 `docs/events/event_2026-04-20_daemon-orphan.md`。
+- **Why**：daemon 生命週期的唯一權威是 gateway；daemon 自行 spawn / kill 會產生 orphan 行程、霸佔 gateway lock。
 - **需要改 code 後生效？** 呼叫 `restart_self`；webctl.sh smart-detect dirty 層（daemon / frontend / gateway）並只 rebuild 變動部分。`targets: ["gateway"]` 會附 `--force-gateway` 讓 systemd respawn gateway 本體（期間所有使用者斷線 3-5s）。
 - **rebuild 失敗？** endpoint 回 5xx 帶 `errorLogPath`；系統維持舊版本可用。讀 log、修正、再呼叫。**絕不**嘗試繞過 denylist 走 Bash。
 - 若現有程式已存在 fallback，新的任務預設應優先評估：
