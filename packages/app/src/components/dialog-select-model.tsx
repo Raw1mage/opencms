@@ -626,6 +626,9 @@ const ProviderItem: Component<{
   icon?: string
   providerIcon?: string
   selected: boolean
+  /** The session's current model belongs to this provider — distinct from `selected`
+   * (which is panel navigation). Both can be true at once. */
+  active?: boolean
   onClick: () => void
   onToggleEnabled?: (e: MouseEvent) => void
   enabled?: boolean
@@ -638,6 +641,10 @@ const ProviderItem: Component<{
           props.selected
             ? "bg-surface-raised-pressed text-text-strong"
             : "text-text-base hover:bg-surface-raised-hover",
+          // Active = the provider currently in effect for the session. Orthogonal to
+          // `selected`/`enabled`: restrained accent text via design token, paired with a
+          // small non-color dot so it reads without relying on color alone.
+          props.active && "text-icon-brand-base",
         )}
         onClick={props.onClick}
       >
@@ -645,6 +652,9 @@ const ProviderItem: Component<{
           <ProviderIcon id={props.providerIcon as IconName} class="size-4 shrink-0 opacity-80" />
         </Show>
         <span class="truncate flex-1">{props.name}</span>
+        <Show when={props.active}>
+          <span class="size-1.5 shrink-0 rounded-full bg-icon-brand-base" aria-hidden="true" />
+        </Show>
       </button>
       <Show when={props.onToggleEnabled}>
         <IconButton
@@ -1163,6 +1173,14 @@ export const DialogSelectModel: Component<{
     }
   })
   const preferredProviderId = createMemo(() => props.provider || providerKeyOf(currentModel()?.provider.id ?? ""))
+  // Provider family that the session's current model belongs to — the "active" provider.
+  // Normalized to the same family key the provider rows use (ProviderRow.id), so the
+  // comparison in the provider column actually matches (raw model provider ids may be
+  // sub-ids like "claude-cli-subscription-…" which would never equal the family row id).
+  const activeProviderKey = createMemo(() => {
+    const id = currentModel()?.provider?.id
+    return id ? providerKeyOf(id) : undefined
+  })
 
   const providers = createMemo(() => {
     return buildProviderRows({
@@ -1775,6 +1793,7 @@ export const DialogSelectModel: Component<{
                   name={provider.accounts > 0 ? `${provider.name} (${provider.accounts})` : provider.name}
                   providerIcon={iconNames.includes(provider.id as IconName) ? provider.id : "synthetic"}
                   selected={selectedProviderId() === provider.id}
+                  active={activeProviderKey() === provider.id}
                   enabled={provider.enabled}
                   onClick={() => setSelectedProviderId(provider.id)}
                   onToggleEnabled={(event) => {
