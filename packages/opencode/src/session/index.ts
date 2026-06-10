@@ -14,6 +14,7 @@ import { Storage } from "../storage/storage"
 import { Log } from "../util/log"
 import { debugCheckpoint } from "../util/debug"
 import { MessageV2 } from "./message-v2"
+import { shouldResumeDrainImages } from "./active-image-refs"
 import { readMessageInfo, removeMessageInfo, removePartFile } from "./storage/legacy"
 import { DreamingWorker } from "./storage/dreaming"
 import { Router as StorageRouter } from "./storage/router"
@@ -792,6 +793,18 @@ export namespace Session {
     )
   }
 
+  /**
+   * BR issue_20260611_restart-resume-not-draining-active-image: sessions whose
+   * `activeImageRefs` was set in a PRIOR daemon lifecycle. A daemon restart /
+   * session resume neither replays nor triggers a compaction, so the
+   * compaction-boundary drain (publishCompactedAndResetChain) never fires for
+   * an already-loaded session — the stale image keeps re-inlining until the
+   * session happens to compact. This set lets us drain such a session exactly
+   * once, the first time it is touched after (re)start. Module-level so it
+   * dies with the process — a fresh daemon re-drains, which is the point.
+   */
+  const resumeImageDrainSeen = new Set<string>()
+
   export async function pinExecutionIdentity(input: {
     sessionID: string
     model: { providerId: string; modelID: string; accountId?: string }
@@ -801,6 +814,26 @@ export namespace Session {
     // unconditional updates caused a Bus event storm → frontend SSE cascade →
     // expensive snapshot scans → event-loop saturation → slow LLM streaming.
     const current = await get(input.sessionID)
+    // Cross-process boundary drain (complements the in-process compaction
+    // drain). Once per session per daemon lifecycle, on first touch: clear any
+    // activeImageRefs carried over from before this process started. Safe —
+    // activeImageRefs is only ever populated by reread_attachment (never by
+    // upload), so every entry is an image the agent chose to inline in a prior
+    // turn and can reread again on demand; it stays listed in the
+    // <attached_images> inventory. Runs before the turn's preface is built, so
+    // the stale image is gone from the very first post-restart turn.
+    const resumeDrain = shouldResumeDrainImages(
+      resumeImageDrainSeen,
+      input.sessionID,
+      current?.execution?.activeImageRefs,
+    )
+    resumeImageDrainSeen.add(input.sessionID)
+    if (resumeDrain) {
+      // Drain and fall through — clearing activeImageRefs doesn't touch the
+      // provider/model/accountId fields the identity-equality check reads,
+      // so the pin logic below still runs correctly this same call.
+      await setActiveImageRefs(input.sessionID, []).catch(() => {})
+    }
     if (current && sameExecutionIdentity(current.execution, input.model)) {
       return current
     }

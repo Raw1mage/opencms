@@ -88,3 +88,28 @@ export function drainAfterAssistant(prior: string[] | undefined): {
     next: [],
   }
 }
+
+/**
+ * BR issue_20260611_restart-resume-not-draining-active-image: decide whether a
+ * session's activeImageRefs should be drained on its FIRST touch after a daemon
+ * (re)start.
+ *
+ * The compaction-boundary drain (publishCompactedAndResetChain) only fires
+ * in-process; a daemon restart / session resume neither replays nor triggers a
+ * compaction, so a session that carried a non-empty active set across the
+ * restart keeps re-inlining the stale image until it happens to compact. This
+ * predicate gives the cross-process complement: true only when this process
+ * hasn't seen the session yet AND it still carries a leftover active set.
+ *
+ * The caller owns the `seen` set (module-level, dies with the process) and must
+ * mark the session seen after calling — regardless of the result — so the check
+ * runs at most once per session per daemon lifecycle.
+ */
+export function shouldResumeDrainImages(
+  seen: ReadonlySet<string>,
+  sessionID: string,
+  activeImageRefs: ReadonlyArray<string> | undefined,
+): boolean {
+  if (seen.has(sessionID)) return false
+  return (activeImageRefs?.length ?? 0) > 0
+}
