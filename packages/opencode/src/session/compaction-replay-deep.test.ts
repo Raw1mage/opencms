@@ -35,6 +35,7 @@ const originals = {
   sessionUpdatePart: Session.updatePart,
   sessionRemoveMessage: Session.removeMessage,
   sessionAppendRecentEvent: Session.appendRecentEvent,
+  sessionSetActiveImageRefs: Session.setActiveImageRefs,
   providerGetModel: Provider.getModel,
   tweaksSync: Tweaks.compactionSync,
   busPublish: Bus.publish,
@@ -51,6 +52,7 @@ afterEach(() => {
   ;(Session as any).updatePart = originals.sessionUpdatePart
   ;(Session as any).removeMessage = originals.sessionRemoveMessage
   ;(Session as any).appendRecentEvent = originals.sessionAppendRecentEvent
+  ;(Session as any).setActiveImageRefs = originals.sessionSetActiveImageRefs
   ;(Provider as any).getModel = originals.providerGetModel
   ;(Tweaks as any).compactionSync = originals.tweaksSync
   ;(Bus as any).publish = originals.busPublish
@@ -67,6 +69,7 @@ interface CapturedWrites {
   removes: string[]
   appendRecentEvents: any[]
   busEvents: any[]
+  setActiveImageRefs: string[][]
 }
 
 function setupDeepMocks(sid: string, initialMessages: MessageV2.WithParts[]): CapturedWrites {
@@ -76,6 +79,7 @@ function setupDeepMocks(sid: string, initialMessages: MessageV2.WithParts[]): Ca
     removes: [],
     appendRecentEvents: [],
     busEvents: [],
+    setActiveImageRefs: [],
   }
   // Stream state: starts as initial, mutates as test writes
   const live: MessageV2.WithParts[] = [...initialMessages]
@@ -129,6 +133,9 @@ function setupDeepMocks(sid: string, initialMessages: MessageV2.WithParts[]): Ca
   })
   ;(Session as any).appendRecentEvent = mock(async (_sid: string, evt: any) => {
     captured.appendRecentEvents.push(evt)
+  })
+  ;(Session as any).setActiveImageRefs = mock(async (_sid: string, refs: string[]) => {
+    captured.setActiveImageRefs.push(refs)
   })
   ;(Provider as any).getModel = mock(async () => ({
     id: "gpt-5.5",
@@ -309,6 +316,28 @@ describe("DEEP integration: defaultWriteAnchor → _replayHelper wiring", () => 
     expect(observed).toContain("overflow")
     // Importantly: NO event should record "unknown" from prod path
     expect(observed).not.toContain("unknown")
+  })
+
+  it("BR stale-attachment: drains activeImageRefs at the compaction boundary", async () => {
+    // issue_20260611_stale-attachment-persists-across-turns: a pre-compaction
+    // screenshot survived identity rotation and re-inlined every post-compaction
+    // turn, looping the agent. publishCompactedAndResetChain must drain the
+    // visual working-set at the compaction boundary.
+    const captured = setupDeepMocks("ses_deep", [userMsgWP("msg_user_x", "Q")])
+    SessionCompaction.__test__.setReplayHelper(async () => ({
+      replayed: true,
+      newUserID: "msg_y",
+    }))
+
+    await SessionCompaction.run({
+      sessionID: "ses_deep",
+      observed: "overflow",
+      step: 2,
+    })
+
+    // setActiveImageRefs should have been called with an empty array (drain).
+    expect(captured.setActiveImageRefs.length).toBeGreaterThan(0)
+    expect(captured.setActiveImageRefs).toContainEqual([])
   })
 
   it("flag disabled: snapshot path bypassed, INJECT_CONTINUE legacy path drives auto", async () => {

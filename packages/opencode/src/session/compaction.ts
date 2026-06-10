@@ -206,6 +206,23 @@ export namespace SessionCompaction {
     // cliff detector fires a false continuation-invalidated → compaction
     // self-reinforcing loop. Incident ses_1c875cc15ffe5ds18JVdNAT4e6.
     SessionPrompt.resetCacheBaseline(sessionID)
+    // 2026-06-11 (BR issue_20260611_stale-attachment-persists-across-turns):
+    // drain the visual working-set at the compaction boundary. attachment-
+    // lifecycle v6 intentionally persists `activeImageRefs` across turns of
+    // the SAME task (call reread_attachment once, pixels ride every preface).
+    // But compaction summarizes away the user request that motivated the
+    // image, while the raw activeImageRefs survives identity rotation
+    // (nextExecutionIdentity carries it forward). The stale screenshot then
+    // re-inlines every post-compaction turn — the model reads it as fresh
+    // input and loops ("鬼打牆"). Compaction is a task boundary, so the
+    // visual working-set must reset here, exactly like the codex chain and
+    // cache baseline above. The image is NOT lost: it stays in the
+    // <attached_images> inventory and the model can reread_attachment() it
+    // on demand if still relevant. Drain unconditionally — same as the codex
+    // chain and cache-baseline resets above: any publish of this boundary
+    // means the session re-baselines, and an over-eager drain costs at most
+    // one optional reread, whereas under-draining is the reported bug.
+    void Session.setActiveImageRefs(sessionID, []).catch(() => {})
     // 2026-05-09: append to per-session recentEvents ring for the Q card.
     // 2026-05-13: moved BEFORE Continuation.run so the ring entry lands
     // in the synchronous microtask path. publishCompactedAndResetChain is
