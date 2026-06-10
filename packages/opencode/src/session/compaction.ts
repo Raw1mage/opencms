@@ -21,6 +21,7 @@ import { Memory } from "./memory"
 import * as ToolIndex from "./tool-index"
 import { Tweaks } from "../config/tweaks"
 import { PostCompaction } from "./post-compaction"
+import { CompactionManager } from "./compaction-manager"
 import { ContinuationInvalidatedEvent } from "../plugin/codex-auth"
 import {
   emitCompactionPredicateTelemetry,
@@ -670,10 +671,10 @@ export namespace SessionCompaction {
       return
     }
 
-    await run({
-      sessionID: input.sessionID,
-      observed: "idle",
-      step: 0,
+    await CompactionManager.requestCompact({
+      input: { sessionID: input.sessionID, observed: "idle", step: 0 },
+      origin: "idle",
+      cause: { observed: "idle" },
     })
   }
 
@@ -703,6 +704,14 @@ export namespace SessionCompaction {
      * direct API callers).
      */
     observed?: Observed
+    /**
+     * compaction/central-manager S2: the committed anchor's kind, threaded so
+     * the post-anchor publish records the ACTUAL kind instead of a hardcoded
+     * "narrative". ai_free (codex server-side) was previously published as
+     * narrative here, wrongly SS-breaking a chain that should be preserved.
+     * Defaults to "narrative" (the legacy behaviour for narrative anchors).
+     */
+    kind?: KindName
   }) {
     log.info("compacting with shared context", { sessionID: input.sessionID })
 
@@ -785,14 +794,24 @@ export namespace SessionCompaction {
     // Phase 13.2-B: disk-file checkpoint write removed. The anchor message
     // written above IS the durable record; rebind reads it via stream scan.
 
-    void publishCompactedAndResetChain(input.sessionID, {
-      observed: input.observed ?? "manual",
-      kind: "narrative",
+    CompactionManager.requestPublish({
+      sessionID: input.sessionID,
+      anchorId: summaryMsg.id,
+      origin: "writeAnchorFromBody",
+      meta: { observed: input.observed ?? "manual", kind: input.kind ?? "narrative" },
     })
 
-    // Schedule background enrichment (merge N→1 if anchor floor > 20%).
-    // Previously only run() called this; create() (used by /compact) skipped it.
-    scheduleHybridEnrichment(input.sessionID, input.observed ?? "manual", input.model)
+    // compaction/central-manager S1: route enrichment through the single
+    // CompactionManager intake, deduped on this anchor's id. This was one of the
+    // two sites that double-scheduled enrichment (the other is in run()); the
+    // manager now guarantees at-most-once per anchor.
+    CompactionManager.requestEnrich({
+      sessionID: input.sessionID,
+      anchorId: summaryMsg.id,
+      observed: input.observed ?? "manual",
+      model: input.model,
+      origin: "writeAnchorFromBody",
+    })
 
     if (input.auto) {
       const continueText = PostCompaction.buildContinueText(followUps)
@@ -1636,9 +1655,10 @@ When constructing the summary, try to stick to this template:
       auto: input.auto,
     })
 
-    void publishCompactedAndResetChain(input.sessionID, {
-      observed: input.observed,
-      kind: "ai_paid",
+    CompactionManager.requestPublish({
+      sessionID: input.sessionID,
+      origin: "ai_paid-inline",
+      meta: { observed: input.observed, kind: "ai_paid" },
     })
 
     // Read summary text out for the caller (and the checkpoint save below).
@@ -1684,13 +1704,12 @@ When constructing the summary, try to stick to this template:
    * fallback if hybrid throws.
    */
   /**
-   * Per-session in-flight registry. Prevents two concurrent hybrid_llm
-   * enrichments on the same session. Cleared when the background
-   * promise settles.
+   * compaction/central-manager S1 (DD-2/DD-3): the per-session in-flight guard
+   * (`hybridEnrichInFlight`) is RETIRED — dedup is now a structural property of
+   * the single `CompactionManager.requestEnrich` intake, keyed on anchor id, so
+   * the same anchor cannot be enriched twice regardless of how many call sites
+   * fire. No replacement guard.
    */
-  const hybridEnrichInFlight = new Map<string, { promise: Promise<unknown>; startedAt: number }>()
-  /** Max time an enrichment can stay in-flight before being considered stale (5 min). */
-  const ENRICHMENT_IN_FLIGHT_TIMEOUT_MS = 5 * 60 * 1000
 
   /**
    * Background enrichment dispatch. Called AFTER the legacy KIND_CHAIN
@@ -1727,20 +1746,6 @@ When constructing the summary, try to stick to this template:
       emitTelemetry("session.hybrid_enrichment.skipped", { reason: "flag_disabled" })
       return
     }
-    const existing = hybridEnrichInFlight.get(sessionID)
-    if (existing && Date.now() - existing.startedAt < ENRICHMENT_IN_FLIGHT_TIMEOUT_MS) {
-      console.error(`[ENRICH-SKIP] reason=in_flight session=${sessionID} age=${Date.now() - existing.startedAt}ms`)
-      emitTelemetry("session.hybrid_enrichment.skipped", { reason: "in_flight" })
-      return
-    }
-    if (existing) {
-      // Stale entry — previous enrichment hung or leaked. Clear it.
-      log.warn("hybrid_llm enrichment: cleared stale in-flight entry", {
-        sessionID,
-        staleSinceMs: Date.now() - existing.startedAt,
-      })
-      hybridEnrichInFlight.delete(sessionID)
-    }
 
     emitTelemetry("session.hybrid_enrichment.scheduled")
 
@@ -1773,7 +1778,7 @@ When constructing the summary, try to stick to this template:
     }
 
     console.error(`[ENRICH-GO] session=${sessionID} observed=${observed} provider=${model.providerId}`)
-    const promise = (async () => {
+    void (async () => {
       try {
         emitEnrichmentStatus("started")
         // STEP 1: capture the just-written narrative anchor (the chain's
@@ -2143,16 +2148,37 @@ When constructing the summary, try to stick to this template:
           errorMessage: err instanceof Error ? err.message : String(err),
           latencyMs: 0,
         })
-      } finally {
-        hybridEnrichInFlight.delete(sessionID)
       }
     })()
-    hybridEnrichInFlight.set(sessionID, { promise, startedAt: Date.now() })
     log.info("hybrid_llm enrichment scheduled (background)", {
       sessionID,
       observed,
     })
   }
+
+  // compaction/central-manager: register the three executors with the manager.
+  // Wrapped in a function (called once at module load, re-callable from tests)
+  // so a test that injects mock executors can restore the production wiring in
+  // afterAll without leaking into other test files in the same process.
+  //   S1 enrich   — scheduleHybridEnrichment, unchanged (DD-5); manager is the
+  //                 only entry, deduped per anchor id.
+  //   S2 publish  — publishCompactedAndResetChain; manager monitors (log +
+  //                 duplicate-publish tripwire), Continuation.run keeps the
+  //                 per-provider SS-break/SL-noop reset (DD-9).
+  //   S3 compact  — run(); manager monitors execution (resolves the dual-track),
+  //                 the decision (deriveObservedCondition) stays with the reporter.
+  function wireCompactionManager(): void {
+    CompactionManager.setEnrichExecutor((sessionID, observed, model) =>
+      scheduleHybridEnrichment(sessionID, observed as Observed, model),
+    )
+    CompactionManager.setPublishExecutor((sessionID, meta) => {
+      void publishCompactedAndResetChain(sessionID, meta)
+    })
+    CompactionManager.setCompactExecutor((input) =>
+      run({ sessionID: input.sessionID, observed: input.observed as Observed, step: input.step, intent: input.intent, abort: input.abort }),
+    )
+  }
+  wireCompactionManager()
 
   // ───────────────────────────────────────────────────────────────────
   // dialog-replay-redaction DD-4: codex provider recompress dispatch
@@ -2523,15 +2549,9 @@ When constructing the summary, try to stick to this template:
     // distilled quality anchor for these triggers too. Leave `idle` out
     // (no pressure → don't burn LLM tokens) and `empty-response` out
     // (already uses low-cost-server as first attempt).
-    const hybridEnrichmentEligible: ReadonlySet<Observed> = new Set([
-      "overflow",
-      "cache-aware",
-      "manual",
-      "rebind",
-      "continuation-invalidated",
-      "provider-switched",
-      "stall-recovery",
-    ])
+    // S4: the hybrid-enrichment observed-eligibility 7-set moved to
+    // CompactionManager (isEnrichObservedEligible) — one provider-agnostic gate
+    // instead of a run()-local set racing an unconditional writeAnchorFromBody.
 
     const target = await resolveTargetPromptTokens()
     const hasPaidKindLater = (idx: number) => chain.slice(idx + 1).some((k) => !isLocalKind(k))
@@ -2673,24 +2693,31 @@ When constructing the summary, try to stick to this template:
           // fire a background distillation that supersedes the chain's
           // anchor with a higher-quality one. Always non-blocking; failures
           // are logged but don't affect the runloop or the user.
-          if (hybridEnrichmentEligible.has(observed)) {
-            console.error(`[ENRICH-CALL] observed=${observed} kind=${attempt.kind} session=${sessionID}`)
-            scheduleHybridEnrichment(sessionID, observed, model)
-          } else {
-            console.error(`[ENRICH-INELIGIBLE] observed=${observed} session=${sessionID}`)
-          }
+          // compaction/central-manager S1+S4: route through the single manager
+          // intake. The manager owns BOTH the per-anchor dedup AND the
+          // observed-eligibility predicate (formerly this run()-local 7-set), so
+          // this site no longer gates — and the writeAnchorFromBody site stops
+          // over-enriching idle. Both paths target the same anchor; the manager
+          // serves it at most once.
+          const enrichAnchorId = await readMostRecentAnchorId(sessionID)
+          CompactionManager.requestEnrich({
+            sessionID,
+            anchorId: enrichAnchorId,
+            observed,
+            model,
+            origin: "run-postchain",
+          })
           // compaction_simplification T8 (2026-05-14): rev5 sustainability
           // watermark backstop retired. The 0.9 overflowThreshold (codex
           // tuned) is now the sole synchronous overflow guard. The 20%
           // local→ai_paid upgrade trigger (T4) provides preemptive size
           // control without the watermark recursion machinery.
-          // Some kinds (low-cost-server) do not self-publish Event.Compacted;
-          // others (compactWithSharedContext / tryLlmAgent / tryHybridLlm) do.
-          // Publishing here for the kinds that don't ensures the frontend
-          // statusFooter reliably clears on every successful exit.
-          if (attempt.kind === "ai_free") {
-            void publishCompactedAndResetChain(sessionID, { observed, kind: attempt.kind })
-          }
+          // compaction/central-manager S2: the ai_free double-publish is
+          // REMOVED. ai_free goes through _writeAnchor → writeAnchorFromBody,
+          // which now publishes with the ACTUAL kind (ai_free → preserved) via
+          // CompactionManager.requestPublish. A second publish here was the
+          // duplicate that first SS-broke the chain as narrative, then re-marked
+          // it preserved as ai_free — contradictory chain-reset semantics.
           return "continue"
         }
       }
@@ -2699,7 +2726,7 @@ When constructing the summary, try to stick to this template:
       // Chain exhausted without writing an anchor — still publish Compacted
       // so the frontend statusFooter clears (otherwise spinner sticks
       // indefinitely after a silent failure).
-      void publishCompactedAndResetChain(sessionID, { observed, success: false })
+      CompactionManager.requestPublish({ sessionID, origin: "chain-exhausted", meta: { observed, success: false } })
       return "stop"
     } finally {
       // Bulletproof clear: monitor.ts:474 treats any truthy time.compacting
@@ -3317,9 +3344,10 @@ When constructing the summary, try to stick to this template:
     }
 
     // Chain reset
-    void publishCompactedAndResetChain(sessionID, {
-      observed: "reload",
-      kind: "text-only rebuild",
+    CompactionManager.requestPublish({
+      sessionID,
+      origin: "reload-rebuild",
+      meta: { observed: "reload", kind: "text-only rebuild" },
     })
 
     log.info("rebuildStreamFromText complete", {
@@ -3511,6 +3539,9 @@ When constructing the summary, try to stick to this template:
       model: input.model,
       auto: replayEnabled ? false : input.auto,
       observed: input.observed,
+      // S2: thread the real kind so ai_free publishes as ai_free (preserved),
+      // not narrative (SS-break). narrative/replay-tail stay narrative.
+      kind: input.kind,
     })
 
     // user-msg-replay-unification DD-3: after the anchor is persisted,
@@ -3729,6 +3760,8 @@ When constructing the summary, try to stick to this template:
     extractAnchorTextBody,
     runCodexServerSideRecompress,
     scheduleHybridEnrichment,
+    /** Re-register the production executors (restore after a test injects mocks). */
+    wireCompactionManager,
     /**
      * Test seam (2026-05-13 amend): exposes shouldInjectContinue so the
      * specs/compaction/user-msg-replay-unification rev2 + specs/session/
@@ -4542,9 +4575,10 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         // failure / timeout. Subscribers that need success/failure
         // discrimination should look at the LlmCompactResult.ok flag
         // returned to the caller.
-        void publishCompactedAndResetChain(sessionID, {
-          observed: opts.observed ?? "manual",
-          kind: "ai_paid",
+        CompactionManager.requestPublish({
+          sessionID,
+          origin: "runLlmCompact",
+          meta: { observed: opts.observed ?? "manual", kind: "ai_paid" },
         })
       }
     }
