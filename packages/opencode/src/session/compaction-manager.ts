@@ -184,6 +184,31 @@ export namespace CompactionManager {
     return decision
   }
 
+  /**
+   * S5/DD-13: provider-switch compaction EXECUTION monitor. The provider-switch
+   * pre-loop builds a switch-specific snapshot and writes the anchor via
+   * writeAnchorFromBody — NOT run() (run would rebuild a different narrative), so
+   * it can't reuse requestCompact's executor. Bring it under the ledger as a
+   * TRANSPARENT monitor: log `compact requested/done` around the caller's
+   * executor thunk, always delegate, never suppress. This was the last live
+   * compaction execution that bypassed the manager; after it, every live
+   * compaction emits a ledger entry and the manager is a true single track.
+   */
+  export async function requestProviderSwitchCompact(
+    meta: { sessionID: string; cause?: unknown },
+    exec: () => Promise<void>,
+  ): Promise<void> {
+    const origin = "provider-switch-preloop"
+    log.info("compact requested", {
+      sessionID: meta.sessionID,
+      observed: "provider-switched",
+      origin,
+      cause: meta.cause,
+    })
+    await exec()
+    log.info("compact done", { sessionID: meta.sessionID, observed: "provider-switched", origin, result: "executed" })
+  }
+
   // ── Publish (post-anchor chain-reset) — S2 ────────────────────────────
   // The chain-reset's per-PROVIDER behaviour (codex SS-break vs claude SL-noop)
   // already lives downstream in Continuation.run (the DD-9 precedent), so the
