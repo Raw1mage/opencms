@@ -1,5 +1,14 @@
-import { describe, it, expect, beforeEach } from "bun:test"
+import { describe, it, expect, beforeEach, afterAll } from "bun:test"
 import { CompactionManager } from "./compaction-manager"
+import { SessionCompaction } from "./compaction"
+
+// These tests inject mock executors into the CompactionManager singleton. Restore
+// the production wiring afterwards so we don't leak undefined/mock executors into
+// other test files sharing this process.
+afterAll(() => {
+  CompactionManager.__test__.reset()
+  SessionCompaction.__test__.wireCompactionManager()
+})
 
 // compaction/central-manager S1 — the structural fix for the verified
 // double-trim amnesia (event_2026-06-10_rca-re-verified-with-hard-data-…).

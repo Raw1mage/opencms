@@ -2156,31 +2156,29 @@ When constructing the summary, try to stick to this template:
     })
   }
 
-  // compaction/central-manager S1: register the existing enrichment executor
-  // with the manager. After this, the manager is the only entry point that
-  // schedules enrichment (callers go through CompactionManager.requestEnrich);
-  // scheduleHybridEnrichment stays the unchanged executor (DD-5).
-  CompactionManager.setEnrichExecutor((sessionID, observed, model) =>
-    scheduleHybridEnrichment(sessionID, observed as Observed, model),
-  )
-
-  // compaction/central-manager S2: register the publish executor. All
-  // post-anchor chain-reset publishes route through CompactionManager.requestPublish
-  // for monitoring (structured log + duplicate-publish tripwire); the manager
-  // delegates here, and Continuation.run (inside) still does the per-provider
-  // SS-break/SL-noop reset (DD-9).
-  CompactionManager.setPublishExecutor((sessionID, meta) => {
-    void publishCompactedAndResetChain(sessionID, meta)
-  })
-
-  // compaction/central-manager S3: register the compaction executor. Trigger
-  // points report their decided `observed` + cause to requestCompact, which
-  // monitors (structured log) and delegates to run() — bringing execution onto
-  // the same single monitored track as enrich/publish (resolves the dual-track),
-  // while the decision (deriveObservedCondition) stays with the reporter.
-  CompactionManager.setCompactExecutor((input) =>
-    run({ sessionID: input.sessionID, observed: input.observed as Observed, step: input.step, intent: input.intent, abort: input.abort }),
-  )
+  // compaction/central-manager: register the three executors with the manager.
+  // Wrapped in a function (called once at module load, re-callable from tests)
+  // so a test that injects mock executors can restore the production wiring in
+  // afterAll without leaking into other test files in the same process.
+  //   S1 enrich   — scheduleHybridEnrichment, unchanged (DD-5); manager is the
+  //                 only entry, deduped per anchor id.
+  //   S2 publish  — publishCompactedAndResetChain; manager monitors (log +
+  //                 duplicate-publish tripwire), Continuation.run keeps the
+  //                 per-provider SS-break/SL-noop reset (DD-9).
+  //   S3 compact  — run(); manager monitors execution (resolves the dual-track),
+  //                 the decision (deriveObservedCondition) stays with the reporter.
+  function wireCompactionManager(): void {
+    CompactionManager.setEnrichExecutor((sessionID, observed, model) =>
+      scheduleHybridEnrichment(sessionID, observed as Observed, model),
+    )
+    CompactionManager.setPublishExecutor((sessionID, meta) => {
+      void publishCompactedAndResetChain(sessionID, meta)
+    })
+    CompactionManager.setCompactExecutor((input) =>
+      run({ sessionID: input.sessionID, observed: input.observed as Observed, step: input.step, intent: input.intent, abort: input.abort }),
+    )
+  }
+  wireCompactionManager()
 
   // ───────────────────────────────────────────────────────────────────
   // dialog-replay-redaction DD-4: codex provider recompress dispatch
@@ -3771,6 +3769,8 @@ When constructing the summary, try to stick to this template:
     extractAnchorTextBody,
     runCodexServerSideRecompress,
     scheduleHybridEnrichment,
+    /** Re-register the production executors (restore after a test injects mocks). */
+    wireCompactionManager,
     /**
      * Test seam (2026-05-13 amend): exposes shouldInjectContinue so the
      * specs/compaction/user-msg-replay-unification rev2 + specs/session/
