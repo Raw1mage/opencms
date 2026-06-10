@@ -2693,20 +2693,25 @@ When constructing the summary, try to stick to this template:
           // fire a background distillation that supersedes the chain's
           // anchor with a higher-quality one. Always non-blocking; failures
           // are logged but don't affect the runloop or the user.
-          // compaction/central-manager S1+S4: route through the single manager
-          // intake. The manager owns BOTH the per-anchor dedup AND the
-          // observed-eligibility predicate (formerly this run()-local 7-set), so
-          // this site no longer gates — and the writeAnchorFromBody site stops
-          // over-enriching idle. Both paths target the same anchor; the manager
-          // serves it at most once.
-          const enrichAnchorId = await readMostRecentAnchorId(sessionID)
-          CompactionManager.requestEnrich({
-            sessionID,
-            anchorId: enrichAnchorId,
-            observed,
-            model,
-            origin: "run-postchain",
-          })
+          // compaction/central-manager S1+S4: route enrichment through the
+          // single manager intake (owns per-anchor dedup + observed-eligibility).
+          // Only fire here for INLINE-anchor kinds (ai_paid): those bypass
+          // writeAnchorFromBody, so its enrich call (the other site) never ran.
+          // narrative / ai_free DO go through writeAnchorFromBody, which already
+          // enriched — so firing here too would be a steady-state duplicate that
+          // the manager has to reject every time. Gating on anchorWritten keeps
+          // exactly-one enrich per anchor by construction; the manager's
+          // per-anchor dedup stays as the backstop for any genuine third caller.
+          if (attempt.anchorWritten) {
+            const enrichAnchorId = await readMostRecentAnchorId(sessionID)
+            CompactionManager.requestEnrich({
+              sessionID,
+              anchorId: enrichAnchorId,
+              observed,
+              model,
+              origin: "run-postchain",
+            })
+          }
           // compaction_simplification T8 (2026-05-14): rev5 sustainability
           // watermark backstop retired. The 0.9 overflowThreshold (codex
           // tuned) is now the sole synchronous overflow guard. The 20%
