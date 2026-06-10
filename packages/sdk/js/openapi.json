@@ -17169,6 +17169,12 @@
                           "isolated"
                         ]
                       },
+                      "parentID": {
+                        "type": "string"
+                      },
+                      "dormantSessionID": {
+                        "type": "string"
+                      },
                       "wakeMode": {
                         "type": "string",
                         "enum": [
@@ -17474,6 +17480,12 @@
                         "main",
                         "isolated"
                       ]
+                    },
+                    "parentID": {
+                      "type": "string"
+                    },
+                    "dormantSessionID": {
+                      "type": "string"
                     },
                     "wakeMode": {
                       "type": "string",
@@ -17990,6 +18002,12 @@
                         "isolated"
                       ]
                     },
+                    "parentID": {
+                      "type": "string"
+                    },
+                    "dormantSessionID": {
+                      "type": "string"
+                    },
                     "wakeMode": {
                       "type": "string",
                       "enum": [
@@ -18312,6 +18330,12 @@
                         "main",
                         "isolated"
                       ]
+                    },
+                    "parentID": {
+                      "type": "string"
+                    },
+                    "dormantSessionID": {
+                      "type": "string"
                     },
                     "wakeMode": {
                       "type": "string",
@@ -38602,6 +38626,12 @@
                           "isolated"
                         ]
                       },
+                      "parentID": {
+                        "type": "string"
+                      },
+                      "dormantSessionID": {
+                        "type": "string"
+                      },
                       "wakeMode": {
                         "type": "string",
                         "enum": [
@@ -38907,6 +38937,12 @@
                         "main",
                         "isolated"
                       ]
+                    },
+                    "parentID": {
+                      "type": "string"
+                    },
+                    "dormantSessionID": {
+                      "type": "string"
                     },
                     "wakeMode": {
                       "type": "string",
@@ -39423,6 +39459,12 @@
                         "isolated"
                       ]
                     },
+                    "parentID": {
+                      "type": "string"
+                    },
+                    "dormantSessionID": {
+                      "type": "string"
+                    },
                     "wakeMode": {
                       "type": "string",
                       "enum": [
@@ -39745,6 +39787,12 @@
                         "main",
                         "isolated"
                       ]
+                    },
+                    "parentID": {
+                      "type": "string"
+                    },
+                    "dormantSessionID": {
+                      "type": "string"
                     },
                     "wakeMode": {
                       "type": "string",
@@ -46659,6 +46707,25 @@
             "items": {
               "$ref": "#/components/schemas/PendingSubagentNotice"
             }
+          },
+          "scheduled": {
+            "type": "object",
+            "properties": {
+              "jobId": {
+                "type": "string"
+              },
+              "fireAtMs": {
+                "type": "number"
+              },
+              "createdAtMs": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "jobId",
+              "fireAtMs",
+              "createdAtMs"
+            ]
           }
         },
         "required": [
@@ -47625,7 +47692,7 @@
           },
           "id": {
             "description": "Unique identifier for the todo item (auto-generated if omitted)",
-            "default": "todo_mq3xfp4v_0iiq6z",
+            "default": "todo_mq7io7ap_a700b2",
             "type": "string"
           },
           "action": {
@@ -55143,6 +55210,25 @@
             "items": {
               "$ref": "#/components/schemas/PendingSubagentNotice"
             }
+          },
+          "scheduled": {
+            "type": "object",
+            "properties": {
+              "jobId": {
+                "type": "string"
+              },
+              "fireAtMs": {
+                "type": "number"
+              },
+              "createdAtMs": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "jobId",
+              "fireAtMs",
+              "createdAtMs"
+            ]
           },
           "project": {
             "anyOf": [

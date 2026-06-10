@@ -1106,6 +1106,11 @@ export type Session = {
     }
   }
   pendingSubagentNotices?: Array<PendingSubagentNotice>
+  scheduled?: {
+    jobId: string
+    fireAtMs: number
+    createdAtMs: number
+  }
 }
 
 export type EventSessionDeleted = {
@@ -3817,6 +3822,11 @@ export type GlobalSession = {
     }
   }
   pendingSubagentNotices?: Array<PendingSubagentNotice>
+  scheduled?: {
+    jobId: string
+    fireAtMs: number
+    createdAtMs: number
+  }
   project: ProjectSummary | null
 }
 
@@ -10756,6 +10766,8 @@ export type CronJobsListResponses = {
           staggerMs?: number
         }
     sessionTarget: "main" | "isolated"
+    parentID?: string
+    dormantSessionID?: string
     wakeMode: "next-heartbeat" | "now"
     payload:
       | {
@@ -10893,6 +10905,8 @@ export type CronJobsCreateResponses = {
           staggerMs?: number
         }
     sessionTarget: "main" | "isolated"
+    parentID?: string
+    dormantSessionID?: string
     wakeMode: "next-heartbeat" | "now"
     payload:
       | {
@@ -11017,6 +11031,8 @@ export type CronJobsGetResponses = {
           staggerMs?: number
         }
     sessionTarget: "main" | "isolated"
+    parentID?: string
+    dormantSessionID?: string
     wakeMode: "next-heartbeat" | "now"
     payload:
       | {
@@ -11160,6 +11176,8 @@ export type CronJobsUpdateResponses = {
           staggerMs?: number
         }
     sessionTarget: "main" | "isolated"
+    parentID?: string
+    dormantSessionID?: string
     wakeMode: "next-heartbeat" | "now"
     payload:
       | {
@@ -18957,6 +18975,8 @@ export type CronJobsList2Responses = {
           staggerMs?: number
         }
     sessionTarget: "main" | "isolated"
+    parentID?: string
+    dormantSessionID?: string
     wakeMode: "next-heartbeat" | "now"
     payload:
       | {
@@ -19094,6 +19114,8 @@ export type CronJobsCreate2Responses = {
           staggerMs?: number
         }
     sessionTarget: "main" | "isolated"
+    parentID?: string
+    dormantSessionID?: string
     wakeMode: "next-heartbeat" | "now"
     payload:
       | {
@@ -19218,6 +19240,8 @@ export type CronJobsGet2Responses = {
           staggerMs?: number
         }
     sessionTarget: "main" | "isolated"
+    parentID?: string
+    dormantSessionID?: string
     wakeMode: "next-heartbeat" | "now"
     payload:
       | {
@@ -19361,6 +19385,8 @@ export type CronJobsUpdate2Responses = {
           staggerMs?: number
         }
     sessionTarget: "main" | "isolated"
+    parentID?: string
+    dormantSessionID?: string
     wakeMode: "next-heartbeat" | "now"
     payload:
       | {
