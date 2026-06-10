@@ -1,0 +1,103 @@
+{
+  "title": "CompactionManager — intake request schema, provider taxonomy, and anomaly contracts",
+  "description": "A discriminated union for the single-intake CompactionRequest (evaluate / compact / anchorCommitted / enrich), each carrying origin + structured cause + provider class; the 3-class provider taxonomy; the per-session serialization key; and the anomaly-event contract. Types describe the manager's surface; executors (run, publish, enrichment) are unchanged and not re-specified here.",
+  "types": {
+    "CompactionRequest": {
+      "kind": "discriminated_union",
+      "discriminator": "kind",
+      "common": {
+        "sessionID": "string",
+        "origin": "RequestOrigin",
+        "cause": "StructuredCause",
+        "provider": "ProviderClass"
+      },
+      "variants": {
+        "evaluate": { "signals": "TriggerSignals", "step": "number" },
+        "compact": { "observed": "Observed", "intent": "'auto' | 'manual' | 'rich'" },
+        "anchorCommitted": { "anchorId": "string", "anchorKind": "KindName", "observed": "Observed" },
+        "enrich": { "anchorId": "string", "anchorTokens": "number" }
+      }
+    },
+    "RequestOrigin": {
+      "kind": "string_enum",
+      "description": "Stable call-site id, for accountability. Examples below mirror the §5 inventory.",
+      "values": [
+        "mainloop", "paralysis-recovery", "rebind-preemptive", "idle", "manual-route",
+        "provider-switch-preloop", "writeAnchorFromBody", "run-postchain"
+      ]
+    },
+    "StructuredCause": {
+      "kind": "discriminated_union",
+      "discriminator": "trigger",
+      "description": "The measured signal values that justified the request — RCA material (DD-7), not a freeform string.",
+      "variants": {
+        "overflow": { "observedTokens": "number", "usableTokens": "number", "contextLimit": "number" },
+        "cache-aware": { "cacheReadTokens": "number", "hitRate": "number", "observedTokens": "number" },
+        "predicted-cache-miss": { "predictedMiss": "boolean", "uncachedTokens": "number" },
+        "item-count": { "itemCount": "number", "threshold": "number" },
+        "stall-recovery": { "consecutiveEmpty": "number", "ctxRatio": "number" },
+        "provider-switched": { "prevProvider": "string", "newProvider": "string" },
+        "rebind": { "prevProvider": "string", "newProvider": "string" },
+        "continuation-invalidated": { "invalidatedAt": "number", "lastAnchorAt": "number" },
+        "idle": { "utilization": "number", "threshold": "number" },
+        "manual": { "source": "'/compact' | 'rich'" },
+        "enrich": { "anchorId": "string", "anchorTokens": "number", "realPromptTokens": "number", "gateResult": "'pass' | 'skip'" }
+      }
+    },
+    "ProviderClass": {
+      "kind": "string_enum",
+      "description": "3-class taxonomy the manager branches on (DD-8). Code's resolvePolicy is 2-way (claude-cli vs general); codex is general + stateful SS-chain overlay.",
+      "values": ["claude", "codex", "general"],
+      "semantics": {
+        "claude": "claude-cli; SL chain (chain-reset is SL-noop); CLAUDE_NOOP_OBSERVED skips rebind/provider-switched/continuation-invalidated; absolute aFloor enrichment gate; coldCacheBGate; by-token 1M.",
+        "codex": "GeneralPolicy + stateful SS chain (invalidateContinuationFamily real; SS-break); item-count overflow; dormant /responses/compact ai_free; often subscription.",
+        "general": "copilot/other; GeneralPolicy + SL chain (chain-reset no-op); by-request billing → forceRich straight-to-ai_paid."
+      }
+    },
+    "Observed": {
+      "kind": "string_enum",
+      "values": ["overflow", "cache-aware", "idle", "rebind", "continuation-invalidated", "provider-switched", "stall-recovery", "manual", "empty-response", "reload"]
+    },
+    "KindName": {
+      "kind": "string_enum",
+      "values": ["narrative", "ai_free", "ai_paid"]
+    },
+    "TriggerSignals": {
+      "kind": "struct",
+      "description": "Raw measurements a reporter hands the manager so the manager (not the caller) decides the observed condition.",
+      "fields": {
+        "observedTokens": "number",
+        "usableTokens": "number",
+        "cacheReadTokens": "number",
+        "itemCount": "number",
+        "consecutiveEmpty": "number",
+        "providerChanged": "boolean",
+        "continuationInvalidatedAt": "number | null"
+      }
+    },
+    "SerializationKey": {
+      "kind": "struct",
+      "description": "Dedup is structural: one execution per session, one enrichment per anchor.",
+      "fields": {
+        "executionKey": "sessionID",
+        "enrichmentKey": "anchorId"
+      }
+    },
+    "CompactionAnomaly": {
+      "kind": "discriminated_union",
+      "discriminator": "code",
+      "description": "First-class policy-violation events (siblings of session.rebind_storm); each names the offending origin so the fix lands at the source.",
+      "variants": {
+        "duplicate-enrich": { "sessionID": "string", "anchorId": "string", "origin": "RequestOrigin", "servedBy": "RequestOrigin" },
+        "compact-during-cooldown": { "sessionID": "string", "origin": "RequestOrigin", "anchorAgeMs": "number" },
+        "enrich-below-floor": { "sessionID": "string", "anchorTokens": "number", "floor": "number" },
+        "publish-kind-mismatch": { "sessionID": "string", "expectedKind": "KindName", "publishedKind": "KindName" },
+        "lock-held-too-long": { "sessionID": "string", "heldMs": "number" }
+      }
+    }
+  },
+  "notes": [
+    "Executors (run, publishCompactedAndResetChain, drop_old/ai_paid) are reused unchanged (DD-5); this schema covers only the manager's intake + policy + accountability surface.",
+    "hybridEnrichInFlight is removed — its job is subsumed by SerializationKey.enrichmentKey dedup (DD-2)."
+  ]
+}

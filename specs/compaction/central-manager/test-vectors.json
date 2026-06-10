@@ -1,0 +1,88 @@
+[
+  {
+    "id": "TV-1",
+    "title": "RCA reproduction — one compaction yields exactly one recompress",
+    "slice": "S1",
+    "given": {
+      "provider": "claude",
+      "session": "claude-cli 1M, round ~233",
+      "observed": "cache-aware",
+      "anchorTokens": 23706
+    },
+    "when": "a single cache-aware narrative compaction commits the anchor and enrichment is reported from both legacy origins (writeAnchorFromBody + run-postchain)",
+    "then": {
+      "compaction_recompress_count_for_anchor": 1,
+      "anchor_trimmed_times": 1,
+      "second_request_outcome": "no-op + duplicate-enrich anomaly",
+      "anchor_not_collapsed": true
+    },
+    "regression_of": "event_2026-06-10_rca-re-verified-with-hard-data"
+  },
+  {
+    "id": "TV-2",
+    "title": "Duplicate enrich for same anchorId is rejected structurally",
+    "slice": "S1",
+    "given": { "anchorId": "A", "first_request_served": true },
+    "when": "a second enrich(anchorId=A) arrives ~50 ms later (drop_old fast-path timing)",
+    "then": {
+      "enrichment_executions": 1,
+      "anomaly": { "code": "duplicate-enrich", "origin": "run-postchain", "servedBy": "writeAnchorFromBody" },
+      "hybridEnrichInFlight_guard_present": false
+    }
+  },
+  {
+    "id": "TV-3",
+    "title": "ai_free compaction publishes once with correct kind",
+    "slice": "S2",
+    "given": { "provider": "codex", "kind": "ai_free" },
+    "when": "an ai_free server-side compaction commits an anchor",
+    "then": {
+      "publish_count": 1,
+      "published_kind": "ai_free",
+      "spurious_narrative_ss_break": false,
+      "anomaly_if_mismatch": "publish-kind-mismatch"
+    }
+  },
+  {
+    "id": "TV-4",
+    "title": "Evaluate with no warranted trigger is a fast no-op",
+    "slice": "S3",
+    "given": { "observed_after_arbitration": null, "reason": "within 30s cooldown" },
+    "when": "a reporter submits evaluate with measured signals",
+    "then": {
+      "lock_acquired": false,
+      "executor_invoked": false,
+      "ledger_records_cause": true,
+      "return": "continue"
+    }
+  },
+  {
+    "id": "TV-5",
+    "title": "Provider branches preserved across claude / codex / general",
+    "slice": "S3",
+    "given": { "observed": "rebind" },
+    "when": "the same rebind signal is reported on each provider class",
+    "then": {
+      "claude": "no-op compaction (CLAUDE_NOOP_OBSERVED), SL-noop chain",
+      "codex": "compaction proceeds, SS-break chain reset",
+      "general": "compaction proceeds, SL-noop chain",
+      "thresholds": "byte-identical to pre-migration"
+    }
+  },
+  {
+    "id": "TV-6",
+    "title": "Freerun provider bypasses all compaction triggers",
+    "slice": "S3",
+    "given": { "provider_mode": "freerun" },
+    "when": "overflow / cache-aware signals are reported",
+    "then": { "observed": null, "compaction": "bypassed (DD-10/R11 preserved)" }
+  },
+  {
+    "id": "TV-7",
+    "title": "Malformed request rejected at the door",
+    "slice": "S0",
+    "given": { "request": { "kind": "enrich", "origin": null, "provider": null } },
+    "when": "submit() is called",
+    "then": { "accepted": false, "anomaly_or_log": "malformed-request", "executor_invoked": false }
+  }
+]

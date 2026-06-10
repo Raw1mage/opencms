@@ -1,0 +1,68 @@
+[
+  {
+    "id": "SEQ-1",
+    "title": "run() compaction through the manager — exactly-once publish + enrich",
+    "description": "The runloop reports a trigger signal; the manager arbitrates, serializes, executes the kind chain, then fans out publish + enrichment exactly once via the anchorCommitted fact. Replaces the scattered scheduleHybridEnrichment (795 + 2678) and publish (788 + 2692) call sites.",
+    "participants": [
+      { "id": "loop", "name": "runloop (prompt.ts deriveObservedCondition)", "kind": "component" },
+      { "id": "mgr", "name": "CompactionManager.submit (compaction-manager.ts)", "kind": "component" },
+      { "id": "policy", "name": "manager policy (trigger/exec/side-effect/provider)", "kind": "component" },
+      { "id": "serial", "name": "per-session serial queue + anchor-id dedup", "kind": "component" },
+      { "id": "run", "name": "run() kind-chain executor (compaction.ts)", "kind": "component" },
+      { "id": "publish", "name": "publishCompactedAndResetChain / Continuation.run", "kind": "component" },
+      { "id": "enrich", "name": "enrichment executor (drop_old / ai_paid)", "kind": "component" },
+      { "id": "ledger", "name": "RCA ledger + anomaly bus (runtime event journal)", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "loop", "to": "mgr", "label": "submit(evaluate, origin=mainloop, cause={observedTokens,…}, provider)", "kind": "call" },
+      { "from": "mgr", "to": "ledger", "label": "log request (origin, cause, decision)", "kind": "async" },
+      { "from": "mgr", "to": "policy", "label": "arbitrate → observed (cooldown/freerun/provider gates)", "kind": "call" },
+      { "from": "mgr", "to": "serial", "label": "acquire per-session execution lock", "kind": "call" },
+      { "from": "mgr", "to": "run", "label": "execute kind chain", "kind": "call" },
+      { "from": "run", "to": "mgr", "label": "anchorCommitted(anchorId, kind, observed)", "kind": "return" },
+      { "from": "mgr", "to": "publish", "label": "publish chain-reset 1× (actual kind)", "kind": "call" },
+      { "from": "mgr", "to": "serial", "label": "anchor-id fresh?", "kind": "call" },
+      { "from": "mgr", "to": "enrich", "label": "schedule enrichment 1× (anchorId)", "kind": "async" },
+      { "from": "mgr", "to": "serial", "label": "release lock", "kind": "call" },
+      { "from": "mgr", "to": "ledger", "label": "append outcome to RCA ledger", "kind": "async" }
+    ]
+  },
+  {
+    "id": "SEQ-2",
+    "title": "Duplicate enrichment request is rejected by anchor-id dedup",
+    "description": "The exact failure mode of the verified RCA: a second enrichment request for the same anchor arrives ~50 ms after the first (the 2 ms drop_old fast path that defeated the in-flight guard). The manager rejects it structurally and raises an anomaly instead of double-trimming.",
+    "participants": [
+      { "id": "src1", "name": "origin=writeAnchorFromBody:795 (legacy)", "kind": "component" },
+      { "id": "src2", "name": "origin=run():2678 (legacy)", "kind": "component" },
+      { "id": "mgr", "name": "CompactionManager.submit", "kind": "component" },
+      { "id": "serial", "name": "anchor-id dedup set", "kind": "component" },
+      { "id": "enrich", "name": "enrichment executor", "kind": "component" },
+      { "id": "ledger", "name": "RCA ledger + anomaly bus", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "src1", "to": "mgr", "label": "submit(enrich, anchorId=A)", "kind": "call" },
+      { "from": "mgr", "to": "serial", "label": "mark A enriched (fresh)", "kind": "call" },
+      { "from": "mgr", "to": "enrich", "label": "drop_old/ai_paid on A (1×)", "kind": "async" },
+      { "from": "src2", "to": "mgr", "label": "submit(enrich, anchorId=A) ~50 ms later", "kind": "call" },
+      { "from": "mgr", "to": "serial", "label": "A already enriched?", "kind": "call" },
+      { "from": "mgr", "to": "ledger", "label": "reject + raise duplicate-enrich anomaly (origin=run():2678)", "kind": "async" }
+    ]
+  },
+  {
+    "id": "SEQ-3",
+    "title": "Evaluate with no trigger — fast no-op path",
+    "description": "A reporter submits an evaluate request; the manager arbitrates and finds no warranted compaction (e.g. within 30s cooldown or freerun). It records the no-op cause and returns without acquiring a lock or touching executors.",
+    "participants": [
+      { "id": "loop", "name": "runloop / idle / paralysis reporter", "kind": "component" },
+      { "id": "mgr", "name": "CompactionManager.submit", "kind": "component" },
+      { "id": "policy", "name": "trigger policy (cooldown/freerun/provider)", "kind": "component" },
+      { "id": "ledger", "name": "RCA ledger", "kind": "component" }
+    ],
+    "messages": [
+      { "from": "loop", "to": "mgr", "label": "submit(evaluate, cause={…})", "kind": "call" },
+      { "from": "mgr", "to": "policy", "label": "arbitrate → observed == null", "kind": "call" },
+      { "from": "mgr", "to": "ledger", "label": "record evaluate no-op (cause kept for RCA)", "kind": "async" },
+      { "from": "mgr", "to": "loop", "label": "return continue (no compaction)", "kind": "return" }
+    ]
+  }
+]

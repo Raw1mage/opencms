@@ -1,0 +1,79 @@
+{
+  "diagram_title": "Govern Session Compaction Lifecycle",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Validate Incoming Request",
+      "description": "Admit every compaction/enrichment request at the single intake; require and attach origin (call-site id), structured cause (measured signals), and provider class (claude/codex/general); reject malformed requests at the door.",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Arbitrate Compaction Trigger",
+      "description": "Evaluate reported signals against the central trigger policy (thresholds, priority, 30s cooldown, freerun bypass, subagent rules, provider gates) and decide a single observed condition or a no-op.",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Execute Compaction Chain",
+      "description": "Run the per-observed kind chain (narrative / ai_free / ai_paid) via the existing run() executor and write the anchor.",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Dispatch Post-Anchor Effects",
+      "description": "On a committed anchor, fan out the post-anchor side-effects exactly once: publish chain-reset with the actual kind, and schedule background enrichment at most once per anchor.",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Serialize Session Work",
+      "description": "Enforce per-session serialization and anchor-id deduplication so dedup is a structural property of the intake (replaces the retired in-flight guard and the implicit cooldown).",
+      "decomposition": null
+    },
+    {
+      "id": "A6",
+      "title": "Record Compaction Causes",
+      "description": "Append every request's origin, structured cause, and decision to the RCA ledger, and raise first-class anomaly events on policy violations.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "compaction / enrichment request", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "request schema (origin + structured cause + provider required)", "type": "control" },
+    { "id": "AR3", "source": "EXTERNAL", "target": "A1:mechanism", "label": "intake validator", "type": "mechanism" },
+    { "id": "AR4", "source": "A1:output", "target": "A2:input", "label": "validated evaluate / compact request", "type": "output" },
+    { "id": "AR5", "source": "A1:output", "target": "A4:input", "label": "validated anchorCommitted / enrich request", "type": "output" },
+
+    { "id": "AR6", "source": "EXTERNAL", "target": "A2:control", "label": "trigger policy (thresholds, priority, cooldown, freerun, provider gates)", "type": "control" },
+    { "id": "AR7", "source": "EXTERNAL", "target": "A2:mechanism", "label": "deriveObservedCondition arbitration logic", "type": "mechanism" },
+    { "id": "AR8", "source": "A2:output", "target": "A3:input", "label": "compaction decision (observed, provider)", "type": "output" },
+    { "id": "AR9", "source": "A2:output", "target": "A6:input", "label": "trigger cause + decision", "type": "output" },
+
+    { "id": "AR10", "source": "EXTERNAL", "target": "A3:control", "label": "execution policy (kind chain, escalation)", "type": "control" },
+    { "id": "AR11", "source": "A5:output", "target": "A3:control", "label": "execution serialization token", "type": "control" },
+    { "id": "AR12", "source": "EXTERNAL", "target": "A3:mechanism", "label": "run() kind-chain executor", "type": "mechanism" },
+    { "id": "AR13", "source": "A3:output", "target": "A4:input", "label": "anchorCommitted fact (anchorId, kind, observed)", "type": "output" },
+    { "id": "AR14", "source": "A3:output", "target": "EXTERNAL", "label": "compacted session (anchor written)", "type": "output" },
+
+    { "id": "AR15", "source": "EXTERNAL", "target": "A4:control", "label": "side-effect policy (exactly-once publish + enrich eligibility)", "type": "control" },
+    { "id": "AR16", "source": "A5:output", "target": "A4:control", "label": "anchor-id dedup verdict", "type": "control" },
+    { "id": "AR17", "source": "EXTERNAL", "target": "A4:mechanism", "label": "publishCompactedAndResetChain / Continuation.run", "type": "mechanism" },
+    { "id": "AR18", "source": "EXTERNAL", "target": "A4:mechanism", "label": "enrichment executor (drop_old / ai_paid)", "type": "mechanism" },
+    { "id": "AR19", "source": "A4:output", "target": "EXTERNAL", "label": "chain-reset published (1x, correct kind)", "type": "output" },
+    { "id": "AR20", "source": "A4:output", "target": "EXTERNAL", "label": "enrichment scheduled (1x per anchor)", "type": "output" },
+    { "id": "AR21", "source": "A4:output", "target": "A6:input", "label": "effect outcome + cause", "type": "output" },
+
+    { "id": "AR22", "source": "A3:output", "target": "A5:input", "label": "execution work key (sessionID)", "type": "input" },
+    { "id": "AR23", "source": "A4:output", "target": "A5:input", "label": "enrichment work key (anchorId)", "type": "input" },
+    { "id": "AR24", "source": "EXTERNAL", "target": "A5:control", "label": "serialization invariant (<=1 compaction / session, <=1 enrich / anchor)", "type": "control" },
+    { "id": "AR25", "source": "EXTERNAL", "target": "A5:mechanism", "label": "per-session serial queue", "type": "mechanism" },
+    { "id": "AR26", "source": "A5:output", "target": "A6:input", "label": "duplicate-rejected signal", "type": "output" },
+
+    { "id": "AR27", "source": "EXTERNAL", "target": "A6:control", "label": "anomaly taxonomy (duplicate-enrich, compact-during-cooldown, enrich-below-floor, publish-kind-mismatch)", "type": "control" },
+    { "id": "AR28", "source": "EXTERNAL", "target": "A6:mechanism", "label": "runtime event journal + anomaly bus", "type": "mechanism" },
+    { "id": "AR29", "source": "A6:output", "target": "EXTERNAL", "label": "structured request log (RCA ledger)", "type": "output" },
+    { "id": "AR30", "source": "A6:output", "target": "EXTERNAL", "label": "anomaly events", "type": "output" }
+  ]
+}

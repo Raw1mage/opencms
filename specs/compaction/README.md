@@ -148,6 +148,97 @@ omitted, not relocated.
 is implemented (pinned_zone collapsed into anchor with
 `framing.strict = true` when Phase 1 still overflows).
 
+### Post-anchor side-effects: one centralized seam, one that isn't
+
+A successful anchor write fans out into background side-effects. They are
+**not** symmetrically managed, and that asymmetry is a live defect
+(verified 2026-06-10 against `ses_1507c0accffe`; current `compaction.ts`
+is ~5137 lines — the L-refs in **Code anchors** below predate the
+2026-05/06 growth and are stale).
+
+**Centralized (correct) — chain reset.** `publishCompactedAndResetChain`
+(~L197) is the single seam for chain reset. It fires exactly once per
+anchor write: from `writeAnchorFromBody` (~L788), from the `ai_paid`
+inline writer (~L1639), and from `run()` for `ai_free` (~L2692).
+Everything chain-shaped hangs off it — `Bus.publish(Event.Compacted)`,
+cache-baseline reset, `recentEvents` append, and `Continuation.run`
+(commitment-digest capture → codex chain-family invalidation → pending
+amnesia-notice mark → rebind-epoch bump). For `narrative` / `cache-aware`
+/ `stall-recovery` the continuation decision is `injectsAmnesia: true,
+injectsChainInit: false, skipReason: "amnesia_supersedes"`,
+`chainBreakClass: "SS-break"` — the new anchor **supersedes the prior
+chain** (the designed "amnesia" hard reset; the model is told via the
+amnesia-notice fragment to call `recall()` for collapsed tool output).
+
+**Un-centralized (the mess) — background enrichment.**
+`scheduleHybridEnrichment` (~L1704) is invoked from **two layers of the
+same `run()` call stack** under **three different eligibility checks**:
+
+1. `run()` (~L2678) — gated on `hybridEnrichmentEligible = {overflow,
+   cache-aware, manual, rebind, continuation-invalidated,
+   provider-switched, stall-recovery}` (idle / empty-response / reload
+   excluded).
+2. `writeAnchorFromBody` (~L795) — called **unconditionally** (observed
+   passed through), reached by `run()` via
+   `_writeAnchor → defaultWriteAnchor → writeAnchorFromBody` **and** by the
+   standalone `/compact` path.
+3. inside `scheduleHybridEnrichment` itself — an observed-gate
+   `{overflow, cache-aware, manual}` when the dialog-redaction flag is off.
+
+Because the responsibility is smeared rather than centralized:
+
+- For any of the 7 eligible observeds flowing through `run()`, enrichment
+  is scheduled **twice** (L795 inside the awaited `_writeAnchor`, then
+  again at L2678). For `idle` it fires **once** (only L795). Same
+  operation, different multiplicity depending on path — the signature of
+  non-centralization.
+- The only thing between the two calls is the in-flight guard
+  (`hybridEnrichInFlight`, ~L1730): set **after** the async IIFE is built
+  (~L2150), deleted in `finally` (~L2152). The `drop_old_history` path is
+  ~2ms, so call #1 settles and frees the guard before call #2 fires →
+  **no dedup**. The guard is load-bearing yet defeated by its own fast
+  path.
+
+Contrast with compaction **triggering**, which *is* centralized: every
+threshold (cache-cold, overflow, item-count, rebind, …) funnels through
+`deriveObservedCondition` (returns one observed) and the 30s
+anchor-recency cooldown (`Cooldown.shouldThrottle`, ~L1115). Two
+compactions cannot fire within 30s no matter how many thresholds are
+simultaneously live. The trigger layer has a choke-point; the enrichment
+layer does not. **This is the structural lesson: side-effects of
+compaction that are not funnelled through a single management seam will
+double-execute.**
+
+### Background enrichment lifecycle (when it does run)
+
+Fire-and-forget promise that distills the just-written narrative anchor.
+Gates (all must pass): model present; `enableHybridLlm`; not in-flight;
+observed/size eligible. The A-tier **size gate is provider-split**:
+
+- **claude:** absolute — `gateAnchorTokens = max(estimateTokens,
+  realPromptTokens − systemReserve)` vs the `aCompactTokens` floor
+  (~100K, ~L1826/L1833, DD-9). This keys on **total prompt occupancy, not
+  anchor size**: a small anchor inside a large prompt passes (a 23.7K
+  anchor in a 213K prompt cleared the 100K floor via the realPromptTokens
+  term).
+- **codex/copilot:** ratio — anchor ≥ 25% (≤128K ctx) or 40% (>128K) of
+  context.
+
+Two-step enrichment chain (`ai_free` retired for rotation-heavy sessions):
+
+1. `drop_old_history` (~L1925) — free, instant. Trim anchor body to
+   `KEEP_RATIO = 0.4` of its own length, clean-cut at a `\n## Round `
+   boundary (which can over-shoot well below 40%). Success if trimmed
+   < 35% of context. **Reads the anchor fresh each run (~L1784) → a second
+   run re-trims the already-trimmed body (non-idempotent).**
+2. `ai_paid` (~L1984) — LLM distillation, last resort when drop_old can't
+   compress enough.
+
+Telemetry: `compaction.recompress` (runtime-event journal) +
+`enrichment:{success|failed}` (recentEvents ring). A drop_old success
+emits both; the in-flight-skip path emits neither (only a `skipped`
+telemetry counter).
+
 ### Subagent path
 
 `deriveObservedCondition` does **not** unconditionally skip subagent
@@ -245,6 +336,38 @@ internal code, not the AI's tool surface. R-1 per-tool output
 self-bounding is enforced in `tool/edit.ts`, `tool/task.ts`,
 `tool/attachment.ts` for the variable-size tools listed in the spec;
 universal coverage of every variable-size tool requires audit.
+
+### Known issue — double-enrichment context loss (2026-06-10)
+
+RCA event `event_2026-06-10_rca-re-verified-with-hard-data-cache-aware-anchor-`
+(`event_search "compaction enrichment drop_old"`). On a claude-cli 1M
+session a single **cache-aware** narrative compaction scheduled background
+enrichment **twice** (L795 inside `writeAnchorFromBody` + L2678 in `run()`);
+the in-flight guard could not dedup the ~2ms `drop_old_history` path; the
+anchor was double-trimmed **23,706 → 6,102 → 2,441 tokens (~10% retained)**
+in ~50ms. Combined with the `amnesia_supersedes` SS-break (prior chain
+discarded), the sole-memory anchor of a 233-round session collapsed to
+~2.4K tokens → user-visible amnesia. Mistaken first hypotheses (a
+compaction trigger-loop; a ~100K anchor) were ruled out from the
+runtime-event journal + debug.log: exactly **one** compaction, **one**
+trigger, **two** enrichment runs.
+
+Root cause is the **non-centralized enrichment scheduling** documented under
+*Post-anchor side-effects* above — the same operation reachable from two
+layers under three eligibility checks, with no single management seam. It is
+**not** a single bad line, so the fix is not a local patch:
+
+- **Primary (global):** move `scheduleHybridEnrichment` onto the
+  `publishCompactedAndResetChain` seam, **exactly once per anchor write**,
+  behind a single eligibility predicate — the way chain-reset already is.
+  The in-flight guard then becomes redundant rather than load-bearing.
+- **Secondary (policy):** the claude A-tier gate keys on prompt-size
+  (`max(estimate, realPromptTokens − reserve)`, DD-9), so `drop_old` runs
+  on a 23.7K anchor that is only ~11% of a 213K prompt — it trims the wrong
+  weight. Reconsider gating enrichment on anchor contribution, not total
+  occupancy.
+- **Belt:** make `drop_old_history` idempotent (no-op at/below target) so a
+  redundant pass can't compound.
 
 ### Persistence
 

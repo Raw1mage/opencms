@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-06-10T06:44:22.498Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-06-10T07:11:44.442Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "All designed-state artifacts present: proposal.md, spec.md (Purpose/Requirements/Acceptance Checks + Requirement/Scenario blocks), design.md (Context/Goals·Non-Goals/Decisions DD-1..9/Risks/Critical Files + classified §5 inventory), idef0.json, grafcet.json, sequence.json, data-schema.json — all drawmiat/JSON-validated."
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-06-10T07:24:05.182Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks.md (S0→S4 strangler, unchecked), handoff.md (4 contract sections), test-vectors.json (TV-1..7 incl. RCA reproduction), errors.md (Error Catalogue / anomaly taxonomy), observability.md (Events + Metrics + RCA-ledger query path) all authored."
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-06-10T16:16:08.270Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "S0–S5 implemented and merged to main (ba12bb16c); final live-verification item open."
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-06-10T16:16:24.677Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "S0–S5 done + merged to main (ba12bb16c); in-scope compaction suite 109/0; live fetch-back verified (one compaction → one enrichment → one recompress; provider-switch execution now in the manager ledger; manager is the single live track). Defect C resolved by S1; Defect B deferred per DD-11."
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-06-10T16:33:41.962Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "User-directed graduation: S0–S5 shipped to main (95a3f44d9/ba12bb16c), deployed, live-verified; manager is the single monitored compaction track. Spec at verified with all 13 artifacts valid."
+    }
+  ]
+}
