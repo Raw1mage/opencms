@@ -1,0 +1,267 @@
+import { Log } from "../util/log"
+import { RuntimeEventService } from "../system/runtime-event-service"
+import type { Provider } from "../provider/provider"
+import {
+  classifyProvider,
+  createProviderStrategies,
+  type ProviderClass,
+  type CompactionProviderStrategy,
+} from "./compaction-provider-strategy"
+
+/**
+ * CompactionManager — central layer for compaction's post-anchor side-effects.
+ *
+ * spec: compaction/central-manager (S1 + DD-10). Responsibility layering:
+ *   1. trigger points  — pure reporters (emit a request, decide nothing).
+ *   2. this manager     — provider-AGNOSTIC concerns (intake, per-anchor dedup,
+ *      structured logging, anomaly events) + ROUTES by provider class.
+ *   3. provider strategy (compaction-provider-strategy.ts) — each provider's
+ *      detailed execution logic, designed independently.
+ *
+ * Enrichment scheduling used to be invoked from two layers of the same run()
+ * call stack with a weak in-flight guard as the only dedup; the guard was
+ * defeated by the ~2 ms drop_old_history fast path, double-trimming a single
+ * compaction's anchor (23,706 → 6,102 → 2,441 tokens) and collapsing a
+ * 233-round session to ~10% → user-visible amnesia
+ * (RCA event_2026-06-10_rca-re-verified-with-hard-data-…). Dedup is now a
+ * structural property of this single intake (DD-2/DD-3).
+ */
+export namespace CompactionManager {
+  const log = Log.create({ service: "session.compaction-manager" })
+
+  /**
+   * Per-session: the anchor id we have already scheduled enrichment for.
+   * Enrichment only ever targets the most-recent anchor, and each compaction
+   * mints a fresh anchor id, so a single slot per session is sufficient and
+   * bounded (no growth, no replacement guard needed).
+   */
+  const lastEnrichedAnchor = new Map<string, string>()
+
+  /**
+   * provider → strategy registry (DD-10). Built when compaction.ts registers
+   * the shared enrichment executor (one-directional import: compaction.ts →
+   * manager → strategy), so the manager owns routing while each provider's
+   * execution lives in its own strategy.
+   */
+  let strategies: Map<ProviderClass, CompactionProviderStrategy> | undefined
+
+  /** Register the shared enrichment executor; builds the per-provider strategies. */
+  export function setEnrichExecutor(
+    fn: (sessionID: string, observed: string, model: Provider.Model | undefined) => void,
+  ): void {
+    strategies = createProviderStrategies((ctx) => fn(ctx.sessionID, ctx.observed, ctx.model))
+  }
+
+  export type EnrichRequest = {
+    sessionID: string
+    /** The just-committed anchor's message id; the dedup key. */
+    anchorId: string | undefined
+    observed: string
+    model: Provider.Model | undefined
+    /** Stable call-site id, for accountability (DD-4). */
+    origin: string
+  }
+
+  /**
+   * S4: observed conditions eligible for background enrichment. This is
+   * PROVIDER-AGNOSTIC (the same set for every provider), so it belongs at the
+   * manager layer rather than at the call sites. idle / empty-response / reload
+   * are intentionally excluded (no context pressure / already handled by another
+   * path). Previously this 7-set lived only at run():2678 while the
+   * writeAnchorFromBody site enriched unconditionally — so idle slipped through
+   * and got over-enriched. One predicate here closes that gap.
+   */
+  const ENRICH_ELIGIBLE_OBSERVED: ReadonlySet<string> = new Set([
+    "overflow",
+    "cache-aware",
+    "manual",
+    "rebind",
+    "continuation-invalidated",
+    "provider-switched",
+    "stall-recovery",
+  ])
+
+  export function isEnrichObservedEligible(observed: string): boolean {
+    return ENRICH_ELIGIBLE_OBSERVED.has(observed)
+  }
+
+  /**
+   * Single intake for background enrichment. Provider-agnostic dedup first
+   * (per anchor id), then route by provider class to the strategy. The first
+   * request for an anchor schedules enrichment; any later request for the SAME
+   * anchor is rejected as a `duplicate-enrich` anomaly (the eliminated
+   * double-trim).
+   */
+  export function requestEnrich(req: EnrichRequest): void {
+    const { sessionID, anchorId, observed, model, origin } = req
+    const provider = classifyProvider(model?.providerId)
+
+    // S4: the single observed-eligibility gate (was split between run()'s 7-set
+    // and the unconditional writeAnchorFromBody site). Provider-agnostic.
+    if (!ENRICH_ELIGIBLE_OBSERVED.has(observed)) {
+      log.info("enrich skipped: observed not eligible", { sessionID, anchorId, origin, observed })
+      return
+    }
+
+    if (anchorId && lastEnrichedAnchor.get(sessionID) === anchorId) {
+      log.info("enrich rejected: duplicate anchor", { sessionID, anchorId, origin, observed, provider })
+      void RuntimeEventService.append({
+        sessionID,
+        level: "info",
+        domain: "telemetry",
+        eventType: "compaction.anomaly",
+        anomalyFlags: ["duplicate-enrich"],
+        payload: { code: "duplicate-enrich", anchorId, origin, observed, provider },
+      }).catch(() => undefined)
+      return
+    }
+
+    if (anchorId) lastEnrichedAnchor.set(sessionID, anchorId)
+    log.info("enrich scheduled", { sessionID, anchorId, origin, observed, provider })
+
+    // Central layer routes by provider class to the per-provider strategy (DD-10).
+    const strategy = strategies?.get(provider) ?? strategies?.get("general")
+    strategy?.enrich({ sessionID, observed, model })
+  }
+
+  // ── Compact (trigger execution) — S3 ──────────────────────────────────
+  // The trigger DECISION (deriveObservedCondition + cooldown) stays with the
+  // reporter — it is already centralized, so re-wrapping it here would be
+  // redundant. What S3 fixes is the DUAL-TRACK tech debt: compaction EXECUTION
+  // used to bypass the manager (callers invoked run() directly) while
+  // enrich/publish flowed through it, leaving "why/whether a compaction ran"
+  // out of the RCA ledger. Execution now flows through this monitored intake
+  // too — one single track, complete ledger — WITHOUT duplicating the decision.
+  // Transparent pass-through: always delegates to run(), never suppresses. The
+  // per-provider kind-chain / claude-noop gate stays inside run() (like publish
+  // keeps its per-provider reset in Continuation.run, DD-9).
+
+  export type CompactInput = {
+    sessionID: string
+    observed: string
+    step: number
+    intent?: "default" | "rich"
+    abort?: AbortSignal
+  }
+  type CompactExecutor = (input: CompactInput) => Promise<"continue" | "stop">
+  let compactExecutor: CompactExecutor | undefined
+
+  export function setCompactExecutor(fn: CompactExecutor): void {
+    compactExecutor = fn
+  }
+
+  export type CompactRequest = {
+    input: CompactInput
+    /** Stable call-site id (DD-4). */
+    origin: string
+    /** Structured cause — the signals that justified the trigger (DD-7). */
+    cause?: unknown
+  }
+
+  export async function requestCompact(req: CompactRequest): Promise<"continue" | "stop"> {
+    const { input, origin, cause } = req
+    log.info("compact requested", { sessionID: input.sessionID, observed: input.observed, origin, cause })
+    if (!compactExecutor) return "continue"
+    const result = await compactExecutor(input)
+    log.info("compact done", { sessionID: input.sessionID, observed: input.observed, origin, result })
+    return result
+  }
+
+  /**
+   * S3/DD-12: provider-switch takeover decision. Provider switch is a fact, not
+   * a global compaction trigger — the new provider's strategy decides whether a
+   * narrative compaction is warranted on takeover. Routed here so the decision
+   * is monitored (this path used to bypass the manager entirely). Chain-reset is
+   * separate (Continuation.run) and unaffected.
+   */
+  export function shouldCompactOnTakeover(providerId: string | undefined): boolean {
+    const provider = classifyProvider(providerId)
+    const strategy = strategies?.get(provider) ?? strategies?.get("general")
+    // Default true when unwired (tests/edge) — preserve the safe "compact" side
+    // so a needed codex/general takeover compaction is never silently skipped.
+    const decision = strategy ? strategy.shouldCompactOnTakeover() : true
+    log.info("provider-switch takeover decision", { providerId, provider, shouldCompact: decision })
+    return decision
+  }
+
+  // ── Publish (post-anchor chain-reset) — S2 ────────────────────────────
+  // The chain-reset's per-PROVIDER behaviour (codex SS-break vs claude SL-noop)
+  // already lives downstream in Continuation.run (the DD-9 precedent), so the
+  // manager does NOT re-route publish through provider strategies — it brings
+  // publish under the same monitored intake (structured log + duplicate-publish
+  // tripwire) and delegates. The wrapper is a TRANSPARENT pass-through: it
+  // ALWAYS delegates and NEVER suppresses, so a monitoring bug can't break a
+  // needed chain-reset.
+
+  type PublishMeta = { observed?: string; kind?: string; success?: boolean; tokensBefore?: number; tokensAfter?: number }
+  type PublishExecutor = (sessionID: string, meta?: PublishMeta) => void
+  let publishExecutor: PublishExecutor | undefined
+
+  /** Per-session: the last anchor id we published for (duplicate-publish tripwire). */
+  const lastPublishedAnchor = new Map<string, string>()
+
+  export function setPublishExecutor(fn: PublishExecutor): void {
+    publishExecutor = fn
+  }
+
+  export type PublishRequest = {
+    sessionID: string
+    /** The committed anchor's id, when this is an anchor-commit publish. */
+    anchorId?: string
+    /** Stable call-site id (DD-4). */
+    origin: string
+    meta?: PublishMeta
+  }
+
+  export function requestPublish(req: PublishRequest): void {
+    const { sessionID, anchorId, origin, meta } = req
+
+    if (anchorId && lastPublishedAnchor.get(sessionID) === anchorId) {
+      // Tripwire only — never suppress (suppressing a publish would break the
+      // chain-reset). This catches a regressed double-publish (the ai_free bug)
+      // the moment it happens instead of via post-hoc log archaeology.
+      log.warn("duplicate publish for anchor (monitored, not suppressed)", {
+        sessionID,
+        anchorId,
+        origin,
+        kind: meta?.kind,
+      })
+      void RuntimeEventService.append({
+        sessionID,
+        level: "info",
+        domain: "telemetry",
+        eventType: "compaction.anomaly",
+        anomalyFlags: ["duplicate-publish"],
+        payload: { code: "duplicate-publish", anchorId, origin, kind: meta?.kind ?? null, observed: meta?.observed ?? null },
+      }).catch(() => undefined)
+    }
+
+    if (anchorId) lastPublishedAnchor.set(sessionID, anchorId)
+    log.info("publish", { sessionID, anchorId, origin, observed: meta?.observed, kind: meta?.kind, success: meta?.success })
+    publishExecutor?.(sessionID, meta)
+  }
+
+  /** Drop per-session dedup state (call on session delete to avoid growth). */
+  export function forget(sessionID: string): void {
+    lastEnrichedAnchor.delete(sessionID)
+    lastPublishedAnchor.delete(sessionID)
+  }
+
+  /** Test-only seam. */
+  export const __test__ = Object.freeze({
+    requestEnrich,
+    requestPublish,
+    requestCompact,
+    classifyProvider,
+    reset() {
+      lastEnrichedAnchor.clear()
+      lastPublishedAnchor.clear()
+      strategies = undefined
+      publishExecutor = undefined
+      compactExecutor = undefined
+    },
+    peekLastEnriched(sessionID: string) {
+      return lastEnrichedAnchor.get(sessionID)
+    },
+  })
+}

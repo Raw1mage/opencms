@@ -151,11 +151,7 @@ describe("compaction-redesign phase 4 — KIND_CHAIN + INJECT_CONTINUE table str
   it("KIND_CHAIN entries are cost-monotonic except explicit server-priority recovery chains (INV-4)", () => {
     const COST = { narrative: 0, "ai_free": 1, "ai_paid": 2 } as const
     const chains = SessionCompaction.__test__.KIND_CHAIN
-    for (const [observed, kinds] of Object.entries(chains)) {
-      if (observed === "empty-response") {
-        expect(kinds).toEqual(["ai_free", "narrative", "ai_paid"])
-        continue
-      }
+    for (const [, kinds] of Object.entries(chains)) {
       let prev = -1
       for (const k of kinds) {
         const cost = COST[k as keyof typeof COST]
@@ -167,39 +163,29 @@ describe("compaction-redesign phase 4 — KIND_CHAIN + INJECT_CONTINUE table str
     }
   })
 
-  it("rebind / continuation-invalidated / provider-switched chains include paid kinds as fallback (rev1 2026-05-13)", () => {
-    // 2026-05-13 rev1 (specs/session/rebind-procedure-revision/events/
-    // event_2026-05-12_rev1-rebind-class-compaction-chain-excludes-server.md):
-    // rebind-class chains used to be local-only under the implicit
-    // "rebind = small context" assumption. Rotation-heavy sessions
-    // falsified that assumption (dialog-heavy contexts stay full after
-    // narrative concat). Now the chains include low-cost-server and
-    // llm-agent as later fallbacks; narrative + replay-tail still run
-    // first (fast & free).
+  it("rebind / continuation-invalidated / provider-switched chains are foreground narrative-only (paid moved to background enrichment)", () => {
+    // SUPERSEDES rev1 2026-05-13 (which put paid kinds in these foreground
+    // chains). The later simplification makes the FOREGROUND chain always
+    // narrative-only — "ai_paid handled by background enrichment via
+    // scheduleHybridEnrichment; foreground must never block the user waiting
+    // for API calls" (KIND_CHAIN header comment). rebind / continuation-
+    // invalidated / provider-switched remain in `hybridEnrichmentEligible`, so
+    // paid compression still happens — just in the background, not the chain.
     const chains = SessionCompaction.__test__.KIND_CHAIN
     for (const observed of ["rebind", "continuation-invalidated", "provider-switched"] as const) {
-      const kinds = chains[observed]
-      // narrative still comes first
-      expect(kinds[0]).toBe("narrative")
-      // paid kinds now present as fallback
-      expect(kinds).toContain("ai_free")
-      expect(kinds).toContain("ai_paid")
+      expect(chains[observed]).toEqual(["narrative"])
     }
   })
 
-  it("manual chain has narrative + paid kinds (no replay-tail since manual user wants real compression)", () => {
-    const kinds = SessionCompaction.__test__.KIND_CHAIN["manual"]
-    expect(kinds).toEqual(["narrative", "ai_free", "ai_paid"])
+  it("manual chain is foreground narrative-only (manual --rich escalates to ai_paid at run() via forceRich, not in the table)", () => {
+    expect(SessionCompaction.__test__.KIND_CHAIN["manual"]).toEqual(["narrative"])
   })
 
-  it("provider-switched chain falls through to paid kinds (rev1 2026-05-13)", () => {
-    // rev1 extension: narrative runs first (fast & free), then paid kinds
-    // as fallback when local kinds don't reduce enough.
-    expect(SessionCompaction.__test__.KIND_CHAIN["provider-switched"]).toEqual([
-      "narrative",
-      "ai_free",
-      "ai_paid",
-    ])
+  it("only overflow / cache-aware carry ai_paid in the foreground chain", () => {
+    const chains = SessionCompaction.__test__.KIND_CHAIN
+    expect(chains["overflow"]).toEqual(["narrative", "ai_paid"])
+    expect(chains["cache-aware"]).toEqual(["narrative", "ai_paid"])
+    expect(chains["provider-switched"]).toEqual(["narrative"])
   })
 
   it("Phase 13 REVISED — no chain contains 'schema' kind", () => {
@@ -209,12 +195,14 @@ describe("compaction-redesign phase 4 — KIND_CHAIN + INJECT_CONTINUE table str
     }
   })
 
-  it("INJECT_CONTINUE: rebind / continuation-invalidated / provider-switched / manual = false (R-6)", () => {
+  it("INJECT_CONTINUE: rebind / provider-switched / manual = false (R-6); continuation-invalidated = true (2026-05-19)", () => {
     const t = SessionCompaction.__test__.INJECT_CONTINUE
     expect(t["rebind"]).toBe(false)
-    expect(t["continuation-invalidated"]).toBe(false)
     expect(t["provider-switched"]).toBe(false)
     expect(t["manual"]).toBe(false)
+    // continuation-invalidated was flipped to true on 2026-05-19 (a cache-cliff
+    // is a real point to continue work from) — no longer in the R-6 false set.
+    expect(t["continuation-invalidated"]).toBe(true)
   })
 
   it("INJECT_CONTINUE: overflow / cache-aware / idle = true", () => {
@@ -337,11 +325,9 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
     expect(writes[0].auto).toBe(false) // manual never injects Continue
   })
 
-  it("R-5: provider-switched chain shape — narrative first, paid kinds as fallback (rev1 2026-05-13)", () => {
+  it("R-5: provider-switched chain shape — foreground narrative-only (paid moved to background enrichment; supersedes rev1 2026-05-13)", () => {
     const chain = SessionCompaction.__test__.KIND_CHAIN["provider-switched"]
-    expect(chain[0]).toBe("narrative")
-    expect(chain).toContain("ai_free")
-    expect(chain).toContain("ai_paid")
+    expect(chain).toEqual(["narrative"])
   })
 
   it("Cooldown gates the entry: throttled run returns 'continue' without writing anchor", async () => {
@@ -465,41 +451,12 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
     expect(writes).toHaveLength(0)
   })
 
-  it("phase 5 — low-cost-server executor succeeds when plugin returns compactedItems", async () => {
-    // narrative empty, schema empty, manual chain skips schema/replay-tail
-    setupCommonMocks({ turnSummaries: [] }, "ses_run_lowcost")
-    ;(Session as any).messages = mock(async () => [
-      {
-        info: {
-          id: "msg_u1",
-          role: "user",
-          agent: "default",
-          model: { providerId: "codex", modelID: "gpt-5.5", accountId: "acc-A" },
-        },
-        parts: [{ type: "text", text: "do the thing" }],
-      },
-    ])
-    ;(Agent as any).get = mock(async () => ({ prompt: "" }))
-    ;(Plugin as any).trigger = mock(async () => ({
-      compactedItems: [{ stub: true }],
-      summary: "Server-compacted: did the thing.",
-    }))
-    const writes: any[] = []
-    SessionCompaction.__test__.setAnchorWriter(async (input) => {
-      writes.push(input)
-    })
-
-    const result = await SessionCompaction.run({
-      sessionID: "ses_run_lowcost",
-      observed: "manual",
-      step: 2,
-    })
-
-    expect(result).toBe("continue")
-    expect(writes).toHaveLength(1)
-    expect(writes[0].kind).toBe("ai_free")
-    expect(writes[0].summaryText).toContain("Server-compacted")
-  })
+  // REMOVED (foreground-narrative-only simplification): "low-cost-server
+  // executor succeeds via the manual chain" asserted that `ai_free` was reached
+  // through KIND_CHAIN["manual"]. No chain contains `ai_free` anymore — codex
+  // server-side compaction moved to the background `runCodexServerSideRecompress`
+  // path (currently dormant), which is covered directly in
+  // compaction-recompress.test.ts. The foreground run() never dispatches ai_free.
 
   it("phase 5 — low-cost-server executor falls through when plugin returns null", async () => {
     setupCommonMocks({ turnSummaries: [] }, "ses_run_lowcost_null")
@@ -536,62 +493,13 @@ describe("compaction-redesign phase 4 — run() entry point", () => {
   // behaviour is still covered by direct tryReplayTail unit tests in
   // compaction.test.ts.
 
-  it("phase 5 — local kind over target escalates to paid kind (double-phase)", async () => {
-    // Memory has narrative content well over the 50K-token target. tryNarrative
-    // succeeds (ok=true) but its summary > target. With a paid kind (low-cost-
-    // server) later in the chain, run() must NOT commit narrative; it must
-    // escalate.
-    const huge = "y".repeat(50_000 * 4 + 4_000) // > 50K tokens
-    setupCommonMocks(
-      {
-        turnSummaries: [
-          {
-            turnIndex: 0,
-            userMessageId: "msg_u1",
-            endedAt: 1,
-            text: huge,
-            modelID: "gpt-5.5",
-            providerId: "codex",
-          },
-        ],
-        rawTailBudget: 5,
-      },
-      "ses_run_double_phase",
-    )
-    ;(Provider as any).getModel = mock(async () => ({
-      id: "big-model",
-      providerId: "codex",
-      limit: { context: 1_000_000, input: 1_000_000, output: 32_000 },
-      cost: { input: 1 },
-    }))
-    ;(Session as any).messages = mock(async () => [
-      {
-        info: { id: "msg_u1", role: "user", agent: "default", model: { providerId: "codex", modelID: "gpt-5.5" } },
-        parts: [{ type: "text", text: "go" }],
-      },
-    ])
-    ;(Agent as any).get = mock(async () => ({ prompt: "" }))
-    ;(Plugin as any).trigger = mock(async () => ({
-      compactedItems: [{ type: "text", text: "Server-compacted ok" }],
-      summary: "Server-compacted ok",
-    }))
-    const writes: any[] = []
-    SessionCompaction.__test__.setAnchorWriter(async (input) => {
-      writes.push(input)
-    })
-
-    // `manual` chain = narrative → low-cost-server → llm-agent. narrative is
-    // truncated and a paid kind (low-cost-server) is available next → escalate.
-    const result = await SessionCompaction.run({
-      sessionID: "ses_run_double_phase",
-      observed: "manual",
-      step: 2,
-    })
-
-    expect(result).toBe("continue")
-    expect(writes).toHaveLength(1)
-    expect(writes[0].kind).toBe("ai_free")
-  })
+  // REMOVED (foreground-narrative-only simplification): the "double-phase
+  // escalation" test escalated the `manual` chain narrative → ai_free. The
+  // manual chain is now ["narrative"] only, and ai_free is no longer in any
+  // chain. Double-phase escalation still exists for overflow (narrative →
+  // ai_paid), but ai_paid writes its anchor inline (not via the test's
+  // setAnchorWriter), so it is exercised through the dedicated ai_paid/run
+  // paths rather than this manual-chain mock.
 
   it("writes anchor on successful run (anchor IS the cooldown signal — no separate Memory.markCompacted call)", async () => {
     // Phase 13.1: Memory.markCompacted is gone. The anchor message written

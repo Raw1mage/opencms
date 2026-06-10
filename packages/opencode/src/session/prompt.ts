@@ -11,6 +11,7 @@ import { Provider } from "../provider/provider"
 import { classifyProvider } from "../provider/chain-semantics"
 import { isSupportedProviderKey } from "../provider/supported-provider-registry"
 import { SessionCompaction } from "./compaction"
+import { CompactionManager } from "./compaction-manager"
 import { detectIdentityChange } from "./identity-change"
 import { transformPostAnchorTail, LayerPurityViolation } from "./post-anchor-transform"
 import { expandAnchorCompactedPrefix } from "./anchor-prefix-expand"
@@ -1780,43 +1781,56 @@ export namespace SessionPrompt {
                 .join("\n")
                 .trim() || undefined
           }
-          // user-msg-replay-unification DD-3: snapshot the unanswered user
-          // msg BEFORE compactWithSharedContext writes the anchor. After
-          // the write, replay it post-anchor so the next iter's lastUser
-          // resolves to a real message instead of falling through to the
-          // synthetic Continue path (INJECT_CONTINUE['provider-switched']
-          // is false → no Continue would be injected → silent exit).
-          const replaySnapshot = await SessionCompaction.snapshotUnansweredUserMessage(
-            sessionID,
-            "provider-switched",
-          ).catch(() => undefined)
-          // Phase 13.1: Memory.markCompacted call removed (Memory.lastCompactedAt
-          // is derived from the most recent anchor's time.created, not stored).
-          await SessionCompaction.compactWithSharedContext({
-            sessionID,
-            snapshot:
-              snap ??
-              `[Provider switched from ${prevProvider} to ${nextProvider}. Previous conversation context was not recoverable. The user may re-state their request.]`,
-            model,
-            auto: false,
-            observed: "provider-switched",
-          })
-          if (replaySnapshot) {
-            const postWriteMsgs = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
-            const anchorMsg = postWriteMsgs.findLast(
-              (m) => m.info.role === "assistant" && (m.info as MessageV2.Assistant).summary === true,
-            )
-            if (anchorMsg) {
-              await SessionCompaction.replayUnansweredUserMessage({
-                sessionID,
-                snapshot: replaySnapshot,
-                anchorMessageID: anchorMsg.info.id,
-                observed: "provider-switched",
-                step: 0,
-              })
+          // compaction/central-manager DD-12: provider switch is NOT a global
+          // compaction trigger. The new provider's strategy decides whether a
+          // narrative compaction is warranted on takeover (claude: no — 1M,
+          // full-retransmit, no server chain → compacting only forces a needless
+          // SS-break amnesia; codex/general: yes — smaller windows, context
+          // representation changes). Chain-reset is separate (Continuation.run).
+          if (!CompactionManager.shouldCompactOnTakeover(nextProvider)) {
+            log.info("provider switch: takeover needs no compaction (full-retransmit provider), entering main loop", {
+              sessionID,
+              nextProvider,
+            })
+          } else {
+            // user-msg-replay-unification DD-3: snapshot the unanswered user
+            // msg BEFORE compactWithSharedContext writes the anchor. After
+            // the write, replay it post-anchor so the next iter's lastUser
+            // resolves to a real message instead of falling through to the
+            // synthetic Continue path (INJECT_CONTINUE['provider-switched']
+            // is false → no Continue would be injected → silent exit).
+            const replaySnapshot = await SessionCompaction.snapshotUnansweredUserMessage(
+              sessionID,
+              "provider-switched",
+            ).catch(() => undefined)
+            // Phase 13.1: Memory.markCompacted call removed (Memory.lastCompactedAt
+            // is derived from the most recent anchor's time.created, not stored).
+            await SessionCompaction.compactWithSharedContext({
+              sessionID,
+              snapshot:
+                snap ??
+                `[Provider switched from ${prevProvider} to ${nextProvider}. Previous conversation context was not recoverable. The user may re-state their request.]`,
+              model,
+              auto: false,
+              observed: "provider-switched",
+            })
+            if (replaySnapshot) {
+              const postWriteMsgs = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
+              const anchorMsg = postWriteMsgs.findLast(
+                (m) => m.info.role === "assistant" && (m.info as MessageV2.Assistant).summary === true,
+              )
+              if (anchorMsg) {
+                await SessionCompaction.replayUnansweredUserMessage({
+                  sessionID,
+                  snapshot: replaySnapshot,
+                  anchorMessageID: anchorMsg.info.id,
+                  observed: "provider-switched",
+                  step: 0,
+                })
+              }
             }
+            log.info("provider switch compaction complete, entering main loop", { sessionID })
           }
-          log.info("provider switch compaction complete, entering main loop", { sessionID })
         }
       } else if (accountChanged) {
         // Same provider, different account: tool-call format unchanged, so
@@ -2347,11 +2361,10 @@ export namespace SessionPrompt {
                 priorRecoveryCount: paralysisRecoveryCount,
               })
               try {
-                await SessionCompaction.run({
-                  sessionID,
-                  observed,
-                  step,
-                  abort,
+                await CompactionManager.requestCompact({
+                  input: { sessionID, observed, step, abort },
+                  origin: "paralysis-recovery",
+                  cause: { observed },
                 })
                 // Compaction succeeded: reset recovery counter so a future
                 // post-compaction paralysis (under the new, smaller context)
@@ -2622,11 +2635,10 @@ export namespace SessionPrompt {
               tokenLimit,
             })
             try {
-              await SessionCompaction.run({
-                sessionID,
-                observed,
-                step,
-                abort,
+              await CompactionManager.requestCompact({
+                input: { sessionID, observed, step, abort },
+                origin: "rebind-preemptive",
+                cause: { observed },
               })
               continue
             } catch (err) {
@@ -2901,12 +2913,16 @@ export namespace SessionPrompt {
           step,
           observed,
         })
-        const result = await SessionCompaction.run({
-          sessionID,
-          observed,
-          step,
-          intent: task?.type === "compaction-request" && task.auto === false ? "default" : "default",
-          abort,
+        const result = await CompactionManager.requestCompact({
+          input: {
+            sessionID,
+            observed,
+            step,
+            intent: task?.type === "compaction-request" && task.auto === false ? "default" : "default",
+            abort,
+          },
+          origin: "mainloop",
+          cause: { observed },
         })
         if (result === "continue") {
           continue

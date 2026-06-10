@@ -8,6 +8,7 @@ import { Session } from "../../session"
 import { MessageV2 } from "../../session/message-v2"
 import { SessionPrompt } from "../../session/prompt"
 import { SessionCompaction } from "../../session/compaction"
+import { CompactionManager } from "../../session/compaction-manager"
 import { Memory } from "../../session/memory"
 import { SessionRevert } from "../../session/revert"
 import { SessionStatus } from "@/session/status"
@@ -1924,11 +1925,10 @@ export const SessionRoutes = lazy(() =>
           // straight to llm-agent. Anchor + Continue injection (when
           // applicable) follow the same INJECT_CONTINUE table as any
           // other observed value.
-          await SessionCompaction.run({
-            sessionID,
-            observed: "manual",
-            step: 0,
-            intent: "rich",
+          await CompactionManager.requestCompact({
+            input: { sessionID, observed: "manual", step: 0, intent: "rich" },
+            origin: "manual-route",
+            cause: { observed: "manual" },
           })
           return c.json(true)
         }

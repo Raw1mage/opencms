@@ -112,6 +112,15 @@ function fakeCodexModel(): Provider.Model {
 describe("runCodexServerSideRecompress", () => {
   it("calls plugin with actual conversation items from session messages and updates anchor on success", async () => {
     const anchorMsg = anchor("msg_anchor", "## Round 1\n\n**User**\n\nlong dialog\n\n**Assistant**\n\nlong answer ".repeat(100))
+    // dialog-replay-redaction DD-8: the server-compacted result is stored on the
+    // anchor's compaction part metadata, so the fixture needs that part present.
+    anchorMsg.parts.push({
+      id: `prt_${anchorMsg.info.id}_compaction`,
+      messageID: anchorMsg.info.id,
+      sessionID: "ses_test",
+      type: "compaction",
+      auto: false,
+    } as any)
     const messagesPre = [userMsg("u_pre", "go"), anchorMsg]
     ;(Session as any).messages = mock(async () => messagesPre)
 
@@ -138,17 +147,21 @@ describe("runCodexServerSideRecompress", () => {
       messagesPre,
     })
 
-    // Plugin called with conversation items built from session messages
-    // (user message + anchor as assistant message)
+    // dialog-replay-redaction DD-4: the anchor body is sent to the plugin as a
+    // single assistant message (not rebuilt from the session message stream),
+    // so the first conversation item is the assistant anchor, not a user msg.
     expect(pluginCalledWith).not.toBeNull()
     expect(pluginCalledWith.conversationItems.length).toBeGreaterThanOrEqual(1)
-    // First item is the user message from messagesPre
-    expect(pluginCalledWith.conversationItems[0].role).toBe("user")
+    expect(pluginCalledWith.conversationItems[0].role).toBe("assistant")
 
-    // Anchor body updated in place
+    // dialog-replay-redaction DD-8: server-compacted items + chainBinding are
+    // stored on the anchor's COMPACTION part metadata; the narrative text body
+    // is deliberately preserved (not overwritten) for human readability.
     expect(updateCalls).toHaveLength(1)
-    expect(updateCalls[0].text).toBe("Server-distilled summary")
-    expect(updateCalls[0].id).toBe(`prt_${anchorMsg.info.id}_body`)
+    const updated = updateCalls[0]
+    expect(updated.type).toBe("compaction")
+    expect(updated.metadata.serverCompactedItems.length).toBeGreaterThanOrEqual(1)
+    expect(updated.metadata.chainBinding.accountId).toBe("acc-A")
   })
 
   it("plugin returning null compactedItems → emits provider-error, does not update anchor", async () => {
@@ -247,7 +260,7 @@ describe("runCodexServerSideRecompress", () => {
 // ─────────────────────────────────────────────────────────────────────
 
 describe("scheduleHybridEnrichment dispatch", () => {
-  it("flag on + codex provider + anchor > floor → routes to codex server-side", async () => {
+  it("flag on + codex provider + anchor > floor → codex server-side dispatch is dormant (stays on local drop_old)", async () => {
     const big = "x".repeat(120_000 * 4) // ~120K tokens (~44% of 272K, above 40% gate)
     const anchorMsg = anchor("msg_anchor", big)
     // Include non-anchor messages so buildConversationItemsForPlugin has items to send
@@ -274,7 +287,11 @@ describe("scheduleHybridEnrichment dispatch", () => {
     // Wait for the background promise to settle
     await new Promise((r) => setTimeout(r, 50))
 
-    expect(pluginCalled).toBe(true)
+    // The codex server-side `/responses/compact` dispatch is currently dormant
+    // (encrypted-blob anchor is incompatible with rotation-heavy sessions);
+    // enrichment runs the local drop_old path instead, so the plugin is NOT
+    // called even with flag on + a large anchor.
+    expect(pluginCalled).toBe(false)
   })
 
   it("flag off + observed=rebind → does NOT dispatch (legacy observed-gate)", async () => {
@@ -317,10 +334,11 @@ describe("scheduleHybridEnrichment dispatch", () => {
     expect(pluginCalled).toBe(false)
   })
 
-  it("flag on + observed=manual + anchor above ratio → size-ceiling trigger", async () => {
+  it("flag on + observed=manual + anchor above ratio → stays on local drop_old (codex dispatch dormant)", async () => {
     // compaction_simplification T4: ratio gate is 40% × 272K = ~109K tokens.
-    // 170K tokens passes the ratio gate AND is above the 50K size-ceiling,
-    // so trigger labels as "size-ceiling".
+    // 120K tokens passes the ratio gate AND is above the 50K size-ceiling, so
+    // enrichment proceeds — but via the local drop_old path, NOT the dormant
+    // codex server-side dispatch.
     const mid = "x".repeat(120_000 * 4) // ~120K tokens (~44% of 272K)
     const anchorMsg = anchor("msg_anchor", mid)
     const uMsg = userMsg("u_pre", "do the thing")
@@ -332,9 +350,10 @@ describe("scheduleHybridEnrichment dispatch", () => {
       pluginCalled = true
       return { compactedItems: null, summary: null }
     })
-    // For codex provider in mid-range: still goes to codex path under flag-on
     SessionCompaction.__test__.scheduleHybridEnrichment("ses_test", "manual", fakeCodexModel())
     await new Promise((r) => setTimeout(r, 50))
-    expect(pluginCalled).toBe(true) // routed to codex regardless of trigger label
+    // codex server-side dispatch is dormant — enrichment runs drop_old locally,
+    // so the plugin is not invoked.
+    expect(pluginCalled).toBe(false)
   })
 })
