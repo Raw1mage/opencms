@@ -1,9 +1,14 @@
 /**
- * Protocol constants extracted from @anthropic-ai/claude-code@2.1.169
+ * Protocol constants extracted from @anthropic-ai/claude-code@2.1.170
  *
  * Single file to update when official CLI upgrades.
  * Source of truth: plans/claude-provider/protocol-datasheet.md
  * Verify with: bun packages/provider-claude/scripts/sync-from-cli.ts
+ *
+ * 2026-06-10: realigned 2.1.169 → 2.1.170 for the Mythos-class launch
+ * (Claude Fable 5 / Mythos 5). The mid-conversation-system gate (upstream O98)
+ * widened from opus-4-8-only to {opus-4-8, fable-5, mythos-5}; fable-5/mythos-5
+ * join the 1M-context and 64000 max-output tiers. See docs/events.
  */
 import { createHash } from "node:crypto"
 import { normalizeModelId } from "./models.js"
@@ -12,7 +17,7 @@ import { normalizeModelId } from "./models.js"
 // § 0.2  Core Constants
 // ---------------------------------------------------------------------------
 
-export const VERSION = "2.1.169"
+export const VERSION = "2.1.170"
 export const CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 export const ATTRIBUTION_SALT = "59cf53e54c78"
 export const API_VERSION = "2023-06-01"
@@ -170,6 +175,8 @@ export function isHaikuModel(modelId: string): boolean {
 
 /** 1M context-eligible model patterns. upstream CONTEXT_1M list. */
 const CONTEXT_1M_MODELS = [
+  "claude-fable-5",
+  "claude-mythos-5",
   "claude-opus-4",
   "claude-opus-4-7",
   "claude-opus-4-8",
@@ -220,12 +227,19 @@ function supportsFastMode(modelId: string): boolean {
 /**
  * upstream O98 mid_conversation_system gate, narrowed to its model branch.
  * O98 enumerates every other current model (claude-3-*, opus-4-0/4-1/4-5/4-6/4-7,
- * sonnet-4-0/4-5/4-6, haiku-4-5) → false and returns true ONLY for opus-4-8.
- * normalizeModelId strips date / [1m] / -vN / -fast / -latest / region prefixes
- * so every opus-4-8 alias resolves here.
+ * sonnet-4-0/4-5/4-6, haiku-4-5) → false and returns true ONLY for the Mythos-class
+ * top tier: {opus-4-8, fable-5, mythos-5} (2.1.170 widened this from opus-4-8-only;
+ * opus-4-7 deliberately remains false). normalizeModelId strips date / [1m] / -vN /
+ * -fast / -latest / region prefixes so every alias resolves here.
  */
-export function modelIsOpus48(modelId: string): boolean {
-  return normalizeModelId(modelId) === "claude-opus-4-8"
+const MID_CONVERSATION_SYSTEM_MODELS = new Set([
+  "claude-opus-4-8",
+  "claude-fable-5",
+  "claude-mythos-5",
+])
+
+export function modelEmitsMidConversationSystem(modelId: string): boolean {
+  return MID_CONVERSATION_SYSTEM_MODELS.has(normalizeModelId(modelId))
 }
 
 // ---------------------------------------------------------------------------
@@ -351,12 +365,12 @@ export function assembleBetas(options: AssembleBetasOptions): string[] {
   if (jaEquivalent) betas.push(BETA_PROMPT_CACHING_SCOPE)
 
   // 9b. mid-conversation-system — upstream WW6 step `if (O98(H)) push $a`.
-  // O98 → true for claude-opus-4-8 ONLY (every other current model explicitly
-  // false), off under HIPAA / explicit disable / non-first-party. This is the
-  // 2.1.169 alignment fix (align-2.1.169 DD-1): the real CLI sends it on every
-  // opus-4-8 request and opencode previously omitted it.
+  // O98 → true for the Mythos-class top tier {opus-4-8, fable-5, mythos-5} (every
+  // other current model explicitly false, incl. opus-4-7), off under HIPAA /
+  // explicit disable / non-first-party. 2.1.170 widened the gate from
+  // opus-4-8-only (align-2.1.169 DD-1) for the Fable 5 / Mythos 5 launch.
   if (
-    modelIsOpus48(modelId) &&
+    modelEmitsMidConversationSystem(modelId) &&
     isFirstPartyish(provider) &&
     !options.hipaa &&
     options.midConversationSystem !== false
