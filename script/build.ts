@@ -185,6 +185,20 @@ if (!skipInstall) {
   await $`bun install --os="*" --cpu="*" @opentui/core@${pkg.dependencies["@opentui/core"]}`
   await $`bun install --os="*" --cpu="*" @parcel/watcher@${pkg.dependencies["@parcel/watcher"]}`
 }
+
+// The vendor/specbase submodule provides @specbase/lib, consumed in-process by
+// the native specbase tools (resolved via the @specbase/lib tsconfig alias).
+// Ensure it is checked out and its RUNTIME deps are installed so the bundler can
+// resolve markdown-it/gray-matter on a clean build. `--production` deliberately
+// skips devDeps (@types/bun, typescript) which would otherwise pollute
+// opencode's own typecheck. (plan specbase/internal-toolcall-dual-track, T4)
+if (fs.existsSync(path.resolve(dir, ".gitmodules"))) {
+  if (!fs.existsSync(path.resolve(dir, "vendor/specbase/packages/lib/package.json"))) {
+    await $`git submodule update --init vendor/specbase`
+  }
+  await $`cd vendor/specbase && bun install --production --ignore-scripts`
+}
+
 for (const item of targets) {
   const name = [
     pkg.name,
