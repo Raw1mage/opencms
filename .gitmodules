@@ -1,0 +1,3 @@
+[submodule "vendor/specbase"]
+	path = vendor/specbase
+	url = git@github.com:Raw1mage/specbase.git

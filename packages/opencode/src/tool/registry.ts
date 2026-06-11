@@ -28,6 +28,7 @@ import { debugCheckpoint } from "@/util/debug"
 import { LspTool } from "./lsp"
 import { Truncate } from "./truncation"
 import { ApplyPatchTool } from "./apply_patch"
+import { SpecbaseTools } from "./specbase"
 import { CronCreateTool, CronListTool, CronDeleteTool, CronUpdateTool, CronCancelTool, CronStatusTool } from "./cron"
 import { RefreshCapabilityLayerTool } from "./refresh-capability-layer"
 import { ToolLoaderTool } from "./tool-loader"
@@ -164,6 +165,7 @@ export namespace ToolRegistry {
       CronCancelTool,
       CronStatusTool,
       RefreshCapabilityLayerTool,
+      ...SpecbaseTools,
       ...SystemManagerTools,
       ...(Flag.OPENCODE_EXPERIMENTAL_LSP_TOOL ? [LspTool] : []),
       ...(config.experimental?.batch_tool === true ? [BatchTool] : []),
