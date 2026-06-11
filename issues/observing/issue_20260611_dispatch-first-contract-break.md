@@ -2,7 +2,7 @@
 
 - **Date**: 2026-06-11
 - **Severity**: Medium（誤導 orchestrator 的回合語氣；與 content-filter false-success 同源症候，但獨立於 status 映射）
-- **Status**: Fixed (uncommitted) — 2026-06-11 修復落地，待 commit；見文末「Resolution」
+- **Status**: OBSERVING — fix committed `ce2c7ce92` 並隨 2026-06-11 3R 部署；soak 期間 dispatch 返回前猝死的 worker 不再出現同步 false-success 即可轉 closed/
 - **Area**: task tool dispatch path / STUB-RETURN FLIP (R1) / worker 生命週期
 - **拆出自**: `issues/subagent-content-filter-false-success.md` 的 Bug 2（主檔 Bug 1=content_filter status 已修，commit `3e2263bec`）
 
