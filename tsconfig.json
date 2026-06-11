@@ -10,7 +10,9 @@
     "customConditions": ["browser"],
     "paths": {
       "@/*": ["./packages/opencode/src/*"],
-      "@tui/*": ["./packages/opencode/src/cli/cmd/tui/*"]
+      "@tui/*": ["./packages/opencode/src/cli/cmd/tui/*"],
+      "@specbase/lib": ["./vendor/specbase/packages/lib/src/index.ts"],
+      "@specbase/lib/*": ["./vendor/specbase/packages/lib/src/*"]
     }
   },
   "exclude": ["node_modules", "dist"]
