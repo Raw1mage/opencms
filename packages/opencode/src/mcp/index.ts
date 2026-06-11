@@ -358,6 +358,11 @@ export namespace MCP {
       dirty: true,
     }
 
+    // Entry-source mtime per connected local stdio server, for stale-child
+    // detection in tools(). lastStaleCheckMs throttles the fs.stat sweep.
+    const localSourceWatch = new Map<string, SourceWatch>()
+    const staleCheck = { lastMs: 0 }
+
     const unsubscribeToolsChanged = Bus.subscribe(ToolsChanged, () => {
       invalidateToolsCache(toolsCache)
     })
@@ -383,6 +388,7 @@ export namespace MCP {
               status[key] = result.status
               if (result.mcpClient) {
                 clients[key] = result.mcpClient
+                if (result.sourceWatch) localSourceWatch.set(key, result.sourceWatch)
               }
               invalidateToolsCache(toolsCache)
               Bus.publish(ToolsChanged, { server: key })
@@ -399,6 +405,8 @@ export namespace MCP {
       status,
       clients,
       toolsCache,
+      localSourceWatch,
+      staleCheck,
       unsubscribeToolsChanged,
       unsubscribeManagedAppsUpdated,
     }
@@ -506,6 +514,7 @@ export namespace MCP {
       })
     }
     s.clients[name] = result.mcpClient
+    if (result.sourceWatch) s.localSourceWatch.set(name, result.sourceWatch)
     s.status[name] = result.status
     invalidateToolsCache(s.toolsCache)
 
@@ -514,11 +523,59 @@ export namespace MCP {
     }
   }
 
+  // A local stdio MCP server is a long-lived child process spawned from a
+  // command on disk. If that command's SOURCE file is edited after spawn
+  // (e.g. a new tool added to the server), the running child keeps serving
+  // its old tool list and — being unaware its source changed — never sends a
+  // ToolListChanged notification. opencode then faithfully surfaces a stale
+  // tool surface until the child is replaced. We close that gap by recording
+  // the entry source file's mtime at spawn and reconnecting when it changes.
+  // (See issues/20260611_specbase_event_record_tool_not_surfaced_issue.md.)
+  type SourceWatch = { entryPath: string; mtimeMs: number }
+  const STALE_CHECK_INTERVAL_MS = 3_000
+  // Interpreter basenames: when present as a command token they are the
+  // launcher, not the server source — skip them so we watch the script/binary.
+  const LOCAL_INTERPRETERS = new Set([
+    "bun",
+    "node",
+    "deno",
+    "npx",
+    "bunx",
+    "python",
+    "python3",
+    "sh",
+    "bash",
+    "ts-node",
+    "tsx",
+  ])
+
+  // Resolve the on-disk source entry of a local MCP command (the script or
+  // compiled binary actually run) and capture its mtime. Returns undefined for
+  // commands with no resolvable local file (e.g. `npx -y some-package`), in
+  // which case staleness can't be detected and the server is left as-is.
+  export async function resolveLocalSourceWatch(command: string[], cwd: string): Promise<SourceWatch | undefined> {
+    for (const token of command) {
+      if (!token) continue
+      if (LOCAL_INTERPRETERS.has(path.basename(token))) continue
+      const resolved = path.isAbsolute(token) ? token : path.resolve(cwd, token)
+      try {
+        const st = await fs.stat(resolved)
+        if (st.isFile()) return { entryPath: resolved, mtimeMs: st.mtimeMs }
+      } catch {
+        // not a real path (e.g. a flag like `-y`) — keep scanning tokens
+      }
+    }
+    return undefined
+  }
+
   // Global dedup: prevents multiple Instance workspaces from spawning
   // duplicate stdio MCP servers for the same config key.  The first
   // Instance that calls create() wins; subsequent callers get the same
   // client.  HTTP/remote MCP entries are excluded (they don't spawn).
-  const createInFlight = new Map<string, Promise<{ mcpClient: MCPClient | undefined; status: Status } | undefined>>()
+  const createInFlight = new Map<
+    string,
+    Promise<{ mcpClient: MCPClient | undefined; status: Status; sourceWatch?: SourceWatch } | undefined>
+  >()
 
   async function create(key: string, mcp: Config.Mcp) {
     if (mcp.type === "local") {
@@ -546,6 +603,7 @@ export namespace MCP {
     log.info("found", { key, type: mcp.type })
     let mcpClient: MCPClient | undefined
     let status: Status | undefined = undefined
+    let sourceWatch: SourceWatch | undefined
 
     if (mcp.type === "remote") {
       // OAuth is enabled by default for remote servers unless explicitly disabled with oauth: false
@@ -738,6 +796,9 @@ export namespace MCP {
         status = {
           status: "connected",
         }
+        // Baseline the entry source mtime so tools() can detect a later edit
+        // and reconnect instead of serving this child's stale tool surface.
+        sourceWatch = await resolveLocalSourceWatch(mcp.command, cwd)
       } catch (error) {
         log.error("local mcp startup failed", {
           key,
@@ -796,6 +857,7 @@ export namespace MCP {
     return {
       mcpClient,
       status,
+      sourceWatch,
     }
   }
 
@@ -1020,6 +1082,7 @@ export namespace MCP {
         })
       }
       s.clients[name] = result.mcpClient
+      if (result.sourceWatch) s.localSourceWatch.set(name, result.sourceWatch)
     }
     invalidateToolsCache(s.toolsCache)
   }
@@ -1033,6 +1096,7 @@ export namespace MCP {
       })
       delete s.clients[name]
     }
+    s.localSourceWatch.delete(name)
     s.status[name] = { status: "disabled" }
     invalidateToolsCache(s.toolsCache)
   }
@@ -1419,10 +1483,70 @@ export namespace MCP {
     }
   }
 
+  // Detect local stdio servers whose entry source was edited since spawn and
+  // reconnect them so the tool surface reflects the current source. Throttled
+  // by STALE_CHECK_INTERVAL_MS; a no-op when nothing changed. Invalidates the
+  // tools cache on reconnect so the caller rebuilds against the fresh child.
+  async function refreshStaleLocalServers(s: Awaited<ReturnType<typeof createState>>) {
+    if (s.localSourceWatch.size === 0) return
+    const now = Date.now()
+    if (now - s.staleCheck.lastMs < STALE_CHECK_INTERVAL_MS) return
+    s.staleCheck.lastMs = now
+
+    const cfg = await Config.get()
+    const config = cfg.mcp ?? {}
+    for (const [key, watch] of [...s.localSourceWatch]) {
+      if (s.status[key]?.status !== "connected") continue
+      let mtimeMs: number
+      try {
+        mtimeMs = (await fs.stat(watch.entryPath)).mtimeMs
+      } catch {
+        // entry temporarily unreadable (rename-in-place during a rebuild) —
+        // don't churn the connection on a transient stat failure
+        continue
+      }
+      if (mtimeMs === watch.mtimeMs) continue
+
+      const mcp = config[key]
+      if (!isMcpConfigured(mcp) || mcp.type !== "local") {
+        s.localSourceWatch.delete(key)
+        continue
+      }
+
+      log.warn("local MCP source changed since spawn — reconnecting to refresh tool surface", {
+        key,
+        entryPath: watch.entryPath,
+        oldMtimeMs: watch.mtimeMs,
+        newMtimeMs: mtimeMs,
+      })
+
+      const old = s.clients[key]
+      delete s.clients[key]
+      s.localSourceWatch.delete(key)
+      s.status[key] = { status: "connecting" as any }
+      if (old) await old.close().catch((e) => log.error("failed closing stale MCP client", { key, error: e }))
+      try {
+        const result = await create(key, mcp)
+        if (result) {
+          s.status[key] = result.status
+          if (result.mcpClient) s.clients[key] = result.mcpClient
+          if (result.sourceWatch) s.localSourceWatch.set(key, result.sourceWatch)
+        }
+      } catch (e) {
+        s.status[key] = { status: "failed", error: e instanceof Error ? e.message : String(e) }
+      }
+      invalidateToolsCache(s.toolsCache)
+      Bus.publish(ToolsChanged, { server: key })
+    }
+  }
+
   export async function tools() {
     // Ensure mcp-apps.json apps are connected on first call
     await connectMcpApps()
     const s = await state()
+    // Reconnect any local server whose source was edited since spawn before we
+    // decide whether the tools cache is still valid (a reconnect dirties it).
+    await refreshStaleLocalServers(s)
     const now = Date.now()
     if (!s.toolsCache.dirty && s.toolsCache.expiresAt > now) {
       return s.toolsCache.value
