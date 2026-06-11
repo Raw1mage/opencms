@@ -1302,6 +1302,21 @@ export namespace Config {
         })
         .optional(),
       plugin: z.string().array().optional(),
+      specbase: z
+        .object({
+          repo: z
+            .string()
+            .optional()
+            .describe(
+              "Canonical repo path whose .specbase store backs the in-process specbase tools " +
+                "(event log / wiki / plans). When set, all specbase_* tools target this repo regardless " +
+                "of the active session's project — keeping one knowledge base across sessions (parity with " +
+                "the former SPECBASE_TARGET_REPO env). Per-call `repo` and the SPECBASE_TARGET_REPO env still " +
+                "override. Defaults to the active project directory when unset.",
+            ),
+        })
+        .optional()
+        .describe("specbase native tool settings (knowledge base location)"),
       snapshot: z
         .boolean()
         .optional()

@@ -13,6 +13,7 @@ import { z } from "zod"
 import { resolve } from "node:path"
 import { Tool } from "../tool"
 import { Instance } from "../../project/instance"
+import { Config } from "../../config/config"
 import { TOOL_DEFINITIONS, type ToolCtx, type ToolResult } from "@specbase/lib/tools"
 
 // Minimal JSON-Schema → zod for the property shapes specbase tools use
@@ -50,17 +51,25 @@ function inputSchemaToZod(schema: Record<string, any>): z.ZodObject<any> {
   return z.object(shape)
 }
 
-// Parity with the MCP adapter's defaultRepo()/defaultLang(): honour a per-call
-// `repo`, then SPECBASE_TARGET_REPO, else the active project directory
-// (Instance.directory is opencode's in-process equivalent of process.cwd()).
-function resolveCtx(args: Record<string, unknown>): ToolCtx {
+// Resolve the target repo/lang for a call. Precedence (keeps parity with the
+// old MCP env defaults while giving opencode a config-driven canonical KB):
+//   1. per-call `repo` arg
+//   2. SPECBASE_TARGET_REPO env (still honoured if set)
+//   3. config.specbase.repo (the canonical KB root; replaces the MCP entry's
+//      hardcoded SPECBASE_TARGET_REPO so the in-process store stays in one place)
+//   4. the active project directory (Instance.directory)
+async function resolveCtx(args: Record<string, unknown>): Promise<ToolCtx> {
   const envRepo = process.env.SPECBASE_TARGET_REPO?.trim()
+  const cfg = await Config.get().catch(() => undefined)
+  const cfgRepo = cfg?.specbase?.repo?.trim()
   const repo =
     typeof args.repo === "string" && args.repo
       ? resolve(args.repo)
       : envRepo
         ? resolve(envRepo)
-        : Instance.directory
+        : cfgRepo
+          ? resolve(cfgRepo)
+          : Instance.directory
   const lang = process.env.SPECBASE_PRIMARY_LANG?.trim() || "zh-Hant"
   return { repo, lang }
 }
@@ -77,7 +86,7 @@ export const SpecbaseTools: Tool.Info[] = TOOL_DEFINITIONS.map((def) => ({
     description: def.description,
     parameters: inputSchemaToZod(def.inputSchema),
     async execute(args: Record<string, unknown>) {
-      const result = await def.handler(args ?? {}, resolveCtx(args ?? {}))
+      const result = await def.handler(args ?? {}, await resolveCtx(args ?? {}))
       return {
         title: def.name,
         metadata: { ok: result.ok },
