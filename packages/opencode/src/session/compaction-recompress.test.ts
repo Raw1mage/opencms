@@ -111,7 +111,10 @@ function fakeCodexModel(): Provider.Model {
 
 describe("runCodexServerSideRecompress", () => {
   it("calls plugin with actual conversation items from session messages and updates anchor on success", async () => {
-    const anchorMsg = anchor("msg_anchor", "## Round 1\n\n**User**\n\nlong dialog\n\n**Assistant**\n\nlong answer ".repeat(100))
+    const anchorMsg = anchor(
+      "msg_anchor",
+      "## Round 1\n\n**User**\n\nlong dialog\n\n**Assistant**\n\nlong answer ".repeat(100),
+    )
     // dialog-replay-redaction DD-8: the server-compacted result is stored on the
     // anchor's compaction part metadata, so the fixture needs that part present.
     anchorMsg.parts.push({
@@ -260,8 +263,8 @@ describe("runCodexServerSideRecompress", () => {
 // ─────────────────────────────────────────────────────────────────────
 
 describe("scheduleHybridEnrichment dispatch", () => {
-  it("flag on + codex provider + anchor > floor → codex server-side dispatch is dormant (stays on local drop_old)", async () => {
-    const big = "x".repeat(120_000 * 4) // ~120K tokens (~44% of 272K, above 40% gate)
+  it("flag on + codex provider + anchor > floor → codex server-side dispatch is dormant (ai_paid sole path, DD-11)", async () => {
+    const big = "x".repeat(150_000 * 4) // ~150K tokens, above the 128K absolute floor (DD-8)
     const anchorMsg = anchor("msg_anchor", big)
     // Include non-anchor messages so buildConversationItemsForPlugin has items to send
     const uMsg = userMsg("u_pre", "do the thing")
@@ -287,10 +290,10 @@ describe("scheduleHybridEnrichment dispatch", () => {
     // Wait for the background promise to settle
     await new Promise((r) => setTimeout(r, 50))
 
-    // The codex server-side `/responses/compact` dispatch is currently dormant
+    // The codex server-side `/responses/compact` dispatch is dormant
     // (encrypted-blob anchor is incompatible with rotation-heavy sessions);
-    // enrichment runs the local drop_old path instead, so the plugin is NOT
-    // called even with flag on + a large anchor.
+    // enrichment goes straight to ai_paid (runHybridLlm) — the Plugin path
+    // is NOT invoked even with flag on + a gate-passing anchor.
     expect(pluginCalled).toBe(false)
   })
 
@@ -312,12 +315,11 @@ describe("scheduleHybridEnrichment dispatch", () => {
     expect(pluginCalled).toBe(false)
   })
 
-  it("anchor below 40% context ratio → no dispatch", async () => {
-    // compaction_simplification T4 (2026-05-14): the legacy 5K-token
-    // absolute floor was replaced with a context-relative ratio gate
-    // (default 0.40). 4K tokens / 272K codex context = 1.5%, well
-    // below the threshold, so the skip behaviour is preserved.
-    const small = "x".repeat(4_000 * 4) // ~4K tokens (~1.5% of 272K)
+  it("anchor below the 128K absolute floor → no dispatch (DD-8)", async () => {
+    // compaction_enrichment-ai-first DD-3/DD-8: the ratio gate is retired;
+    // the trigger is the absolute aCompactTokens floor (128K unified).
+    // 4K tokens is far below it, so the skip behaviour is preserved.
+    const small = "x".repeat(4_000 * 4) // ~4K tokens, well below 128K floor
     const anchorMsg = anchor("msg_anchor", small)
     ;(Session as any).messages = mock(async () => [anchorMsg])
     stubTweaks({ enableHybridLlm: true, enableDialogRedactionAnchor: true })
@@ -334,12 +336,12 @@ describe("scheduleHybridEnrichment dispatch", () => {
     expect(pluginCalled).toBe(false)
   })
 
-  it("flag on + observed=manual + anchor above ratio → stays on local drop_old (codex dispatch dormant)", async () => {
-    // compaction_simplification T4: ratio gate is 40% × 272K = ~109K tokens.
-    // 120K tokens passes the ratio gate AND is above the 50K size-ceiling, so
-    // enrichment proceeds — but via the local drop_old path, NOT the dormant
-    // codex server-side dispatch.
-    const mid = "x".repeat(120_000 * 4) // ~120K tokens (~44% of 272K)
+  it("flag on + observed=manual + anchor above 128K floor → ai_paid sole path (codex dispatch dormant, DD-11)", async () => {
+    // compaction_enrichment-ai-first DD-8: gate is the 128K absolute floor.
+    // 150K tokens passes it, so enrichment proceeds — straight to ai_paid
+    // (runHybridLlm), NOT the dormant codex server-side dispatch and NOT any
+    // positional drop (removed per DD-11).
+    const mid = "x".repeat(150_000 * 4) // ~150K tokens, above the 128K floor
     const anchorMsg = anchor("msg_anchor", mid)
     const uMsg = userMsg("u_pre", "do the thing")
     ;(Session as any).messages = mock(async () => [uMsg, anchorMsg])
@@ -352,8 +354,111 @@ describe("scheduleHybridEnrichment dispatch", () => {
     })
     SessionCompaction.__test__.scheduleHybridEnrichment("ses_test", "manual", fakeCodexModel())
     await new Promise((r) => setTimeout(r, 50))
-    // codex server-side dispatch is dormant — enrichment runs drop_old locally,
+    // codex server-side dispatch is dormant — enrichment goes to ai_paid,
     // so the plugin is not invoked.
     expect(pluginCalled).toBe(false)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────
+// ai_paid sole path — success upgrades anchor, failure leaves it alone
+// (compaction_enrichment-ai-first task 4.1, DD-4/DD-11)
+// ─────────────────────────────────────────────────────────────────────
+
+describe("scheduleHybridEnrichment ai_paid outcomes", () => {
+  const Hybrid = SessionCompaction.Hybrid as any
+
+  let originalRunHybridLlm: any
+  let originalUpdateMessage: typeof Session.updateMessage
+  let originalAppendRecentEvent: typeof Session.appendRecentEvent
+
+  beforeEach(() => {
+    originalRunHybridLlm = Hybrid.runHybridLlm
+    originalUpdateMessage = Session.updateMessage
+    originalAppendRecentEvent = Session.appendRecentEvent
+  })
+
+  afterEach(() => {
+    Hybrid.runHybridLlm = originalRunHybridLlm
+    ;(Session as any).updateMessage = originalUpdateMessage
+    ;(Session as any).appendRecentEvent = originalAppendRecentEvent
+  })
+
+  function successEvent(): any {
+    return {
+      eventId: "cev_test",
+      sessionId: "ses_test",
+      kind: "hybrid_llm",
+      phase: 1,
+      internalMode: "llm",
+      inputTokens: 150_000,
+      outputTokens: 5_000,
+      latencyMs: 10,
+      result: "success",
+      emittedAt: new Date().toISOString(),
+    }
+  }
+
+  function failureEvent(): any {
+    return { ...successEvent(), result: "unrecoverable", errorCode: "E_HYBRID_LLM_FAILED" }
+  }
+
+  it("ai_paid success → narrative anchor upgraded in place, stub demoted", async () => {
+    const big = "x".repeat(150_000 * 4) // above the 128K floor (DD-8)
+    const narrative = anchor("msg_anchor", big)
+    const uMsg = userMsg("u_pre", "do the thing")
+    const stub = anchor("msg_stub", "ESSENCE: decisions + constraints survive")
+
+    // Pre-LLM the stub does not exist; post-LLM it appears after the narrative.
+    let llmRan = false
+    ;(Session as any).messages = mock(async () => (llmRan ? [uMsg, narrative, stub] : [uMsg, narrative]))
+    Hybrid.runHybridLlm = mock(async () => {
+      llmRan = true
+      return successEvent()
+    })
+
+    const updatedParts: any[] = []
+    const updatedMessages: any[] = []
+    ;(Session as any).updatePart = mock(async (p: any) => updatedParts.push(p))
+    ;(Session as any).updateMessage = mock(async (m: any) => updatedMessages.push(m))
+    ;(Session as any).appendRecentEvent = mock(async () => {})
+    stubTweaks({ enableHybridLlm: true, enableDialogRedactionAnchor: true })
+
+    SessionCompaction.__test__.scheduleHybridEnrichment("ses_test", "manual", fakeCodexModel())
+    await new Promise((r) => setTimeout(r, 100))
+
+    expect(llmRan).toBe(true)
+    // Narrative anchor's text part updated with the stub's essence body
+    expect(updatedParts.length).toBe(1)
+    expect(updatedParts[0].messageID).toBe("msg_anchor")
+    expect(updatedParts[0].text).toContain("ESSENCE")
+    // Stub anchor demoted (summary:false)
+    expect(updatedMessages.some((m) => m.id === "msg_stub" && m.summary === false)).toBe(true)
+  })
+
+  it("ai_paid failure → anchor untouched + failed event carries ai_paid_failed (DD-4/DD-11, no fallback)", async () => {
+    const big = "x".repeat(150_000 * 4)
+    const narrative = anchor("msg_anchor", big)
+    const uMsg = userMsg("u_pre", "do the thing")
+    ;(Session as any).messages = mock(async () => [uMsg, narrative])
+    Hybrid.runHybridLlm = mock(async () => failureEvent())
+
+    const updatedParts: any[] = []
+    const recentEvents: any[] = []
+    ;(Session as any).updatePart = mock(async (p: any) => updatedParts.push(p))
+    ;(Session as any).updateMessage = mock(async () => {})
+    ;(Session as any).appendRecentEvent = mock(async (_sid: string, ev: any) => recentEvents.push(ev))
+    stubTweaks({ enableHybridLlm: true, enableDialogRedactionAnchor: true })
+
+    SessionCompaction.__test__.scheduleHybridEnrichment("ses_test", "manual", fakeCodexModel())
+    await new Promise((r) => setTimeout(r, 100))
+
+    // Anchor stays untouched — NO positional drop, NO fallback (DD-11)
+    expect(updatedParts.length).toBe(0)
+    // Explicit failed event with ai_paid_failed reason classification (DD-4)
+    const failed = recentEvents.find((e) => e.kind === "enrichment" && e.enrichment?.status === "failed")
+    expect(failed).toBeTruthy()
+    expect(failed.enrichment.detail).toContain("ai_paid_failed")
+    expect(failed.enrichment.detail).toContain("E_HYBRID_LLM_FAILED")
   })
 })

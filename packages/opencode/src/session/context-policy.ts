@@ -77,7 +77,9 @@ export interface ContextPolicy {
   /**
    * A-tier (background ai_paid) enrichment gate — is a just-written narrative B
    * anchor big enough to be worth recompressing into the smaller A-tier?
-   * claude: absolute aFloorTokens. general: legacy ratio (≤128K→25%, else 40%).
+   * Both policies: absolute aFloorTokens (compaction_enrichment-ai-first DD-3/DD-8:
+   * the legacy general ratio gate (≤128K→25%, else 40%) is retired — per-provider
+   * aCompactTokens is the single trigger, unified at 128K).
    */
   shouldEnrichAnchor(input: { anchorTokens: number; contextLimit: number; aFloorTokens: number }): boolean
 
@@ -117,9 +119,10 @@ class GeneralPolicy implements ContextPolicy {
   }
 
   shouldEnrichAnchor(input: { anchorTokens: number; contextLimit: number; aFloorTokens: number }): boolean {
-    const ratio = input.contextLimit > 0 ? input.anchorTokens / input.contextLimit : 0
-    const gate = input.contextLimit <= 128_000 ? 0.25 : 0.4
-    return ratio >= gate
+    // compaction_enrichment-ai-first DD-3: absolute floor, same shape as ClaudePolicy.
+    // The legacy ratio gate (≤128K window → 25%, else 40%) is retired — it ignored
+    // the per-provider aCompactTokens config entirely (dead config since inception).
+    return input.anchorTokens >= input.aFloorTokens
   }
 
   gateAnchorTokens(input: { estimateTokens: number; realPromptTokens: number; systemReserveTokens: number }): number {

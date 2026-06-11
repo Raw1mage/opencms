@@ -81,10 +81,10 @@ describe("itemOverflowTrigger: provider-specific tweak thresholds", () => {
 describe("Move B method equivalence to the pre-split shim helpers", () => {
   it("shouldEnrichAnchor matches the shim across providers (A-tier gate@1810)", () => {
     const inputs = [
-      { anchorTokens: 160_000, contextLimit: 1_000_000, aFloorTokens: 100_000 },
-      { anchorTokens: 99_999, contextLimit: 1_000_000, aFloorTokens: 100_000 },
-      { anchorTokens: 40_000, contextLimit: 128_000, aFloorTokens: 50_000 },
-      { anchorTokens: 30_000, contextLimit: 128_000, aFloorTokens: 50_000 },
+      { anchorTokens: 160_000, contextLimit: 1_000_000, aFloorTokens: 128_000 },
+      { anchorTokens: 127_999, contextLimit: 1_000_000, aFloorTokens: 128_000 },
+      { anchorTokens: 128_000, contextLimit: 272_000, aFloorTokens: 128_000 },
+      { anchorTokens: 30_000, contextLimit: 272_000, aFloorTokens: 128_000 },
     ]
     for (const p of PROVIDERS) {
       for (const i of inputs) {

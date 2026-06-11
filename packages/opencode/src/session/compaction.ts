@@ -422,14 +422,31 @@ export namespace SessionCompaction {
    * The engine manages context via per-iteration tree rendering + subtree
    * consolidation; opencode's message-history compaction would defeat the
    * stateless-iteration invariant.
+   *
+   * compaction_enrichment-ai-first DD-9/DD-10: verdict now comes from the
+   * shared FreerunResolver (provider tag OR contextLimit ≤ 128K, respecting
+   * the per-session override) so the compaction bypass can never desync from
+   * the bash privileged-command block or the llm.ts effectiveMode.
    */
-  async function isFreerunProvider(model: Provider.Model): Promise<boolean> {
+  async function isFreerunProvider(model: Provider.Model, sessionID?: string): Promise<boolean> {
     try {
+      const { FreerunResolver } = await import("./freerun-resolver")
+      if (sessionID) {
+        return FreerunResolver.isFreerunSession(sessionID, {
+          providerId: model.providerId,
+          modelID: model.id,
+          limit: { context: model.limit?.context },
+        })
+      }
+      // No session context (rare): decide from provider tag + window only.
       const cfg = await Config.get()
       const providerCfg = (
         cfg.provider as Record<string, { lite?: boolean; mode?: "full" | "lite" | "freerun" }> | undefined
       )?.[model.providerId]
-      return providerCfg?.mode === "freerun"
+      return FreerunResolver.decide({
+        providerMode: providerCfg?.mode,
+        contextLimit: model.limit?.context,
+      })
     } catch {
       return false
     }
@@ -441,7 +458,7 @@ export namespace SessionCompaction {
     sessionID?: string
     currentRound?: number
   }) {
-    if (await isFreerunProvider(input.model)) return false
+    if (await isFreerunProvider(input.model, input.sessionID)) return false
     const budget = await inspectBudget(input)
     if (!budget.overflow) return false
 
@@ -477,7 +494,7 @@ export namespace SessionCompaction {
     sessionID?: string
     currentRound?: number
   }): Promise<boolean> {
-    if (await isFreerunProvider(input.model)) return false
+    if (await isFreerunProvider(input.model, input.sessionID)) return false
     const budget = await inspectBudget(input)
     if (!budget.auto || !budget.byToken) return false
 
@@ -1834,8 +1851,8 @@ When constructing the summary, try to stick to this template:
         // compaction_recency-fadeout-tiers DD-9: floor the A-tier gate input on the
         // most recent completed turn's REAL reported prompt tokens (claude only), so
         // the chars estimate's ~1.3x undercount of mixed markdown/code anchors can no
-        // longer make the aFloor gate under-fire → drop_old skip → anchor pinned high →
-        // weak B-only churn (~15%). See claude-context-policy gateAnchorTokensForClaude.
+        // longer make the aFloor gate under-fire → enrichment skip → anchor pinned
+        // high → weak B-only churn. See claude-context-policy gateAnchorTokensForClaude.
         const REAL_SYSTEM_RESERVE = 40_000
         const gateAnchorTokens = policy.gateAnchorTokens({
           estimateTokens: narrativeTokens,
@@ -1907,13 +1924,19 @@ When constructing the summary, try to stick to this template:
           }
         }
 
-        // -- Enrichment priority chain ---------------------------------
-        // 1. drop old history -- trim anchor body (free, instant)
-        // 2. ai_paid  -- LLM summarisation (last resort)
+        // -- Enrichment: ai_paid is the SOLE path ------------------------
+        // compaction_enrichment-ai-first DD-11: drop_old_history is REMOVED.
+        // Positional head-chopping (keep trailing 40%, cut at Round boundary)
+        // silently destroyed the anchor head — where session-early decisions,
+        // constraints, and agreements live. Neither claude-code nor codex
+        // native designs have any positional drop; both use AI summarization
+        // only. On ai_paid failure the anchor stays untouched and retries at
+        // the next compaction once the gate is met (DD-4: explicit failed
+        // event + telemetry, NO fallback path).
         //
-        // ai_free disabled: encrypted blob anchor incompatible with
-        // rotation-heavy sessions (chain binding invalidated on switch).
-        // Chain stops at the first success.
+        // ai_free (codex /responses/compact) stays disabled: encrypted blob
+        // anchor is incompatible with rotation-heavy sessions (chain binding
+        // invalidated on every account switch).
 
         const recompressStartedAt = Date.now()
         const baseTelemetry = {
@@ -1924,78 +1947,31 @@ When constructing the summary, try to stick to this template:
           anchorTokensBefore: narrativeTokens,
         }
 
-        // ai_free (codex /responses/compact) disabled — encrypted blob
-        // anchor is incompatible with rotation-heavy sessions (chain
-        // binding invalidated on every account switch). Enrichment chain
-        // is now: drop_old_history → ai_paid.
-
-        // ── Step 1: drop old history from anchor body ──
-        // Chained concat means the latest anchor body contains all
-        // predecessor content. "Drop old" = truncate the body to keep
-        // only the most recent generation (the tail text that was
-        // appended in the last narrative compaction). Also demote all
-        // predecessor anchor messages.
-        {
-          emitTelemetry("session.hybrid_enrichment.drop_old_history")
-          // Keep 40% of the anchor's own body length (not 40% of context).
-          // If anchor is 40% of context, keeping 40% of it = 16% of context.
-          // This ensures meaningful compression regardless of anchor size.
-          const KEEP_RATIO = 0.4
-          const keepChars = Math.floor(latestBody.length * KEEP_RATIO)
-          let trimmedBody = latestBody
-          if (latestBody.length > keepChars) {
-            trimmedBody = latestBody.slice(-keepChars)
-            // Clean cut at a round boundary
-            const roundBoundary = trimmedBody.indexOf("\n## Round ")
-            if (roundBoundary > 0 && roundBoundary < trimmedBody.length * 0.3) {
-              trimmedBody = trimmedBody.slice(roundBoundary + 1)
-            }
-          }
-          const anchorTextPart = narrativeAnchorMsg.parts.find((p) => p.type === "text")
-          const trimmedTokens = Math.ceil(trimmedBody.length / 4)
-          const trimmedRatio = contextLimit > 0 ? trimmedTokens / contextLimit : 0
-          // Only count drop_old as success if it actually compressed
-          // enough (< 35% of context). Otherwise fall through to ai_paid.
-          // reload-generated anchors have no Round boundaries to cut at,
-          // so drop_old barely shaves anything — must not block ai_paid.
-          if (anchorTextPart && trimmedBody.length < latestBody.length && trimmedRatio < 0.35) {
-            await Session.updatePart({ ...(anchorTextPart as any), text: trimmedBody })
-            await demoteOldAnchors()
-            log.info("enrichment step 2: dropped old history from anchor body", {
-              sessionID,
-              originalTokens: narrativeTokens,
-              keptTokens: trimmedTokens,
-              trimmedRatio,
-              demoted: anchorsTodemote.length,
-            })
-            emitEnrichmentStatus("success")
-            emitRecompressTelemetry({
-              ...baseTelemetry,
-              result: "success",
-              errorMessage: "drop_old_history",
-              anchorTokensAfter: trimmedTokens,
-              latencyMs: Date.now() - recompressStartedAt,
-            })
-            return
-          }
-          if (anchorTextPart && trimmedBody.length < latestBody.length) {
-            log.info("enrichment: drop_old_history insufficient, falling through to ai_paid", {
-              sessionID,
-              trimmedTokens,
-              trimmedRatio: Math.round(trimmedRatio * 100),
-              contextLimit,
-            })
-          }
-        }
-
-        // ── Step 2: ai_paid (LLM) — last resort when drop_old didn't apply ──
-        log.info("enrichment step 2 (ai_paid LLM): anchor not trimmed by drop_old, attempting LLM compress", {
+        log.info("enrichment (ai_paid sole path): compressing full anchor body", {
           sessionID,
+          anchorTokens: narrativeTokens,
         })
-        emitTelemetry("session.hybrid_enrichment.fallback_to_ai_paid")
-        const LLM_INPUT_TOKEN_CAP = 30_000
-        const llmInputCharCap = LLM_INPUT_TOKEN_CAP * 4
-        const llmBody = latestBody.length > llmInputCharCap ? latestBody.slice(-llmInputCharCap) : latestBody
+        emitTelemetry("session.hybrid_enrichment.ai_paid")
+        // DD-13: the historical LLM_INPUT_TOKEN_CAP=30K (commit 33dc84746,
+        // 2026-05-16) was a self-imposed cost constant, NOT an API limit —
+        // it silently discarded the anchor head (60-80% of a gate-passing
+        // anchor) before the LLM ever saw it: a hidden positional drop and
+        // the root cause of post-compaction amnesia. The compressor runs on
+        // the session's own model (1M/272K window), so feed the FULL anchor.
+        // Defensive ceiling only: contextLimit minus a safety margin for the
+        // framing template + output budget; normally never reached.
+        const DEFENSIVE_INPUT_MARGIN_TOKENS = 50_000
+        const defensiveInputCharCap = Math.max(contextLimit - DEFENSIVE_INPUT_MARGIN_TOKENS, 30_000) * 4
+        const llmBody =
+          latestBody.length > defensiveInputCharCap ? latestBody.slice(-defensiveInputCharCap) : latestBody
+        if (llmBody.length < latestBody.length) {
+          log.warn("enrichment: anchor exceeds defensive input ceiling — tail-clamped", {
+            sessionID,
+            anchorChars: latestBody.length,
+            capChars: defensiveInputCharCap,
+            contextLimit,
+          })
+        }
         const priorAnchor: Hybrid.Anchor = {
           role: "assistant",
           summary: true,
@@ -2014,8 +1990,12 @@ When constructing the summary, try to stick to this template:
             phase: 1,
           },
         }
-        const ctx = model.limit?.context ?? 200_000
-        const targetTokens = Math.max(5_000, Math.round(ctx * 0.3))
+        // DD-12: absolute output cap, NOT a fill target. The old formula
+        // max(5K, ctx*0.3) yielded 300K on a 1M window — a "compression
+        // target" larger than the 128K gate itself. The essence-oriented
+        // framing prompt expects ~5K of real decisions/constraints; 30K is
+        // the hard ceiling (aligned with fadeout aEssenceTokens semantics).
+        const targetTokens = 30_000
         const event = await Hybrid.runHybridLlm(sessionID, {
           abort: new AbortController().signal,
           priorAnchor,
@@ -2032,7 +2012,14 @@ When constructing the summary, try to stick to this template:
           outputTokens: event.outputTokens,
         })
         if (event.result !== "success") {
-          emitEnrichmentStatus("failed", `ai_paid: ${event.errorCode ?? event.result}`)
+          // DD-4/DD-11: explicit failure, NO fallback path. Anchor stays
+          // untouched; retries at the next compaction once the gate is met.
+          log.warn("enrichment ai_paid failed — anchor untouched, no fallback (DD-11)", {
+            sessionID,
+            reason: `ai_paid_failed:${event.errorCode ?? event.result}`,
+            anchorTokens: narrativeTokens,
+          })
+          emitEnrichmentStatus("failed", `ai_paid_failed:${event.errorCode ?? event.result}`)
           emitRecompressTelemetry({
             ...baseTelemetry,
             result: "provider-error",
@@ -2177,7 +2164,13 @@ When constructing the summary, try to stick to this template:
       void publishCompactedAndResetChain(sessionID, meta)
     })
     CompactionManager.setCompactExecutor((input) =>
-      run({ sessionID: input.sessionID, observed: input.observed as Observed, step: input.step, intent: input.intent, abort: input.abort }),
+      run({
+        sessionID: input.sessionID,
+        observed: input.observed as Observed,
+        step: input.step,
+        intent: input.intent,
+        abort: input.abort,
+      }),
     )
   }
   wireCompactionManager()
@@ -4200,7 +4193,7 @@ When constructing the summary, try to stick to this template:
 Output a single Markdown summary distilling PRIOR_ANCHOR + JOURNAL.
 First line MUST be: [Context Anchor v1] generated at <ISO-8601> by <provider>:<model> covering rounds [<earliest>..<latest>]
 Body: plain Markdown only. NO <thinking>, no provider tokens, no tool_call/tool_result JSON.
-Target size: at most {{targetTokens}} tokens.
+Target size: at most {{targetTokens}} tokens — hard ceiling, NOT a fill target. Extract essence (decisions, constraints, unfinished work); ~5K tokens is the expected useful size. Do not pad.
 Honour DROP_MARKERS: do not mention dropped tool_call ids.
 {{phase2Strict}}`
 

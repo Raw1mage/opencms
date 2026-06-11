@@ -726,11 +726,23 @@ export namespace LLM {
     // New: `mode: "full" | "lite" | "freerun"`. Legacy: `lite: true` → "lite".
     // freerun-mode treats prompt injection as lite-equivalent (no skill injection,
     // no heavy system prompt) because per-iteration ContextNode rendering replaces them.
+    // compaction_enrichment-ai-first DD-9/DD-10: the freerun verdict comes from the
+    // shared FreerunResolver (provider tag OR contextLimit ≤ 128K, respecting the
+    // per-session override) so this site can never desync from the compaction
+    // bypass or the bash privileged-command block.
     const providerCfg = (
       cfg.provider as Record<string, { lite?: boolean; mode?: "full" | "lite" | "freerun" }> | undefined
     )?.[executionModel.providerId]
-    const effectiveMode: "full" | "lite" | "freerun" =
-      providerCfg?.mode ?? (providerCfg?.lite === true ? "lite" : "full")
+    const { FreerunResolver } = await import("./freerun-resolver")
+    const isFreerunResolved = await FreerunResolver.isFreerunSession(input.sessionID, {
+      providerId: executionModel.providerId,
+      modelID: executionModel.id,
+      limit: { context: executionModel.limit?.context },
+    })
+    const effectiveMode: "full" | "lite" | "freerun" = isFreerunResolved
+      ? "freerun"
+      : ((providerCfg?.mode === "freerun" ? "full" : providerCfg?.mode) ??
+        (providerCfg?.lite === true ? "lite" : "full"))
     // Phase 0 decision: freerun is an INERT flag until the engine (Phase 1) is built.
     // Engine will override prompt/tool/loop assembly in its own path. Pre-engine,
     // freerun-mode sessions must behave identically to full-mode (keep skills,

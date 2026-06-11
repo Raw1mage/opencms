@@ -250,6 +250,14 @@ export namespace Session {
     updatedAt: z.number(),
     lastRunAt: z.number().optional(),
     supervisor: WorkflowSupervisor.optional(),
+    /**
+     * compaction_enrichment-ai-first DD-9: per-session freerun override.
+     * "off" → stay turn-based even if provider-tagged or small-window;
+     * "on"  → force freerun. Absent = no override (resolver decides from
+     * provider config mode + contextLimit ≤ 128K). Consumed exclusively by
+     * FreerunResolver (DD-10 single dispatch point).
+     */
+    freerunOverride: z.enum(["on", "off"]).optional(),
   })
   export type WorkflowInfo = z.output<typeof WorkflowInfo>
 
@@ -747,6 +755,26 @@ export namespace Session {
           state: input.state,
           stopReason: input.stopReason,
           lastRunAt: input.lastRunAt ?? current.lastRunAt,
+          updatedAt: Date.now(),
+        }
+      },
+      { touch: false },
+    )
+  }
+
+  /**
+   * compaction_enrichment-ai-first DD-9: minimal per-session freerun override
+   * setter. `undefined` clears the override (resolver falls back to provider
+   * tag + contextLimit routing). Consumed by FreerunResolver only.
+   */
+  export async function updateFreerunOverride(input: { sessionID: string; override?: "on" | "off" }) {
+    return update(
+      input.sessionID,
+      (draft) => {
+        const current = draft.workflow ?? defaultWorkflow(draft.time.updated)
+        draft.workflow = {
+          ...current,
+          freerunOverride: input.override,
           updatedAt: Date.now(),
         }
       },

@@ -65,8 +65,10 @@ OUTPUT SHAPE (mandatory):
   blocks for code/paths. Nothing else.
 - FORBIDDEN: <thinking>, <scratchpad>, provider-specific control tokens,
   embedded JSON for tool_call or tool_result blocks, raw tool transcripts.
-- TARGET SIZE: at most {{targetTokens}} tokens. Smaller is fine. Larger is a
-  contract violation.
+- TARGET SIZE: at most {{targetTokens}} tokens — this is a HARD CEILING, not
+  a fill target. Extract the essence: real decisions, constraints, unfinished
+  work. A genuinely useful anchor is usually ~5,000 tokens; do NOT pad to the
+  ceiling. Smaller is better. Larger is a contract violation.
 - DO NOT emit tool_calls or function calls. Output is text only.
 
 CONTENT PRIORITY (in order):
@@ -171,14 +173,14 @@ After receiving the LLM response, the runtime applies these checks (DD-6
 sanity layer). Failure causes one stricter retry; second failure triggers
 graceful degradation.
 
-| Check | Rule |
-|---|---|
-| Header present | First line matches `^\[Context Anchor v1\] generated at \S+ by \S+:\S+ covering rounds \[\d+\.\.\d+\]$` |
-| Size bounded | `tokenCount(body) ≤ targetTokens * 1.10` (10% slack for tokenizer drift) |
-| Strictly smaller than input | `tokenCount(body) < tokenCount(prior_anchor) + tokenCount(journal_input)` |
-| No forbidden tokens | Body does not match `<thinking>`, `<scratchpad>`, `<\|im_start\|>`, `<`, `"tool_calls":`, `"tool_use":` |
-| No JSON tool blocks | Body does not parse as JSON nor contain a balanced `{ "name": ..., "input": ... }` block at top-level |
-| Drop respected | If DROP_MARKERS non-empty, body does not mention any of the dropped tool_call ids verbatim |
+| Check                       | Rule                                                                                                    |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Header present              | First line matches `^\[Context Anchor v1\] generated at \S+ by \S+:\S+ covering rounds \[\d+\.\.\d+\]$` |
+| Size bounded                | `tokenCount(body) ≤ targetTokens * 1.10` (10% slack for tokenizer drift)                                |
+| Strictly smaller than input | `tokenCount(body) < tokenCount(prior_anchor) + tokenCount(journal_input)`                               |
+| No forbidden tokens         | Body does not match `<thinking>`, `<scratchpad>`, `<\|im_start\|>`, `<`, `"tool_calls":`, `"tool_use":` |
+| No JSON tool blocks         | Body does not parse as JSON nor contain a balanced `{ "name": ..., "input": ... }` block at top-level   |
+| Drop respected              | If DROP_MARKERS non-empty, body does not mention any of the dropped tool_call ids verbatim              |
 
 Failed retry uses a "stricter" framing addendum prepended to the system
 message:
@@ -195,12 +197,12 @@ header line and produce nothing else.
 
 ## Cross-provider compatibility notes
 
-| Provider | Behaviour | Mitigation in this prompt |
-|---|---|---|
-| OpenAI gpt-5.x | Tendency to add explanatory preambles | "NO META-COMMENTARY" + first-line header check |
-| Anthropic Claude | May emit `<thinking>` blocks if extended thinking enabled | Runtime sets `thinking: { type: "disabled" }` for compaction calls; FORBIDDEN list rejects if leak |
-| Codex (GPT-5 via Responses API) | Reliably text-out; concern is reasoning tokens leaking into content | Header check + token sanity catches |
-| Google Gemini | May wrap in markdown code fences if uncertain | Header on first line will fail validation if wrapped → triggers stricter retry |
+| Provider                        | Behaviour                                                           | Mitigation in this prompt                                                                          |
+| ------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| OpenAI gpt-5.x                  | Tendency to add explanatory preambles                               | "NO META-COMMENTARY" + first-line header check                                                     |
+| Anthropic Claude                | May emit `<thinking>` blocks if extended thinking enabled           | Runtime sets `thinking: { type: "disabled" }` for compaction calls; FORBIDDEN list rejects if leak |
+| Codex (GPT-5 via Responses API) | Reliably text-out; concern is reasoning tokens leaking into content | Header check + token sanity catches                                                                |
+| Google Gemini                   | May wrap in markdown code fences if uncertain                       | Header on first line will fail validation if wrapped → triggers stricter retry                     |
 
 Cross-provider regression test (in `test-vectors.json` `xprovider/` slice)
 verifies the same `(prior_anchor, journal)` input produces structurally

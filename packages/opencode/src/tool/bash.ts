@@ -34,7 +34,11 @@ export const log = Log.create({ service: "bash-tool" })
 const DAEMON_SPAWN_DENYLIST: Array<{ rule: string; pattern: RegExp }> = [
   { rule: "bun-serve-unix-socket", pattern: /\bbun\b[^\n;|&]*\bserve\b[^\n;|&]*--unix-socket\b/ },
   { rule: "opencode-serve-or-web", pattern: /\b(?:opencode|\.\/opencode)\s+(?:serve|web)\b/ },
-  { rule: "direct-daemon-signal", pattern: /\bkill\s+(?:-(?:TERM|KILL|9|15|HUP|INT)\s+)?\$?\(\s*(?:cat\s+[^)]*daemon\.lock|pgrep[^)]*opencode[^)]*)\s*\)/ },
+  {
+    rule: "direct-daemon-signal",
+    pattern:
+      /\bkill\s+(?:-(?:TERM|KILL|9|15|HUP|INT)\s+)?\$?\(\s*(?:cat\s+[^)]*daemon\.lock|pgrep[^)]*opencode[^)]*)\s*\)/,
+  },
   { rule: "systemctl-gateway", pattern: /\bsystemctl\s+\w+\s+opencode-gateway\b/ },
 ]
 
@@ -75,20 +79,16 @@ export function matchFreerunForbidden(command: string): boolean {
 }
 
 /**
- * Cheap check: does this session use a provider with mode="freerun"?
- * Imported lazily to avoid bash.ts ↔ config.ts circular concerns.
+ * Is this session freerun? compaction_enrichment-ai-first DD-10: verdict
+ * comes from the shared FreerunResolver (provider tag OR contextLimit ≤ 128K,
+ * respecting the per-session override) so the privileged-command block can
+ * never desync from the compaction bypass or llm.ts effectiveMode.
+ * Imported lazily to avoid bash.ts ↔ session circular concerns.
  */
 async function isFreerunSessionForBash(sessionID: string): Promise<boolean> {
   try {
-    const { Session } = await import("../session")
-    const { Config } = await import("../config/config")
-    const session = await Session.get(sessionID).catch(() => null)
-    if (!session) return false
-    const providerId = session.execution?.providerId
-    if (!providerId) return false
-    const cfg = await Config.get()
-    const providerCfg = (cfg.provider as Record<string, { mode?: string }> | undefined)?.[providerId]
-    return providerCfg?.mode === "freerun"
+    const { FreerunResolver } = await import("../session/freerun-resolver")
+    return await FreerunResolver.isFreerunSession(sessionID)
   } catch {
     return false
   }
@@ -390,12 +390,7 @@ export const BashTool = Tool.define("bash", async () => {
       const overBudget = ToolBudget.estimateTokens(output) > budget.tokens
 
       if (overChars || overBudget) {
-        const truncated = await Truncate.output(
-          output,
-          { maxLines: 50 },
-          ctx.extra?.agent,
-          ctx.sessionID,
-        )
+        const truncated = await Truncate.output(output, { maxLines: 50 }, ctx.extra?.agent, ctx.sessionID)
         const reason = overBudget
           ? `Layer 2 budget (~${budget.tokens} tokens, ${budget.source}) exceeded`
           : `output > ${threshold} chars`

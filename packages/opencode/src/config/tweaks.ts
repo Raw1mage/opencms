@@ -328,8 +328,11 @@ export namespace Tweaks {
       aTailRounds: number
       /** B-tail 下限 (湊不足多留) */
       aTailFloorTokens: number
-      /** A 主方法; 另一個為 ai_paid 失敗/逾時 fallback */
-      aMethod: "ai_paid" | "drop_old"
+      /**
+       * A 主方法。compaction_enrichment-ai-first DD-11: drop_old 已完全移除，
+       * ai_paid 是唯一路徑（失敗時 anchor 維持原狀、顯式 failed telemetry，無降級）。
+       */
+      aMethod: "ai_paid"
     }
     /**
      * context/claude-refactor (A/B/C, DD-23): per-provider granular compaction
@@ -489,15 +492,18 @@ export namespace Tweaks {
       aTailFloorTokens: 20_000,
       aMethod: "ai_paid",
     },
-    // context/claude-refactor A/B/C (DD-23) — absolute-token, per-provider. Start
-    // values; all to be experiment-tuned. Only claude-cli is consumed today.
+    // context/claude-refactor A/B/C (DD-23) — absolute-token, per-provider.
+    // compaction_enrichment-ai-first DD-8: aCompactTokens unified at 128K for
+    // every provider — user ruling 2026-06-11: "128K以下的門檻絕對不應該是往下降".
+    // The A gate measures the latest anchor body (= A+B total via chained concat);
+    // design floor must NOT go below 128K. Sessions whose model contextLimit is
+    // ≤128K never reach this gate (auto-routed to freerun, DD-9).
     contextThresholds: {
-      default: { bCompactTokens: 100_000, aCompactTokens: 60_000, aIncrementTokens: 20_000 },
-      // claude (1M window): absolute K — B 200K (cold total → C+B compaction),
-      // A 100K (B size → archive oldest B→A). B>A keeps B drained under A. 50%
-      // ratio is never reached on claude, so absolute K is what we tune.
-      "claude-cli": { bCompactTokens: 200_000, aCompactTokens: 100_000, aIncrementTokens: 20_000 },
-      codex: { bCompactTokens: 80_000, aCompactTokens: 50_000, aIncrementTokens: 15_000 },
+      default: { bCompactTokens: 100_000, aCompactTokens: 128_000, aIncrementTokens: 20_000 },
+      // claude (1M window): B 200K (A+B+C cold total → narrative fold to new B),
+      // A 128K (A+B total → ai_paid essence compression to new A, output ~5K/30K cap).
+      "claude-cli": { bCompactTokens: 200_000, aCompactTokens: 128_000, aIncrementTokens: 20_000 },
+      codex: { bCompactTokens: 80_000, aCompactTokens: 128_000, aIncrementTokens: 15_000 },
     },
   }
 
@@ -1266,8 +1272,11 @@ export namespace Tweaks {
       const v = parseIntRange(foATailFloorRaw, "compaction_fadeout_a_tail_floor_tokens", 0, 500_000)
       if (v !== undefined) compaction.fadeout.aTailFloorTokens = v
     }
+    // compaction_enrichment-ai-first DD-11: "drop_old" is no longer a valid
+    // aMethod — ai_paid is the sole path. A legacy "drop_old" value in
+    // tweaks.cfg is ignored (defaults stay at "ai_paid"); no silent remap.
     const foAMethodRaw = parsed.get("compaction_fadeout_a_method")
-    if (foAMethodRaw === "ai_paid" || foAMethodRaw === "drop_old") {
+    if (foAMethodRaw === "ai_paid") {
       compaction.fadeout.aMethod = foAMethodRaw
     }
 

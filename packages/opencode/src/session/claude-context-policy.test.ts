@@ -44,44 +44,78 @@ describe("claude-context-policy: event-compaction no-op (DD-4)", () => {
   })
 })
 
-describe("claude-context-policy: A-tier enrichment gate (DD-23 P4-2)", () => {
-  const claudeFloor = 100_000 // claude-cli aCompactTokens
+describe("claude-context-policy: A-tier enrichment gate (DD-23 P4-2, enrichment-ai-first DD-8)", () => {
+  const claudeFloor = 128_000 // claude-cli aCompactTokens (DD-8: unified 128K floor)
 
   it("claude: anchor at/above absolute floor => enrich, regardless of 1M ratio", () => {
-    // ses_188bb5576 #6 reality: 160K anchor in a 1M window = 0.16 ratio.
+    // ses_188bb5576 #6 reality: a fat anchor in a 1M window has a tiny ratio.
     // Legacy 0.4 ratio gate skipped it; absolute floor must RUN it.
     expect(
-      shouldEnrichAnchor({ providerId: "claude-cli", anchorTokens: 160_000, contextLimit: 1_000_000, aFloorTokens: claudeFloor }),
+      shouldEnrichAnchor({
+        providerId: "claude-cli",
+        anchorTokens: 160_000,
+        contextLimit: 1_000_000,
+        aFloorTokens: claudeFloor,
+      }),
     ).toBe(true)
     expect(
-      shouldEnrichAnchor({ providerId: "claude-cli", anchorTokens: 100_000, contextLimit: 1_000_000, aFloorTokens: claudeFloor }),
+      shouldEnrichAnchor({
+        providerId: "claude-cli",
+        anchorTokens: 128_000,
+        contextLimit: 1_000_000,
+        aFloorTokens: claudeFloor,
+      }),
     ).toBe(true)
   })
 
   it("claude: anchor below absolute floor => skip (don't recompress a thin anchor)", () => {
     expect(
-      shouldEnrichAnchor({ providerId: "claude-cli", anchorTokens: 99_999, contextLimit: 1_000_000, aFloorTokens: claudeFloor }),
+      shouldEnrichAnchor({
+        providerId: "claude-cli",
+        anchorTokens: 127_999,
+        contextLimit: 1_000_000,
+        aFloorTokens: claudeFloor,
+      }),
     ).toBe(false)
     expect(
-      shouldEnrichAnchor({ providerId: "claude-cli", anchorTokens: 30_000, contextLimit: 1_000_000, aFloorTokens: claudeFloor }),
+      shouldEnrichAnchor({
+        providerId: "claude-cli",
+        anchorTokens: 30_000,
+        contextLimit: 1_000_000,
+        aFloorTokens: claudeFloor,
+      }),
     ).toBe(false)
   })
 
-  it("non-claude keeps the legacy context-ratio gate byte-identical (INV-0)", () => {
-    // Large window (>128K) => 0.4 gate. codex aFloorTokens is IGNORED on this path.
+  it("non-claude uses the SAME absolute floor (DD-3/DD-8: ratio gate retired, no ratio path exists)", () => {
+    // codex 272K window: anchor below 128K floor => skip, regardless of any ratio.
     expect(
-      shouldEnrichAnchor({ providerId: "codex", anchorTokens: 160_000, contextLimit: 1_000_000, aFloorTokens: 50_000 }),
-    ).toBe(false) // 0.16 < 0.4 — unchanged from legacy
+      shouldEnrichAnchor({ providerId: "codex", anchorTokens: 127_999, contextLimit: 272_000, aFloorTokens: 128_000 }),
+    ).toBe(false)
+    // codex: anchor at floor => enrich. Old 0.4 ratio gate would need 108.8K(0.4×272K);
+    // the point is the trigger is the FLOOR, not any window proportion.
     expect(
-      shouldEnrichAnchor({ providerId: "codex", anchorTokens: 410_000, contextLimit: 1_000_000, aFloorTokens: 50_000 }),
-    ).toBe(true) // 0.41 >= 0.4
-    // Small window (≤128K) => 0.25 gate.
+      shouldEnrichAnchor({ providerId: "codex", anchorTokens: 128_000, contextLimit: 272_000, aFloorTokens: 128_000 }),
+    ).toBe(true)
+    // 1M-window general provider: 160K anchor (0.16 ratio — legacy 0.4 gate said skip)
+    // now enriches because it crosses the absolute floor.
     expect(
-      shouldEnrichAnchor({ providerId: "copilot-cli", anchorTokens: 40_000, contextLimit: 128_000, aFloorTokens: 50_000 }),
-    ).toBe(true) // 0.3125 >= 0.25
+      shouldEnrichAnchor({
+        providerId: "copilot-cli",
+        anchorTokens: 160_000,
+        contextLimit: 1_000_000,
+        aFloorTokens: 128_000,
+      }),
+    ).toBe(true)
+    // Tiny anchor in any window: below floor => skip.
     expect(
-      shouldEnrichAnchor({ providerId: "copilot-cli", anchorTokens: 30_000, contextLimit: 128_000, aFloorTokens: 50_000 }),
-    ).toBe(false) // 0.234 < 0.25
+      shouldEnrichAnchor({
+        providerId: "copilot-cli",
+        anchorTokens: 40_000,
+        contextLimit: 272_000,
+        aFloorTokens: 128_000,
+      }),
+    ).toBe(false)
   })
 })
 
@@ -93,7 +127,12 @@ describe("A-tier drain gate fed by the shared estimator (anchor-unbounded-growth
     const floor = 100_000
     // OLD inlined chars/4 = 30K → drain gate FALSE → anchor never shrinks (the bug)
     expect(
-      shouldEnrichAnchor({ providerId: "claude-cli", anchorTokens: legacyDiv4(cjkAnchor), contextLimit: 1_000_000, aFloorTokens: floor }),
+      shouldEnrichAnchor({
+        providerId: "claude-cli",
+        anchorTokens: legacyDiv4(cjkAnchor),
+        contextLimit: 1_000_000,
+        aFloorTokens: floor,
+      }),
     ).toBe(false)
     // shared ToolBudget.estimateTokens (now CJK-aware) ≈ 120K → gate TRUE → drain fires (the fix)
     expect(

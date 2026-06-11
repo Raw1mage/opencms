@@ -1369,6 +1369,35 @@ export namespace SessionPrompt {
       })
     }
 
+    // compaction_enrichment-ai-first DD-9 — per-session freerun override.
+    // `/freerun off` exits freerun even when the small-window auto-route
+    // (contextLimit ≤ 128K) or the provider tag would select it; `/freerun on`
+    // forces it; `/freerun clear` removes the override. This is the explicit
+    // decision gate the DD-9 routing depends on — same best-effort posture as
+    // the autorun verbal trigger above.
+    try {
+      const userText = extractUserText(
+        input.parts as ReadonlyArray<{ type: string; text?: string; synthetic?: boolean }>,
+      )
+      const match = /^\/freerun\s+(on|off|clear)\s*$/i.exec(userText.trim())
+      if (match) {
+        const verb = match[1].toLowerCase() as "on" | "off" | "clear"
+        await Session.updateFreerunOverride({
+          sessionID: input.sessionID,
+          override: verb === "clear" ? undefined : verb,
+        })
+        log.info("freerun override updated via /freerun command", {
+          sessionID: input.sessionID,
+          override: verb,
+        })
+      }
+    } catch (err) {
+      log.warn("freerun override command failed", {
+        sessionID: input.sessionID,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+
     // this is backwards compatibility for allowing `tools` to be specified when
     // prompting
     const permissions: PermissionNext.Ruleset = []
@@ -1436,13 +1465,11 @@ export namespace SessionPrompt {
   }): Promise<void> {
     const session = await Session.get(input.sessionID).catch(() => null)
     if (!session) return
-    const providerId = session.execution?.providerId ?? input.model?.providerId
-    if (!providerId) return
-    const cfg = await Config.get()
-    const providerCfg = (cfg.provider as Record<string, { mode?: "full" | "lite" | "freerun" }> | undefined)?.[
-      providerId
-    ]
-    if (providerCfg?.mode !== "freerun") return
+    // DD-10: all freerun verdicts go through the single resolver (provider
+    // tag OR small context window ≤128K, with per-session override).
+    const { FreerunResolver } = await import("./freerun-resolver")
+    const freerun = await FreerunResolver.isFreerunSession(input.sessionID, input.model)
+    if (!freerun) return
 
     // Already armed? Leave it. (User may have explicitly disarmed mid-session.)
     if (session.workflow?.autonomous.enabled === true) return
