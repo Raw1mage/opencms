@@ -342,6 +342,28 @@ export namespace Session {
      * without grepping logs. Append via `appendRecentEvent`.
      */
     recentEvents: z.array(SessionRecentEvent).optional(),
+    /**
+     * session/identity-ledger (L2): identity of the most recent assistant turn
+     * that actually COMMITTED (reached a `finish`). Recorded at the turn-finish
+     * choke-point (updateMessage) so provider/account-switch detection can read
+     * the authoritative committed identity instead of re-deriving it by scanning
+     * message history (which produced repeated edge-case RCAs: 2026-04-28
+     * execution-vs-message, 2026-05-26 undefined account, 2026-06-12
+     * anchor-without-finish). Compaction anchors have no `finish` → never
+     * recorded (correct; not real calls). Additive + optional: detection prefers
+     * it when present, falls back to the scan when absent (zero regression for
+     * sessions predating this field). Full scan-retirement + pending-cutover
+     * transition model deferred.
+     */
+    committed: z
+      .object({
+        providerId: z.string(),
+        modelID: z.string(),
+        accountId: z.string().optional(),
+        at: z.number(),
+        sourceMessageId: z.string(),
+      })
+      .optional(),
   })
   export type ExecutionIdentity = z.output<typeof ExecutionIdentity>
 
@@ -1154,6 +1176,36 @@ export namespace Session {
         },
         { touch: false },
       ).catch(() => {})
+    }
+    // session/identity-ledger (L2): record committed identity at the turn-finish
+    // choke-point. When an assistant message first reaches a `finish` it
+    // represents one real outbound call under its (providerId, accountId);
+    // record it so provider/account-switch detection can read the authoritative
+    // committed identity instead of re-deriving it by scanning history. Fires
+    // once per turn (only when `finish` newly appears). Compaction anchors have
+    // no finish → never recorded.
+    if (msg.role === "assistant") {
+      const a = msg as MessageV2.Assistant
+      const prev = previous as MessageV2.Assistant | undefined
+      if (a.finish && !prev?.finish && a.providerId) {
+        await update(
+          msg.sessionID,
+          (draft) => {
+            if (!draft.execution) return
+            draft.execution = {
+              ...draft.execution,
+              committed: {
+                providerId: a.providerId,
+                modelID: a.modelID,
+                accountId: a.accountId,
+                at: Date.now(),
+                sourceMessageId: a.id,
+              },
+            }
+          },
+          { touch: false },
+        ).catch(() => {})
+      }
     }
     Bus.publish(MessageV2.Event.Updated, {
       info: msg,

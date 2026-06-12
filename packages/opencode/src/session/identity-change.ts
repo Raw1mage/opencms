@@ -37,6 +37,7 @@ export type IdentityChangeReason =
   | "no-prior-provider" // prior message had no providerId
   | "provider-changed" // provider id differs
   | "import-suppressed" // provider differs but prior is import anchor
+  | "anchor-already-rebased" // provider differs from last finished turn, but the head compaction anchor already carries the incoming provider — we already switched
   | "same-account" // both providers and accounts match
   | "account-changed" // same provider, different account
   | "skip-absent-prior-account" // prior accountId undefined; cannot compare
@@ -57,6 +58,20 @@ export interface PriorIdentity {
    * post-import prompt does not trigger a compaction.
    */
   isImport?: boolean
+  /**
+   * providerId of the MOST RECENT compaction anchor (`summary === true`)
+   * when that anchor is the head of the assistant stream — i.e. no finished
+   * real turn sits after it. A provider-switch compaction stamps its anchor
+   * with the NEW provider but writes no `finish`, so the finish-gated scan
+   * that produces `providerId` above keeps resolving to the pre-switch
+   * finished turn. Without this signal the next prompt re-detects the same
+   * switch and re-compacts forever (provider-switch compaction loop,
+   * issue_20260612). When this equals the incoming provider we have already
+   * rebased and must NOT re-declare a provider switch. Scoped to the provider
+   * dimension only — account comparison still uses the finished-turn identity
+   * (2026-04-28 / 2026-05-26 codex cache-key RCA must not regress).
+   */
+  anchorProviderId?: string
 }
 
 export interface IncomingIdentity {
@@ -80,6 +95,13 @@ export function detectIdentityChange(prior: PriorIdentity | undefined, incoming:
 
   if (prior.providerId !== incoming.providerId) {
     if (prior.isImport) return { kind: "none", reason: "import-suppressed" }
+    // The head compaction anchor already carries the incoming provider: a
+    // prior provider-switch already wrote a (finish-less) anchor for this
+    // exact provider, so the cut-over happened. Re-declaring the switch here
+    // would re-compact and silently exit on every subsequent prompt, never
+    // letting the new provider run (issue_20260612). Provider dimension only.
+    if (prior.anchorProviderId === incoming.providerId)
+      return { kind: "none", reason: "anchor-already-rebased" }
     return { kind: "provider", reason: "provider-changed" }
   }
 
