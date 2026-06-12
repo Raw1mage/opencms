@@ -1,6 +1,7 @@
 import path from "node:path"
 import fs from "node:fs/promises"
 import { Global } from "@/global"
+import { Installation } from "@/installation"
 import { RestartHandover } from "./restart-handover"
 
 export namespace DaemonStartupLog {
@@ -99,6 +100,7 @@ export namespace DaemonStartupLog {
         socketPath: event.socketPath,
         port: event.port,
         hostname: event.hostname,
+        buildId: Installation.BUILD_ID,
       })
     }
     return { path: logPath(), event }

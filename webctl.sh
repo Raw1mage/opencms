@@ -2025,6 +2025,134 @@ _write_binary_stamp() {
     _binary_source_fingerprint > "${BINARY_STAMP_FILE}"
 }
 
+# Bun shim sanitation (plans/infra_build-id-handshake DD-9): bun injects a
+# /tmp/bun-node-<hash>/ dir (node+bun symlinks → process.execPath) into the
+# PATH of package scripts. The hash dir is keyed by bun version, reused
+# blindly, and — verified experimentally — IGNORES TMPDIR/BUN_TMPDIR, so env
+# scrubbing alone cannot dodge a poisoned shim (e.g. symlinks pointing at the
+# opencode binary after a daemon-context bun invocation). These dirs are pure
+# disposable caches: purge any whose symlinks do not resolve to a real bun;
+# bun recreates correct ones on next use.
+_sanitize_bun_shims() {
+    local dir target
+    for dir in /tmp/bun-node-*; do
+        [ -d "${dir}" ] || continue
+        target="$(readlink -f "${dir}/bun" 2>/dev/null || true)"
+        if [ -z "${target}" ] || [ "$(basename "${target}")" != "bun" ]; then
+            log_warn "Purging poisoned bun shim cache: ${dir} (bun → ${target:-missing})"
+            rm -rf "${dir}"
+        fi
+    done
+}
+
+# Hermetic build (plans/infra_build-id-handshake DD-5): run script/build.ts in a
+# scrubbed environment so poisoned ambient state can never silently corrupt the
+# build. `env -i` drops inherited PATH; bun is invoked by absolute path; shim
+# caches are sanitized first (DD-9) because bun pins them to /tmp regardless of
+# TMPDIR. The post-build build-id assertion (DD-4a) remains the hard gate.
+_hermetic_build_binary() {
+    local BUN_BIN
+    BUN_BIN="$(find_bun)"
+    _sanitize_bun_shims
+    local build_tmp
+    build_tmp="$(mktemp -d /tmp/opencode-build.XXXXXX)"
+    local rc=0
+    (
+        cd "${PROJECT_ROOT}" && \
+        env -i \
+            HOME="${HOME}" \
+            USER="${USER:-$(id -un)}" \
+            PATH="$(dirname "${BUN_BIN}"):/usr/local/bin:/usr/bin:/bin" \
+            TMPDIR="${build_tmp}" \
+            "${BUN_BIN}" run script/build.ts --single "$@"
+    ) || rc=$?
+    rm -rf "${build_tmp}"
+    return "${rc}"
+}
+
+# Inject expectedBuildId into the active restart checkpoint (DD-6). Called from
+# the prod reload path after the dist binary has passed its build-id assertions;
+# the new daemon compares its compiled BUILD_ID against this value on handover
+# completion and marks the restart failed on mismatch (no rollback, evidence only).
+_inject_expected_build_id() {
+    local txid="${OPENCODE_RESTART_TXID:-}"
+    [ -n "${txid}" ] || return 0
+    local sidecar="${PROJECT_ROOT}/dist/.build-id"
+    [ -f "${sidecar}" ] || return 0
+    command -v jq >/dev/null 2>&1 || { log_warn "jq missing; expectedBuildId not recorded"; return 0; }
+    local state_root="${XDG_STATE_HOME:-${HOME}/.local/state}/opencode"
+    local safe_txid
+    safe_txid="$(printf '%s' "${txid}" | tr -c 'A-Za-z0-9_.-' '-')"
+    local checkpoint="${state_root}/restart-handover/${safe_txid}.json"
+    [ -f "${checkpoint}" ] || return 0
+    local expected
+    expected="$(tr -d '[:space:]' < "${sidecar}")"
+    local tmp="${checkpoint}.tmp-webctl-$$"
+    if jq --arg bid "${expected}" '. + {expectedBuildId: $bid}' "${checkpoint}" > "${tmp}" 2>/dev/null; then
+        chmod 600 "${tmp}" 2>/dev/null || true
+        mv "${tmp}" "${checkpoint}"
+        log_info "expectedBuildId recorded in restart checkpoint: ${expected}"
+    else
+        rm -f "${tmp}"
+        log_warn "Failed to inject expectedBuildId into ${checkpoint}"
+    fi
+}
+
+# Post-restart health verification (DD-7): after daemons respawn, the serving
+# daemon must report the build-id we just built/installed. Retries to ride out
+# daemon startup; persistent mismatch means an old binary is serving — fail.
+_verify_health_build_id() {
+    local txid="${1:-unknown}"
+    local sidecar="${PROJECT_ROOT}/dist/.build-id"
+    [ -f "${sidecar}" ] || return 0
+    command -v jq >/dev/null 2>&1 || { log_warn "jq missing; skipping health build-id verification"; return 0; }
+    local expected actual attempt
+    expected="$(tr -d '[:space:]' < "${sidecar}")"
+    for attempt in $(seq 1 15); do
+        actual="$(curl -s --max-time 3 "http://localhost:${WEB_PORT}/api/v2/global/health" 2>/dev/null | jq -r '.buildId // empty' 2>/dev/null)"
+        if [ "${actual}" = "${expected}" ]; then
+            log_success "health buildId verified: ${actual}"
+            append_restart_event "${txid}" "build-id" "ok" "health buildId matches ${actual}" "prod" "1"
+            return 0
+        fi
+        sleep 2
+    done
+    append_restart_event "${txid}" "build-id" "failed" "health buildId mismatch: expected ${expected}, got ${actual:-none}" "prod" "1"
+    log_error "build-id verification failed: health reports '${actual:-none}', expected '${expected}'"
+    return 1
+}
+
+# Build-ID assertion (plans/infra_build-id-handshake DD-4): the dist binary must
+# self-report the exact build-id recorded in the dist/.build-id sidecar written
+# by the same build. Any mismatch means a stale or wrong binary is about to be
+# trusted — fail fast, never deploy silently.
+_assert_build_id() {
+    local label="${1:-build}"
+    local dist_bin="${PROJECT_ROOT}/dist/opencode-linux-x64/bin/opencode"
+    local sidecar="${PROJECT_ROOT}/dist/.build-id"
+    if [ ! -f "${dist_bin}" ]; then
+        log_error "build-id assertion (${label}): dist binary missing — run: ./webctl.sh build-binary --force"
+        return 1
+    fi
+    if [ ! -f "${sidecar}" ]; then
+        log_error "build-id assertion (${label}): sidecar dist/.build-id missing (pre-handshake build) — run: ./webctl.sh build-binary --force"
+        return 1
+    fi
+    local expected actual
+    expected="$(cat "${sidecar}" 2>/dev/null | tr -d '[:space:]')"
+    actual="$("${dist_bin}" --build-id 2>/dev/null | tail -1 | tr -d '[:space:]')" || true
+    if [ -z "${actual}" ]; then
+        log_error "build-id assertion (${label}): binary does not answer --build-id (legacy binary) — run: ./webctl.sh build-binary --force"
+        return 1
+    fi
+    if [ "${actual}" != "${expected}" ]; then
+        log_error "build-id assertion (${label}): MISMATCH binary=${actual} sidecar=${expected} — stale dist binary; run: ./webctl.sh build-binary --force"
+        return 1
+    fi
+    log_info "build-id verified (${label}): ${actual}"
+    return 0
+}
+
 _binary_needs_install() {
     local dist_bin="${PROJECT_ROOT}/dist/opencode-linux-x64/bin/opencode"
     local install_bin="${1:-/usr/local/bin/opencode}"
@@ -2068,19 +2196,16 @@ do_build_binary() {
         return 0
     fi
 
-    log_info "Building opencode binary (current platform)..."
+    log_info "Building opencode binary (current platform, hermetic env)..."
 
-    local BUN_BIN
-    BUN_BIN="$(find_bun)"
-
-    cd "${PROJECT_ROOT}"
-
-    if [ ! -d "node_modules" ]; then
-        log_info "Installing dependencies..."
-        "${BUN_BIN}" install
+    if ! _hermetic_build_binary; then
+        log_error "Binary build failed — aborting (no stamp written, old dist binary untouched)."
+        exit 1
     fi
 
-    "${BUN_BIN}" run script/build.ts --single
+    if ! _assert_build_id "post-build"; then
+        exit 1
+    fi
 
     _write_binary_stamp
     log_success "Binary built: ${PROJECT_ROOT}/dist/opencode-linux-x64/bin/opencode"
@@ -2637,10 +2762,18 @@ do_reload() {
     if [ "${mode}" = "prod" ]; then
         # ── Prod mode: build binary + atomic install + deploy frontend ──
 
-        # 3. Build binary (smart: skip if source unchanged)
+        # 3. Build binary (smart: skip if source unchanged; hermetic env, DD-5)
         if [ "${force}" -eq 1 ] || _binary_needs_build; then
-            log_info "Binary source changed — building..."
-            "${BUN_BIN}" run script/build.ts --single --skip-install
+            log_info "Binary source changed — building (hermetic env)..."
+            if ! _hermetic_build_binary --skip-install; then
+                log_error "Binary build failed — aborting restart (old binary stays installed, no stamp written)."
+                exit 1
+            fi
+            # Assertion point (a): freshly built binary must self-report the
+            # sidecar build-id (DD-4a). Catches silent build corruption.
+            if ! _assert_build_id "post-build"; then
+                exit 1
+            fi
             _write_binary_stamp
             did_build_bin=1
         else
@@ -2654,6 +2787,12 @@ do_reload() {
         fi
 
         if _binary_needs_install "${install_bin}"; then
+            # Assertion point (b): never install a dist binary whose identity
+            # doesn't match the sidecar (DD-4b) — stale dist artifacts from a
+            # previously failed build must not reach /usr/local/bin.
+            if ! _assert_build_id "pre-install"; then
+                exit 1
+            fi
             log_info "Installing binary (atomic replace)..."
             local dist_bin="${PROJECT_ROOT}/dist/opencode-linux-x64/bin/opencode"
             sudo cp "${dist_bin}" "${install_bin}.new"
@@ -2663,6 +2802,10 @@ do_reload() {
         else
             log_info "Installed binary already up-to-date — skip install"
         fi
+
+        # Record expectedBuildId in the active restart checkpoint (DD-6) so the
+        # new daemon can assert its own identity on handover completion.
+        _inject_expected_build_id
 
         # 5. Deploy frontend (smart: skip if tar checksum matches)
         if _frontend_needs_deploy; then
@@ -2712,6 +2855,16 @@ do_reload() {
         fi
     else
         log_info "No artifacts changed — daemons untouched"
+    fi
+
+    # 7b. Post-restart build-id verification (DD-7): when a new binary was
+    #     installed and daemons were restarted, the serving daemon must report
+    #     the build-id we just deployed. Mismatch = old binary serving = fail.
+    if [ "${mode}" = "prod" ] && [ "${did_install_bin}" -eq 1 ] && [ "${did_kill}" -eq 1 ]; then
+        if ! _verify_health_build_id "${OPENCODE_RESTART_TXID:-reload}"; then
+            log_error "Reload finished but serving daemon does NOT run the deployed build — investigate before trusting this deploy."
+            exit 1
+        fi
     fi
 
     # 8. Summary

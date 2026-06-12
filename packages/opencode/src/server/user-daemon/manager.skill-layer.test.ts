@@ -41,6 +41,7 @@ mock.module("@/system/linux-user-exec", () => ({
   LinuxUserExec: {
     sanitizeUsername: (value?: string) => value,
     resolveLinuxUserUID: () => 1000,
+    isSudoer: () => false,
   },
 }))
 

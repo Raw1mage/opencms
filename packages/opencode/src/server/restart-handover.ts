@@ -3,7 +3,9 @@ import path from "node:path"
 import { Global } from "@/global"
 
 export namespace RestartHandover {
-  export type Status = "restart-requested" | "restart-completed"
+  export type Status = "restart-requested" | "restart-completed" | "restart-failed"
+
+  export type BuildIdCheck = "match" | "mismatch" | "skipped-legacy"
 
   export type Input = {
     txid: string
@@ -30,6 +32,12 @@ export namespace RestartHandover {
     handover?: string
     errorLogPath?: string
     webctlPath?: string
+    // Build-ID handshake (plans/infra_build-id-handshake DD-6): webctl injects
+    // expectedBuildId (from dist/.build-id) after a verified build; the new
+    // daemon compares its compiled BUILD_ID on completion.
+    expectedBuildId?: string
+    buildIdCheck?: BuildIdCheck
+    failureReason?: string
     validationNextSteps: string[]
     completedAt?: string
     completedBy?: {
@@ -51,6 +59,9 @@ export namespace RestartHandover {
     socketPath?: string
     port?: number
     hostname?: string
+    // The BUILD_ID compiled into the daemon completing the handover (DD-6).
+    // Injectable for tests; callers pass Installation.BUILD_ID.
+    buildId?: string
   }
 
   export function dir() {
@@ -130,9 +141,28 @@ export namespace RestartHandover {
       throw new Error(`restart checkpoint txid mismatch: expected ${input.txid}, got ${checkpoint.txid}`)
     }
 
+    // Build-ID handshake (DD-6): when webctl recorded an expectedBuildId, the
+    // daemon completing the handover must be the binary that build produced.
+    // A mismatch marks the restart as failed — no rollback, no fallback; the
+    // failure is recorded as evidence for the operator.
+    let buildIdCheck: BuildIdCheck = "skipped-legacy"
+    let status: Status = "restart-completed"
+    let failureReason: string | undefined
+    if (checkpoint.expectedBuildId) {
+      if (input.buildId && input.buildId !== "local" && input.buildId === checkpoint.expectedBuildId) {
+        buildIdCheck = "match"
+      } else {
+        buildIdCheck = "mismatch"
+        status = "restart-failed"
+        failureReason = `build-id mismatch: expected ${checkpoint.expectedBuildId}, daemon reports ${input.buildId ?? "(none)"}`
+      }
+    }
+
     const completed: Checkpoint = {
       ...checkpoint,
-      status: "restart-completed",
+      status,
+      buildIdCheck,
+      failureReason,
       completedAt,
       completedBy: {
         pid: input.pid,

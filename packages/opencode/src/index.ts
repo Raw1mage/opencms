@@ -56,6 +56,13 @@ import { registerAutorunDisarmObserver } from "./session/autorun/observer"
 import { SessionCache } from "./server/session-cache"
 import { RateLimit } from "./server/rate-limit"
 
+// Build-ID handshake (plans/infra_build-id-handshake DD-3): print build identity
+// and exit before any subscriber/worker starts. Used by webctl assertion points.
+if (process.argv.slice(2).includes("--build-id")) {
+  console.log(Installation.BUILD_ID)
+  process.exit(0)
+}
+
 registerDebugWriter()
 registerTelemetryRuntimePersistence()
 registerTaskWorkerContinuationSubscriber()

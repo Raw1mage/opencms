@@ -36,6 +36,16 @@ Examples:
   process.exit(0)
 }
 
+// Build-ID handshake (plans/infra_build-id-handshake DD-1): unique per-build identity
+// <git-sha-short>[-dirty].<epoch-seconds>, generated once and shared by all targets.
+const buildId = await (async () => {
+  const sha = (await $`git rev-parse --short HEAD`.text()).trim()
+  if (!sha) throw new Error("build-id generation failed: git rev-parse returned empty")
+  const dirty = (await $`git status --porcelain`.text()).trim().length > 0
+  return `${sha}${dirty ? "-dirty" : ""}.${Math.floor(Date.now() / 1000)}`
+})()
+console.log(`build-id: ${buildId}`)
+
 const refreshModels = process.argv.includes("--refresh-models")
 const modelsSnapshotPath = path.join(dir, "packages/opencode/src/provider/models-snapshot.ts")
 if (process.env.MODELS_DEV_API_JSON || refreshModels) {
@@ -241,6 +251,7 @@ for (const item of targets) {
       OPENCODE_VERSION: `'${Script.version}'`,
       OTUI_TREE_SITTER_WORKER_PATH: bunfsRoot + workerRelativePath,
       OPENCODE_CHANNEL: `'${Script.channel}'`,
+      OPENCODE_BUILD_ID: `'${buildId}'`,
       OPENCODE_LIBC: item.os === "linux" ? `'${item.abi ?? "glibc"}'` : "",
     },
   })
@@ -286,6 +297,11 @@ for (const item of targets) {
   )
   binaries[name] = Script.version
 }
+
+// Build-ID handshake (DD-3): sidecar written only after every binary emit succeeded.
+// webctl asserts `dist binary --build-id` output equals this file before install.
+await Bun.write(path.join(dir, "dist/.build-id"), `${buildId}\n`)
+console.log(`build-id sidecar: dist/.build-id (${buildId})`)
 
 if (Script.release) {
   for (const key of Object.keys(binaries)) {

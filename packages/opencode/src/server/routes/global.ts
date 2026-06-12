@@ -136,7 +136,7 @@ export const GlobalRoutes = lazy(() =>
             description: "Health information",
             content: {
               "application/json": {
-                schema: resolver(z.object({ healthy: z.literal(true), version: z.string() })),
+                schema: resolver(z.object({ healthy: z.literal(true), version: z.string(), buildId: z.string() })),
               },
             },
           },
@@ -151,6 +151,7 @@ export const GlobalRoutes = lazy(() =>
         return c.json({
           healthy: true,
           version: Installation.VERSION,
+          buildId: Installation.BUILD_ID,
           daemon: {
             state: daemonInfo.state,
             activeTasks: daemonInfo.activeTasks,
