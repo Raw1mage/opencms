@@ -1762,7 +1762,7 @@ export namespace SessionPrompt {
     //
     // No assistant messages → fresh session, nothing to invalidate, skip.
     if (!session.parentID && options?.incomingModel) {
-      const lastAssistantIdentity = await (async () => {
+      const scanned = await (async () => {
         const msgs = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
         // headAnchorProviderId: provider of the most recent compaction anchor
         // (summary===true) IFF it is the head of the assistant stream (no
@@ -1801,6 +1801,27 @@ export namespace SessionPrompt {
           }
         return undefined
       })()
+      // session/identity-ledger (L2): prefer the authoritative committed
+      // identity (recorded at turn-finish) over the history scan. In normal
+      // operation committed.{providerId,accountId} == the scan's most-recent
+      // finished turn (same message), so this is a NO-OP for the common case;
+      // it only diverges when the scan would have been wrong (the edge-case
+      // RCA family this ledger exists to retire). mode/agent are dropped when
+      // committed is present because a real turn having committed means the
+      // session is past any import-pending state (isImport → false); the Phase-0
+      // anchorProviderId guard is still taken from the scan. Absent committed
+      // (sessions predating this field, or right after import before any real
+      // turn) → fall back to the full scan unchanged (zero regression).
+      const committed = (await Session.get(sessionID).catch(() => undefined))?.execution?.committed
+      const lastAssistantIdentity = committed
+        ? {
+            providerId: committed.providerId as string | undefined,
+            accountId: committed.accountId as string | undefined,
+            mode: undefined as string | undefined,
+            agent: undefined as string | undefined,
+            anchorProviderId: scanned?.anchorProviderId,
+          }
+        : scanned
       // Imported assistant messages carry a historical providerId that
       // doesn't represent a live API chain. Skip provider switch detection
       // so the first post-import prompt doesn't trigger a compaction that
