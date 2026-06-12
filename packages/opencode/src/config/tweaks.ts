@@ -219,6 +219,16 @@ export namespace Tweaks {
      */
     enableHybridLlm: boolean
     llmTimeoutMs: number
+    /**
+     * ai-paid-event-consistency DD-5 (2026-06-12): timeout budget for
+     * BACKGROUND ai_paid enrichment (busMode "hybrid_llm_background").
+     * The 30s `llmTimeoutMs` was sized for the pre-DD-13 era when LLM
+     * input was capped at 30K tokens; DD-13 feeds the FULL anchor
+     * (>=128K gate floor), which physically cannot complete prefill +
+     * output within 30s. Background enrichment has no user waiting, so
+     * it gets a wide budget; foreground keeps the fast 30s fail.
+     */
+    llmTimeoutBackgroundMs: number
     fallbackProvider: string
     phase2MaxAnchorTokens: number
     pinnedZoneMaxTokensRatio: number
@@ -461,6 +471,7 @@ export namespace Tweaks {
   const COMPACTION_DEFAULTS: CompactionConfig = {
     enableHybridLlm: true,
     llmTimeoutMs: 30_000,
+    llmTimeoutBackgroundMs: 180_000,
     fallbackProvider: "",
     phase2MaxAnchorTokens: 5_000,
     pinnedZoneMaxTokensRatio: 0.3,
@@ -1122,6 +1133,11 @@ export namespace Tweaks {
     if (cmpTimeoutRaw !== undefined) {
       const v = parseIntRange(cmpTimeoutRaw, "compaction_llm_timeout_ms", 5_000, 300_000)
       if (v !== undefined) compaction.llmTimeoutMs = v
+    }
+    const cmpTimeoutBgRaw = parsed.get("compaction_llm_timeout_background_ms")
+    if (cmpTimeoutBgRaw !== undefined) {
+      const v = parseIntRange(cmpTimeoutBgRaw, "compaction_llm_timeout_background_ms", 30_000, 600_000)
+      if (v !== undefined) compaction.llmTimeoutBackgroundMs = v
     }
     const cmpFallbackRaw = parsed.get("compaction_fallback_provider")
     if (cmpFallbackRaw !== undefined) {

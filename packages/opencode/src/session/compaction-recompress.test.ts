@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 import { SessionCompaction } from "./compaction"
+import { CompactionManager } from "./compaction-manager"
 import { Session } from "."
 import { Tweaks } from "../config/tweaks"
 import { Plugin } from "@/plugin"
@@ -460,5 +461,83 @@ describe("scheduleHybridEnrichment ai_paid outcomes", () => {
     expect(failed).toBeTruthy()
     expect(failed.enrichment.detail).toContain("ai_paid_failed")
     expect(failed.enrichment.detail).toContain("E_HYBRID_LLM_FAILED")
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────
+// ai-paid-event-consistency (issue 20260612_session_resume_ai_paid_
+// compaction_timeout): runLlmCompact's finally publish must carry the
+// REAL outcome (DD-1) so a failed ai_paid attempt is never recorded as
+// compaction success:true next to an enrichment failed event. The
+// `success !== false` default in publishCompactedAndResetChain stays
+// for local kinds (DD-2).
+// ─────────────────────────────────────────────────────────────────────
+
+describe("ai-paid event consistency (DD-1/DD-2)", () => {
+  let originalAppendRecentEvent: typeof Session.appendRecentEvent
+  let originalSetActiveImageRefs: typeof Session.setActiveImageRefs
+
+  beforeEach(() => {
+    originalAppendRecentEvent = Session.appendRecentEvent
+    originalSetActiveImageRefs = Session.setActiveImageRefs
+  })
+
+  afterEach(() => {
+    ;(Session as any).appendRecentEvent = originalAppendRecentEvent
+    ;(Session as any).setActiveImageRefs = originalSetActiveImageRefs
+    // Restore the production publish executor replaced by setPublishExecutor.
+    SessionCompaction.__test__.wireCompactionManager()
+  })
+
+  it("runLlmCompact failure → finally publish carries success:false (DD-1, no contradictory pair)", async () => {
+    const captured: Array<{ sessionID: string; meta: any }> = []
+    CompactionManager.setPublishExecutor((sessionID, meta) => captured.push({ sessionID, meta }))
+    // Empty stream → runLlmCompactInner returns {ok:false, reason:"no_response"}
+    ;(Session as any).messages = mock(async () => [])
+
+    const result = await (SessionCompaction.Hybrid as any).runLlmCompact(
+      "ses_test",
+      {
+        priorAnchor: null,
+        journalUnpinned: [],
+        framing: { mode: "phase1", strict: false },
+        targetTokens: 1_000,
+      },
+      { abort: new AbortController().signal, observed: "cache-aware" },
+    )
+
+    expect(result.ok).toBe(false)
+    expect(captured.length).toBe(1)
+    expect(captured[0].meta).toMatchObject({ kind: "ai_paid", success: false, observed: "cache-aware" })
+  })
+
+  it("publishCompactedAndResetChain: explicit success honored, local-kind default stays true (DD-2)", async () => {
+    const recentEvents: any[] = []
+    ;(Session as any).appendRecentEvent = mock(async (_sid: string, ev: any) => recentEvents.push(ev))
+    ;(Session as any).setActiveImageRefs = mock(async () => {})
+
+    // Failed ai_paid attempt — meta now carries success:false (DD-1 caller)
+    await SessionCompaction.publishCompactedAndResetChain("ses_test", {
+      observed: "cache-aware",
+      kind: "ai_paid",
+      success: false,
+    })
+    // Successful ai_paid attempt
+    await SessionCompaction.publishCompactedAndResetChain("ses_test", {
+      observed: "cache-aware",
+      kind: "ai_paid",
+      success: true,
+    })
+    // Local kind without explicit success — default true preserved (DD-2)
+    await SessionCompaction.publishCompactedAndResetChain("ses_test", {
+      observed: "overflow",
+      kind: "narrative",
+    })
+
+    const compactions = recentEvents.filter((e) => e.kind === "compaction")
+    expect(compactions.length).toBe(3)
+    expect(compactions[0].compaction).toMatchObject({ kind: "ai_paid", success: false })
+    expect(compactions[1].compaction).toMatchObject({ kind: "ai_paid", success: true })
+    expect(compactions[2].compaction).toMatchObject({ kind: "narrative", success: true })
   })
 })

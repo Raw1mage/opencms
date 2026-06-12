@@ -192,9 +192,30 @@ function shortAccount(accountId?: string): string {
     .replace(/-(thesmart-cc|gmail-com|sob-com-tw|gmail|outlook-com)$/, "")
 }
 
+/**
+ * ai-paid-event-consistency DD-3: an enrichment failure is NON-FATAL when the
+ * active anchor is a successful narrative compaction — the paid background
+ * upgrade timed out / failed, but the narrative summary is retained and the
+ * session is healthy (DD-11: anchor untouched, retry at next gate). Scan
+ * backward from the enrichment event for the most recent SUCCESSFUL
+ * compaction (unsuccessful ones don't change the active anchor — same rule
+ * as decideAmnesiaInjection). If that anchor is narrative, degrade the
+ * rendering to a warning instead of an error.
+ */
+function isEnrichmentFailureDegraded(events: RecentExecutionEvent[], index: number): boolean {
+  for (let i = index - 1; i >= 0; i--) {
+    const e = events[i]
+    if (e.kind !== "compaction" || !e.compaction) continue
+    if (e.compaction.success !== true) continue
+    return e.compaction.kind === "narrative"
+  }
+  return false
+}
+
 function formatRecentEventLine(
   e: RecentExecutionEvent,
   accountLabel?: (accountId?: string, providerId?: string) => string | undefined,
+  opts?: { degradeEnrichmentFailure?: boolean },
 ): string {
   const t = new Date(e.ts)
   const hh = t.getHours().toString().padStart(2, "0")
@@ -222,6 +243,11 @@ function formatRecentEventLine(
       en.tokensBefore !== undefined && en.tokensAfter !== undefined
         ? ` (${(en.tokensBefore / 1000).toFixed(0)}k → ${(en.tokensAfter / 1000).toFixed(0)}k)`
         : ""
+    // DD-3: degraded failure = paid background upgrade failed but the
+    // narrative anchor is alive — warning wording, no ✗ error marker.
+    if (en.status === "failed" && opts?.degradeEnrichmentFailure) {
+      return `${hh}:${mm} enrichment: upgrade skipped — narrative summary retained${detail}${tokens}`
+    }
     return `${hh}:${mm} enrichment: ${en.status}${en.status === "failed" ? " ✗" : ""}${detail}${tokens}`
   }
   if (e.kind === "cache-cliff" && e.cacheCliff) {
@@ -356,7 +382,22 @@ export function RecentEventsCard(props: {
   expanded?: boolean
   onToggle?: () => void
 }) {
-  const events = () => (props.recentEvents ?? []).slice().reverse()
+  // DD-3: pre-compute degradation on the ORIGINAL (chronological) order —
+  // isEnrichmentFailureDegraded scans backward from the event's position,
+  // so it must run before the display-order reverse below.
+  const lines = () => {
+    const original = props.recentEvents ?? []
+    return original
+      .map((event, i) =>
+        formatRecentEventLine(event, props.accountLabel, {
+          degradeEnrichmentFailure:
+            event.kind === "enrichment" && event.enrichment?.status === "failed"
+              ? isEnrichmentFailureDegraded(original, i)
+              : false,
+        }),
+      )
+      .reverse()
+  }
   return (
     <TelemetryCardShell
       marker="[E]"
@@ -365,16 +406,12 @@ export function RecentEventsCard(props: {
       onToggle={props.onToggle}
     >
       <Show
-        when={events().length > 0}
+        when={lines().length > 0}
         fallback={<div class="text-12-regular text-text-weak">No recent rotation/compaction events.</div>}
       >
         <div class="max-h-64 overflow-y-auto flex flex-col gap-1 pr-1">
-          <For each={events()}>
-            {(event) => (
-              <div class="text-11-regular text-text-weak break-words font-mono">
-                {formatRecentEventLine(event, props.accountLabel)}
-              </div>
-            )}
+          <For each={lines()}>
+            {(line) => <div class="text-11-regular text-text-weak break-words font-mono">{line}</div>}
           </For>
         </div>
       </Show>

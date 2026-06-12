@@ -4586,17 +4586,26 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
       // Visibility — TUI / web shows "Compacting..." badge from this event.
       // Defaults to 'hybrid_llm' (foreground) unless caller specifies background.
       Bus.publish(Event.CompactionStarted, { sessionID, mode: opts.busMode ?? "hybrid_llm" })
+      // ai-paid-event-consistency DD-1: capture the inner result so the
+      // finally publish carries the REAL outcome. Before this fix the meta
+      // had no `success` field and publishCompactedAndResetChain's
+      // `success !== false` default recorded failed ai_paid attempts as
+      // success:true — contradicting the paired enrichment failed event
+      // (issue 20260612_session_resume_ai_paid_compaction_timeout).
+      // A throw from the inner call counts as failure; the exception
+      // still propagates to the caller unchanged.
+      let result: LlmCompactResult | undefined
       try {
-        return await runLlmCompactInner(sessionID, request, opts)
+        result = await runLlmCompactInner(sessionID, request, opts)
+        return result
       } finally {
         // Always dismiss the UI toast AND reset codex chain, even on
-        // failure / timeout. Subscribers that need success/failure
-        // discrimination should look at the LlmCompactResult.ok flag
-        // returned to the caller.
+        // failure / timeout. meta.success carries the attempt's true
+        // outcome (DD-1); undefined result (inner threw) → false.
         CompactionManager.requestPublish({
           sessionID,
           origin: "runLlmCompact",
-          meta: { observed: opts.observed ?? "manual", kind: "ai_paid" },
+          meta: { observed: opts.observed ?? "manual", kind: "ai_paid", success: result?.ok === true },
         })
       }
     }
@@ -4750,9 +4759,18 @@ Honour DROP_MARKERS: do not mention dropped tool_call ids.
         time: { created: Date.now() },
       } as any)) as MessageV2.Assistant
 
-      // Wire timeout: combine caller's abort with a timeout-driven one
-      // so the LLM call gets aborted at compaction_llm_timeout_ms (DD-6).
-      const timeoutMs = Tweaks.compactionSync().llmTimeoutMs
+      // Wire timeout: combine caller's abort with a timeout-driven one.
+      // ai-paid-event-consistency DD-5: budget is busMode-differentiated.
+      // Background enrichment (busMode "hybrid_llm_background") feeds the
+      // FULL anchor (>=128K gate floor per DD-13) — prefill + output
+      // physically cannot finish within the foreground 30s budget (the
+      // 30s constant was sized for the pre-DD-13 30K-input cap era).
+      // No user is waiting on background, so it gets the wide
+      // compaction_llm_timeout_background_ms (default 180s). Foreground
+      // (manual /compact etc.) keeps the fast 30s fail.
+      const tweaksSync = Tweaks.compactionSync()
+      const timeoutMs =
+        opts.busMode === "hybrid_llm_background" ? tweaksSync.llmTimeoutBackgroundMs : tweaksSync.llmTimeoutMs
       const timeoutCtl = new AbortController()
       const timeoutTimer = setTimeout(() => timeoutCtl.abort(), timeoutMs)
       const combinedAbort = AbortSignal.any([opts.abort, timeoutCtl.signal])
