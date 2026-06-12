@@ -898,6 +898,30 @@ describe("session.message-v2.toModelMessage", () => {
     ])
   })
 
+  test("same-provider reasoning stripped when stripReasoningFromModelInput flag on (Completion 1)", () => {
+    const Tweaks = require("../../src/config/tweaks").Tweaks
+    const orig = Tweaks.compactionSync
+    Tweaks.compactionSync = () => ({ ...orig(), stripReasoningFromModelInput: true })
+    try {
+      const assistantID = "m-asst-flag"
+      const input: MessageV2.WithParts[] = [
+        {
+          info: assistantInfo(assistantID, "m-parent"), // providerId = "test" == default model (same provider)
+          parts: [
+            { ...basePart(assistantID, "r1"), type: "reasoning", text: "thinking", time: { start: 0 } },
+            { ...basePart(assistantID, "t1"), type: "text", text: "answer" },
+          ] as MessageV2.Part[],
+        },
+      ]
+      // same provider, but flag ON → CoT not round-tripped into input
+      expect(MessageV2.toModelMessages(input, model)).toStrictEqual([
+        { role: "assistant", content: [{ type: "text", text: "answer" }] },
+      ])
+    } finally {
+      Tweaks.compactionSync = orig
+    }
+  })
+
   test("splits assistant messages on step-start boundaries", () => {
     const assistantID = "m-assistant"
 
