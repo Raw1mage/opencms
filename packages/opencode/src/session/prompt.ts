@@ -1762,17 +1762,66 @@ export namespace SessionPrompt {
     //
     // No assistant messages → fresh session, nothing to invalidate, skip.
     if (!session.parentID && options?.incomingModel) {
-      const lastAssistantIdentity = await (async () => {
+      const scanned = await (async () => {
         const msgs = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
+        // headAnchorProviderId: provider of the most recent compaction anchor
+        // (summary===true) IFF it is the head of the assistant stream (no
+        // finished real turn after it). A provider-switch compaction writes
+        // such an anchor stamped with the NEW provider but no `finish`; we
+        // capture it so detectIdentityChange can tell "already rebased" apart
+        // from "needs to switch" and avoid the re-compaction loop
+        // (issue_20260612). Provider dimension only — see identity-change.ts.
+        let headAnchorProviderId: string | undefined
+        let sawFinishedAssistant = false
         for (let i = msgs.length - 1; i >= 0; i--) {
           const info = msgs[i].info
-          if (info.role === "assistant" && (info as MessageV2.Assistant).finish) {
-            const a = info as MessageV2.Assistant
-            return { providerId: a.providerId, accountId: a.accountId, mode: a.mode, agent: a.agent }
+          if (info.role !== "assistant") continue
+          const a = info as MessageV2.Assistant
+          if (headAnchorProviderId === undefined && !sawFinishedAssistant && a.summary === true) {
+            headAnchorProviderId = a.providerId
+          }
+          if (a.finish) {
+            sawFinishedAssistant = true
+            return {
+              providerId: a.providerId as string | undefined,
+              accountId: a.accountId as string | undefined,
+              mode: a.mode as string | undefined,
+              agent: a.agent as string | undefined,
+              anchorProviderId: headAnchorProviderId,
+            }
           }
         }
+        if (headAnchorProviderId !== undefined)
+          return {
+            providerId: undefined as string | undefined,
+            accountId: undefined as string | undefined,
+            mode: undefined as string | undefined,
+            agent: undefined as string | undefined,
+            anchorProviderId: headAnchorProviderId,
+          }
         return undefined
       })()
+      // session/identity-ledger (L2): prefer the authoritative committed
+      // identity (recorded at turn-finish) over the history scan. In normal
+      // operation committed.{providerId,accountId} == the scan's most-recent
+      // finished turn (same message), so this is a NO-OP for the common case;
+      // it only diverges when the scan would have been wrong (the edge-case
+      // RCA family this ledger exists to retire). mode/agent are dropped when
+      // committed is present because a real turn having committed means the
+      // session is past any import-pending state (isImport → false); the Phase-0
+      // anchorProviderId guard is still taken from the scan. Absent committed
+      // (sessions predating this field, or right after import before any real
+      // turn) → fall back to the full scan unchanged (zero regression).
+      const committed = (await Session.get(sessionID).catch(() => undefined))?.execution?.committed
+      const lastAssistantIdentity = committed
+        ? {
+            providerId: committed.providerId as string | undefined,
+            accountId: committed.accountId as string | undefined,
+            mode: undefined as string | undefined,
+            agent: undefined as string | undefined,
+            anchorProviderId: scanned?.anchorProviderId,
+          }
+        : scanned
       // Imported assistant messages carry a historical providerId that
       // doesn't represent a live API chain. Skip provider switch detection
       // so the first post-import prompt doesn't trigger a compaction that
@@ -1795,6 +1844,7 @@ export namespace SessionPrompt {
               providerId: lastAssistantIdentity.providerId,
               accountId: lastAssistantIdentity.accountId,
               isImport: prevIsImport,
+              anchorProviderId: lastAssistantIdentity.anchorProviderId,
             }
           : undefined,
         { providerId: nextProvider, accountId: nextAccount },
@@ -1868,10 +1918,63 @@ export namespace SessionPrompt {
           // full-retransmit, no server chain → compacting only forces a needless
           // SS-break amnesia; codex/general: yes — smaller windows, context
           // representation changes). Chain-reset is separate (Continuation.run).
-          if (!CompactionManager.shouldCompactOnTakeover(nextProvider)) {
-            log.info("provider switch: takeover needs no compaction (full-retransmit provider), entering main loop", {
+          //
+          // provider-switch-handover D-ASSEMBLE (branch A): handover is
+          // selection, not compaction. The session already holds anchor + tail;
+          // if that representation already fits the INCOMING provider's window
+          // with headroom (≤50% — leaving room to work), hand it over verbatim
+          // (the main loop sends it via filterCompacted) — DON'T compact. We
+          // estimate the size the incoming provider would actually receive via
+          // toModelMessages(filtered, model), which also reflects the Phase-1
+          // cross-provider reasoning strip. Only when over-window do we fall
+          // through to the existing takeover compaction (branch B/C).
+          const HANDOVER_FIT_RATIO = 0.5
+          const incomingWindow = model.limit?.context ?? 0
+          let handoverFitsIncoming = false
+          if (incomingWindow > 0) {
+            try {
+              const projectedChars = JSON.stringify(MessageV2.toModelMessages(filtered.messages, model)).length
+              const projectedTokens = Math.ceil(projectedChars / 4) // ~4 chars/token (matches CHARS_PER_TOKEN)
+              handoverFitsIncoming = projectedTokens <= Math.floor(incomingWindow * HANDOVER_FIT_RATIO)
+              log.info("provider switch: handover size-fit check", {
+                sessionID,
+                nextProvider,
+                projectedTokens,
+                incomingWindow,
+                fitRatio: HANDOVER_FIT_RATIO,
+                fits: handoverFitsIncoming,
+              })
+            } catch {
+              handoverFitsIncoming = false // on estimate failure, fall through to compaction (safe)
+            }
+          }
+          const ssProviderNeedsCompact = CompactionManager.shouldCompactOnTakeover(nextProvider)
+          if (!ssProviderNeedsCompact || handoverFitsIncoming) {
+            // provider-switch-handover branch A: hand over the existing
+            // representation (anchor + tail) without compaction. For an SS
+            // provider (codex) that would normally compact, the compaction's
+            // SS-break chain reset is skipped on this path — dispatch the
+            // provider_switch chain reset explicitly so the incoming provider's
+            // server chain starts fresh. (Full-retransmit/SL providers like
+            // claude have no server chain → keep the original no-op skip.)
+            if (ssProviderNeedsCompact && handoverFitsIncoming) {
+              const { Continuation } = await import("./continuation/run")
+              await Continuation.run({
+                kind: "provider_switch",
+                sessionID,
+                previousProviderId: prevProvider ?? "unknown",
+                providerId: nextProvider,
+              }).catch((err) => {
+                log.warn("provider switch (fits-incoming): Continuation.run threw", {
+                  sessionID,
+                  error: err instanceof Error ? err.message : String(err),
+                })
+              })
+            }
+            log.info("provider switch: takeover needs no compaction, entering main loop", {
               sessionID,
               nextProvider,
+              reason: handoverFitsIncoming ? "fits-incoming-window" : "full-retransmit-provider",
             })
           } else {
             // user-msg-replay-unification DD-3: snapshot the unanswered user
