@@ -1991,14 +1991,25 @@ export namespace SessionPrompt {
             // is derived from the most recent anchor's time.created, not stored).
             // S5/DD-13: route the EXECUTION through the manager (ledger parity) —
             // transparent monitor wrapping the existing writeAnchorFromBody write.
+            // provider-switch-handover Completion 2 (step 3 of over-window
+            // escalation): we only reach this branch when the existing
+            // representation did NOT fit the incoming window. The takeover
+            // anchor body (snap = existing A+B) may itself exceed it — truncate
+            // to "A + reasonable tail of B" (keep head/summary + recent rounds,
+            // elide the middle) so the handover fits. Budget mirrors the
+            // size-gate (HANDOVER_FIT_RATIO of the incoming window).
+            const handoverBody =
+              snap ??
+              `[Provider switched from ${prevProvider} to ${nextProvider}. Previous conversation context was not recoverable. The user may re-state their request.]`
+            const handoverBudgetChars =
+              incomingWindow > 0 ? Math.floor(incomingWindow * HANDOVER_FIT_RATIO) * 4 : Number.MAX_SAFE_INTEGER
+            const handoverSnapshot = SessionCompaction.truncateAnchorBodyToBudget(handoverBody, handoverBudgetChars)
             await CompactionManager.requestProviderSwitchCompact(
               { sessionID, cause: { prevProvider, nextProvider } },
               () =>
                 SessionCompaction.compactWithSharedContext({
                   sessionID,
-                  snapshot:
-                    snap ??
-                    `[Provider switched from ${prevProvider} to ${nextProvider}. Previous conversation context was not recoverable. The user may re-state their request.]`,
+                  snapshot: handoverSnapshot,
                   model,
                   auto: false,
                   observed: "provider-switched",
