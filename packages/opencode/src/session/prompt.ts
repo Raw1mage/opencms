@@ -1764,13 +1764,41 @@ export namespace SessionPrompt {
     if (!session.parentID && options?.incomingModel) {
       const lastAssistantIdentity = await (async () => {
         const msgs = await Session.messages({ sessionID }).catch(() => [] as MessageV2.WithParts[])
+        // headAnchorProviderId: provider of the most recent compaction anchor
+        // (summary===true) IFF it is the head of the assistant stream (no
+        // finished real turn after it). A provider-switch compaction writes
+        // such an anchor stamped with the NEW provider but no `finish`; we
+        // capture it so detectIdentityChange can tell "already rebased" apart
+        // from "needs to switch" and avoid the re-compaction loop
+        // (issue_20260612). Provider dimension only — see identity-change.ts.
+        let headAnchorProviderId: string | undefined
+        let sawFinishedAssistant = false
         for (let i = msgs.length - 1; i >= 0; i--) {
           const info = msgs[i].info
-          if (info.role === "assistant" && (info as MessageV2.Assistant).finish) {
-            const a = info as MessageV2.Assistant
-            return { providerId: a.providerId, accountId: a.accountId, mode: a.mode, agent: a.agent }
+          if (info.role !== "assistant") continue
+          const a = info as MessageV2.Assistant
+          if (headAnchorProviderId === undefined && !sawFinishedAssistant && a.summary === true) {
+            headAnchorProviderId = a.providerId
+          }
+          if (a.finish) {
+            sawFinishedAssistant = true
+            return {
+              providerId: a.providerId as string | undefined,
+              accountId: a.accountId as string | undefined,
+              mode: a.mode as string | undefined,
+              agent: a.agent as string | undefined,
+              anchorProviderId: headAnchorProviderId,
+            }
           }
         }
+        if (headAnchorProviderId !== undefined)
+          return {
+            providerId: undefined as string | undefined,
+            accountId: undefined as string | undefined,
+            mode: undefined as string | undefined,
+            agent: undefined as string | undefined,
+            anchorProviderId: headAnchorProviderId,
+          }
         return undefined
       })()
       // Imported assistant messages carry a historical providerId that
@@ -1795,6 +1823,7 @@ export namespace SessionPrompt {
               providerId: lastAssistantIdentity.providerId,
               accountId: lastAssistantIdentity.accountId,
               isImport: prevIsImport,
+              anchorProviderId: lastAssistantIdentity.anchorProviderId,
             }
           : undefined,
         { providerId: nextProvider, accountId: nextAccount },
