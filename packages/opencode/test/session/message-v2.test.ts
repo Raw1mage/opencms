@@ -862,6 +862,42 @@ describe("session.message-v2.toModelMessage", () => {
     ])
   })
 
+  test("strips reasoning when replaying to a different provider (Phase 1 cot-output-only)", () => {
+    // A reasoning part carries provider-specific signature metadata that is
+    // foreign noise to another provider; on a provider switch the reasoning
+    // husk must not cross. Same-provider replay keeps it unchanged.
+    const codexModel = { ...model, id: "gpt-5.5", providerId: "codex" } as Provider.Model
+    const assistantID = "m-asst-xp"
+    const input: MessageV2.WithParts[] = [
+      {
+        info: assistantInfo(assistantID, "m-parent"), // providerId = "test" (matches default model)
+        parts: [
+          { ...basePart(assistantID, "r1"), type: "reasoning", text: "thinking", time: { start: 0 } },
+          { ...basePart(assistantID, "t1"), type: "text", text: "answer" },
+        ] as MessageV2.Part[],
+      },
+    ]
+
+    // same provider (test → test): reasoning preserved
+    expect(MessageV2.toModelMessages(input, model)).toStrictEqual([
+      {
+        role: "assistant",
+        content: [
+          { type: "reasoning", text: "thinking", providerOptions: undefined },
+          { type: "text", text: "answer" },
+        ],
+      },
+    ])
+
+    // cross provider (test → codex): reasoning stripped, text kept
+    expect(MessageV2.toModelMessages(input, codexModel)).toStrictEqual([
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "answer" }],
+      },
+    ])
+  })
+
   test("splits assistant messages on step-start boundaries", () => {
     const assistantID = "m-assistant"
 

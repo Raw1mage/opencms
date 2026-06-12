@@ -1143,6 +1143,17 @@ export namespace MessageV2 {
           if (part.type === "reasoning") {
             replayDebug.reasoningParts++
             if (hasRemoteItemId(part.metadata)) replayDebug.reasoningItemIds++
+            // Phase 1 (CoT output-only / spec session/cot-output-only DD-4):
+            // a reasoning part carries provider-specific signature metadata
+            // (e.g. anthropic.signature) that is meaningful ONLY to its origin
+            // provider. When replaying history to a DIFFERENT provider (e.g.
+            // claude → codex on a provider switch), the signature is foreign
+            // noise on an empty-text husk — drop the whole reasoning part.
+            // This resolves provider-switch-handover D-VERIFY at zero risk.
+            // (The broader same-provider strip — "CoT never round-trips into
+            // input at all" — is deferred: it changes the live interleaved-
+            // thinking path and needs runtime verification before enabling.)
+            if (msg.info.providerId && model.providerId && msg.info.providerId !== model.providerId) continue
             assistantMessage.parts.push({
               type: "reasoning",
               text: part.text,
