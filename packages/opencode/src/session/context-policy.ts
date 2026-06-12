@@ -38,6 +38,18 @@ export const CLAUDE_NOOP_OBSERVED: ReadonlySet<string> = new Set([
 export const CLAUDE_CACHE_TTL_MS = 60 * 60 * 1000
 
 /**
+ * a-tier-gate-floor DD-1/DD-2: bounded undercount compensation cap for the
+ * A-tier enrichment gate. The chars estimator undercounts mixed markdown/code
+ * anchors by ~1.3x (recency-fadeout-tiers DD-9); the real-prompt signal may
+ * lift the estimate by at most this ratio. Without the cap, `real - reserve`
+ * (an UNBOUNDED whole-prompt size) structurally wins max() at cache-aware
+ * high-watermark and short-circuits the gate to always-true — anchor size
+ * stops participating entirely. Physical estimation-error constant, not an
+ * ops tunable (deliberately NOT in tweaks).
+ */
+export const UNDERCOUNT_CAP_RATIO = 1.5
+
+/**
  * Most recent COMPLETED assistant turn's total prompt tokens (input + cache.read
  * + cache.write), newest→oldest, skipping compaction-anchor rows (summary===true)
  * and rows without recorded tokens. REAL provider-reported size, not an estimate.
@@ -158,7 +170,18 @@ class ClaudePolicy implements ContextPolicy {
   }
 
   gateAnchorTokens(input: { estimateTokens: number; realPromptTokens: number; systemReserveTokens: number }): number {
-    return Math.max(input.estimateTokens, input.realPromptTokens - input.systemReserveTokens)
+    // a-tier-gate-floor DD-1: bounded undercount compensation. The real-prompt
+    // floor (recency-fadeout-tiers DD-9) compensates the chars estimator's
+    // ~1.3x undercount, but realPromptTokens measures the WHOLE prompt (system
+    // + tail + anchor), not the anchor — unbounded relative to anchor size. At
+    // cache-aware high-watermark `real - reserve` always exceeded aFloorTokens,
+    // so max() alone made the gate structurally true. Cap the lift at 1.5x the
+    // estimate so the bounded estimation error is covered without letting
+    // prompt size impersonate anchor size.
+    return Math.min(
+      Math.max(input.estimateTokens, input.realPromptTokens - input.systemReserveTokens),
+      Math.ceil(input.estimateTokens * UNDERCOUNT_CAP_RATIO),
+    )
   }
 
   projectAnchors(msgs: MessageV2.WithParts[]): MessageV2.WithParts[] {

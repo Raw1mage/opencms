@@ -1854,11 +1854,17 @@ When constructing the summary, try to stick to this template:
         // longer make the aFloor gate under-fire → enrichment skip → anchor pinned
         // high → weak B-only churn. See claude-context-policy gateAnchorTokensForClaude.
         const REAL_SYSTEM_RESERVE = 40_000
+        const realPromptTokens = latestRealPromptTokens(messagesPre)
         const gateAnchorTokens = policy.gateAnchorTokens({
           estimateTokens: narrativeTokens,
-          realPromptTokens: latestRealPromptTokens(messagesPre),
+          realPromptTokens,
           systemReserveTokens: REAL_SYSTEM_RESERVE,
         })
+        // a-tier-gate-floor DD-5: derive whether the 1.5x undercount cap clipped
+        // the real-prompt floor (claude only) so a single skip log line exposes
+        // the gate decision without re-deriving the formula.
+        const capApplied =
+          claudePath && gateAnchorTokens < Math.max(narrativeTokens, realPromptTokens - REAL_SYSTEM_RESERVE)
         const belowGate = !policy.shouldEnrichAnchor({
           anchorTokens: gateAnchorTokens,
           contextLimit,
@@ -1869,6 +1875,8 @@ When constructing the summary, try to stick to this template:
             sessionID,
             narrativeTokens,
             gateAnchorTokens,
+            realPromptTokens,
+            capApplied,
             contextLimit,
             anchorRatio,
             claudePath,
