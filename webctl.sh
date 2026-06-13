@@ -2108,8 +2108,17 @@ _verify_health_build_id() {
     command -v jq >/dev/null 2>&1 || { log_warn "jq missing; skipping health build-id verification"; return 0; }
     local expected actual attempt
     expected="$(tr -d '[:space:]' < "${sidecar}")"
+    # Query the DAEMON directly via its unix socket — it self-reports buildId.
+    # The C gateway's /api/v2/global/health returns only {healthy,gateway}
+    # (no buildId), so going through ${WEB_PORT} made this check always read
+    # 'none'. Fall back to the gateway port only if the socket is absent.
+    local sock="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/opencode/daemon.sock"
     for attempt in $(seq 1 15); do
-        actual="$(curl -s --max-time 3 "http://localhost:${WEB_PORT}/api/v2/global/health" 2>/dev/null | jq -r '.buildId // empty' 2>/dev/null)"
+        if [ -S "${sock}" ]; then
+            actual="$(curl -s --max-time 3 --unix-socket "${sock}" "http://localhost/api/v2/global/health" 2>/dev/null | jq -r '.buildId // empty' 2>/dev/null)"
+        else
+            actual="$(curl -s --max-time 3 "http://localhost:${WEB_PORT}/api/v2/global/health" 2>/dev/null | jq -r '.buildId // empty' 2>/dev/null)"
+        fi
         if [ "${actual}" = "${expected}" ]; then
             log_success "health buildId verified: ${actual}"
             append_restart_event "${txid}" "build-id" "ok" "health buildId matches ${actual}" "prod" "1"
