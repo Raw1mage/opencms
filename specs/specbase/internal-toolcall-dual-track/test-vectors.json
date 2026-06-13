@@ -1,0 +1,44 @@
+[
+  {
+    "id": "tv-native-event-record",
+    "tool": "specbase_event_record",
+    "given": "opencode daemon, specbase not in opencode mcp.json",
+    "input": { "summary": "tv probe", "body": "x", "scope": "documents" },
+    "expect": "returns a slug; row appended to <repo>/.specbase/events.sqlite; no packages/mcp/src/index.ts child spawned by daemon"
+  },
+  {
+    "id": "tv-native-event-search-roundtrip",
+    "tool": "specbase_event_search",
+    "given": "tv-native-event-record just ran",
+    "input": { "q": "tv probe" },
+    "expect": "hit list includes the slug from tv-native-event-record"
+  },
+  {
+    "id": "tv-parity-id-set",
+    "tool": "(meta)",
+    "given": "native layer registered",
+    "input": "enumerate ToolRegistry ids with prefix specbase_",
+    "expect": "id set ⊇ { specbase_event_record, specbase_event_search, specbase_event_query, specbase_wiki_search, specbase_wiki_get, specbase_plan_create, specbase_spec_amend, ... } (the set agents rely on)"
+  },
+  {
+    "id": "tv-no-stale-after-bump",
+    "tool": "(meta)",
+    "given": "submodule bumped to a commit adding a new lib tool, daemon rebuilt",
+    "input": "call the new tool",
+    "expect": "immediately available; no 'unavailable tool' (no long-lived child snapshot)"
+  },
+  {
+    "id": "tv-external-mcp-unchanged",
+    "tool": "(external host)",
+    "given": "Claude Code connects @specbase/mcp via its own config",
+    "input": "list specbase tools over MCP",
+    "expect": "tool surface + behavior identical to pre-change (dual-track intact)"
+  },
+  {
+    "id": "tv-no-daemon-child",
+    "tool": "(meta)",
+    "given": "native path active",
+    "input": "pgrep -f 'packages/mcp/src/index.ts' filtered to opencode daemon children",
+    "expect": "zero specbase children under the opencode daemon"
+  }
+]

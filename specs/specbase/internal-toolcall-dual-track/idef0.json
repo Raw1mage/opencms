@@ -1,0 +1,22 @@
+{
+  "diagram_title": "specbase dual-track: in-process toolcall + retained external MCP",
+  "node_reference": "A0",
+  "activities": [
+    { "id": "A1", "title": "Maintain TOOL_DEFINITIONS in @specbase/lib (single source)" },
+    { "id": "A2", "title": "Adapt defs to MCP transport (@specbase/mcp, external hosts)" },
+    { "id": "A3", "title": "Adapt defs to opencode native ToolRegistry (in-process)" },
+    { "id": "A4", "title": "Resolve repo/scope context per call" }
+  ],
+  "arrows": [
+    { "id": "i1", "type": "input", "source": "EXTERNAL", "target": "A1:input", "label": "lib core fns: event log / FTS / wiki / plan" },
+    { "id": "o1", "type": "output", "source": "A1:output", "target": "A2:input", "label": "tool defs (name/schema/handler)" },
+    { "id": "o2", "type": "output", "source": "A1:output", "target": "A3:input", "label": "tool defs (name/schema/handler)" },
+    { "id": "i2", "type": "input", "source": "EXTERNAL", "target": "A4:input", "label": "Instance.directory / primary lang" },
+    { "id": "o3", "type": "output", "source": "A4:output", "target": "A3:input", "label": "resolved repo scope" },
+    { "id": "c1", "type": "control", "source": "EXTERNAL", "target": "A3:control", "label": "DD-6 id parity (specbase_*) + permission ruleset" },
+    { "id": "m1", "type": "mechanism", "source": "EXTERNAL", "target": "A3:mechanism", "label": "git submodule @specbase/lib + opencode ToolRegistry" },
+    { "id": "m2", "type": "mechanism", "source": "EXTERNAL", "target": "A2:mechanism", "label": "stdio MCP server" },
+    { "id": "out1", "type": "output", "source": "A3:output", "target": "EXTERNAL", "label": "in-process tool result + .specbase write" },
+    { "id": "out2", "type": "output", "source": "A2:output", "target": "EXTERNAL", "label": "MCP tool result (external hosts)" }
+  ]
+}

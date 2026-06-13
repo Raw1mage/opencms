@@ -1,0 +1,45 @@
+{
+  "title": "specbase dual-track data shapes",
+  "entities": {
+    "ToolDefinition": {
+      "description": "Single source-of-truth tool definition exported by @specbase/lib (DD-5); both adapters consume it.",
+      "fields": {
+        "name": "string (canonical tool name, e.g. 'event_record')",
+        "description": "string",
+        "inputSchema": "JSONSchema object",
+        "handler": "(args: object, ctx: SpecbaseToolCtx) => Promise<result>"
+      }
+    },
+    "SpecbaseToolCtx": {
+      "description": "Context both adapters supply to a handler; replaces MCP env injection for the native path (DD-8).",
+      "fields": {
+        "repo": "string (target repo owning the .specbase store; parity with SPECBASE_TARGET_REPO this round)",
+        "lang": "string (primary language, e.g. 'zh-Hant')",
+        "abortSignal": "AbortSignal | undefined",
+        "logger": "logger | undefined"
+      }
+    },
+    "NativeToolId": {
+      "description": "opencode ToolRegistry id, preserved from the MCP path (DD-6).",
+      "pattern": "specbase_<toolName>",
+      "examples": ["specbase_event_record", "specbase_event_search", "specbase_wiki_search", "specbase_plan_create"]
+    },
+    "EventStore": {
+      "description": "Unchanged on-disk store; written in-process instead of via stdio.",
+      "path": "<repo>/.specbase/events.sqlite",
+      "access": "append-only event log + FTS index (existing @specbase/lib behavior)"
+    },
+    "SubmoduleRef": {
+      "description": "How opencode pins @specbase/lib (DD-4).",
+      "fields": {
+        "path": "opencode submodule path (e.g. vendor/specbase or external/specbase)",
+        "pinned_commit": "string (specbase commit sha; bumped manually to update)"
+      }
+    }
+  },
+  "invariants": [
+    "MCP adapter and native layer never implement logic — both only project ToolDefinition over their transport (DD-2/DD-5).",
+    "native NativeToolId set ⊇ the specbase_* ids agents rely on (parity, DD-6).",
+    "no opencode-spawned specbase child process exists once native path is active."
+  ]
+}

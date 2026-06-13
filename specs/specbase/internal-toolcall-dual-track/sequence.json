@@ -1,0 +1,26 @@
+[
+  {
+    "title": "Native in-process specbase tool call (opencode)",
+    "participants": ["Agent", "ToolRegistry", "specbase native layer", "@specbase/lib", ".specbase store"],
+    "messages": [
+      { "from": "Agent", "to": "ToolRegistry", "text": "call specbase_event_record(args)" },
+      { "from": "ToolRegistry", "to": "specbase native layer", "text": "dispatch (permission ok)" },
+      { "from": "specbase native layer", "to": "@specbase/lib", "text": "eventRecord(args, {repo, lang})" },
+      { "from": "@specbase/lib", "to": ".specbase store", "text": "append row (sqlite)" },
+      { "from": ".specbase store", "to": "@specbase/lib", "text": "slug" },
+      { "from": "@specbase/lib", "to": "specbase native layer", "text": "result" },
+      { "from": "specbase native layer", "to": "Agent", "text": "tool result (no child process)" }
+    ]
+  },
+  {
+    "title": "External host specbase tool call over MCP (unchanged)",
+    "participants": ["External host (Claude Code)", "@specbase/mcp (stdio)", "@specbase/lib", ".specbase store"],
+    "messages": [
+      { "from": "External host (Claude Code)", "to": "@specbase/mcp (stdio)", "text": "MCP callTool event_record(args)" },
+      { "from": "@specbase/mcp (stdio)", "to": "@specbase/lib", "text": "eventRecord(args, ctx) [same defs]" },
+      { "from": "@specbase/lib", "to": ".specbase store", "text": "append row (sqlite)" },
+      { "from": "@specbase/lib", "to": "@specbase/mcp (stdio)", "text": "result" },
+      { "from": "@specbase/mcp (stdio)", "to": "External host (Claude Code)", "text": "MCP result" }
+    ]
+  }
+]

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-06-11T16:11:33.269Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-06-11T16:20:47.697Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "補齊 spec.md / sequence.json / data-schema.json，design.md 補 Context·Goals/Non-Goals·Risks/Trade-offs·Critical Files；idef0/grafcet 通過 drawmiat 驗證"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-06-11T16:28:20.899Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "補齊 test-vectors.json / errors.md（Error Catalogue）/ observability.md（Events·Metrics）；tasks + handoff 已備"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-06-11T23:20:34.559Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "跨兩 repo 實作完成並部署上線；T7 cosmetic 待辦"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-06-11T23:20:49.546Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "所有任務完成；驗證：typecheck 0、full binary build 0、native probe roundtrip pass、部署後 daemon 健康且 opencode 下 0 個 specbase MCP 子行程（native 生效、雙管路保留）"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-06-13T10:52:36.063Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "user-confirmed graduation — specbase dual-track 實作完成、跨兩 repo 部署上線並驗證（native 生效、雙管路保留）"
+    }
+  ]
+}
