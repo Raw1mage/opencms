@@ -32,6 +32,7 @@ import {
   type ContextNode,
   type TriggerMode,
   type FreerunFinalStatus,
+  type GoalBinding,
 } from "../freerun/types"
 
 const log = Log.create({ service: "session.freerun-bridge" })
@@ -67,12 +68,13 @@ export namespace FreerunBridge {
     const providerId = session.execution?.providerId
     const modelId = session.execution?.modelID
     if (!providerId || !modelId) return null
+    if (session.workflow?.freerunOverride === "off") return null
 
     const providerCfg = (cfg.provider as Record<
       string,
       { lite?: boolean; mode?: "full" | "lite" | "freerun"; options?: { baseURL?: string; apiKey?: string } }
     > | undefined)?.[providerId]
-    if (providerCfg?.mode !== "freerun") return null
+    if (providerCfg?.mode !== "freerun" && session.workflow?.freerunOverride !== "on") return null
 
     return {
       providerId,
@@ -104,6 +106,7 @@ export namespace FreerunBridge {
    *   - "paused": freerun-pause set; loop should stop with reason="paused"
    *   - "settled": no actionable node remains; loop should stop with
    *                reason="freerun_settled"
+   *   - "no_root": freerun is selected, but no ContextNode root was seeded
    *   - "none": not a freerun session at all
    *   - "blocked": engine self-blocked (no progress possible)
    */
@@ -112,12 +115,13 @@ export namespace FreerunBridge {
     | { kind: "paused"; status: FreerunFinalStatus }
     | { kind: "settled"; status: FreerunFinalStatus }
     | { kind: "blocked"; status: FreerunFinalStatus }
+    | { kind: "no_root"; info: FreerunSessionInfo }
     | { kind: "none" }
 
   export async function classify(sessionID: string): Promise<SessionState> {
     const info = await detect(sessionID)
     if (info === null) return { kind: "none" }
-    if (!(await hasActiveRoot(sessionID))) return { kind: "none" }
+    if (!(await hasActiveRoot(sessionID))) return { kind: "no_root", info }
 
     const meta = await MetaFS.read(sessionID, Global.Path.data).catch(() => null)
     const status = meta?.final_status ?? "in_progress"
@@ -149,6 +153,7 @@ export namespace FreerunBridge {
     title: string
     body: string
     nowIso?: () => string
+    goalBinding?: GoalBinding
   }): Promise<void> {
     const existing = await hasActiveRoot(input.sessionID)
     if (existing) return
@@ -168,6 +173,7 @@ export namespace FreerunBridge {
       results: null,
       next_intent: "",
       consolidated_summary: null,
+      goal_binding: input.goalBinding ?? { source: "conversation-goal", goal_text: input.body },
     }
     await NodeFS.write(input.sessionID, root, Global.Path.data)
     log.info("freerun root seeded", { sessionID: input.sessionID, title: input.title })

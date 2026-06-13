@@ -200,6 +200,21 @@ describe("freerun NodeDetail", () => {
     expect(r.text).toContain("**relevant_tools**: bash, read")
     expect(r.text).toContain("**relevant_skills**: doc-workflow")
   })
+
+  test("renders plan task binding when present", () => {
+    const node = mkNode({
+      goal_binding: {
+        source: "plan-task",
+        plan_slug: "freerun-icom",
+        task_id: "T1",
+        task_text: "Implement safeguards",
+        acceptance_criteria: [],
+      },
+    })
+    const r = NodeDetail.render(node)
+    expect(r.text).toContain("**goal_source**: plan-task")
+    expect(r.text).toContain("**plan_task**: freerun-icom#T1")
+  })
 })
 
 // ============================================================================
@@ -217,6 +232,8 @@ describe("freerun PromptTemplate", () => {
     expect(out.responseSchemaName).toBe("PlanningOutcome")
     expect(out.systemPrompt).toContain("MODE: planning")
     expect(out.systemPrompt).toContain("decompose")
+    expect(out.systemPrompt).toContain("conversation-goal")
+    expect(out.systemPrompt).toContain("runtime commit protocol")
     expect(out.userMessage).toContain("# Goal (root)")
     expect(out.userMessage).toContain("# Current node")
     expect(out.userMessage).toContain("PlanningOutcome JSON")

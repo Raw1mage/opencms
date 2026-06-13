@@ -144,11 +144,13 @@ describe("freerun goal trigger — seedRoot-only path (no live LLM)", () => {
         results: null,
         next_intent: "",
         consolidated_summary: null,
+        goal_binding: { source: "conversation-goal", goal_text: "the goal body" },
       },
       tmp.path,
     )
     const snap = await Tree.load(sessionId, tmp.path)
     expect(snap.rootId).toBe("root")
     expect(Tree.get(snap, "root").body).toBe("the goal body")
+    expect(Tree.get(snap, "root").goal_binding?.source).toBe("conversation-goal")
   })
 })

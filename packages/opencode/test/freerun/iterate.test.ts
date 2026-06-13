@@ -136,6 +136,27 @@ describe("freerun Iterate.once — planning path", () => {
     expect(root.blockers[0]).toContain("LLM 5xx")
   })
 
+  test("planning blocks protocol/meta children", async () => {
+    await using tmp = await tmpdir({ init: async () => {} })
+    const sessionId = "iter-plan-meta"
+    await NodeFS.write(sessionId, mkNode({ id: "root" }), tmp.path)
+    const llm = mockLlm({
+      planning: () => ({ children: [{ id: "root.meta", title: "Generate ICOM", body: "Emit the JSON schema." }] }),
+    })
+    const result = await Iterate.once({
+      sessionId, dataHome: tmp.path, config: defaultConfig(),
+      llm: llm.client, toolCatalog: TOOL_CATALOG,
+      nowIso: () => "2026-05-26T23:00:00.000Z",
+    })
+    expect(result.kind).toBe("blocked")
+    if (result.kind === "blocked") expect(result.reason).toContain("No Meta-ICOM")
+
+    const snap = await Tree.load(sessionId, tmp.path)
+    const root = Tree.get(snap, "root")
+    expect(root.mode).toBe("blocked")
+    expect(root.children_ids).toEqual([])
+  })
+
   test("planning child id auto-namespaced when LLM emits bare id", async () => {
     await using tmp = await tmpdir({ init: async () => {} })
     const sessionId = "iter-plan-ns"

@@ -27,6 +27,12 @@ export namespace NodeDetail {
     lines.push(`**title**: ${node.title}`)
     lines.push(`**mode**: \`${node.mode}\``)
     lines.push(`**iteration_count**: ${node.iteration_count}`)
+    if (node.goal_binding !== undefined) {
+      lines.push(`**goal_source**: ${node.goal_binding.source}`)
+      if (node.goal_binding.source === "plan-task") {
+        lines.push(`**plan_task**: ${node.goal_binding.plan_slug}#${node.goal_binding.task_id}`)
+      }
+    }
     if (node.relevant_tools !== undefined && node.relevant_tools.length > 0) {
       lines.push(`**relevant_tools**: ${node.relevant_tools.join(", ")}`)
     }

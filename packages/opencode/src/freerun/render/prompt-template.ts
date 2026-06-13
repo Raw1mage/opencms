@@ -91,7 +91,10 @@ export namespace PromptTemplate {
       mode === "planning"
         ? [
             "MODE: planning. You will decompose the current node into 1+ children.",
+            "The root goal may come from a live conversation-goal or a plan-anchored tasks.md item.",
             "Children are concrete sub-steps; emit only what is actually needed — no filler.",
+            "Decompose BELOW the current goal/task boundary; do not redefine, replace, or escape that boundary.",
+            "ICOM, ContextNode, PlanningOutcome, ExecutionOutcome, JSON output, and handover/state updates are runtime commit protocol, NOT child tasks.",
             "For each child, give: id (lowercase kebab/dot path under the current node id), title, brief body.",
             "If a child still needs further decomposition, omit `mode` (engine picks pending-plan).",
             "If a child is ready for direct execution with tools, set `mode: \"pending-exec\"`.",
@@ -146,7 +149,7 @@ export namespace PromptTemplate {
     parts.push("# Your task")
     parts.push(
       mode === "planning"
-        ? "Decompose the current node into actionable children. Emit a PlanningOutcome JSON."
+        ? "Decompose the current node into actionable domain children. Do not create children for producing ICOM/ContextNode/JSON/handover state; those are this iteration's commit protocol. Emit a PlanningOutcome JSON."
         : "Execute the current node using tools where appropriate, then emit an ExecutionOutcome JSON capturing what happened.",
     )
     return parts.join("\n")

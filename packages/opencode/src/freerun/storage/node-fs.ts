@@ -122,6 +122,7 @@ export namespace NodeFS {
     "created_at",
     "updated_at",
     "iteration_count",
+    "goal_binding",
     "relevant_tools",
     "relevant_skills",
   ]

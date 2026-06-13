@@ -50,18 +50,28 @@ export type ContinuationDecisionReason =
   | "todo_complete"
   | "todo_in_progress"
   | "todo_pending"
+  | "freerun_active"
+  | "freerun_no_root"
+  | "freerun_paused"
+  | "freerun_blocked"
+  | "freerun_settled"
   | "dormant_scheduled"
 
 export type AutonomousNextAction =
   | {
       type: "stop"
-      reason: Exclude<ContinuationDecisionReason, "todo_pending" | "todo_in_progress">
+      reason: Exclude<ContinuationDecisionReason, "todo_pending" | "todo_in_progress" | "freerun_active">
     }
   | {
       type: "continue"
       reason: "todo_pending" | "todo_in_progress"
       text: string
       todo: Todo.Info
+    }
+  | {
+      type: "continue"
+      reason: "freerun_active"
+      text: string
     }
 
 export type AutonomousNarration = {
@@ -559,10 +569,13 @@ export function evaluateAutonomousContinuation(input: {
   session: Pick<Session.Info, "parentID" | "workflow" | "time">
   todos: Todo.Info[]
   lastDecisionReason?: ContinuationDecisionReason
+  freerunState?: "active" | "no_root" | "paused" | "blocked" | "settled" | "none"
 }) {
   const next = planAutonomousNextAction(input)
   return next.type === "continue"
-    ? { continue: true as const, reason: next.reason, text: next.text, todo: next.todo }
+    ? next.reason === "freerun_active"
+      ? { continue: true as const, reason: next.reason, text: next.text }
+      : { continue: true as const, reason: next.reason, text: next.text, todo: next.todo }
     : { continue: false as const, reason: next.reason }
 }
 
@@ -577,6 +590,7 @@ export function planAutonomousNextAction(input: {
   session: Pick<Session.Info, "parentID" | "workflow" | "time" | "scheduled">
   todos: Todo.Info[]
   lastDecisionReason?: ContinuationDecisionReason
+  freerunState?: "active" | "no_root" | "paused" | "blocked" | "settled" | "none"
 }): AutonomousNextAction {
   // harness/scheduled-subsession DD-2: a dormant scheduled session is inert to the autonomous
   // engine until the cron heartbeat releases it. Robust even for a future self-target where the
@@ -594,6 +608,19 @@ export function planAutonomousNextAction(input: {
   const workflow = input.session.workflow ?? Session.defaultWorkflow()
   if (workflow.autonomous.enabled === false) {
     return { type: "stop", reason: "not_armed" }
+  }
+
+  switch (input.freerunState) {
+    case "active":
+      return { type: "continue", reason: "freerun_active", text: "Drive the freerun ContextNode engine." }
+    case "no_root":
+      return { type: "stop", reason: "freerun_no_root" }
+    case "paused":
+      return { type: "stop", reason: "freerun_paused" }
+    case "blocked":
+      return { type: "stop", reason: "freerun_blocked" }
+    case "settled":
+      return { type: "stop", reason: "freerun_settled" }
   }
 
   const current = Todo.nextActionableTodo(input.todos)
@@ -621,6 +648,9 @@ export function planAutonomousNextAction(input: {
 
 export function describeAutonomousNextAction(action: AutonomousNextAction): AutonomousNarration {
   if (action.type === "continue") {
+    if (action.reason === "freerun_active") {
+      return { kind: "continue", text: "Runner driving freerun ContextNode engine." }
+    }
     return {
       kind: "continue",
       text:
@@ -642,6 +672,14 @@ export function describeAutonomousNextAction(action: AutonomousNextAction): Auto
         kind: "pause",
         text: "Session is a dormant scheduled task; it fires on its schedule, not via autonomous continuation.",
       }
+    case "freerun_no_root":
+      return { kind: "pause", text: "Freerun is armed but no ContextNode root has been seeded." }
+    case "freerun_paused":
+      return { kind: "pause", text: "Freerun engine is paused." }
+    case "freerun_blocked":
+      return { kind: "pause", text: "Freerun engine is blocked." }
+    case "freerun_settled":
+      return { kind: "complete", text: "Freerun engine has no remaining actionable nodes." }
   }
 }
 
@@ -664,25 +702,41 @@ export async function decideAutonomousContinuation(input: {
 }) {
   const session = await Session.get(input.sessionID)
 
-  // Note: freerun-mode sessions go through the SAME turn-based autonomous
-  // continuation pipeline as any other session. The only freerun-specific
-  // wiring is: (1) FREERUN.md addendum injected at session/llm.ts to tell
-  // the model autonomous is on + no `task` + no `sudo`; (2) auto-arm
-  // autonomous at first user message (session/prompt.ts maybeArmFreerunAutonomous).
-  // Everything below this comment is shared with turn-mode sessions.
+  let freerunState: "active" | "no_root" | "paused" | "blocked" | "settled" | "none" | undefined
+  if (session.workflow?.autonomous.enabled === true) {
+    const { FreerunBridge } = await import("./freerun-bridge")
+    const classified = await FreerunBridge.classify(input.sessionID)
+    freerunState =
+      classified.kind === "active"
+        ? "active"
+        : classified.kind === "no_root"
+          ? "no_root"
+          : classified.kind === "paused"
+            ? "paused"
+            : classified.kind === "blocked"
+              ? "blocked"
+              : classified.kind === "settled"
+                ? "settled"
+                : "none"
+  }
 
   let todos = await Todo.get(input.sessionID)
   let decision = evaluateAutonomousContinuation({
     session,
     todos,
     lastDecisionReason: input.lastDecisionReason,
+    freerunState,
   })
 
   // 2026-05-03: removed auto-refill from tasks.md. Plan-builder skill owns
   // todolist materialization — the AI uses TodoWrite when it decides to
   // advance to the next phase. On todo_complete, just disarm autonomous so
   // the session naturally exits.
-  if (!decision.continue && decision.reason === "todo_complete" && session.workflow?.autonomous.enabled === true) {
+  if (
+    !decision.continue &&
+    (decision.reason === "todo_complete" || decision.reason === "freerun_settled") &&
+    session.workflow?.autonomous.enabled === true
+  ) {
     await Session.updateAutonomous({
       sessionID: input.sessionID,
       policy: { enabled: false },
@@ -690,7 +744,7 @@ export async function decideAutonomousContinuation(input: {
     await Session.setWorkflowState({
       sessionID: input.sessionID,
       state: session.workflow.state,
-      stopReason: "plan_drained",
+      stopReason: decision.reason === "freerun_settled" ? "freerun_settled" : "plan_drained",
     }).catch(() => undefined)
     log.info("autorun completed: todos drained", {
       sessionID: input.sessionID,
@@ -701,6 +755,7 @@ export async function decideAutonomousContinuation(input: {
     sessionID: input.sessionID,
     continue: decision.continue,
     reason: decision.reason,
+    freerunState,
     todosTotal: todos.length,
     todosPending: todos.filter((t) => t.status === "pending").length,
     todosInProgress: todos.filter((t) => t.status === "in_progress").length,

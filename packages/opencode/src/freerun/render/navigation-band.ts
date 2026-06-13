@@ -146,6 +146,12 @@ export namespace NavigationBand {
 
   function formatGoalSection(root: ContextNode, titleOnly = false): string {
     const lines: string[] = ["# Goal (root)", root.title]
+    if (root.goal_binding !== undefined) {
+      lines.push(`source: ${root.goal_binding.source}`)
+      if (root.goal_binding.source === "plan-task") {
+        lines.push(`plan_task: ${root.goal_binding.plan_slug}#${root.goal_binding.task_id}`)
+      }
+    }
     if (!titleOnly && root.body.length > 0) {
       lines.push("", root.body)
     }

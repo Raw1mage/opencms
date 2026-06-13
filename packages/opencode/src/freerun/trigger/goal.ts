@@ -19,6 +19,7 @@ import {
   hashExperimentConfig,
   type ContextNode,
   type ExperimentConfig as ExperimentConfigT,
+  type GoalBinding,
 } from "../types"
 
 export namespace GoalTrigger {
@@ -49,6 +50,8 @@ export namespace GoalTrigger {
     toolDispatcher?: { dispatch: (name: string, args: unknown) => Promise<string> }
     /** Optional tool catalog declaration (names + schemas) for execution rounds. */
     toolCatalog?: Array<{ name: string; description?: string; parameters?: unknown }>
+    /** Optional plan/task binding. Defaults to conversation-goal. */
+    goalBinding?: GoalBinding
   }
 
   export interface StartResult extends Engine.RunSummary {
@@ -86,6 +89,7 @@ export namespace GoalTrigger {
         results: null,
         next_intent: "",
         consolidated_summary: null,
+        goal_binding: opts.goalBinding ?? { source: "conversation-goal", goal_text: opts.goal },
       }
       await NodeFS.write(opts.sessionId, root, opts.dataHome)
     }

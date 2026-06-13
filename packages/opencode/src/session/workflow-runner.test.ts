@@ -134,6 +134,24 @@ describe("planAutonomousNextAction", () => {
     })
     expect(action).toEqual({ type: "stop", reason: "todo_complete" })
   })
+
+  it("drives freerun engine when armed with an active root", () => {
+    const action = planAutonomousNextAction({
+      session: armedSession(),
+      todos: [],
+      freerunState: "active",
+    })
+    expect(action).toEqual({ type: "continue", reason: "freerun_active", text: "Drive the freerun ContextNode engine." })
+  })
+
+  it("stops instead of inventing a freerun goal when no root exists", () => {
+    const action = planAutonomousNextAction({
+      session: armedSession(),
+      todos: [],
+      freerunState: "no_root",
+    })
+    expect(action).toEqual({ type: "stop", reason: "freerun_no_root" })
+  })
 })
 
 describe("dormant scheduled invariant (scheduled-subsession AC3)", () => {

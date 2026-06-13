@@ -25,6 +25,7 @@ import { PromptTemplate } from "../render/prompt-template"
 import { ToolFilter } from "../render/tool-filter"
 import { PickNext } from "../policy/pick-next"
 import { FreerunBus } from "../observability/bus"
+import { NoMetaIcom } from "../validation/no-meta-icom"
 import {
   ContextNode,
   ExecutionOutcome,
@@ -186,6 +187,7 @@ export namespace Iterate {
     try {
       const raw = await opts.llm.callPlanning(req)
       outcome = PlanningOutcome.parse(raw) // belt-and-suspenders even though server enforced schema
+      NoMetaIcom.assertValid(outcome)
     } catch (err) {
       const reason = `planning LLM call failed: ${formatError(err)}`
       await FreerunBus.emit.iterationHalted({

@@ -84,6 +84,7 @@ import {
   shouldInterruptAutonomousRun,
 } from "./workflow-runner"
 import { detectAutorunIntent, extractUserText } from "./autorun/detector"
+import { parseFreerunCommand } from "./freerun-command"
 import { Tweaks } from "@/config/tweaks"
 import { RebindEpoch } from "./rebind-epoch"
 import { CapabilityLayer, CrossAccountRebindError } from "./capability-layer"
@@ -1369,26 +1370,45 @@ export namespace SessionPrompt {
       })
     }
 
-    // compaction_enrichment-ai-first DD-9 — per-session freerun override.
-    // `/freerun off` exits freerun even when the small-window auto-route
-    // (contextLimit ≤ 128K) or the provider tag would select it; `/freerun on`
-    // forces it; `/freerun clear` removes the override. This is the explicit
-    // decision gate the DD-9 routing depends on — same best-effort posture as
-    // the autorun verbal trigger above.
+    // compaction_enrichment-ai-first DD-9 + harness/freerun-mode DD-3f —
+    // per-session freerun routing override plus explicit arm/disarm gate.
+    // `/freerun on|off|clear` selects routing only. `/freerun arm [goal]`
+    // seeds the ContextNode root if needed and flips autonomous.enabled=true.
+    // `/freerun disarm` flips autonomous.enabled=false. This keeps freerun in
+    // conversation mode by default until the user explicitly arms execution.
     try {
       const userText = extractUserText(
         input.parts as ReadonlyArray<{ type: string; text?: string; synthetic?: boolean }>,
       )
-      const match = /^\/freerun\s+(on|off|clear)\s*$/i.exec(userText.trim())
-      if (match) {
-        const verb = match[1].toLowerCase() as "on" | "off" | "clear"
-        await Session.updateFreerunOverride({
-          sessionID: input.sessionID,
-          override: verb === "clear" ? undefined : verb,
-        })
+      const command = parseFreerunCommand(userText)
+      if (command) {
+        const verb = command.verb
+        if (verb === "on" || verb === "off" || verb === "clear") {
+          await Session.updateFreerunOverride({
+            sessionID: input.sessionID,
+            override: verb === "clear" ? undefined : verb,
+          })
+        }
+        if (verb === "arm") {
+          await Session.updateFreerunOverride({ sessionID: input.sessionID, override: "on" })
+          const goal = command.goal
+          if (goal) {
+            const { FreerunBridge } = await import("./freerun-bridge")
+            await FreerunBridge.seedRoot({
+              sessionID: input.sessionID,
+              title: goal.split("\n")[0].slice(0, 120),
+              body: goal,
+              goalBinding: { source: "conversation-goal", goal_text: goal },
+            })
+          }
+          await Session.updateAutonomous({ sessionID: input.sessionID, policy: { enabled: true } })
+        }
+        if (verb === "disarm") {
+          await Session.updateAutonomous({ sessionID: input.sessionID, policy: { enabled: false } })
+        }
         log.info("freerun override updated via /freerun command", {
           sessionID: input.sessionID,
-          override: verb,
+          verb,
         })
       }
     } catch (err) {
@@ -1419,21 +1439,6 @@ export namespace SessionPrompt {
       return message
     }
 
-    // ── Freerun mode auto-arm autonomous ──────────────────────────────
-    // When this session's provider is freerun-tagged, autonomous-opt-in is
-    // ON by default. The user's message is treated like any other prompt;
-    // the runloop just doesn't stop between turns. Everything else (system
-    // prompt FREERUN.md addendum, task tool strip, sudo gate, compaction
-    // bypass) lives at the layers that already see the provider mode.
-    try {
-      await maybeArmFreerunAutonomous(input)
-    } catch (err) {
-      log.warn("freerun auto-arm failed; continuing in normal mode", {
-        sessionID: input.sessionID,
-        error: err instanceof Error ? err.message : String(err),
-      })
-    }
-
     const shouldReplaceRuntime = await shouldInterruptForIncomingPrompt(input.sessionID)
     if (shouldReplaceRuntime && (message.info.model ?? input.model)) {
       await emitSessionNarration({
@@ -1448,42 +1453,6 @@ export namespace SessionPrompt {
     }
     return runLoop(input.sessionID, { replaceRuntime: shouldReplaceRuntime, incomingModel: input.model })
   })
-
-  /**
-   * If the session's provider is freerun-tagged, ensure autonomous-opt-in
-   * is on. Freerun's only operational difference from a normal session is
-   * "doesn't stop between turns" — the existing autonomous-continuation
-   * machinery drives that; we just auto-arm it on first prompt.
-   *
-   * Everything else (FREERUN.md system-prompt addendum, task tool strip,
-   * sudo gate, compaction bypass) is applied at the layers that already
-   * detect freerun mode (session/llm.ts, tool/bash.ts, session/compaction.ts).
-   */
-  async function maybeArmFreerunAutonomous(input: {
-    sessionID: string
-    model?: { providerId: string; modelID: string }
-  }): Promise<void> {
-    const session = await Session.get(input.sessionID).catch(() => null)
-    if (!session) return
-    // DD-10: all freerun verdicts go through the single resolver (provider
-    // tag OR small context window ≤128K, with per-session override).
-    const { FreerunResolver } = await import("./freerun-resolver")
-    const freerun = await FreerunResolver.isFreerunSession(input.sessionID, input.model)
-    if (!freerun) return
-
-    // Already armed? Leave it. (User may have explicitly disarmed mid-session.)
-    if (session.workflow?.autonomous.enabled === true) return
-
-    await Session.updateAutonomous({
-      sessionID: input.sessionID,
-      policy: { enabled: true },
-    }).catch((err) => {
-      log.warn("freerun auto-arm failed", {
-        sessionID: input.sessionID,
-        error: err instanceof Error ? err.message : String(err),
-      })
-    })
-  }
 
   export async function resolvePromptParts(template: string): Promise<PromptInput["parts"]> {
     return (await resolvePromptPartsInner(template)) as PromptInput["parts"]
@@ -1572,6 +1541,16 @@ export namespace SessionPrompt {
   }) {
     const enqueueContinue = input.enqueueContinue ?? enqueueAutonomousContinue
     const nextRoundCount = input.autonomousRounds + 1
+
+    if (input.decision.reason === "freerun_active") {
+      const { FreerunBridge } = await import("./freerun-bridge")
+      await FreerunBridge.drive({ sessionID: input.sessionID, triggerMode: "goal", iterationCapOverride: 1 })
+      return {
+        halted: false as const,
+        nextRoundCount,
+        narration: undefined,
+      }
+    }
 
     await enqueueContinue({
       sessionID: input.sessionID,

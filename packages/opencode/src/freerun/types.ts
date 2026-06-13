@@ -43,6 +43,25 @@ export const DecisionEntry = z.object({
 export type DecisionEntry = z.infer<typeof DecisionEntry>
 
 // ============================================================================
+// GoalBinding (plan-compatible admission source)
+// ============================================================================
+
+export const GoalBinding = z.discriminatedUnion("source", [
+  z.object({
+    source: z.literal("conversation-goal"),
+    goal_text: z.string().min(1),
+  }),
+  z.object({
+    source: z.literal("plan-task"),
+    plan_slug: z.string().min(1),
+    task_id: z.string().min(1),
+    task_text: z.string().min(1),
+    acceptance_criteria: z.array(z.string().min(1)).default([]),
+  }),
+])
+export type GoalBinding = z.infer<typeof GoalBinding>
+
+// ============================================================================
 // ContextNode (DD-3a — structure + state payload as one object)
 // ============================================================================
 
@@ -70,6 +89,11 @@ export const ContextNode = z.object({
   relevant_tools: z.array(z.string()).optional(),
   // DD-26 dynamic skill loading (planning-time freeze; existing skill system also auto-triggers)
   relevant_skills: z.array(z.string()).optional(),
+
+  // Plan-compatible admission source. Roots may be seeded from a live
+  // conversation goal or from a plan-builder tasks.md item; child nodes inherit
+  // the boundary implicitly through their ancestor chain.
+  goal_binding: GoalBinding.optional(),
 })
 export type ContextNode = z.infer<typeof ContextNode>
 
