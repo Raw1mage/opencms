@@ -295,6 +295,15 @@ export namespace Tweaks {
      */
     enableUserMsgReplay: boolean
     /**
+     * session/cot-output-only: when true, reasoning/CoT parts are NEVER
+     * round-tripped into model input (CoT is output, not input). Default
+     * FALSE — the same-provider strip changes claude's live interleaved-
+     * thinking path and needs interleaved-quality verification before being
+     * enabled. The CROSS-provider strip is unconditional regardless of this
+     * flag (a foreign signature husk is always dropped). Config flag.
+     */
+    stripReasoningFromModelInput: boolean
+    /**
      * Spec compaction/dialog-replay-redaction (DD-6). Master switch for
      * the two-tier compaction restoration. When true (default):
      * tryNarrative produces anchor[n+1].body = anchor[n].body +
@@ -491,6 +500,7 @@ export namespace Tweaks {
     fallbackThreshold: 5,
     phase2Enabled: false,
     enableUserMsgReplay: true,
+    stripReasoningFromModelInput: false,
     enableDialogRedactionAnchor: true,
     anchorRecompressCeilingTokens: 50_000,
     // compaction_recency-fadeout-tiers (DD-7): provisional defaults = experiment IVs.

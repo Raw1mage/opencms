@@ -239,3 +239,39 @@ describe("SessionCompaction.isOverflow (token-pressure predicate)", () => {
   // Single 90%-overflow gate (`run({observed: "overflow"})`) is now the
   // only context-management path.
 })
+
+describe("SessionCompaction.truncateAnchorBodyToBudget (handover step 3: A + tail of B)", () => {
+  const header = "---\nℹ️ compacted — use session_recall\n---\n\n"
+  const round = (n: number, role: "user" | "assistant", text: string) => `## Round ${n} (${role})\n${text}`
+  const body =
+    header +
+    [
+      round(1, "user", "U1 oldest"),
+      round(1, "assistant", "A1"),
+      round(2, "user", "U2"),
+      round(2, "assistant", "A2"),
+      round(3, "user", "U3 newest"),
+    ].join("\n\n")
+
+  it("returns body unchanged when it already fits the budget", () => {
+    expect(SessionCompaction.truncateAnchorBodyToBudget(body, body.length + 10)).toBe(body)
+    expect(SessionCompaction.truncateAnchorBodyToBudget(body, 10_000)).toBe(body)
+  })
+
+  it("keeps the head (A) and the most-recent rounds (tail of B), elides the middle", () => {
+    // Budget that fits header + ~the last 1-2 rounds but not all 5.
+    const out = SessionCompaction.truncateAnchorBodyToBudget(body, header.length + 80)
+    expect(out.startsWith(header)).toBe(true) // head (A) preserved
+    expect(out).toContain("U3 newest") // recent tail kept
+    expect(out).toContain("elided") // middle elided marker present
+    expect(out).not.toContain("U1 oldest") // older middle dropped
+    expect(out.length).toBeLessThan(body.length)
+  })
+
+  it("no round structure → keeps the head prefix that fits", () => {
+    const plain = "just a summary blob with no round markers ".repeat(50)
+    const out = SessionCompaction.truncateAnchorBodyToBudget(plain, 100)
+    expect(out.length).toBeLessThanOrEqual(100 + 80) // budget + elision slack
+    expect(out).toContain("elided")
+  })
+})
