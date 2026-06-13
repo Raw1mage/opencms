@@ -1,0 +1,46 @@
+[
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A3",
+    "StepType": "initial",
+    "StepAction": "daemon idle; specbase native tools registered in ToolRegistry",
+    "LinkOutputType": "track",
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [2],
+    "Condition": ["agent invokes specbase_* tool"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "resolve native tool from ToolRegistry; permission check",
+    "LinkOutputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "Condition": ["allowed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "resolve repo/scope; call @specbase/lib handler in-process",
+    "LinkOutputType": "track",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4],
+    "Condition": ["handler returns"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "read/write <repo>/.specbase store; return result to agent",
+    "LinkOutputType": "track",
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [1],
+    "Condition": ["done"],
+    "SubGrafcet": []
+  }
+]
