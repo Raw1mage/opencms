@@ -101,8 +101,6 @@
     "diff": "catalog:",
     "fuzzysort": "3.1.0",
     "gray-matter": "4.0.3",
-    "markdown-it": "14.1.0",
-    "@types/markdown-it": "14.1.2",
     "hono": "catalog:",
     "hono-openapi": "catalog:",
     "ignore": "7.0.5",
