@@ -1892,8 +1892,15 @@ export namespace SessionPrompt {
           // Phase 13.3-full: pull snapshot text from the most recent anchor
           // in the stream. SharedContext.snapshot regex extractor is gone;
           // the anchor message itself IS the canonical compacted text.
-          // LLM compaction is NOT safe because old provider's tool call
-          // history is incompatible.
+          //
+          // NOTE (corrected — see provider-switch-handover DD-13): the takeover
+          // path reuses the existing narrative anchor text, NOT because cross-
+          // provider history is fundamentally incompatible — it is NOT. Dialog
+          // history is stored provider-neutral and ProviderTransform.message
+          // normalizes tool-call ids per target provider at send time, so
+          // history replays across providers fine. The anchor reuse is just the
+          // cheapest correct handover (no LLM call needed). Provider-specific
+          // reasoning/signature husks are dropped separately (cot-output-only).
           let snap: string | undefined
           const filtered = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
           const anchorIdx = findMostRecentAnchorIndex(filtered.messages)
@@ -2000,7 +2007,7 @@ export namespace SessionPrompt {
             // size-gate (HANDOVER_FIT_RATIO of the incoming window).
             const handoverBody =
               snap ??
-              `[Provider switched from ${prevProvider} to ${nextProvider}. Previous conversation context was not recoverable. The user may re-state their request.]`
+              `[Provider switched from ${prevProvider} to ${nextProvider}. No narrative anchor existed yet, so only this note is inlined — the full conversation IS preserved in the session database; use the \`session_recall\` tool to query past messages, tool outputs, or reasoning.]`
             const handoverBudgetChars =
               incomingWindow > 0 ? Math.floor(incomingWindow * HANDOVER_FIT_RATIO) * 4 : Number.MAX_SAFE_INTEGER
             const handoverSnapshot = SessionCompaction.truncateAnchorBodyToBudget(handoverBody, handoverBudgetChars)
