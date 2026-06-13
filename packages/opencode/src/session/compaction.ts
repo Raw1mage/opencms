@@ -928,6 +928,50 @@ export namespace SessionCompaction {
     return { messages: truncated, truncated: true, safeCharBudget }
   }
 
+  /**
+   * provider-switch-handover Completion 2 — step 3 of the over-window handover
+   * escalation ("A + reasonable tail of B"). Mechanically truncate an anchor
+   * body to a char budget by KEEPING the head (amnesia header + any
+   * recompressed-A summary — everything before the first `## Round` marker)
+   * and the MOST RECENT `## Round` segments (tail of B), eliding the older
+   * middle rounds. LLM-free. Returns the body unchanged when it already fits.
+   *
+   * Anchor body shape (see writeAnchorBodyFromMessages):
+   *   <amnesiaHeader>\n## Round N (user)\n...\n\n## Round N (assistant)\n...
+   * After a background recompress the head also holds an LLM summary; both the
+   * header and that summary are preserved (they ARE "A").
+   */
+  export function truncateAnchorBodyToBudget(body: string, budgetChars: number): string {
+    if (budgetChars <= 0 || body.length <= budgetChars) return body
+    const elision = "\n\n…(older rounds elided — use `session_recall` to query them)…\n\n"
+    const ROUND_RE = /(?=^## Round \d+ \((?:user|assistant)\)$)/m
+    const firstRoundMatch = body.match(/^## Round \d+ \((?:user|assistant)\)$/m)
+    const firstRoundIdx = firstRoundMatch?.index ?? -1
+    // No round structure (pure summary / placeholder): keep the head that fits.
+    if (firstRoundIdx === -1) {
+      const keep = Math.max(0, budgetChars - elision.length)
+      return body.slice(0, keep) + elision
+    }
+    const head = body.slice(0, firstRoundIdx)
+    // Head (A) alone already over budget → keep the head prefix that fits.
+    if (head.length + elision.length >= budgetChars) {
+      const keep = Math.max(0, budgetChars - elision.length)
+      return head.slice(0, keep) + elision
+    }
+    const rounds = body.slice(firstRoundIdx).split(ROUND_RE).filter((s) => s.length > 0)
+    const tailBudget = budgetChars - head.length - elision.length
+    const kept: string[] = []
+    let size = 0
+    for (let i = rounds.length - 1; i >= 0; i--) {
+      const r = rounds[i]
+      if (kept.length > 0 && size + r.length > tailBudget) break
+      kept.unshift(r)
+      size += r.length
+    }
+    if (kept.length === rounds.length) return body // everything fit after all
+    return head + elision + kept.join("")
+  }
+
   // Phase 7: tryPluginCompaction deleted. The plugin session.compact hook
   // is now invoked by tryLowCostServer (kind 4 of the new chain). The
   // conversation-items builder (`buildConversationItemsForPlugin`) lives
