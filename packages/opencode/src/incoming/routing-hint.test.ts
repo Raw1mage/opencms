@@ -233,6 +233,10 @@ describe("renderOfficeRoutingHint", () => {
     // the legacy extract_all_collect tool.
     expect(hint).toContain("docxmcp_document")
     expect(hint).toContain("action=status")
+    // BR 2026-06-15: the key must be single-prefix. toolID() collapses the
+    // duplicated App Store prefix, so the double-prefixed form does not exist
+    // in the catalog and tool_loader would miss it.
+    expect(hint).not.toContain("mcpapp-docxmcp_docxmcp_")
   })
 
   it("shows ⚠️ banner when background failed", async () => {
