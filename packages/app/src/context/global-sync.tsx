@@ -256,7 +256,9 @@ function createGlobalSync() {
       async (input: RequestInfo | URL, init?: RequestInit) => {
         const baseFetch = globalSDK.fetch ?? globalThis.fetch
         const response = await baseFetch(input, init)
-        const resolved = response.headers.get("x-opencode-resolved-directory")
+        const resolvedRaw = response.headers.get("x-opencode-resolved-directory")
+        // Server URL-encodes this header to survive non-Latin1 paths (e.g. CJK names).
+        const resolved = resolvedRaw === null ? null : decodeURIComponent(resolvedRaw)
         if (resolved && resolved !== directory && !healedDirs.has(resolved)) {
           healedDirs.add(resolved)
           console.warn(`[global-sync] Directory healed: ${directory} → ${resolved}`)

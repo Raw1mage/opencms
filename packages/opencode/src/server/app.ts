@@ -310,7 +310,9 @@ export function createApp(app: Hono): Hono {
 
     // Always tell the client the canonical directory that was actually used,
     // so stale localStorage entries can be auto-healed on the client side.
-    c.header("X-Opencode-Resolved-Directory", directory)
+    // HTTP header values are limited to ISO-8859-1, so URL-encode the path to
+    // survive non-Latin1 characters (e.g. CJK directory names); the client decodes it.
+    c.header("X-Opencode-Resolved-Directory", encodeURIComponent(directory))
 
     return Instance.provide({
       directory,
