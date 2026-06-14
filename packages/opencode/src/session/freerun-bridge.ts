@@ -26,6 +26,9 @@ import { NodeFS } from "../freerun/storage/node-fs"
 import { Tree } from "../freerun/storage/tree"
 import { MetaFS } from "../freerun/storage/meta-fs"
 import { PickNext } from "../freerun/policy/pick-next"
+import { FreerunTodoProjection } from "../freerun/todo-projection"
+import { buildPlanTaskSeedInput, type PlanTaskCandidate } from "../freerun/plan-task"
+import { Todo } from "./todo"
 import {
   ExperimentConfig,
   hashExperimentConfig,
@@ -70,10 +73,14 @@ export namespace FreerunBridge {
     if (!providerId || !modelId) return null
     if (session.workflow?.freerunOverride === "off") return null
 
-    const providerCfg = (cfg.provider as Record<
-      string,
-      { lite?: boolean; mode?: "full" | "lite" | "freerun"; options?: { baseURL?: string; apiKey?: string } }
-    > | undefined)?.[providerId]
+    const providerCfg = (
+      cfg.provider as
+        | Record<
+            string,
+            { lite?: boolean; mode?: "full" | "lite" | "freerun"; options?: { baseURL?: string; apiKey?: string } }
+          >
+        | undefined
+    )?.[providerId]
     if (providerCfg?.mode !== "freerun" && session.workflow?.freerunOverride !== "on") return null
 
     return {
@@ -176,7 +183,23 @@ export namespace FreerunBridge {
       goal_binding: input.goalBinding ?? { source: "conversation-goal", goal_text: input.body },
     }
     await NodeFS.write(input.sessionID, root, Global.Path.data)
+    await syncTodoProjection(input.sessionID).catch(() => undefined)
     log.info("freerun root seeded", { sessionID: input.sessionID, title: input.title })
+  }
+
+  export async function seedRootFromPlanTask(input: {
+    sessionID: string
+    task: PlanTaskCandidate
+    nowIso?: () => string
+  }): Promise<void> {
+    const seed = buildPlanTaskSeedInput(input.task)
+    await seedRoot({
+      sessionID: input.sessionID,
+      title: seed.title,
+      body: seed.body,
+      goalBinding: seed.goalBinding,
+      nowIso: input.nowIso,
+    })
   }
 
   // ============================================================================
@@ -230,19 +253,33 @@ export namespace FreerunBridge {
     const rootId = tree.rootId
     const expCfgId = hashExperimentConfig(config)
 
-    return Engine.run({
+    const summary = await Engine.run({
       sessionId: opts.sessionID,
       dataHome: Global.Path.data,
       config,
       llm: client,
       toolCatalog,
       providerId: info.providerId,
-      userId: (await Session.get(opts.sessionID).catch(() => null) as any)?.userID ?? "default",
+      userId: ((await Session.get(opts.sessionID).catch(() => null)) as any)?.userID ?? "default",
       triggerMode: opts.triggerMode ?? "goal",
       rootNodeId: rootId,
       experimentConfigId: expCfgId,
       iterationCapOverride: opts.iterationCapOverride, // undefined → Engine.run uses ExperimentConfig.iteration_cap (default 500)
     })
+    await syncTodoProjection(opts.sessionID).catch((err) => {
+      log.warn("freerun todo projection sync failed", {
+        sessionID: opts.sessionID,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    })
+    return summary
+  }
+
+  export async function syncTodoProjection(sessionID: string): Promise<Todo.Info[]> {
+    const tree = await Tree.load(sessionID, Global.Path.data)
+    const todos = FreerunTodoProjection.project(tree)
+    await Todo.setDerived({ sessionID, todos })
+    return todos
   }
 
   // ============================================================================

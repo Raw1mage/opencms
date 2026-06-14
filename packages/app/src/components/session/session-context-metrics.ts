@@ -1,4 +1,5 @@
 import type { AssistantMessage, Message, Part, ToolPart } from "@opencode-ai/sdk/v2/client"
+import { computeCacheHotness, type CacheHotness } from "./cache-hotness"
 
 type Provider = {
   id: string
@@ -25,6 +26,8 @@ type Context = {
   reasoning: number
   cacheRead: number
   cacheWrite: number
+  /** Round-over-round cache hotness (carry-over vs zeroed). Undefined before any round. */
+  cacheHotness?: CacheHotness
   total: number
   usage: number | null
   /**
@@ -154,6 +157,7 @@ const build = (
       reasoning: message.tokens.reasoning,
       cacheRead: message.tokens.cache.read,
       cacheWrite: message.tokens.cache.write,
+      cacheHotness: computeCacheHotness(messages),
       total,
       usage: limit ? Math.round((total / limit) * 100) : null,
       inputItemCount: estimateInputItemCount(messages, partsByMessageID),

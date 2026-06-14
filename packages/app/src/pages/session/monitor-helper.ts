@@ -5,6 +5,7 @@ import type {
   SessionTelemetryRoundSummary,
   SessionTelemetrySessionSummary,
 } from "@/context/global-sync/types"
+import { computeCacheHotness } from "@/components/session/cache-hotness"
 
 type MonitorTodoLink = {
   id?: string
@@ -316,6 +317,7 @@ export function buildSessionTelemetryProjection(input: {
     cacheReadTokens: telemetry.round.cacheReadTokens ?? latestAssistant?.tokens.cache.read,
     cacheWriteTokens: telemetry.round.cacheWriteTokens ?? latestAssistant?.tokens.cache.write,
     totalTokens: telemetry.round.totalTokens ?? latestAssistant?.tokens.total,
+    cacheHotness: telemetry.round.cacheHotness ?? computeCacheHotness(input.messages),
     requestId: telemetry.round.requestId ?? latestAssistant?.parentID,
   }
   const roundPhase =

@@ -20,6 +20,7 @@ import type {
 } from "@opencode-ai/sdk/v2/client"
 import type { Accessor } from "solid-js"
 import type { SetStoreFunction, Store } from "solid-js/store"
+import type { CacheHotness } from "@/components/session/cache-hotness"
 
 export type ProjectMeta = {
   name?: string
@@ -169,6 +170,9 @@ export type SessionTelemetryRoundSummary = {
   cacheReadTokens?: number
   cacheWriteTokens?: number
   totalTokens?: number
+  /** Round-over-round cache hotness: did the prior round's context carry over or get zeroed.
+   *  See packages/app/src/components/session/cache-hotness.ts. */
+  cacheHotness?: CacheHotness
   compacting: boolean
   compactionResult?: string
   compactionDraftTokens?: number

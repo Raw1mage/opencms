@@ -477,4 +477,37 @@ describe("Session todo action metadata", () => {
       },
     ])
   })
+
+  it("preserves non-freerun todos and removes stale freerun derived items", async () => {
+    const sessionID = "session_todo_set_derived_preserves_user_items"
+    await Todo.update({
+      sessionID,
+      todos: [
+        { id: "manual", content: "manual task", status: "in_progress", priority: "high" },
+        { id: "freerun:old", content: "old freerun task", status: "pending", priority: "medium" },
+      ],
+    })
+
+    await Todo.setDerived({
+      sessionID,
+      todos: [{ id: "freerun:new", content: "new freerun task", status: "pending", priority: "medium" }],
+    })
+
+    await expect(Todo.get(sessionID)).resolves.toEqual([
+      {
+        id: "manual",
+        content: "manual task",
+        status: "in_progress",
+        priority: "high",
+        action: { kind: "implement", canDelegate: undefined },
+      },
+      {
+        id: "freerun:new",
+        content: "new freerun task",
+        status: "pending",
+        priority: "medium",
+        action: { kind: "implement", canDelegate: true },
+      },
+    ])
+  })
 })

@@ -22,10 +22,7 @@ export namespace Todo {
       risk: z.enum(["low", "medium", "high"]).optional(),
       needsApproval: z.boolean().optional(),
       canDelegate: z.boolean().optional(),
-      waitingOn: z
-        .enum(["subagent", "approval", "decision", "external"])
-        .optional()
-        .catch(undefined),
+      waitingOn: z.enum(["subagent", "approval", "decision", "external"]).optional().catch(undefined),
       dependsOn: z.array(z.string()).optional(),
     })
     .optional()
@@ -402,7 +399,9 @@ export namespace Todo {
   }
 
   export async function setDerived(input: { sessionID: string; todos: Info[] }) {
-    const todos = enrichAll(input.todos)
+    const current = await get(input.sessionID)
+    const preserved = current.filter((todo) => !todo.id?.startsWith("freerun:"))
+    const todos = enrichAll([...preserved, ...input.todos])
     await Storage.write(["todo", input.sessionID], todos)
     Bus.publish(Event.Updated, {
       sessionID: input.sessionID,

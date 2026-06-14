@@ -84,7 +84,7 @@ import {
   shouldInterruptAutonomousRun,
 } from "./workflow-runner"
 import { detectAutorunIntent, extractUserText } from "./autorun/detector"
-import { parseFreerunCommand } from "./freerun-command"
+import { classifyFreerunNaturalEntry, parseFreerunActivation } from "./freerun-command"
 import { Tweaks } from "@/config/tweaks"
 import { RebindEpoch } from "./rebind-epoch"
 import { CapabilityLayer, CrossAccountRebindError } from "./capability-layer"
@@ -1380,7 +1380,8 @@ export namespace SessionPrompt {
       const userText = extractUserText(
         input.parts as ReadonlyArray<{ type: string; text?: string; synthetic?: boolean }>,
       )
-      const command = parseFreerunCommand(userText)
+      const command = parseFreerunActivation(userText)
+      const naturalEntry = command ? undefined : classifyFreerunNaturalEntry(userText)
       if (command) {
         const verb = command.verb
         if (verb === "on" || verb === "off" || verb === "clear") {
@@ -1409,6 +1410,28 @@ export namespace SessionPrompt {
         log.info("freerun override updated via /freerun command", {
           sessionID: input.sessionID,
           verb,
+        })
+      } else if (naturalEntry?.kind === "ready") {
+        await emitSessionNarration({
+          sessionID: input.sessionID,
+          parentID: message.info.id,
+          agent: message.info.agent,
+          variant: message.info.variant,
+          model: message.info.model ?? input.model ?? { providerId: "", modelID: "" },
+          text: naturalEntry.suggestion,
+          kind: "pause",
+          metadata: { freerunReadinessSuggestion: true },
+        })
+      } else if (naturalEntry?.kind === "clarify") {
+        await emitSessionNarration({
+          sessionID: input.sessionID,
+          parentID: message.info.id,
+          agent: message.info.agent,
+          variant: message.info.variant,
+          model: message.info.model ?? input.model ?? { providerId: "", modelID: "" },
+          text: "Paused: 需要明確 goal / scope / done criteria 才能進入 freerun 拆解執行。",
+          kind: "pause",
+          metadata: { freerunClarificationRequired: true },
         })
       }
     } catch (err) {

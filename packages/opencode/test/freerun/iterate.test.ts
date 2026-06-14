@@ -3,6 +3,7 @@ import { tmpdir } from "../fixture/fixture"
 import { NodeFS } from "../../src/freerun/storage/node-fs"
 import { Tree } from "../../src/freerun/storage/tree"
 import { Iterate } from "../../src/freerun/runtime/iterate"
+import { FreerunBus } from "../../src/freerun/observability/bus"
 import { ExperimentConfig, type ContextNode, type ExperimentConfig as ExperimentConfigT } from "../../src/freerun/types"
 
 function mkNode(overrides: Partial<ContextNode> = {}): ContextNode {
@@ -107,8 +108,11 @@ describe("freerun Iterate.once — planning path", () => {
       planning: () => ({ children: [{ id: "root.x", title: "x", body: "" }] }),
     })
     await Iterate.once({
-      sessionId, dataHome: tmp.path, config: defaultConfig(),
-      llm: llm.client, toolCatalog: TOOL_CATALOG,
+      sessionId,
+      dataHome: tmp.path,
+      config: defaultConfig(),
+      llm: llm.client,
+      toolCatalog: TOOL_CATALOG,
     })
     expect(llm.planningCalls[0].responseSchema).toBeDefined()
     expect(llm.planningCalls[0].responseSchemaName).toBe("PlanningOutcome")
@@ -120,11 +124,16 @@ describe("freerun Iterate.once — planning path", () => {
     const sessionId = "iter-plan-fail"
     await NodeFS.write(sessionId, mkNode({ id: "root" }), tmp.path)
     const llm = mockLlm({
-      planning: () => { throw new Error("LLM 5xx") },
+      planning: () => {
+        throw new Error("LLM 5xx")
+      },
     })
     const result = await Iterate.once({
-      sessionId, dataHome: tmp.path, config: defaultConfig(),
-      llm: llm.client, toolCatalog: TOOL_CATALOG,
+      sessionId,
+      dataHome: tmp.path,
+      config: defaultConfig(),
+      llm: llm.client,
+      toolCatalog: TOOL_CATALOG,
       nowIso: () => "2026-05-26T23:00:00.000Z",
     })
     expect(result.kind).toBe("blocked")
@@ -144,8 +153,11 @@ describe("freerun Iterate.once — planning path", () => {
       planning: () => ({ children: [{ id: "root.meta", title: "Generate ICOM", body: "Emit the JSON schema." }] }),
     })
     const result = await Iterate.once({
-      sessionId, dataHome: tmp.path, config: defaultConfig(),
-      llm: llm.client, toolCatalog: TOOL_CATALOG,
+      sessionId,
+      dataHome: tmp.path,
+      config: defaultConfig(),
+      llm: llm.client,
+      toolCatalog: TOOL_CATALOG,
       nowIso: () => "2026-05-26T23:00:00.000Z",
     })
     expect(result.kind).toBe("blocked")
@@ -165,11 +177,62 @@ describe("freerun Iterate.once — planning path", () => {
       planning: () => ({ children: [{ id: "leaf", title: "L", body: "" }] }),
     })
     await Iterate.once({
-      sessionId, dataHome: tmp.path, config: defaultConfig(),
-      llm: llm.client, toolCatalog: TOOL_CATALOG,
+      sessionId,
+      dataHome: tmp.path,
+      config: defaultConfig(),
+      llm: llm.client,
+      toolCatalog: TOOL_CATALOG,
     })
     const snap = await Tree.load(sessionId, tmp.path)
     expect(Tree.get(snap, "root").children_ids).toEqual(["root.leaf"])
+  })
+
+  test("planning emits skill-triggered events for declared relevant skills", async () => {
+    await using tmp = await tmpdir({ init: async () => {} })
+    const sessionId = "iter-plan-skills"
+    await NodeFS.write(sessionId, mkNode({ id: "root" }), tmp.path)
+    const events: any[] = []
+    const original = FreerunBus.emit.skillTriggered
+    ;(FreerunBus.emit as any).skillTriggered = async (event: any) => {
+      events.push(event)
+    }
+    try {
+      const llm = mockLlm({
+        planning: () => ({
+          children: [{ id: "leaf", title: "L", body: "", relevant_skills: ["webapp-testing", "code-thinker"] }],
+        }),
+      })
+
+      await Iterate.once({
+        sessionId,
+        dataHome: tmp.path,
+        config: defaultConfig(),
+        llm: llm.client,
+        toolCatalog: TOOL_CATALOG,
+        iteration: 7,
+      })
+    } finally {
+      ;(FreerunBus.emit as any).skillTriggered = original
+    }
+
+    expect(events).toEqual([
+      {
+        sessionID: sessionId,
+        iteration: 7,
+        nodeID: "root.leaf",
+        skillName: "webapp-testing",
+        triggerPatternMatch: "planning.relevant_skills",
+        usedInIteration: false,
+      },
+      {
+        sessionID: sessionId,
+        iteration: 7,
+        nodeID: "root.leaf",
+        skillName: "code-thinker",
+        triggerPatternMatch: "planning.relevant_skills",
+        usedInIteration: false,
+      },
+    ])
   })
 })
 
@@ -194,8 +257,11 @@ describe("freerun Iterate.once — execution path (Option D)", () => {
     })
 
     const result = await Iterate.once({
-      sessionId, dataHome: tmp.path, config: defaultConfig(),
-      llm: llm.client, toolCatalog: TOOL_CATALOG,
+      sessionId,
+      dataHome: tmp.path,
+      config: defaultConfig(),
+      llm: llm.client,
+      toolCatalog: TOOL_CATALOG,
       nowIso: () => "2026-05-26T23:00:00.000Z",
     })
 
@@ -239,8 +305,11 @@ describe("freerun Iterate.once — execution path (Option D)", () => {
       }),
     })
     await Iterate.once({
-      sessionId, dataHome: tmp.path, config: defaultConfig(),
-      llm: llm.client, toolCatalog: TOOL_CATALOG,
+      sessionId,
+      dataHome: tmp.path,
+      config: defaultConfig(),
+      llm: llm.client,
+      toolCatalog: TOOL_CATALOG,
     })
     const snap = await Tree.load(sessionId, tmp.path)
     const root = Tree.get(snap, "root")
@@ -262,11 +331,17 @@ describe("freerun Iterate.once — execution path (Option D)", () => {
       next_mode: "done",
     })
     const llm = mockLlm({
-      execution: () => ({ toolCallCount: 0, finalContent: `Sure, here's the result:\n\n\`\`\`json\n${validJson}\n\`\`\`\n` }),
+      execution: () => ({
+        toolCallCount: 0,
+        finalContent: `Sure, here's the result:\n\n\`\`\`json\n${validJson}\n\`\`\`\n`,
+      }),
     })
     const result = await Iterate.once({
-      sessionId, dataHome: tmp.path, config: defaultConfig(),
-      llm: llm.client, toolCatalog: TOOL_CATALOG,
+      sessionId,
+      dataHome: tmp.path,
+      config: defaultConfig(),
+      llm: llm.client,
+      toolCatalog: TOOL_CATALOG,
     })
     expect(result.kind).toBe("advanced")
     const snap = await Tree.load(sessionId, tmp.path)
@@ -296,8 +371,11 @@ describe("freerun Iterate.once — execution path (Option D)", () => {
       },
     })
     const result = await Iterate.once({
-      sessionId, dataHome: tmp.path, config: defaultConfig(),
-      llm: llm.client, toolCatalog: TOOL_CATALOG,
+      sessionId,
+      dataHome: tmp.path,
+      config: defaultConfig(),
+      llm: llm.client,
+      toolCatalog: TOOL_CATALOG,
     })
     expect(result.kind).toBe("advanced")
     expect(llm.executionCalls.length).toBe(2)
@@ -314,8 +392,11 @@ describe("freerun Iterate.once — execution path (Option D)", () => {
       execution: () => ({ toolCallCount: 0, finalContent: "garbage" }),
     })
     const result = await Iterate.once({
-      sessionId, dataHome: tmp.path, config: defaultConfig(),
-      llm: llm.client, toolCatalog: TOOL_CATALOG,
+      sessionId,
+      dataHome: tmp.path,
+      config: defaultConfig(),
+      llm: llm.client,
+      toolCatalog: TOOL_CATALOG,
     })
     expect(result.kind).toBe("blocked")
     expect(llm.executionCalls.length).toBe(2) // first + retry
@@ -333,13 +414,21 @@ describe("freerun Iterate.once — execution path (Option D)", () => {
       execution: () => ({
         toolCallCount: 0,
         finalContent: JSON.stringify({
-          observations: [], decisions: [], blockers: [], results: null, next_intent: "", next_mode: "done",
+          observations: [],
+          decisions: [],
+          blockers: [],
+          results: null,
+          next_intent: "",
+          next_mode: "done",
         }),
       }),
     })
     await Iterate.once({
-      sessionId, dataHome: tmp.path, config: defaultConfig(),
-      llm: llm.client, toolCatalog: TOOL_CATALOG,
+      sessionId,
+      dataHome: tmp.path,
+      config: defaultConfig(),
+      llm: llm.client,
+      toolCatalog: TOOL_CATALOG,
     })
     expect(llm.executionCalls[0].tools.length).toBe(3)
     expect(llm.executionCalls[0].toolsSuppressed).toBe(false)
@@ -348,22 +437,26 @@ describe("freerun Iterate.once — execution path (Option D)", () => {
   test("execution tool-filter: empty relevant_tools suppresses tools (think-only)", async () => {
     await using tmp = await tmpdir({ init: async () => {} })
     const sessionId = "iter-exec-tools-empty"
-    await NodeFS.write(
-      sessionId,
-      mkNode({ id: "root", mode: "pending-exec", relevant_tools: [] }),
-      tmp.path,
-    )
+    await NodeFS.write(sessionId, mkNode({ id: "root", mode: "pending-exec", relevant_tools: [] }), tmp.path)
     const llm = mockLlm({
       execution: () => ({
         toolCallCount: 0,
         finalContent: JSON.stringify({
-          observations: [], decisions: [], blockers: [], results: null, next_intent: "", next_mode: "done",
+          observations: [],
+          decisions: [],
+          blockers: [],
+          results: null,
+          next_intent: "",
+          next_mode: "done",
         }),
       }),
     })
     await Iterate.once({
-      sessionId, dataHome: tmp.path, config: defaultConfig(),
-      llm: llm.client, toolCatalog: TOOL_CATALOG,
+      sessionId,
+      dataHome: tmp.path,
+      config: defaultConfig(),
+      llm: llm.client,
+      toolCatalog: TOOL_CATALOG,
     })
     expect(llm.executionCalls[0].tools).toEqual([])
     expect(llm.executionCalls[0].toolsSuppressed).toBe(true)
@@ -381,13 +474,21 @@ describe("freerun Iterate.once — execution path (Option D)", () => {
       execution: () => ({
         toolCallCount: 0,
         finalContent: JSON.stringify({
-          observations: [], decisions: [], blockers: [], results: null, next_intent: "", next_mode: "done",
+          observations: [],
+          decisions: [],
+          blockers: [],
+          results: null,
+          next_intent: "",
+          next_mode: "done",
         }),
       }),
     })
     await Iterate.once({
-      sessionId, dataHome: tmp.path, config: defaultConfig(),
-      llm: llm.client, toolCatalog: TOOL_CATALOG,
+      sessionId,
+      dataHome: tmp.path,
+      config: defaultConfig(),
+      llm: llm.client,
+      toolCatalog: TOOL_CATALOG,
     })
     expect(llm.executionCalls[0].tools.map((t: any) => t.name)).toEqual(["read", "bash"])
   })
@@ -400,8 +501,11 @@ describe("freerun Iterate.once — settled / scheduler edges", () => {
     await NodeFS.write(sessionId, mkNode({ id: "root", mode: "done" }), tmp.path)
     const llm = mockLlm({})
     const result = await Iterate.once({
-      sessionId, dataHome: tmp.path, config: defaultConfig(),
-      llm: llm.client, toolCatalog: TOOL_CATALOG,
+      sessionId,
+      dataHome: tmp.path,
+      config: defaultConfig(),
+      llm: llm.client,
+      toolCatalog: TOOL_CATALOG,
     })
     expect(result.kind).toBe("settled")
     expect(llm.planningCalls.length + llm.executionCalls.length).toBe(0)

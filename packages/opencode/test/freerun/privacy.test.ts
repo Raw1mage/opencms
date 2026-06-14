@@ -10,6 +10,9 @@
 import { test, expect, describe } from "bun:test"
 import * as fs from "fs/promises"
 import * as path from "path"
+import { NodeFS } from "../../src/freerun/storage/node-fs"
+import { MetaFS } from "../../src/freerun/storage/meta-fs"
+import { tmpdir } from "../fixture/fixture"
 
 const FREERUN_ROOT = path.resolve(__dirname, "..", "..", "src", "freerun")
 const ALLOWED_NETWORK_FILES = new Set(["provider/llm-client.ts"])
@@ -57,12 +60,8 @@ describe("freerun privacy invariant (DD-11)", () => {
     }
 
     if (violators.length > 0) {
-      const report = violators
-        .map((v) => `  ${v.file}:${v.line}  ${v.snippet}`)
-        .join("\n")
-      throw new Error(
-        `freerun privacy invariant violated — only provider/llm-client.ts may call out.\n${report}`,
-      )
+      const report = violators.map((v) => `  ${v.file}:${v.line}  ${v.snippet}`).join("\n")
+      throw new Error(`freerun privacy invariant violated — only provider/llm-client.ts may call out.\n${report}`)
     }
     expect(violators).toEqual([])
   })
@@ -73,4 +72,57 @@ describe("freerun privacy invariant (DD-11)", () => {
     expect(nodeFs).toContain("sessionStorageDir(")
     expect(nodeFs).toContain("nodeFilePath(")
   })
+
+  test("synthetic two-user storage roots do not share session state", async () => {
+    await using alice = await tmpdir({ init: async () => {} })
+    await using bob = await tmpdir({ init: async () => {} })
+    const sessionId = "same-session-id"
+
+    await NodeFS.write(sessionId, mkNode({ title: "Alice root", body: "alice-only" }), alice.path)
+    await NodeFS.write(sessionId, mkNode({ title: "Bob root", body: "bob-only" }), bob.path)
+    await MetaFS.write(sessionId, mkMeta({ user_id: "alice" }), alice.path)
+    await MetaFS.write(sessionId, mkMeta({ user_id: "bob" }), bob.path)
+
+    await expect(NodeFS.read(sessionId, "root", alice.path)).resolves.toMatchObject({ body: "alice-only" })
+    await expect(NodeFS.read(sessionId, "root", bob.path)).resolves.toMatchObject({ body: "bob-only" })
+    await expect(MetaFS.read(sessionId, alice.path)).resolves.toMatchObject({ user_id: "alice" })
+    await expect(MetaFS.read(sessionId, bob.path)).resolves.toMatchObject({ user_id: "bob" })
+  })
 })
+
+function mkNode(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "root",
+    parent_id: null,
+    children_ids: [],
+    title: "root",
+    body: "",
+    mode: "pending-plan",
+    created_at: "2026-06-14T00:00:00.000Z",
+    iteration_count: 0,
+    observations: [],
+    decisions: [],
+    blockers: [],
+    results: null,
+    next_intent: "",
+    consolidated_summary: null,
+    ...overrides,
+  } as any
+}
+
+function mkMeta(overrides: Record<string, unknown> = {}) {
+  return {
+    session_id: "same-session-id",
+    trigger_mode: "goal",
+    provider_id: "test-provider",
+    user_id: "user",
+    root_node_id: "root",
+    started_at: "2026-06-14T00:00:00.000Z",
+    final_status: "in_progress",
+    total_iterations: 0,
+    experiment_config: {},
+    experiment_config_id: "test-config",
+    protocol_version: "v0",
+    ...overrides,
+  } as any
+}

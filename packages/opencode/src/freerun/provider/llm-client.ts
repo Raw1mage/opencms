@@ -63,27 +63,28 @@ export namespace FreerunLlmClient {
   }
 
   /** Build a client implementing both Iterate.LlmClient and Consolidate.SummarizeClient. */
-  export function create(
-    opts: ClientOptions,
-  ): Iterate.LlmClient & Consolidate.SummarizeClient {
+  export function create(opts: ClientOptions): Iterate.LlmClient & Consolidate.SummarizeClient {
     const baseUrl = opts.baseUrl.replace(/\/$/, "")
     // Some user configs include `/v1` in baseURL; some don't. Normalize so the
     // final URL is always `<root>/v1/chat/completions`.
-    const chatUrl = baseUrl.endsWith("/v1")
-      ? `${baseUrl}/chat/completions`
-      : `${baseUrl}/v1/chat/completions`
+    const chatUrl = baseUrl.endsWith("/v1") ? `${baseUrl}/chat/completions` : `${baseUrl}/v1/chat/completions`
     const timeout = opts.httpTimeoutMs ?? 120_000
     const maxRounds = opts.maxToolRounds ?? 8
 
-    async function postChat(body: Record<string, unknown>): Promise<any> {
+    type TelemetryContext = { sessionId?: string; iteration?: number; nodeId?: string }
+
+    async function postChat(body: Record<string, unknown>, telemetry: TelemetryContext = {}): Promise<any> {
+      const sessionId = telemetry.sessionId ?? opts.sessionId
+      const iteration = telemetry.iteration ?? opts.iteration
+      const nodeId = telemetry.nodeId ?? opts.nodeId
       const headers: Record<string, string> = {
         "content-type": "application/json",
       }
       if (opts.apiKey) headers["authorization"] = `Bearer ${opts.apiKey}`
-      if (opts.sessionId) headers["x-opencode-session-id"] = opts.sessionId
+      if (sessionId) headers["x-opencode-session-id"] = sessionId
       headers["x-opencode-mode"] = "freerun"
-      if (opts.iteration !== undefined) headers["x-opencode-iteration"] = String(opts.iteration)
-      if (opts.nodeId) headers["x-opencode-node-id"] = opts.nodeId
+      if (iteration !== undefined) headers["x-opencode-iteration"] = String(iteration)
+      if (nodeId) headers["x-opencode-node-id"] = nodeId
 
       const ac = new AbortController()
       const t = setTimeout(() => ac.abort(new Error(`HTTP timeout after ${timeout}ms`)), timeout)
@@ -101,10 +102,10 @@ export namespace FreerunLlmClient {
         }
         const parsed = JSON.parse(text)
         // Best-effort telemetry — does not block.
-        if (opts.sessionId !== undefined && opts.iteration !== undefined) {
+        if (sessionId !== undefined && iteration !== undefined) {
           await FreerunBus.emit.llmResponseReceived({
-            sessionID: opts.sessionId,
-            iteration: opts.iteration,
+            sessionID: sessionId,
+            iteration,
             latencyMs: Date.now() - t0,
             tokensIn: parsed.usage?.prompt_tokens,
             tokensOut: parsed.usage?.completion_tokens,
@@ -136,7 +137,7 @@ export namespace FreerunLlmClient {
         },
         stream: false,
       }
-      const resp = await postChat(body)
+      const resp = await postChat(body, req)
       const content: string = resp.choices?.[0]?.message?.content ?? ""
       if (content.length === 0) {
         throw new Error("planning response empty")
@@ -150,16 +151,17 @@ export namespace FreerunLlmClient {
         { role: "system", content: req.systemPrompt },
         { role: "user", content: req.userMessage },
       ]
-      const oaiTools = req.tools.length > 0
-        ? req.tools.map((t) => ({
-            type: "function",
-            function: {
-              name: t.name,
-              description: (t as any).description ?? "",
-              parameters: (t as any).parameters ?? { type: "object", properties: {} },
-            },
-          }))
-        : undefined
+      const oaiTools =
+        req.tools.length > 0
+          ? req.tools.map((t) => ({
+              type: "function",
+              function: {
+                name: t.name,
+                description: (t as any).description ?? "",
+                parameters: (t as any).parameters ?? { type: "object", properties: {} },
+              },
+            }))
+          : undefined
 
       let toolCallCount = 0
       for (let round = 0; round < maxRounds; round++) {
@@ -170,7 +172,7 @@ export namespace FreerunLlmClient {
           stream: false,
         }
         if (oaiTools !== undefined && !req.toolsSuppressed) body.tools = oaiTools
-        const resp = await postChat(body)
+        const resp = await postChat(body, req)
         const msg = resp.choices?.[0]?.message
         const finishReason: string | undefined = resp.choices?.[0]?.finish_reason
         if (!msg) throw new Error("execution response missing message")
@@ -182,7 +184,9 @@ export namespace FreerunLlmClient {
           ...(msg.tool_calls ? { tool_calls: msg.tool_calls } : {}),
         })
 
-        const toolCalls = msg.tool_calls as Array<{ id: string; function: { name: string; arguments: string } }> | undefined
+        const toolCalls = msg.tool_calls as
+          | Array<{ id: string; function: { name: string; arguments: string } }>
+          | undefined
         if (toolCalls && toolCalls.length > 0 && opts.toolDispatcher) {
           for (const tc of toolCalls) {
             toolCallCount++
@@ -191,11 +195,11 @@ export namespace FreerunLlmClient {
             let success = false
             try {
               const args = JSON.parse(tc.function.arguments || "{}")
-              if (opts.sessionId && opts.iteration !== undefined && opts.nodeId) {
+              if (req.sessionId && req.iteration !== undefined && req.nodeId) {
                 await FreerunBus.emit.toolInvoked({
-                  sessionID: opts.sessionId,
-                  iteration: opts.iteration,
-                  nodeID: opts.nodeId,
+                  sessionID: req.sessionId,
+                  iteration: req.iteration,
+                  nodeID: req.nodeId,
                   toolName: tc.function.name,
                   args,
                 })
@@ -210,11 +214,11 @@ export namespace FreerunLlmClient {
               tool_call_id: tc.id,
               content: resultText,
             })
-            if (opts.sessionId && opts.iteration !== undefined && opts.nodeId) {
+            if (req.sessionId && req.iteration !== undefined && req.nodeId) {
               await FreerunBus.emit.toolCompleted({
-                sessionID: opts.sessionId,
-                iteration: opts.iteration,
-                nodeID: opts.nodeId,
+                sessionID: req.sessionId,
+                iteration: req.iteration,
+                nodeID: req.nodeId,
                 toolName: tc.function.name,
                 latencyMs: Date.now() - tToolStart,
                 success,
@@ -238,12 +242,15 @@ export namespace FreerunLlmClient {
           "You have exceeded the tool-call budget for this iteration. " +
           "Emit your ExecutionOutcome JSON now based on what you've already gathered.",
       })
-      const final = await postChat({
-        model: opts.modelId,
-        messages,
-        temperature: req.temperature,
-        stream: false,
-      })
+      const final = await postChat(
+        {
+          model: opts.modelId,
+          messages,
+          temperature: req.temperature,
+          stream: false,
+        },
+        req,
+      )
       return {
         finalContent: final.choices?.[0]?.message?.content ?? "",
         toolCallCount,
@@ -273,15 +280,18 @@ export namespace FreerunLlmClient {
         `# Children rollup\n${childRollup}\n\n` +
         "# Your task\nWrite the consolidated summary (markdown, <= " +
         `${req.maxTokens} tokens, no preamble):`
-      const resp = await postChat({
-        model: opts.modelId,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
-        ],
-        temperature: 0.3,
-        stream: false,
-      })
+      const resp = await postChat(
+        {
+          model: opts.modelId,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage },
+          ],
+          temperature: 0.3,
+          stream: false,
+        },
+        req,
+      )
       return resp.choices?.[0]?.message?.content ?? ""
     }
 

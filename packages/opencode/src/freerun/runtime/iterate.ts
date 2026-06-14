@@ -26,13 +26,7 @@ import { ToolFilter } from "../render/tool-filter"
 import { PickNext } from "../policy/pick-next"
 import { FreerunBus } from "../observability/bus"
 import { NoMetaIcom } from "../validation/no-meta-icom"
-import {
-  ContextNode,
-  ExecutionOutcome,
-  PlanningOutcome,
-  type ExperimentConfig,
-  type NodeMode,
-} from "../types"
+import { ContextNode, ExecutionOutcome, PlanningOutcome, type ExperimentConfig, type NodeMode } from "../types"
 
 export namespace Iterate {
   // ============================================================================
@@ -45,6 +39,9 @@ export namespace Iterate {
     responseSchema: unknown
     responseSchemaName: string
     temperature: number
+    sessionId: string
+    iteration: number
+    nodeId: string
   }
 
   export interface ExecutionRequest {
@@ -54,6 +51,9 @@ export namespace Iterate {
     /** Hint to the client: false when tools were suppressed (node.relevant_tools=[]). */
     toolsSuppressed: boolean
     temperature: number
+    sessionId: string
+    iteration: number
+    nodeId: string
   }
 
   export interface ExecutionRawResult {
@@ -181,6 +181,9 @@ export namespace Iterate {
       responseSchema: tpl.responseSchema,
       responseSchemaName: tpl.responseSchemaName,
       temperature: opts.config.mode_dispatch_temperature_plan,
+      sessionId: opts.sessionId,
+      iteration,
+      nodeId: node.id,
     }
     let outcome: PlanningOutcome
     const t0 = Date.now()
@@ -227,6 +230,16 @@ export namespace Iterate {
         relevant_skills: child.relevant_skills,
       }
       await NodeFS.write(opts.sessionId, childNode, opts.dataHome)
+      for (const skillName of child.relevant_skills ?? []) {
+        await FreerunBus.emit.skillTriggered({
+          sessionID: opts.sessionId,
+          iteration,
+          nodeID: id,
+          skillName,
+          triggerPatternMatch: "planning.relevant_skills",
+          usedInIteration: false,
+        })
+      }
     }
 
     const updatedNode: ContextNode = {
@@ -245,7 +258,14 @@ export namespace Iterate {
       childIDs: newChildIds,
       childTitles,
     })
-    await emitTransition(opts.sessionId, iteration, node.id, node.mode, "decomposed", "planning iteration emitted children")
+    await emitTransition(
+      opts.sessionId,
+      iteration,
+      node.id,
+      node.mode,
+      "decomposed",
+      "planning iteration emitted children",
+    )
     await FreerunBus.emit.iterationCompleted({
       sessionID: opts.sessionId,
       iteration,
@@ -294,6 +314,9 @@ export namespace Iterate {
       tools: filtered.tools,
       toolsSuppressed: filtered.suppressAll,
       temperature: opts.config.mode_dispatch_temperature_exec,
+      sessionId: opts.sessionId,
+      iteration,
+      nodeId: node.id,
     }
 
     const t0 = Date.now()
@@ -358,9 +381,7 @@ export namespace Iterate {
       // Append (not replace) state payload — cross-iteration coherence on this node.
       observations: [...node.observations, ...outcome.observations],
       decisions: [...node.decisions, ...outcome.decisions],
-      blockers: nextMode === "blocked"
-        ? [...node.blockers, ...outcome.blockers]
-        : outcome.blockers, // on non-blocked completion, replace with current iteration's blocker view
+      blockers: nextMode === "blocked" ? [...node.blockers, ...outcome.blockers] : outcome.blockers, // on non-blocked completion, replace with current iteration's blocker view
       results: outcome.results ?? node.results,
       next_intent: outcome.next_intent,
     }

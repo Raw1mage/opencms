@@ -35,6 +35,9 @@ export namespace Consolidate {
     children: ContextNode[]
     /** Soft cap. */
     maxTokens: number
+    sessionId: string
+    iteration: number
+    nodeId: string
   }
 
   export interface SummarizeClient {
@@ -102,6 +105,9 @@ export namespace Consolidate {
           parent: candidate,
           children: descendants,
           maxTokens: opts.config.summary_token_cap_consolidation,
+          sessionId: opts.sessionId,
+          iteration: opts.iteration ?? 0,
+          nodeId: candidate.id,
         })
       } catch (err) {
         // Consolidation failure is non-fatal — leave the subtree untouched.

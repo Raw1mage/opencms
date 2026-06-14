@@ -1,5 +1,6 @@
 import { For, Show, createSignal, type JSX } from "solid-js"
 import type { SessionTelemetry } from "@/context/global-sync/types"
+import { cacheHotnessGlyph, cacheHotnessSummary, type CacheHotness } from "@/components/session/cache-hotness"
 
 type CollapsibleCardProps = {
   marker: string
@@ -261,6 +262,10 @@ function formatRecentEventLine(
 export function RoundSessionTelemetryCard(props: {
   telemetry?: SessionTelemetry
   accountLabel?: (accountId?: string, providerId?: string) => string | undefined
+  // Live telemetry (buildSessionTelemetryFromProjector) carries no message list, so
+  // the round-over-round hotness is computed by the caller (which has the messages)
+  // and passed in. Falls back to telemetry.round.cacheHotness when present.
+  cacheHotness?: CacheHotness
   expanded?: boolean
   onToggle?: () => void
 }) {
@@ -284,12 +289,17 @@ export function RoundSessionTelemetryCard(props: {
     // (re)created prefix — NOT a hit. Hit rate = read / full prompt (read+write+input).
     const promptTotal = prompt + cacheRead + cacheWrite
     const roundHitPct = promptTotal > 0 ? (cacheRead / promptTotal) * 100 : undefined
+    // Round-over-round hotness: 🔥/🌡️/❄️ glyph in front of the cache read number
+    // tells whether last round's context carried over or got zeroed (cliff).
+    const hotness = props.cacheHotness ?? telemetry.round.cacheHotness
+    const glyph = hotness ? `${cacheHotnessGlyph(hotness.state)} ` : ""
     return [
       tokenLine("Prompt", telemetry.round.promptTokens),
       tokenLine("Response", telemetry.round.responseTokens),
       tokenLine("Reasoning", telemetry.round.reasoningTokens),
-      tokenLine("Cache read", telemetry.round.cacheReadTokens),
+      tokenLine(`${glyph}Cache read`, telemetry.round.cacheReadTokens),
       tokenLine("Cache write", telemetry.round.cacheWriteTokens),
+      hotness ? cacheHotnessSummary(hotness) : undefined,
       roundHitPct !== undefined ? `Cache hit ${roundHitPct.toFixed(1)}%` : undefined,
       telemetry.round.totalTokens && telemetry.round.totalTokens > 0
         ? `Round total ~${telemetry.round.totalTokens.toLocaleString()} tok`

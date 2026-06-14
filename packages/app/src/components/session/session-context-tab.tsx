@@ -14,6 +14,7 @@ import { useLayout } from "@/context/layout"
 import type { Message, Part, UserMessage } from "@opencode-ai/sdk/v2/client"
 import { useLanguage } from "@/context/language"
 import { getSessionContextMetrics } from "./session-context-metrics"
+import { cacheHotnessGlyph } from "./cache-hotness"
 import { estimateSessionContextBreakdown, type SessionContextBreakdownKey } from "./session-context-breakdown"
 import { createSessionContextFormatter } from "./session-context-format"
 import type { SessionTelemetry } from "@/context/global-sync/types"
@@ -168,7 +169,11 @@ export function SessionContextTab(props: SessionContextTabProps) {
     { label: "context.stats.reasoningTokens", value: () => formatter().number(ctx()?.reasoning) },
     {
       label: "context.stats.cacheTokens",
-      value: () => `${formatter().number(ctx()?.cacheRead)} / ${formatter().number(ctx()?.cacheWrite)}`,
+      value: () => {
+        const c = ctx()
+        const glyph = c?.cacheHotness ? `${cacheHotnessGlyph(c.cacheHotness.state)} ` : ""
+        return `${glyph}${formatter().number(c?.cacheRead)} / ${formatter().number(c?.cacheWrite)}`
+      },
     },
     { label: "context.stats.userMessages", value: () => counts().user.toLocaleString(language.intl()) },
     { label: "context.stats.assistantMessages", value: () => counts().assistant.toLocaleString(language.intl()) },
@@ -323,6 +328,7 @@ export function SessionContextTab(props: SessionContextTabProps) {
         content: (
           <RoundSessionTelemetryCard
             telemetry={telemetry()}
+            cacheHotness={ctx()?.cacheHotness}
             accountLabel={resolveAccountLabel}
             expanded={layout.contextSidebar.expanded("roundTelemetry")()}
             onToggle={() => layout.contextSidebar.toggleExpanded("roundTelemetry")}

@@ -13,8 +13,11 @@ import { cmd } from "./cmd"
 import { bootstrap } from "../bootstrap"
 import { UI } from "../ui"
 import { Global } from "../../global"
-import { NodeFS } from "../../freerun/storage/node-fs"
+import { summarizeFreerunEvents, readFreerunEventRecords } from "../../freerun/observability/metrics"
+import { renderFreerunStatusView } from "../../freerun/status-view"
 import { Tree } from "../../freerun/storage/tree"
+import { FreerunTodoProjection } from "../../freerun/todo-projection"
+import { Todo } from "../../session/todo"
 import type { NodeMode } from "../../freerun/types"
 
 export const FreerunStatusCommand = cmd({
@@ -84,27 +87,7 @@ async function showOne(sessionID: string, dataHome: string): Promise<void> {
     UI.error(`failed to load session '${sessionID}': ${err instanceof Error ? err.message : err}`)
     process.exit(2)
   }
-  void NodeFS // (silence import lint)
-
-  UI.println(`session: ${sessionID}`)
-  UI.println(`root:    ${tree.rootId}`)
-  UI.println(`nodes:   ${Tree.size(tree)}`)
-  UI.println("")
-  for (const { node, depth } of Tree.walkBFS(tree)) {
-    const indent = "  ".repeat(depth)
-    UI.println(`${indent}- [${node.mode}] ${node.id} — ${node.title}`)
-    if (node.observations.length > 0) {
-      UI.println(`${indent}  observations: ${node.observations.length}`)
-    }
-    if (node.decisions.length > 0) {
-      UI.println(`${indent}  decisions: ${node.decisions.length}`)
-    }
-    if (node.blockers.length > 0) {
-      UI.println(`${indent}  blockers: ${node.blockers.join("; ")}`)
-    }
-    if (node.consolidated_summary) {
-      const trimmed = node.consolidated_summary.replace(/\s+/g, " ").slice(0, 120)
-      UI.println(`${indent}  summary: ${trimmed}${node.consolidated_summary.length > 120 ? "…" : ""}`)
-    }
-  }
+  const projectedTodos = await Todo.get(sessionID).catch(() => FreerunTodoProjection.project(tree))
+  const metrics = summarizeFreerunEvents(await readFreerunEventRecords(sessionID, dataHome))
+  UI.println(renderFreerunStatusView({ sessionID, tree, projectedTodos, metrics }))
 }
