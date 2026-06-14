@@ -5,6 +5,7 @@ import { retry } from "@opencode-ai/util/retry"
 import { createSimpleContext } from "@opencode-ai/ui/context"
 import { useGlobalSync } from "./global-sync"
 import { useSDK } from "./sdk"
+import { mergeSnapshot } from "./active-poll"
 import { sendSessionReloadDebugBeacon } from "@/utils/debug-beacon"
 import type { Message, Part } from "@opencode-ai/sdk/v2/client"
 import type { State } from "./global-sync/types"
@@ -246,6 +247,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       return {
         session,
         part,
+        snapshot: items.map((message) => ({ info: message.info, parts: sortParts(message.parts) })),
         complete: session.length < input.limit,
       }
     }
@@ -257,6 +259,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       store: Store<State>
       sessionID: string
       limit: number
+      mode?: "replace" | "merge"
     }) => {
       const key = keyFor(input.directory, input.sessionID)
       if (meta.loading[key]) return
@@ -297,9 +300,17 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             }
           }
           batch(() => {
-            input.setStore("message", input.sessionID, reconcile(next.session, { key: "id" }))
-            for (const message of next.part) {
-              input.setStore("part", message.id, reconcile(message.part, { key: "id" }))
+            if (input.mode === "merge") {
+              const merged = mergeSnapshot(input.store, input.sessionID, next.snapshot)
+              input.setStore("message", input.sessionID, reconcile(merged.messages, { key: "id" }))
+              for (const message of merged.perMessageParts) {
+                input.setStore("part", message.messageID, reconcile(message.parts, { key: "id" }))
+              }
+            } else {
+              input.setStore("message", input.sessionID, reconcile(next.session, { key: "id" }))
+              for (const message of next.part) {
+                input.setStore("part", message.id, reconcile(message.part, { key: "id" }))
+              }
             }
             setMeta("limit", key, input.limit)
             setMeta("complete", key, next.complete)
@@ -483,7 +494,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           const limit = isMobile()
             ? tweaks.session_tail_mobile
             : tweaks.session_tail_desktop
-          await loadMessages({ directory, client, setStore, store, sessionID, limit })
+          await loadMessages({ directory, client, setStore, store, sessionID, limit, mode: "merge" })
         },
         async sync(sessionID: string) {
           // specs/mobile-tail-first-simplification: one initial-load path.

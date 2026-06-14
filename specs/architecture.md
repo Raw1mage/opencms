@@ -247,6 +247,7 @@ The frontend is built with Solid.js and uses a bottom-up dependency model:
 - UI components consume fine-grained reactive state so updates stay localized.
 - User actions flow through feature/control contexts into the SDK, with optimistic UI where required, then reconcile against server-driven events.
 - Ephemeral toast events are not durable replay state: every backend `tui.toast.show` payload must carry `scope`, `emittedAt`, and `ttlMs`, and `GlobalSync` must run the freshness/scope gate before calling `showToast` so SSE reconnects cannot display stale or cross-scope toasters.
+- Session transcript resync is merge-safe: initial hydration may replace an empty/unhydrated session with the bounded tail from `/session/:id/message`, but SSE reconnect / viewing-session resync must merge tail snapshots by message/part id and preserve local-only scrollback. The tail/cursor API is not an authoritative full transcript and must never shrink an already loaded client transcript.
 - Session list freshness is reducer-first: normal delete/archive flows rely on SSE `session.deleted` / `session.updated` events, while catalog-level out-of-band mutations under `Global.Path.data/storage/session/` are bridged back into the same refresh queue by the daemon-side `session-storage-watch` publisher. That publisher is intentionally limited to top-level `rename` events for `ses_*` entries and emits `global.disposed` for a root-session-list revalidate; nested writes or plain content-change events must not invalidate the full list.
 
 ### Frontend State Rules

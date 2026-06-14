@@ -188,6 +188,32 @@ describe("mergeSnapshot (frontend/resync DD-6, AC-6, errors.md E5)", () => {
     expect(result.messages.map((m) => m.id)).toEqual(["msg_u0", "msg_a1"])
   })
 
+  test("force/resync tail snapshot does not shrink an already loaded transcript", () => {
+    const oldUser = userMessage("msg_u0")
+    oldUser.time.created = 100
+    const oldAssistant = assistantMessage("msg_a0", "stop")
+    oldAssistant.time.created = 101
+    const recentUser = userMessage("msg_u1")
+    recentUser.time.created = 200
+    const recentAssistant = assistantMessage("msg_a1", "stop")
+    recentAssistant.time.created = 201
+    const localOnlyPart = textPart("part_local_only", "msg_a1", "SSE part outside snapshot")
+    const snapPart = textPart("part_snap", "msg_a1", "server tail", 300)
+    const store = makeStore(
+      { ses_test: [oldUser, oldAssistant, recentUser, recentAssistant] },
+      { msg_a1: [localOnlyPart] },
+    )
+
+    const result = mergeSnapshot(store, "ses_test", [
+      { info: recentUser, parts: [] },
+      { info: recentAssistant, parts: [snapPart] },
+    ])
+
+    expect(result.messages.map((m) => m.id)).toEqual(["msg_u0", "msg_a0", "msg_u1", "msg_a1"])
+    const partsForRecent = result.perMessageParts.find((message) => message.messageID === "msg_a1")?.parts ?? []
+    expect(partsForRecent.map((part) => part.id)).toEqual(["part_snap", "part_local_only"])
+  })
+
   test("does not duplicate parts when ID is in both local and snapshot", () => {
     const local = textPart("part1", "msg_a1", "Hi")
     const snap = textPart("part1", "msg_a1", "Hi", 2000)
