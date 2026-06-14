@@ -52,6 +52,7 @@ import { Env } from "@/env"
 import { Global } from "@/global"
 import fs from "fs/promises"
 import path from "path"
+import { createLocalMcpPool, localShareKey } from "./local-mcp-pool"
 import { IncomingDispatcher } from "../incoming/dispatcher"
 
 export namespace MCP {
@@ -568,30 +569,81 @@ export namespace MCP {
     return undefined
   }
 
-  // Global dedup: prevents multiple Instance workspaces from spawning
-  // duplicate stdio MCP servers for the same config key.  The first
-  // Instance that calls create() wins; subsequent callers get the same
-  // client.  HTTP/remote MCP entries are excluded (they don't spawn).
-  const createInFlight = new Map<
-    string,
-    Promise<{ mcpClient: MCPClient | undefined; status: Status; sourceWatch?: SourceWatch } | undefined>
-  >()
+  type CreateResult = { mcpClient: MCPClient | undefined; status: Status; sourceWatch?: SourceWatch }
+  type LocalSpawnSpec = {
+    cmd: string
+    finalArgs: string[]
+    cwd: string
+    env: Record<string, string>
+    sourceWatch?: SourceWatch
+  }
 
-  async function create(key: string, mcp: Config.Mcp) {
-    if (mcp.type === "local") {
-      const existing = createInFlight.get(key)
-      if (existing) {
-        log.info("create: joining in-flight create", { key })
-        return existing
+  // Resolve the full spawn spec for a local stdio MCP — command, args, cwd, env
+  // and on-disk source mtime — WITHOUT spawning. Both create() (to form the
+  // pool share key) and createInner() (to actually spawn) use this single
+  // source of truth so the key and the child can never disagree.
+  async function resolveLocalSpawnSpec(
+    key: string,
+    mcp: Extract<Config.Mcp, { type: "local" }>,
+  ): Promise<LocalSpawnSpec> {
+    const [cmd, ...args] = mcp.command
+    // Bun standalone binaries read bunfig.toml from cwd ancestors at runtime.
+    // Internal MCP binaries (compiled with bun build --compile) must not inherit
+    // the project-level bunfig.toml (which has @opentui/solid/preload for the TUI).
+    // Use /tmp as cwd for any binary outside the project tree to avoid picking up
+    // the project-level preload config.
+    const isExternalBinary = cmd.startsWith("/usr/local/lib/opencode/mcp/") || cmd.startsWith("/opt/opencode-apps/")
+    const cwd = mcp.cwd ? path.resolve(Instance.directory, mcp.cwd) : isExternalBinary ? "/tmp" : Instance.directory
+
+    const expandedEnvironment = expandEnvironment(mcp.environment)
+
+    // Auto-inject CWD for filesystem MCP if not already present
+    const finalArgs = [...args]
+    if (key === "filesystem") {
+      const hasParent = finalArgs.some((arg) => cwd.startsWith(arg))
+      if (!hasParent && !finalArgs.includes(cwd)) {
+        log.info("auto-injecting cwd into filesystem mcp", { key, cwd })
+        finalArgs.push(cwd)
       }
-      const promise = createInner(key, mcp).finally(() => createInFlight.delete(key))
-      createInFlight.set(key, promise)
-      return promise
+    }
+
+    const env: Record<string, string> = {
+      ...Env.all(),
+      OPENCODE_PID: process.env.OPENCODE_PID ?? String(process.pid),
+      ...(cmd === "opencode" ? { BUN_BE_BUN: "1" } : {}),
+      ...expandedEnvironment,
+    }
+
+    const sourceWatch = await resolveLocalSourceWatch(mcp.command, cwd)
+    return { cmd, finalArgs, cwd, env, sourceWatch }
+  }
+
+  // Process-global ref-counted pool for local stdio children (BR 20260612
+  // direction 1). Multiple Instance workspaces whose resolved spawn spec is
+  // identical share ONE child; the child is closed only when the LAST Instance
+  // releases it. The previous module-level in-flight map only deduped truly
+  // concurrent create() calls (its entry was deleted on settle), so sequential
+  // project-opens — the common case — each spawned their own child. The pool's
+  // acquire() ref-counts the client's close(), so every existing close site
+  // (cleanup / disconnect / reconnect / stale-refresh) is automatically
+  // balanced and a single Instance (refs 1) closes immediately as before.
+  const localPool = createLocalMcpPool<CreateResult>()
+
+  async function create(key: string, mcp: Config.Mcp): Promise<CreateResult | undefined> {
+    if (mcp.type === "local" && mcp.enabled !== false) {
+      const spec = await resolveLocalSpawnSpec(key, mcp)
+      const shareKey = localShareKey({
+        command: mcp.command,
+        cwd: spec.cwd,
+        env: spec.env,
+        sourceMtimeMs: spec.sourceWatch?.mtimeMs,
+      })
+      return localPool.acquire(shareKey, () => createInner(key, mcp, spec))
     }
     return createInner(key, mcp)
   }
 
-  async function createInner(key: string, mcp: Config.Mcp) {
+  async function createInner(key: string, mcp: Config.Mcp, localSpec?: LocalSpawnSpec) {
     if (mcp.enabled === false) {
       log.info("mcp server disabled", { key })
       return {
@@ -731,28 +783,8 @@ export namespace MCP {
     }
 
     if (mcp.type === "local") {
-      const [cmd, ...args] = mcp.command
-      // Bun standalone binaries read bunfig.toml from cwd ancestors at runtime.
-      // Internal MCP binaries (compiled with bun build --compile) must not inherit
-      // the project-level bunfig.toml (which has @opentui/solid/preload for the TUI).
-      // Use /tmp as cwd for these to avoid the preload-not-found crash.
-      // Bun compiled binaries read bunfig.toml from cwd ancestors.
-      // Use /tmp as cwd for any binary outside the project tree to avoid
-      // picking up the project-level preload config.
-      const isExternalBinary = cmd.startsWith("/usr/local/lib/opencode/mcp/") || cmd.startsWith("/opt/opencode-apps/")
-      const cwd = mcp.cwd ? path.resolve(Instance.directory, mcp.cwd) : isExternalBinary ? "/tmp" : Instance.directory
-
-      const expandedEnvironment = expandEnvironment(mcp.environment)
-
-      // Auto-inject CWD for filesystem MCP if not already present
-      const finalArgs = [...args]
-      if (key === "filesystem") {
-        const hasParent = finalArgs.some((arg) => cwd.startsWith(arg))
-        if (!hasParent && !finalArgs.includes(cwd)) {
-          log.info("auto-injecting cwd into filesystem mcp", { key, cwd })
-          finalArgs.push(cwd)
-        }
-      }
+      const spec = localSpec ?? (await resolveLocalSpawnSpec(key, mcp))
+      const { cmd, finalArgs, cwd } = spec
 
       let childMislaunchError: Error | undefined
       let rejectChildMislaunch: ((error: Error) => void) | undefined
@@ -764,12 +796,7 @@ export namespace MCP {
         command: cmd,
         args: finalArgs,
         cwd,
-        env: {
-          ...Env.all(),
-          OPENCODE_PID: process.env.OPENCODE_PID ?? String(process.pid),
-          ...(cmd === "opencode" ? { BUN_BE_BUN: "1" } : {}),
-          ...expandedEnvironment,
-        },
+        env: spec.env,
       })
       transport.stderr?.on("data", (chunk: Buffer) => {
         const text = chunk.toString()
@@ -796,9 +823,11 @@ export namespace MCP {
         status = {
           status: "connected",
         }
-        // Baseline the entry source mtime so tools() can detect a later edit
-        // and reconnect instead of serving this child's stale tool surface.
-        sourceWatch = await resolveLocalSourceWatch(mcp.command, cwd)
+        // Entry-source mtime captured at spec resolution (before spawn) so
+        // tools() can detect a later edit and reconnect instead of serving this
+        // child's stale tool surface. It is also folded into the pool share key,
+        // so a content edit yields a fresh child rather than a pooled stale one.
+        sourceWatch = spec.sourceWatch
       } catch (error) {
         log.error("local mcp startup failed", {
           key,
