@@ -92,4 +92,42 @@ describe("buildAttachedImagesInventory (v5 DD-22.1)", () => {
     ]
     expect(buildAttachedImagesInventory(messages)).toBe("")
   })
+
+  // BR 2026-06-14: turn-scope signal. When the caller supplies message roles,
+  // each image is attributed to a turn so a historical upload can't be mistaken
+  // for this turn's input (the "phantom attachment" regression after compaction).
+  const userMsg = (parts: InventoryAttachmentLike[]): InventoryMessageLike => ({ info: { role: "user" }, parts })
+  const asstMsg = (): InventoryMessageLike => ({ info: { role: "assistant" }, parts: [] })
+
+  it("marks a historical image as earlier/not-this-turn when the current turn is pure text", () => {
+    const messages: InventoryMessageLike[] = [
+      userMsg([img("old.png")]), // attached 1 user-turn ago
+      asstMsg(),
+      userMsg([{ type: "text" } as InventoryAttachmentLike]), // current turn: pure text
+    ]
+    const out = buildAttachedImagesInventory(messages)
+    expect(out).toContain("- old.png (image/png) — earlier, 1 turn(s) ago, not this turn")
+    expect(out).toContain("TURN SCOPE: none of these were attached in the current message")
+    expect(out).not.toContain("[THIS TURN]")
+  })
+
+  it("marks the current-turn upload [THIS TURN] and earlier ones as earlier", () => {
+    const messages: InventoryMessageLike[] = [
+      userMsg([img("hist.png")]),
+      asstMsg(),
+      userMsg([img("fresh.png")]), // current turn
+    ]
+    const out = buildAttachedImagesInventory(messages)
+    expect(out).toContain("- fresh.png (image/png) [THIS TURN]")
+    expect(out).toContain("- hist.png (image/png) — earlier, 1 turn(s) ago, not this turn")
+    expect(out).toContain("TURN SCOPE: only entries marked [THIS TURN] were attached in the current message")
+  })
+
+  it("omits turn-scope annotations entirely when no roles are supplied (legacy callers)", () => {
+    const out = buildAttachedImagesInventory([{ parts: [img("a.png")] }])
+    expect(out).not.toContain("TURN SCOPE")
+    expect(out).not.toContain("[THIS TURN]")
+    expect(out).not.toContain("not this turn")
+    expect(out).toContain("- a.png (image/png)")
+  })
 })
