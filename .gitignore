@@ -98,7 +98,6 @@ plans/*/.state.json
 /CLAUDE.md
 /plans/
 /docs/
-/issues/
 /script/beta-env.sh
 /script/deploy-agents-constitution.sh
 /script/dev-sync-config.sh
