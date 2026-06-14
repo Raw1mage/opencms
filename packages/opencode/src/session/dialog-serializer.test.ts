@@ -1,9 +1,5 @@
 import { describe, expect, it } from "bun:test"
-import {
-  findUnansweredUserMessageId,
-  parsePrevLastRound,
-  serializeRedactedDialog,
-} from "./dialog-serializer"
+import { findUnansweredUserMessageId, parsePrevLastRound, serializeRedactedDialog } from "./dialog-serializer"
 import type { MessageV2 } from "./message-v2"
 
 // ─────────────────────────────────────────────────────────────────────
@@ -181,12 +177,27 @@ describe("serializeRedactedDialog", () => {
     expect(result.messagesEmitted).toBe(2)
   })
 
-  it("startRound continues numbering across extends", () => {
+  it("omitLastRounds keeps newest completed C rounds out of the anchor body", () => {
     const result = serializeRedactedDialog(
       [
-        userMsg("u1", "next question"),
-        assistantMsg("a1", "stop", { text: "next answer" }),
+        userMsg("u1", "old B question"),
+        assistantMsg("a1", "stop", { text: "old B answer" }),
+        userMsg("u2", "latest C decision"),
+        assistantMsg("a2", "stop", { text: "latest C artifact" }),
       ],
+      { omitLastRounds: 1 },
+    )
+    expect(result.text).toContain("old B question")
+    expect(result.text).toContain("old B answer")
+    expect(result.text).not.toContain("latest C decision")
+    expect(result.text).not.toContain("latest C artifact")
+    expect(result.lastRound).toBe(1)
+    expect(result.messagesEmitted).toBe(2)
+  })
+
+  it("startRound continues numbering across extends", () => {
+    const result = serializeRedactedDialog(
+      [userMsg("u1", "next question"), assistantMsg("a1", "stop", { text: "next answer" })],
       { startRound: 48 },
     )
     expect(result.text).toContain("## Round 48")
@@ -272,10 +283,7 @@ describe("serializeRedactedDialog", () => {
   })
 
   it("user msg with empty text shows _(empty)_ placeholder", () => {
-    const result = serializeRedactedDialog([
-      userMsg("u1", ""),
-      assistantMsg("a1", "stop", { text: "ans" }),
-    ])
+    const result = serializeRedactedDialog([userMsg("u1", ""), assistantMsg("a1", "stop", { text: "ans" })])
     expect(result.text).toContain("_(empty)_")
   })
 
@@ -301,9 +309,7 @@ describe("findUnansweredUserMessageId", () => {
   })
 
   it("returns undefined when last user msg has finish=stop assistant child", () => {
-    expect(
-      findUnansweredUserMessageId([userMsg("u1"), assistantMsg("a1", "stop")]),
-    ).toBeUndefined()
+    expect(findUnansweredUserMessageId([userMsg("u1"), assistantMsg("a1", "stop")])).toBeUndefined()
   })
 
   it("returns id when last user msg has no assistant child", () => {
@@ -311,9 +317,7 @@ describe("findUnansweredUserMessageId", () => {
   })
 
   it("returns id when assistant child has finish=unknown", () => {
-    expect(
-      findUnansweredUserMessageId([userMsg("u1"), assistantMsg("a1", "unknown")]),
-    ).toBe("u1")
+    expect(findUnansweredUserMessageId([userMsg("u1"), assistantMsg("a1", "unknown")])).toBe("u1")
   })
 
   it("respects prevAnchorIdx — only walks tail after anchor", () => {

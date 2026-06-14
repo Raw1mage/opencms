@@ -726,6 +726,7 @@ export namespace SessionCompaction {
      * Defaults to "narrative" (the legacy behaviour for narrative anchors).
      */
     kind?: KindName
+    rawTailProjection?: { rounds: number; maxTokens: number }
   }) {
     log.info("compacting with shared context", { sessionID: input.sessionID })
 
@@ -796,6 +797,7 @@ export namespace SessionCompaction {
       sessionID: input.sessionID,
       type: "compaction",
       auto: input.auto,
+      metadata: input.rawTailProjection ? { rawTailProjection: input.rawTailProjection } : undefined,
     })
 
     // Step 2: retire old anchor now that the new one is safely written
@@ -958,7 +960,10 @@ export namespace SessionCompaction {
       const keep = Math.max(0, budgetChars - elision.length)
       return head.slice(0, keep) + elision
     }
-    const rounds = body.slice(firstRoundIdx).split(ROUND_RE).filter((s) => s.length > 0)
+    const rounds = body
+      .slice(firstRoundIdx)
+      .split(ROUND_RE)
+      .filter((s) => s.length > 0)
     const tailBudget = budgetChars - head.length - elision.length
     const kept: string[] = []
     let size = 0
@@ -1237,6 +1242,7 @@ export namespace SessionCompaction {
          */
         serverCompactedItems?: unknown[]
         chainBinding?: { accountId: string; modelId: string; capturedAt: number }
+        rawTailProjection?: { rounds: number; maxTokens: number }
       }
 
   /**
@@ -1290,10 +1296,16 @@ export namespace SessionCompaction {
 
     const unansweredId = findUnansweredUserMessageId(messages, prevAnchorIdx === -1 ? undefined : prevAnchorIdx)
     const tail = messages.slice(prevAnchorIdx + 1)
+    const fadeout = Tweaks.compactionSync().fadeout
+    const rawTailProjection =
+      _model && resolvePolicy(_model.providerId).kind === "claude" && fadeout.enabled && fadeout.bTailRounds > 0
+        ? { rounds: fadeout.bTailRounds, maxTokens: fadeout.bTailMaxTokens }
+        : undefined
 
     const { text: tailText, messagesEmitted } = serializeRedactedDialog(tail, {
       startRound: prevLastRound + 1,
       excludeUserMessageID: unansweredId,
+      omitLastRounds: rawTailProjection?.rounds,
     })
 
     if (messagesEmitted === 0 && prevBody === "") {
@@ -1302,7 +1314,7 @@ export namespace SessionCompaction {
 
     const body = prevBody && tailText ? `${prevBody}\n\n${tailText}` : prevBody || tailText
 
-    return { ok: true, summaryText: body, kind: "narrative", truncated: false }
+    return { ok: true, summaryText: body, kind: "narrative", truncated: false, rawTailProjection }
   }
 
   /**
@@ -2721,6 +2733,7 @@ When constructing the summary, try to stick to this template:
               observed,
               step,
               snapshot: preReplaySnapshot,
+              rawTailProjection: attempt.rawTailProjection,
             })
           } else {
             log.warn("compaction.run anchor write skipped: no resolvable model", { sessionID, observed })
@@ -3467,6 +3480,7 @@ When constructing the summary, try to stick to this template:
     observed: Observed
     step: number
     snapshot?: UserMessageSnapshot
+    rawTailProjection?: { rounds: number; maxTokens: number }
   }
   const defaultWriteAnchor = async (input: WriteAnchorInput) => {
     // compaction/recall-affordance L1: server-side TOOL_INDEX injection.
@@ -3612,6 +3626,7 @@ When constructing the summary, try to stick to this template:
       // S2: thread the real kind so ai_free publishes as ai_free (preserved),
       // not narrative (SS-break). narrative/replay-tail stay narrative.
       kind: input.kind,
+      rawTailProjection: input.rawTailProjection,
     })
 
     // user-msg-replay-unification DD-3: after the anchor is persisted,

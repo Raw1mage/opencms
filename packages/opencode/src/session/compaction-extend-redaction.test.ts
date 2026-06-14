@@ -43,11 +43,7 @@ function userMsg(id: string, text: string = "hello"): MessageV2.WithParts {
   }
 }
 
-function assistantMsg(
-  id: string,
-  finish: MessageV2.Assistant["finish"],
-  text?: string,
-): MessageV2.WithParts {
+function assistantMsg(id: string, finish: MessageV2.Assistant["finish"], text?: string): MessageV2.WithParts {
   const parts: MessageV2.Part[] = []
   if (text) {
     parts.push({
@@ -178,6 +174,62 @@ describe("tryNarrative (redacted-dialog body source)", () => {
     expect(newSegment).not.toContain("old question")
   })
 
+  it("claude fadeout leaves newest C round out of narrative anchor and records projection metadata", async () => {
+    stubMessages([
+      userMsg("u1", "B question"),
+      assistantMsg("a1", "stop", "B answer"),
+      userMsg("u2", "C decision"),
+      assistantMsg("a2", "stop", "C artifact"),
+    ])
+    stubTweaks({
+      enableDialogRedactionAnchor: true,
+      fadeout: {
+        ...originalTweaksSync().fadeout,
+        enabled: true,
+        bTailRounds: 1,
+        bTailMaxTokens: 12_000,
+      },
+    })
+
+    const result = await SessionCompaction.__test__.tryLocalRedactedDialog(
+      RUN_INPUT_BASE as any,
+      {
+        providerId: "claude-cli",
+        limit: { context: 1_000_000 },
+      } as any,
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.summaryText).toContain("B question")
+    expect(result.summaryText).toContain("B answer")
+    expect(result.summaryText).not.toContain("C decision")
+    expect(result.summaryText).not.toContain("C artifact")
+    expect(result.rawTailProjection).toEqual({ rounds: 1, maxTokens: 12_000 })
+  })
+
+  it("non-claude narrative keeps existing B+C folding behavior", async () => {
+    stubMessages([
+      userMsg("u1", "B question"),
+      assistantMsg("a1", "stop", "B answer"),
+      userMsg("u2", "C decision"),
+      assistantMsg("a2", "stop", "C artifact"),
+    ])
+    stubTweaks({ enableDialogRedactionAnchor: true })
+
+    const result = await SessionCompaction.__test__.tryLocalRedactedDialog(
+      RUN_INPUT_BASE as any,
+      {
+        providerId: "codex",
+        limit: { context: 272_000 },
+      } as any,
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.summaryText).toContain("C decision")
+    expect(result.summaryText).toContain("C artifact")
+    expect(result.rawTailProjection).toBeUndefined()
+  })
+
   it("excludes unanswered user msg from extend (Spec 1 synergy)", async () => {
     stubMessages([
       userMsg("u1", "finished question"),
@@ -238,7 +290,7 @@ describe("tryNarrative (redacted-dialog body source)", () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.summaryText).not.toContain("SECRET_RAW_PAYLOAD_DO_NOT_LEAK")
-    expect(result.summaryText).toContain("recall_id: prt_tool_X")
+    expect(result.summaryText).not.toContain("prt_tool_X")
   })
 })
 

@@ -24,6 +24,19 @@ const anchorMsg = (id: string) =>
     info: { id, role: "assistant", sessionID: "ses_inv0_fc", summary: true, time: { created: 0 } },
     parts: [{ id: `${id}_p`, type: "compaction", sessionID: "ses_inv0_fc", messageID: id }],
   }) as any
+const rawTailAnchorMsg = (id: string) =>
+  ({
+    info: { id, role: "assistant", sessionID: "ses_inv0_fc", summary: true, time: { created: 0 } },
+    parts: [
+      {
+        id: `${id}_p`,
+        type: "compaction",
+        sessionID: "ses_inv0_fc",
+        messageID: id,
+        metadata: { rawTailProjection: { rounds: 1, maxTokens: 12_000 } },
+      },
+    ],
+  }) as any
 // neutral (DD-21) anchor: a compaction part PLUS a text part holding the
 // base `<prior_context source="kind">` body WITHOUT supersede framing — the
 // form every provider stores and every legacy anchor already has.
@@ -70,9 +83,7 @@ const BASELINE_KIND_CHAIN: Record<string, readonly string[]> = {
 describe("INV-0 baseline: kindChainFor (provider-agnostic base chains unchanged)", () => {
   for (const observed of OBSERVED) {
     it(`kindChainFor("${observed}") === baseline`, () => {
-      expect([...SessionCompaction.kindChainFor(observed as any)]).toEqual([
-        ...BASELINE_KIND_CHAIN[observed],
-      ])
+      expect([...SessionCompaction.kindChainFor(observed as any)]).toEqual([...BASELINE_KIND_CHAIN[observed]])
     })
   }
 })
@@ -127,21 +138,36 @@ describe("INV-0 baseline: isOverflow token-pressure verdict for codex (272K)", (
   it("does NOT overflow well under usable (100K)", async () => {
     ;(Config as any).get = mock(async () => ({ compaction: { auto: true, reserved: 20_000 } }))
     await expect(
-      SessionCompaction.isOverflow({ tokens: mk(100_000), model: codexModel, sessionID: "ses_inv0_low", currentRound: 5 }),
+      SessionCompaction.isOverflow({
+        tokens: mk(100_000),
+        model: codexModel,
+        sessionID: "ses_inv0_low",
+        currentRound: 5,
+      }),
     ).resolves.toBe(false)
   })
 
   it("overflows when crossing usable budget (260K of 272K, reserved 20K)", async () => {
     ;(Config as any).get = mock(async () => ({ compaction: { auto: true, reserved: 20_000 } }))
     await expect(
-      SessionCompaction.isOverflow({ tokens: mk(260_000), model: codexModel, sessionID: "ses_inv0_high", currentRound: 5 }),
+      SessionCompaction.isOverflow({
+        tokens: mk(260_000),
+        model: codexModel,
+        sessionID: "ses_inv0_high",
+        currentRound: 5,
+      }),
     ).resolves.toBe(true)
   })
 
   it("overflows at the emergency ceiling (270.5K) regardless of cooldown", async () => {
     ;(Config as any).get = mock(async () => ({ compaction: { auto: true, reserved: 20_000 } }))
     await expect(
-      SessionCompaction.isOverflow({ tokens: mk(270_500), model: codexModel, sessionID: "ses_inv0_emerg", currentRound: 11 }),
+      SessionCompaction.isOverflow({
+        tokens: mk(270_500),
+        model: codexModel,
+        sessionID: "ses_inv0_emerg",
+        currentRound: 11,
+      }),
     ).resolves.toBe(true)
   })
 })
@@ -176,6 +202,27 @@ describe("INV-0 baseline: filterCompacted stops at the anchor (codex/default beh
     const result = await MessageV2.filterCompacted(streamOf(msgs))
     expect(result.messages.map((m: any) => m.info.id)).toEqual(["msg_x", "msg_y", "msg_z"])
     expect(result.stoppedByBudget).toBe(false)
+  })
+
+  it("rawTailProjection restores one completed raw C round after the anchor", async () => {
+    const msgs = [
+      mkMsg("msg_replay", "user"),
+      rawTailAnchorMsg("msg_anchor"),
+      mkMsg("msg_original_unanswered", "user"),
+      mkMsg("msg_c_assistant", "assistant"),
+      mkMsg("msg_c_user", "user"),
+      mkMsg("msg_old_assistant", "assistant"),
+      mkMsg("msg_old_user", "user"),
+    ]
+    const result = await MessageV2.filterCompacted(streamOf(msgs))
+    expect(result.messages.map((m: any) => m.info.id)).toEqual([
+      "msg_anchor",
+      "msg_c_user",
+      "msg_c_assistant",
+      "msg_replay",
+    ])
+    expect(result.messages.some((m: any) => m.info.id === "msg_original_unanswered")).toBe(false)
+    expect(result.messages.some((m: any) => m.info.id === "msg_old_user")).toBe(false)
   })
 })
 

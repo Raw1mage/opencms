@@ -6,7 +6,7 @@ import { Provider } from "@/provider/provider"
 import { Tweaks } from "../config/tweaks"
 import { Bus } from "@/bus"
 import { PostCompaction } from "./post-compaction"
-import type { MessageV2 } from "./message-v2"
+import { MessageV2 } from "./message-v2"
 
 /**
  * Deep integration tests that DO NOT mock the anchor writer.
@@ -70,9 +70,12 @@ interface CapturedWrites {
   appendRecentEvents: any[]
   busEvents: any[]
   setActiveImageRefs: string[][]
+  live: MessageV2.WithParts[]
 }
 
 function setupDeepMocks(sid: string, initialMessages: MessageV2.WithParts[]): CapturedWrites {
+  // Stream state: starts as initial, mutates as test writes
+  const live: MessageV2.WithParts[] = [...initialMessages]
   const captured: CapturedWrites = {
     messages: [],
     parts: [],
@@ -80,9 +83,8 @@ function setupDeepMocks(sid: string, initialMessages: MessageV2.WithParts[]): Ca
     appendRecentEvents: [],
     busEvents: [],
     setActiveImageRefs: [],
+    live,
   }
-  // Stream state: starts as initial, mutates as test writes
-  const live: MessageV2.WithParts[] = [...initialMessages]
 
   ;(Memory as any).read = mock(async () => ({
     sessionID: sid,
@@ -137,12 +139,15 @@ function setupDeepMocks(sid: string, initialMessages: MessageV2.WithParts[]): Ca
   ;(Session as any).setActiveImageRefs = mock(async (_sid: string, refs: string[]) => {
     captured.setActiveImageRefs.push(refs)
   })
-  ;(Provider as any).getModel = mock(async () => ({
-    id: "gpt-5.5",
-    providerId: "codex",
-    limit: { context: 272_000, input: 272_000, output: 32_000 },
-    cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
-  }) as any)
+  ;(Provider as any).getModel = mock(
+    async () =>
+      ({
+        id: "gpt-5.5",
+        providerId: "codex",
+        limit: { context: 272_000, input: 272_000, output: 32_000 },
+        cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+      }) as any,
+  )
   ;(Tweaks as any).compactionSync = mock(() => ({
     ...originals.tweaksSync(),
     enableUserMsgReplay: true,
@@ -252,6 +257,34 @@ describe("DEEP integration: defaultWriteAnchor → _replayHelper wiring", () => 
     // anchorMessageID is the freshly written summary anchor's id
     expect(replayCalls[0].anchorMessageID).toBeDefined()
     expect(replayCalls[0].anchorMessageID.length).toBeGreaterThan(4)
+  })
+
+  it("observed=rebind: default replay keeps first post-rebind user visible after anchor", async () => {
+    const captured = setupDeepMocks("ses_deep", [
+      userMsgWP("msg_u_prior", "earlier question"),
+      asstMsgWP("msg_a_prior", "msg_u_prior", "earlier answer"),
+      userMsgWP("msg_a_user_x", "修"),
+    ])
+
+    const result = await SessionCompaction.run({
+      sessionID: "ses_deep",
+      observed: "rebind",
+      step: 1,
+    })
+
+    expect(result).toBe("continue")
+    expect(captured.removes).toContain("msg_a_user_x")
+    const replayedPart = captured.parts.find((part) => part.type === "text" && part.text === "修") as
+      | MessageV2.TextPart
+      | undefined
+    expect(replayedPart?.metadata?.compactionReplay).toBe(true)
+
+    async function* newestFirst() {
+      for (const message of [...captured.live].reverse()) yield message
+    }
+    const projected = await MessageV2.filterCompacted(newestFirst())
+    expect(projected.messages.map((message) => message.info.role)).toEqual(["assistant", "user"])
+    expect(projected.messages[1].parts.some((part) => part.type === "text" && part.text === "修")).toBe(true)
   })
 
   it("observed=manual + no-unanswered: _replayHelper NOT called (snapshot empty)", async () => {

@@ -395,11 +395,13 @@ export namespace MessageV2 {
    * replay (re-pinning skills referenced by older compacted spans).
    * Telemetry-only in Phase A; persisted on disk in Phase B.
    */
-  export const CompactionSkillSnapshot = z.object({
-    active: z.array(z.string()),
-    summarized: z.array(z.string()),
-    pinned: z.array(z.string()),
-  }).meta({ ref: "CompactionSkillSnapshot" })
+  export const CompactionSkillSnapshot = z
+    .object({
+      active: z.array(z.string()),
+      summarized: z.array(z.string()),
+      pinned: z.array(z.string()),
+    })
+    .meta({ ref: "CompactionSkillSnapshot" })
   export type CompactionSkillSnapshot = z.infer<typeof CompactionSkillSnapshot>
 
   export const CompactionPart = PartBase.extend({
@@ -438,6 +440,12 @@ export namespace MessageV2 {
             accountId: z.string(),
             modelId: z.string(),
             capturedAt: z.number(),
+          })
+          .optional(),
+        rawTailProjection: z
+          .object({
+            rounds: z.number().int().nonnegative(),
+            maxTokens: z.number().int().positive(),
           })
           .optional(),
       })
@@ -1235,10 +1243,22 @@ export namespace MessageV2 {
       // NEUTRAL and the claude path re-frames them at read time
       // (reframeAnchorBodyForClaude) instead of discriminating here — so this
       // boundary scan is byte-identical for every provider (INV-0 restored).
-      const hasCompactionAnchor = msg.parts.some((p: any) => p.type === "compaction")
+      const compactionPart = msg.parts.find((p: any) => p.type === "compaction") as MessageV2.CompactionPart | undefined
+      const hasCompactionAnchor = !!compactionPart
 
       result.push(msg)
-      if (hasCompactionAnchor) break
+      if (hasCompactionAnchor) {
+        const rawTailProjection = compactionPart?.metadata?.rawTailProjection
+        if (rawTailProjection && rawTailProjection.rounds > 0) {
+          const postAnchor = result.slice(0, -1)
+          const rawTail = await collectRawTailAfterAnchor(stream, rawTailProjection.rounds, rawTailProjection.maxTokens)
+          return {
+            messages: [msg, ...rawTail.reverse(), ...postAnchor.reverse()],
+            stoppedByBudget,
+          }
+        }
+        break
+      }
 
       if (msg.info.role === "assistant" && (msg.info as any).summary && (msg.info as any).finish) {
         completed.add((msg.info as any).parentID)
@@ -1256,12 +1276,7 @@ export namespace MessageV2 {
         let msgTokens: number
         if (msg.info.role === "assistant") {
           const t = (msg.info as MessageV2.Assistant).tokens
-          msgTokens =
-            t?.total ??
-            (t?.input ?? 0) +
-              (t?.output ?? 0) +
-              (t?.cache?.read ?? 0) +
-              (t?.cache?.write ?? 0)
+          msgTokens = t?.total ?? (t?.input ?? 0) + (t?.output ?? 0) + (t?.cache?.read ?? 0) + (t?.cache?.write ?? 0)
         } else {
           // User message: small approximation by joining text parts only.
           // Avoids stringifying tool-result payloads that may have been
@@ -1284,6 +1299,55 @@ export namespace MessageV2 {
     }
     result.reverse()
     return { messages: result, stoppedByBudget }
+  }
+
+  async function collectRawTailAfterAnchor(
+    stream: AsyncIterable<MessageV2.WithParts>,
+    rounds: number,
+    maxTokens: number,
+  ): Promise<MessageV2.WithParts[]> {
+    const tail: MessageV2.WithParts[] = []
+    let collectedRounds = 0
+    let collectedTokens = 0
+    let hasAssistantForRound = false
+
+    for await (const msg of stream) {
+      if (msg.parts.some((p: any) => p.type === "compaction")) break
+      const msgTokens = estimateFilterTokens(msg)
+      if (tail.length > 0 && collectedTokens + msgTokens > maxTokens) break
+
+      if (msg.info.role === "user") {
+        if (!hasAssistantForRound) continue
+        tail.push(msg)
+        collectedTokens += msgTokens
+        collectedRounds += 1
+        hasAssistantForRound = false
+        if (collectedRounds >= rounds) break
+        continue
+      }
+
+      if (msg.info.role === "assistant") {
+        tail.push(msg)
+        collectedTokens += msgTokens
+        hasAssistantForRound = true
+      }
+    }
+
+    return tail
+  }
+
+  function estimateFilterTokens(msg: MessageV2.WithParts): number {
+    if (msg.info.role === "assistant") {
+      const t = (msg.info as MessageV2.Assistant).tokens
+      return t?.total ?? (t?.input ?? 0) + (t?.output ?? 0) + (t?.cache?.read ?? 0) + (t?.cache?.write ?? 0)
+    }
+    let userBytes = 0
+    for (const p of msg.parts) {
+      if (p.type === "text" && typeof (p as { text?: string }).text === "string") {
+        userBytes += (p as { text: string }).text.length
+      }
+    }
+    return userBytes / 4
   }
 
   const isOpenAiErrorRetryable = (e: APICallError) => {

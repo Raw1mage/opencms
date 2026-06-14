@@ -9,6 +9,8 @@ export interface SerializeOptions {
    * are handled by replayUnansweredUserMessage, not by extend).
    */
   excludeUserMessageID?: string
+  /** Keep this many newest completed rounds out of the anchor body. */
+  omitLastRounds?: number
 }
 
 export interface SerializeResult {
@@ -56,8 +58,12 @@ export function serializeRedactedDialog(
   const blocks: string[] = []
   let lastRound = startRound - 1
 
-  for (const round of rounds) {
-    if (excludeId && round.userMessage.info.id === excludeId) continue
+  const eligibleRounds = excludeId ? rounds.filter((round) => round.userMessage.info.id !== excludeId) : rounds
+  const omitLastRounds = Math.max(0, options.omitLastRounds ?? 0)
+  const roundsToRender =
+    omitLastRounds > 0 ? eligibleRounds.slice(0, Math.max(0, eligibleRounds.length - omitLastRounds)) : eligibleRounds
+
+  for (const round of roundsToRender) {
     const block = renderRound(round)
     if (!block) continue
     blocks.push(block)
