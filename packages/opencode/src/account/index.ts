@@ -157,6 +157,24 @@ export namespace Account {
     return _storage
   }
 
+  /**
+   * Resilience (BR 2026-06-14): mutate raw parsed JSON in place, removing any
+   * `activeAccount: null` left by a delete that emptied a family. Null fails the
+   * `z.string().optional()` schema, and one such value previously caused the
+   * whole file to be rejected and reset to empty. Defensive against a non-object
+   * shape so a malformed file still reaches safeParse (which reports it).
+   */
+  function sanitizeNullActiveAccount(data: unknown): void {
+    if (!data || typeof data !== "object") return
+    const families = (data as { families?: unknown }).families
+    if (!families || typeof families !== "object") return
+    for (const family of Object.values(families as Record<string, unknown>)) {
+      if (family && typeof family === "object" && (family as { activeAccount?: unknown }).activeAccount === null) {
+        delete (family as { activeAccount?: unknown }).activeAccount
+      }
+    }
+  }
+
   async function load(): Promise<Storage> {
     const file = Bun.file(filepath)
     let exists = await file.exists()
@@ -203,6 +221,14 @@ export namespace Account {
 
     try {
       const data = await file.json()
+      // Resilience (BR 2026-06-14): a hand-edited / agent-written accounts.json
+      // that deletes the last account in a family can leave `activeAccount: null`
+      // behind. The schema's `.optional()` accepts undefined but REJECTS null, so
+      // a single stray null made safeParse fail → the file reset to empty → every
+      // provider's accounts vanished from the UI. Strip null activeAccount keys
+      // before validating so one dirty pointer can't nuke all accounts (the
+      // cleaned value is also persisted on the next save).
+      sanitizeNullActiveAccount(data)
       const parsed = Storage.safeParse(data)
       if (!parsed.success) {
         log.warn("Invalid accounts.json, resetting", { error: parsed.error })
