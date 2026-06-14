@@ -178,7 +178,7 @@
         "registry_layer": "mcp-apps.json",
         "transport": "streamable-http (Unix domain socket)",
         "capability": "Word/PDF/XLSX/ODT/PPTX document toolkit — extract, decompose, surgically edit, and rebuild documents while preserving formatting. Runs as isolated Docker container. Default unified profile lists exactly 2 facade tools (docxmcp_document + docxmcp_stage) — the former is action-keyed across two operating modes; the latter is a single-purpose constructor primitive. Full HTTP protocol details (token TTL, output schemas) are surfaced via the docxmcp manifest instructions block at runtime.",
-        "key_prefix_note": "Because docxmcp registers tools with a self-prefix `docxmcp_*` and opencode adds another `mcpapp-<id>_` App Store prefix, the runtime tool keys are `mcpapp-docxmcp_docxmcp_<tool>` (double prefix). Always reference the full key when calling tool_loader. The unified profile lists only docxmcp_document and docxmcp_stage; legacy tool names remain reachable under DOCXMCP_TOOL_PROFILE=legacy.",
+        "key_prefix_note": "docxmcp registers its tools with a self-prefix `docxmcp_*`. opencode would prepend its own `mcpapp-docxmcp_` App Store prefix, but detects the redundant self-prefix and collapses it, so the runtime key is the single-prefix `docxmcp_<tool>` — do NOT double the prefix. Call that single-prefix key when using tool_loader. The unified profile lists only docxmcp_document and docxmcp_stage; legacy tool names remain reachable under DOCXMCP_TOOL_PROFILE=legacy.",
         "tools": [
           {
             "name": "docxmcp_document",
@@ -344,15 +344,15 @@
           "ocr docx"
         ],
         "requires_mcp": ["docxmcp"],
-        "prefer": ["mcpapp-docxmcp_docxmcp_document", "mcpapp-docxmcp_docxmcp_stage", "skill:doc-workflow"],
+        "prefer": ["docxmcp_document", "docxmcp_stage", "skill:doc-workflow"],
         "fallback": [
           "skill:doc-workflow with docxmcp backend script as last resort (bypasses MCP layer, no schema validation)"
         ],
         "notes": [
           "Mode A — build from markdown: docxmcp_document(action=decompose, …) → edit chapter md → docxmcp_document(action=assemble, doc_dir=…). Use for full content rewrites and structural reorganisation.",
           "Mode B — surgery on docx (byte-preserving): docxmcp_document(action=open_for_revise, path=…) → docxmcp_document(action=scout, path=…) → docxmcp_document(action=apply_chapter_md, path=…, section_id=…, md_content=…). Use when only specific paragraphs change and the rest must remain byte-identical.",
-          "ALWAYS prefer the MCP tool keys (`mcpapp-docxmcp_docxmcp_document`, `mcpapp-docxmcp_docxmcp_stage`) over running docxmcp's backend Python script via bash.",
-          "Note the DOUBLE prefix: opencode adds `mcpapp-docxmcp_` (App Store namespace) on top of the registry's own `docxmcp_` self-prefix.",
+          "ALWAYS prefer the MCP tool keys (`docxmcp_document`, `docxmcp_stage`) over running docxmcp's backend Python script via bash.",
+          "Single prefix: opencode would prepend `mcpapp-docxmcp_` (App Store namespace) on top of the registry's own `docxmcp_` self-prefix, but detects the duplication and collapses it, so the callable key is the single-prefix `docxmcp_<tool>` — never doubled.",
           "Legacy tool names (`docxmcp_extract_all`, `docxmcp_rebuild_docx`, etc.) are reachable only under DOCXMCP_TOOL_PROFILE=legacy; new code SHOULD use the facade actions.",
           "The doc-workflow skill describes the doc_dir / chapter md / template.dotx conventions; the docxmcp MCP server provides the actual tool implementations.",
           "If a docxmcp tool returns connection errors, the container or Unix socket may be down — surface the error to the user rather than silently falling back to bash."
