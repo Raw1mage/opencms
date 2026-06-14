@@ -87,7 +87,6 @@
       "system-manager_switch_account",
       "system-manager_switch_model",
       "system-manager_switch_provider",
-      "system-manager_rename_session",
       "system-manager_get_session",
       "system-manager_get_favorites",
       "system-manager_switch_theme",
@@ -442,7 +441,7 @@
         ],
         "prefer": [
           "system-manager_switch_session",
-          "system-manager_rename_session",
+          "system-manager_manage_session",
           "system-manager_switch_model",
           "system-manager_switch_account",
           "system-manager_switch_provider"

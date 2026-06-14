@@ -26,7 +26,6 @@ const SYSTEM_MANAGER_TOOL_NAMES = [
   "switch_model",
   "switch_account",
   "switch_provider",
-  "rename_session",
   "get_session",
   "get_favorites",
   "switch_theme",

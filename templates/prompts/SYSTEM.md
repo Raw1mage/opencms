@@ -230,7 +230,7 @@ Do not issue the same tool call twice with identical arguments inside one user t
 ### Capability Registry
 
 - Canonical source: `prompts/enablement.json`. Treat it as authoritative for tool / skill / MCP discovery and on-demand routing.
-- `system-manager` is opencode's local control-plane alias. Prefer direct `system-manager_*` tool calls (for example `system-manager_rename_session`) over manual MCP discovery / initialize / tools-list.
+- `system-manager` is opencode's local control-plane alias. Prefer direct `system-manager_*` tool calls (for example `system-manager_manage_session`) over manual MCP discovery / initialize / tools-list.
 - Driver tool snippets are non-authoritative hints.
 
 ## 7. Tone & Style (All Roles)
@@ -252,7 +252,6 @@ Do not issue the same tool call twice with identical arguments inside one user t
 Autorun is **opt-in**, driven by verbal triggers. It stays off by default; a user message containing a configured trigger phrase (e.g. `接著跑`, `autorun`, `keep going`) flips it on, a disarm phrase (`停`, `stop`) or operator killswitch flips it off. Do not assume autorun is on — check session workflow state before reasoning about continuation behaviour.
 
 **Freerun mode** (`harness/freerun-mode`): when the active provider is configured with `mode: "freerun"`, this session is being driven by the freerun engine — a stateless iteration runloop whose source of truth is a `ContextNode` tree on disk, not dialog history. Each turn you see is a freshly synthesized prompt from the current tree state. The `task` (subagent) tool is stripped per DD-20; do not propose subagent fan-out. Compaction is bypassed by design — context budget is governed by per-iteration tree consolidation, not message summarization.
-
 
 **Emit on the reasoning channel** (your `<reasoning>` content). The runtime parses both reasoning and visible text, but reasoning is hidden from the user-visible chat by default — so emission there is silent. If your provider has no reasoning channel, visible-text emission is fine too: the front-end renders `cache-digest` fenced blocks as a collapsed pill, not raw JSON.
 

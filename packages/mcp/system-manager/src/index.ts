@@ -249,7 +249,12 @@ async function readSessionInfoFromDaemon(sessionID: string) {
   return readSessionInfoViaApi({ fetchImpl: serverFetch as any, baseUrl, headers, sessionID })
 }
 
-async function readSessionListFromDaemon(input?: { search?: string; limit?: number; roots?: boolean }) {
+async function readSessionListFromDaemon(input?: {
+  search?: string
+  limit?: number
+  roots?: boolean
+  directory?: string
+}) {
   const baseUrl = await getServerApiBaseUrl()
   const headers = await getServerRequestHeaders("GET")
   return readSessionListViaApi({
@@ -259,7 +264,28 @@ async function readSessionListFromDaemon(input?: { search?: string; limit?: numb
     search: input?.search,
     limit: input?.limit,
     roots: input?.roots,
+    directory: input?.directory,
   })
+}
+
+async function resolveSessionIDForMetadataMutation(sessionID: string) {
+  if (sessionID !== "current") return sessionID
+
+  const directory = process.env.OPENCODE_REPO_ROOT || process.cwd()
+  const sessions = await readSessionListFromDaemon({ directory, roots: true, limit: 20 })
+  const current = sessions
+    .filter((session) => !session.parentID)
+    .sort((left, right) => {
+      const rightUpdated = right.time?.updated ?? right.time?.created ?? 0
+      const leftUpdated = left.time?.updated ?? left.time?.created ?? 0
+      return rightUpdated - leftUpdated
+    })[0]
+
+  if (!current?.id) {
+    throw new Error(`current_session_not_found:${directory}`)
+  }
+
+  return current.id
 }
 
 async function postSessionRevertToDaemon(sessionID: string, messageID: string) {
@@ -497,19 +523,6 @@ export async function listSystemManagerTools() {
         },
       },
       {
-        name: "rename_session",
-        description:
-          "Rename a session. This is a session-based metadata update for requests like 'rename this session to X'. If the new title is missing or unclear, ask with question rather than inventing one.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            sessionID: { type: "string" },
-            title: { type: "string" },
-          },
-          required: ["sessionID", "title"],
-        },
-      },
-      {
         name: "get_session",
         description:
           "Read session metadata by sessionID, including title, directory, timestamps, parentID, and execution identity. Use this when the user asks what session/title/model/directory is currently associated with a specific session.",
@@ -632,7 +645,7 @@ export async function listSystemManagerTools() {
       {
         name: "manage_session",
         description:
-          "Manage opencode sessions for non-switching operations (fork, summarize, undo, redo, create, list, search, rename). Dedicated tools switch_session / switch_model / switch_account / switch_provider remain the canonical path for execution-identity changes. rename_session is also still available as a dedicated alias; operation='rename' here is an accepted shortcut that hits the same PATCH endpoint — pick whichever is closer at hand.\n\nFor operation='create' you may pass sessionID as a handover source: the new session will inherit the source's directory and model, and (unless handoverAutoPrompt=false) will be auto-seeded with a prompt telling the new session to read the source's eventlog / checkpoint / SharedContext and continue. Pass handover for extra free-form context appended after the canned instruction.\n\nFor operation='rename' pass sessionID + title; title is the new session title.",
+          "Manage opencode sessions for non-switching operations (fork, summarize, undo, redo, create, list, search, rename). Dedicated tools switch_session / switch_model / switch_account / switch_provider remain the canonical path for execution-identity changes.\n\nFor operation='rename', pass sessionID + title. Use sessionID='current' for the active root session in the current workspace; the tool resolves it via the daemon session list and fails if none is found.\n\nFor operation='create' you may pass sessionID as a handover source: the new session will inherit the source's directory and model, and (unless handoverAutoPrompt=false) will be auto-seeded with a prompt telling the new session to read the source's eventlog / checkpoint / SharedContext and continue. Pass handover for extra free-form context appended after the canned instruction.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1102,21 +1115,6 @@ export async function callSystemManagerTool(name: string, args: unknown) {
       }
     }
 
-    if (name === "rename_session") {
-      const { sessionID, title } = args as { sessionID: string; title: string }
-      const baseUrl = await getServerApiBaseUrl()
-      const headers = await getServerRequestHeaders("PATCH")
-      await patchSessionViaApi({
-        fetchImpl: serverFetch as any,
-        baseUrl,
-        headers,
-        sessionID,
-        body: { title },
-        errorPrefix: `Failed to rename session ${sessionID}`,
-      })
-      return { content: [{ type: "text", text: `Renamed session ${sessionID} to "${title}"` }] }
-    }
-
     if (name === "get_session") {
       const { sessionID } = args as { sessionID: string }
       const info = await readSessionInfoFromDaemon(sessionID)
@@ -1356,17 +1354,18 @@ export async function callSystemManagerTool(name: string, args: unknown) {
       if (operation === "rename") {
         if (!sessionID) throw new Error("sessionID is required for rename operation")
         if (!title) throw new Error("title is required for rename operation")
+        const resolvedSessionID = await resolveSessionIDForMetadataMutation(sessionID)
         const baseUrl = await getServerApiBaseUrl()
         const headers = await getServerRequestHeaders("PATCH")
         await patchSessionViaApi({
           fetchImpl: serverFetch as any,
           baseUrl,
           headers,
-          sessionID,
+          sessionID: resolvedSessionID,
           body: { title },
-          errorPrefix: `Failed to rename session ${sessionID}`,
+          errorPrefix: `Failed to rename session ${resolvedSessionID}`,
         })
-        return { content: [{ type: "text", text: `Renamed session ${sessionID} to "${title}"` }] }
+        return { content: [{ type: "text", text: `Renamed session ${resolvedSessionID} to "${title}"` }] }
       }
 
       if (operation === "create") {

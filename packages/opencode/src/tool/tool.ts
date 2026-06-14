@@ -148,7 +148,6 @@ export namespace Tool {
     "system-manager_switch_model": "modify",
     "system-manager_switch_account": "modify",
     "system-manager_switch_provider": "modify",
-    "system-manager_rename_session": "modify",
     "system-manager_switch_theme": "modify",
     "system-manager_toggle_mcp": "modify",
     "system-manager_copy_to_clipboard": "modify",

@@ -152,12 +152,14 @@ export async function readSessionListViaApi(input: {
   search?: string
   limit?: number
   roots?: boolean
+  directory?: string
 }) {
   input.headers.set("Accept", "application/json")
   const params = new URLSearchParams()
   if (input.search) params.set("search", input.search)
   if (input.limit !== undefined) params.set("limit", String(input.limit))
   if (input.roots !== undefined) params.set("roots", String(input.roots))
+  if (input.directory) params.set("directory", input.directory)
   const query = params.toString()
   const response = await input.fetchImpl(`${input.baseUrl}/session${query ? `?${query}` : ""}`, {
     headers: input.headers,

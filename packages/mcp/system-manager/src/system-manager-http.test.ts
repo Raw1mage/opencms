@@ -195,10 +195,11 @@ describe("system-manager http helpers", () => {
       headers: new Headers(),
       search: "DB",
       limit: 5,
+      directory: "/repo",
     })
 
     expect(calls[0]?.url).toBe("http://127.0.0.1:1080/api/v2/session/ses_db")
-    expect(calls[1]?.url).toBe("http://127.0.0.1:1080/api/v2/session?search=DB&limit=5")
+    expect(calls[1]?.url).toBe("http://127.0.0.1:1080/api/v2/session?search=DB&limit=5&directory=%2Frepo")
     expect(list).toHaveLength(1)
   })
 
