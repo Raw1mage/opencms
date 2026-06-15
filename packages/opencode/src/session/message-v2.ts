@@ -203,7 +203,7 @@ export namespace MessageV2 {
     "ParalysisDetectedError",
     z.object({
       message: z.string(),
-      detector: z.enum(["signature", "narrative"]),
+      detector: z.enum(["signature", "narrative", "preface"]),
       consecutiveRounds: z.number(),
       similarity: z.number().optional(),
       samplePrefix: z.string().optional(),
@@ -1753,12 +1753,7 @@ export namespace MessageV2 {
   export const remove = fn(
     z.object({ sessionID: z.string(), messageID: z.string() }),
     async ({ sessionID, messageID }) => {
-      const { removeMessageInfo, removePartFile } = await import("./storage/legacy")
-      await removeMessageInfo(sessionID, messageID)
-      const p = await parts(messageID)
-      for (const part of p) {
-        await removePartFile(messageID, part.id)
-      }
+      await StorageRouter.removeMessage({ sessionID, messageID })
       Bus.publish(Event.Removed, { sessionID, messageID })
     },
   )

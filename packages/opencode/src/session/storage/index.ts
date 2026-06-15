@@ -73,6 +73,16 @@ export namespace SessionStorage {
     /** Remove one attachment blob by session-scoped ref id. */
     removeAttachmentBlob(input: { sessionID: string; refID: string }): Promise<void>
 
+    /**
+     * Remove one message and all its parts by id. Must route through the
+     * same backend that serves reads — a legacy-fs-only delete leaves a
+     * SqliteStore session's rows intact (the revert/cleanup regression).
+     */
+    removeMessage(input: { sessionID: string; messageID: string }): Promise<void>
+
+    /** Remove one part by id within a message. */
+    removePart(input: { sessionID: string; messageID: string; partID: string }): Promise<void>
+
     /** Remove an entire session and all its data. */
     deleteSession(sessionID: string): Promise<void>
   }

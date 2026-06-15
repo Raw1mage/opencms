@@ -1220,7 +1220,8 @@ export namespace Session {
     }),
     async (input) => {
       const previous = await readMessageInfo(input.sessionID, input.messageID)
-      await removeMessageInfo(input.sessionID, input.messageID)
+      const { Router: StorageRouter } = await import("./storage/router")
+      await StorageRouter.removeMessage({ sessionID: input.sessionID, messageID: input.messageID })
       if (hasMessageUsageDelta(previous, undefined)) {
         await update(
           input.sessionID,

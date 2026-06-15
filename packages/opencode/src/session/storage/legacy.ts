@@ -108,6 +108,18 @@ export const LegacyStore: SessionStorage.Backend = {
     await Storage.remove(["attachment", input.sessionID, input.refID])
   },
 
+  async removeMessage(input: { sessionID: string; messageID: string }): Promise<void> {
+    // Remove the message's parts first, then the message info file.
+    for (const partItem of await Storage.list(["part", input.messageID])) {
+      await Storage.remove(partItem).catch(() => {})
+    }
+    await Storage.remove(["message", input.sessionID, input.messageID])
+  },
+
+  async removePart(input: { sessionID: string; messageID: string; partID: string }): Promise<void> {
+    await Storage.remove(["part", input.messageID, input.partID])
+  },
+
   async deleteSession(sessionID: string): Promise<void> {
     // Best-effort recursive remove. Caller (Session.delete) owns Bus
     // event publication and any associated cleanup.
@@ -129,10 +141,7 @@ export const LegacyStore: SessionStorage.Backend = {
  * value before an update (e.g. usage-delta tracking in Session.updateMessage)
  * without going through the full `get` (which also loads parts).
  */
-export async function readMessageInfo(
-  sessionID: string,
-  messageID: string,
-): Promise<MessageV2.Info | undefined> {
+export async function readMessageInfo(sessionID: string, messageID: string): Promise<MessageV2.Info | undefined> {
   return await Storage.read<MessageV2.Info>(["message", sessionID, messageID]).catch(() => undefined)
 }
 
@@ -168,9 +177,6 @@ export async function writePartFile(part: MessageV2.Part): Promise<void> {
  * paths that already know the part id and don't want to load the entire
  * part list of a message just to find one entry.
  */
-export async function readPartFile<T = MessageV2.Part>(
-  messageID: string,
-  partID: string,
-): Promise<T> {
+export async function readPartFile<T = MessageV2.Part>(messageID: string, partID: string): Promise<T> {
   return await Storage.read<T>(["part", messageID, partID])
 }

@@ -96,9 +96,9 @@ export namespace SessionRevert {
     const messageID = session.revert.messageID
     const [preserve, remove] = splitWhen(msgs, (x) => x.info.id === messageID)
     msgs = preserve
-    const { removeMessageInfo, removePartFile } = await import("./storage/legacy")
+    const { Router: StorageRouter } = await import("./storage/router")
     for (const msg of remove) {
-      await removeMessageInfo(sessionID, msg.info.id)
+      await StorageRouter.removeMessage({ sessionID, messageID: msg.info.id })
       await Bus.publish(MessageV2.Event.Removed, { sessionID: sessionID, messageID: msg.info.id })
     }
     const last = preserve.at(-1)
@@ -107,7 +107,7 @@ export namespace SessionRevert {
       const [preserveParts, removeParts] = splitWhen(last.parts, (x) => x.id === partID)
       last.parts = preserveParts
       for (const part of removeParts) {
-        await removePartFile(last.info.id, part.id)
+        await StorageRouter.removePart({ sessionID, messageID: last.info.id, partID: part.id })
         await Bus.publish(MessageV2.Event.PartRemoved, {
           sessionID: sessionID,
           messageID: last.info.id,

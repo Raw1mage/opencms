@@ -230,6 +230,14 @@ export const Router: SessionStorage.Backend = {
     return pick(input.sessionID).removeAttachmentBlob(input)
   },
 
+  async removeMessage(input: { sessionID: string; messageID: string }): Promise<void> {
+    return pick(input.sessionID).removeMessage(input)
+  },
+
+  async removePart(input: { sessionID: string; messageID: string; partID: string }): Promise<void> {
+    return pick(input.sessionID).removePart(input)
+  },
+
   async deleteSession(sessionID: string): Promise<void> {
     // Both formats may need clearing during dual-track. Run the chosen
     // format's deleteSession, then opportunistically clean up any

@@ -105,15 +105,7 @@ interface AttachmentRow {
  */
 function encodeMessageInfo(info: MessageV2.Info): MessageRow {
   if (info.role === "user") {
-    const {
-      id,
-      sessionID: _sid,
-      role: _r,
-      time,
-      agent,
-      model,
-      ...rest
-    } = info
+    const { id, sessionID: _sid, role: _r, time, agent, model, ...rest } = info
     void _sid
     void _r
     return {
@@ -204,13 +196,14 @@ function decodeMessageInfo(row: MessageRow, sessionID: string): MessageV2.Info {
       role: "user",
       time: { created: row.time_created },
       agent: row.agent ?? extra.agent ?? "",
-      model: row.model_id || row.provider_id
-        ? {
-            modelID: row.model_id ?? "",
-            providerId: row.provider_id ?? "",
-            ...(row.account_id ? { accountId: row.account_id } : {}),
-          }
-        : extra.model,
+      model:
+        row.model_id || row.provider_id
+          ? {
+              modelID: row.model_id ?? "",
+              providerId: row.provider_id ?? "",
+              ...(row.account_id ? { accountId: row.account_id } : {}),
+            }
+          : extra.model,
     } as MessageV2.User
   }
   return {
@@ -354,6 +347,7 @@ const SQL_LIST_MESSAGES = `SELECT * FROM messages ORDER BY time_created DESC, id
 const SQL_GET_MESSAGE = `SELECT * FROM messages WHERE id = $id`
 const SQL_LIST_PARTS = `SELECT * FROM parts WHERE message_id = $message_id ORDER BY sequence ASC, id ASC`
 const SQL_DELETE_MESSAGE = `DELETE FROM messages WHERE id = $id`
+const SQL_DELETE_PART = `DELETE FROM parts WHERE id = $id`
 const SQL_DELETE_ALL_PARTS = `DELETE FROM parts`
 const SQL_DELETE_ALL_MESSAGES = `DELETE FROM messages`
 const SQL_DELETE_ALL_ATTACHMENTS = `DELETE FROM attachments`
@@ -397,25 +391,19 @@ export const SqliteStore: SessionStorage.Backend = {
     const rows = db.query<MessageRow, []>(SQL_LIST_MESSAGES).all()
     for (const row of rows) {
       const info = decodeMessageInfo(row, sessionID)
-      const partRows = db
-        .query<PartRow, { $message_id: string }>(SQL_LIST_PARTS)
-        .all({ $message_id: row.id })
+      const partRows = db.query<PartRow, { $message_id: string }>(SQL_LIST_PARTS).all({ $message_id: row.id })
       yield { info, parts: partRows.map(decodePart) }
     }
   },
 
   async get(input: { sessionID: string; messageID: string }): Promise<MessageV2.WithParts> {
     const db = await acquireRW(input.sessionID)
-    const row = db
-      .query<MessageRow, { $id: string }>(SQL_GET_MESSAGE)
-      .get({ $id: input.messageID })
+    const row = db.query<MessageRow, { $id: string }>(SQL_GET_MESSAGE).get({ $id: input.messageID })
     if (!row) {
       throw new Error(`SqliteStore.get: message not found ${input.messageID} in ${input.sessionID}`)
     }
     const info = decodeMessageInfo(row, input.sessionID)
-    const partRows = db
-      .query<PartRow, { $message_id: string }>(SQL_LIST_PARTS)
-      .all({ $message_id: row.id })
+    const partRows = db.query<PartRow, { $message_id: string }>(SQL_LIST_PARTS).all({ $message_id: row.id })
     return { info, parts: partRows.map(decodePart) }
   },
 
@@ -430,9 +418,7 @@ export const SqliteStore: SessionStorage.Backend = {
       )
     }
     const db = await acquireRW(sessionID)
-    const rows = db
-      .query<PartRow, { $message_id: string }>(SQL_LIST_PARTS)
-      .all({ $message_id: messageID })
+    const rows = db.query<PartRow, { $message_id: string }>(SQL_LIST_PARTS).all({ $message_id: messageID })
     return rows.map(decodePart)
   },
 
@@ -471,9 +457,7 @@ export const SqliteStore: SessionStorage.Backend = {
     const db = await acquireRW(part.sessionID)
     db.transaction(() => {
       let sequence: number
-      const existing = db
-        .query<{ sequence: number }, { $id: string }>(SQL_PART_EXISTING_SEQ)
-        .get({ $id: part.id })
+      const existing = db.query<{ sequence: number }, { $id: string }>(SQL_PART_EXISTING_SEQ).get({ $id: part.id })
       if (existing) {
         sequence = existing.sequence
       } else {
@@ -538,6 +522,22 @@ export const SqliteStore: SessionStorage.Backend = {
     })()
   },
 
+  async removeMessage(input: { sessionID: string; messageID: string }): Promise<void> {
+    // FK ON DELETE CASCADE on parts → deleting the message row clears its
+    // parts in the same statement.
+    const db = await acquireRW(input.sessionID)
+    db.transaction(() => {
+      db.query(SQL_DELETE_MESSAGE).run({ $id: input.messageID })
+    })()
+  },
+
+  async removePart(input: { sessionID: string; messageID: string; partID: string }): Promise<void> {
+    const db = await acquireRW(input.sessionID)
+    db.transaction(() => {
+      db.query(SQL_DELETE_PART).run({ $id: input.partID })
+    })()
+  },
+
   async deleteSession(sessionID: string): Promise<void> {
     // open; then delete the .db (and any sidecar -wal / -shm) on disk.
     // FK ON DELETE CASCADE on parts → only need to clear messages, but
@@ -559,4 +559,3 @@ export const SqliteStore: SessionStorage.Backend = {
     void dbPath
   },
 }
-
