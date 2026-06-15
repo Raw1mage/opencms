@@ -782,22 +782,34 @@ export namespace SessionCompaction {
       time: { created: Date.now() },
     })) as MessageV2.Assistant
 
+    // broadcast:false — the anchor's body + compaction parts are hidden by the
+    // client (summary===true messages are filtered from the rendered turn), so
+    // streaming them to a live SSE connection only churns the transcript (the
+    // compaction "stream swallow"). Persist them; clients pick them up via
+    // history hydration. The anchor MESSAGE (message.updated) is still broadcast
+    // — context-metrics needs it. See bug_20260616_*_compaction_workstate_regression.
     await Session.updatePart({
-      id: Identifier.ascending("part"),
-      messageID: summaryMsg.id,
-      sessionID: input.sessionID,
-      type: "text",
-      text: fullBody,
-      time: { start: Date.now(), end: Date.now() },
+      part: {
+        id: Identifier.ascending("part"),
+        messageID: summaryMsg.id,
+        sessionID: input.sessionID,
+        type: "text",
+        text: fullBody,
+        time: { start: Date.now(), end: Date.now() },
+      },
+      broadcast: false,
     })
 
     await Session.updatePart({
-      id: Identifier.ascending("part"),
-      messageID: summaryMsg.id,
-      sessionID: input.sessionID,
-      type: "compaction",
-      auto: input.auto,
-      metadata: input.rawTailProjection ? { rawTailProjection: input.rawTailProjection } : undefined,
+      part: {
+        id: Identifier.ascending("part"),
+        messageID: summaryMsg.id,
+        sessionID: input.sessionID,
+        type: "compaction",
+        auto: input.auto,
+        metadata: input.rawTailProjection ? { rawTailProjection: input.rawTailProjection } : undefined,
+      },
+      broadcast: false,
     })
 
     // Step 2: retire old anchor now that the new one is safely written
@@ -3409,21 +3421,29 @@ When constructing the summary, try to stick to this template:
         time: { created: Date.now() },
       })) as MessageV2.Assistant
 
+      // broadcast:false — synthetic anchor body, hidden by the client; see the
+      // writeAnchorFromBody note above (compaction "stream swallow").
       await Session.updatePart({
-        id: Identifier.ascending("part"),
-        messageID: summaryMsg.id,
-        sessionID,
-        type: "text",
-        text: anchorBody,
-        time: { start: Date.now(), end: Date.now() },
+        part: {
+          id: Identifier.ascending("part"),
+          messageID: summaryMsg.id,
+          sessionID,
+          type: "text",
+          text: anchorBody,
+          time: { start: Date.now(), end: Date.now() },
+        },
+        broadcast: false,
       })
 
       await Session.updatePart({
-        id: Identifier.ascending("part"),
-        messageID: summaryMsg.id,
-        sessionID,
-        type: "compaction",
-        auto: false,
+        part: {
+          id: Identifier.ascending("part"),
+          messageID: summaryMsg.id,
+          sessionID,
+          type: "compaction",
+          auto: false,
+        },
+        broadcast: false,
       })
     }
 
