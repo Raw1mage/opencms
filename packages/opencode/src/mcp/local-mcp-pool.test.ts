@@ -140,7 +140,7 @@ describe("createLocalMcpPool ref-counting", () => {
 })
 
 describe("localShareKey", () => {
-  const base = { command: ["/usr/local/lib/opencode/mcp/docxmcp"], cwd: "/tmp", env: { A: "1" }, sourceMtimeMs: 100 }
+  const base = { command: ["python", "-u", "/srv/mcp_server.py"], env: { A: "1" }, sourceMtimeMs: 100 }
 
   it("is identical for identical spawn specs (→ shared child)", () => {
     expect(localShareKey(base)).toBe(localShareKey({ ...base, env: { A: "1" } }))
@@ -150,8 +150,24 @@ describe("localShareKey", () => {
     expect(localShareKey({ ...base, env: { A: "1", B: "2" } })).toBe(localShareKey({ ...base, env: { B: "2", A: "1" } }))
   })
 
-  it("differs when cwd differs (per-project local MCP stays separate)", () => {
+  it("shares across projects when cwd is incidental (omitted) — the duplication fix", () => {
+    // Same global tool launched from two different project dirs: caller omits
+    // cwd (no explicit mcp.cwd) → same key → ONE shared child.
+    expect(localShareKey(base)).toBe(localShareKey(base))
+  })
+
+  it("separates per-project via resolved args (filesystem injects cwd into command)", () => {
+    const fsA = { ...base, command: ["mcp-filesystem", "/proj/a"] }
+    const fsB = { ...base, command: ["mcp-filesystem", "/proj/b"] }
+    expect(localShareKey(fsA)).not.toBe(localShareKey(fsB))
+  })
+
+  it("differs when an EXPLICIT cwd differs (mcp.cwd configured → cwd-sensitive)", () => {
     expect(localShareKey({ ...base, cwd: "/proj/a" })).not.toBe(localShareKey({ ...base, cwd: "/proj/b" }))
+  })
+
+  it("explicit cwd differs from omitted cwd", () => {
+    expect(localShareKey({ ...base, cwd: "/proj/a" })).not.toBe(localShareKey(base))
   })
 
   it("differs when the source mtime changes (stale-refresh spawns a fresh child)", () => {

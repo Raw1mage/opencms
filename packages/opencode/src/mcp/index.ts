@@ -633,8 +633,12 @@ export namespace MCP {
     if (mcp.type === "local" && mcp.enabled !== false) {
       const spec = await resolveLocalSpawnSpec(key, mcp)
       const shareKey = localShareKey({
-        command: mcp.command,
-        cwd: spec.cwd,
+        // Resolved command incl. args — the filesystem MCP's per-project cwd is
+        // injected into finalArgs, so it stays separated here without keying cwd.
+        command: [spec.cmd, ...spec.finalArgs],
+        // cwd is significant only when the user explicitly set mcp.cwd; the
+        // default Instance.directory is incidental and must not block sharing.
+        cwd: mcp.cwd ? spec.cwd : undefined,
         env: spec.env,
         sourceMtimeMs: spec.sourceWatch?.mtimeMs,
       })

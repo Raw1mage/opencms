@@ -118,14 +118,25 @@ export function createLocalMcpPool<R extends PoolResource>(opts: CreatePoolOptio
 
 /**
  * Stable share key for a local stdio spawn. Two Instances share a child iff
- * their command, working directory, environment, AND on-disk source mtime are
- * all identical. Including the source mtime means a stale-refresh (the source
- * file was edited after spawn) yields a NEW key → a fresh child, so pooling
- * never hands back a stale client after a content change.
+ * their resolved command (incl. args), environment, AND on-disk source mtime
+ * are all identical.
+ *
+ * `cwd` is included ONLY when it is significant — i.e. the user explicitly set
+ * `mcp.cwd`. The default cwd (Instance.directory) is incidental for the common
+ * case (a global tool launched per project), so folding it into the key would
+ * needlessly spawn one child per project — exactly the duplication this pool
+ * exists to remove. The one cwd-sensitive built-in, the filesystem MCP, injects
+ * its working directory into the ARGS, so it stays correctly separated via the
+ * resolved command regardless of whether cwd is in the key.
+ *
+ * Including the source mtime means a stale-refresh (the source file was edited
+ * after spawn) yields a NEW key → a fresh child, so pooling never hands back a
+ * stale client after a content change.
  */
 export function localShareKey(input: {
   command: ReadonlyArray<string>
-  cwd: string
+  /** Only pass when explicitly configured (mcp.cwd); omit for the default. */
+  cwd?: string
   env: Record<string, string | undefined>
   sourceMtimeMs?: number
 }): string {
@@ -134,7 +145,7 @@ export function localShareKey(input: {
     .map((k) => [k, input.env[k]] as const)
   return JSON.stringify({
     command: input.command,
-    cwd: input.cwd,
+    cwd: input.cwd ?? null,
     env,
     sourceMtimeMs: input.sourceMtimeMs ?? null,
   })
