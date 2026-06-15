@@ -772,15 +772,19 @@ export default function Page() {
       const revert = revertMessageID()
       let all = userMessages().filter((m) => !isPureSyntheticUser(m))
 
-      // Deduplicate compaction-replay pairs. The replay is a backend copy
-      // of the user's message repositioned after the compaction anchor
-      // (newer ID). During live streaming its ID sorts AFTER all assistant
-      // messages → appears as duplicate question at the bottom.
+      // Deduplicate compaction-replay pairs. On compaction the backend REMOVES
+      // the original user message (+ its in-flight assistant) and writes a fresh
+      // copy of the question after the anchor, tagged compactionReplay. The copy
+      // has a newer ID → sorts after all assistant messages.
       //
-      // Safe dedup rule: a replay that has NO assistant children is a
-      // positional duplicate (the original has the children) → hide it.
-      // A replay that HAS assistant children is the sole representative
-      // (original was truncated or deleted) → keep it.
+      // Dedup rule (compaction "stream swallow" fix): hide a replay ONLY while
+      // its original is still in the visible list — that is the brief SSE window
+      // where the replay's `message.updated` has arrived but the original's
+      // `message.removed` has not, so both would show the question twice. Once
+      // the original is gone (the backend always removes it), KEEP the replay
+      // even if it has no answer yet: it is the sole representative, so the
+      // question stays continuous instead of vanishing until the next response
+      // streams in. A replay that HAS an answer hides its now-stale original.
       const replayIDs = new Set<string>()
       for (const m of all) {
         const parts = (sync.data.part[m.id] ?? []) as Array<{ type?: string; metadata?: Record<string, unknown> }>
@@ -791,37 +795,38 @@ export default function Page() {
       if (replayIDs.size > 0) {
         const allMessages = messages()
         const childlessReplays = new Set<string>()
-        // Replays whose children are present → the original is now a
-        // response-less duplicate. Collect originals to hide.
+        // Originals superseded by an ANSWERED replay → hide (if still present).
         const supersededOriginals = new Set<string>()
+        // The original a replay supersedes: the compaction anchor (summary
+        // assistant) sits just before the replay in id-order; its parentID is
+        // the original. Returns undefined if no adjacent anchor is found.
+        const findOriginalID = (rid: string): string | undefined => {
+          const replayIdx = allMessages.findIndex((m) => m.id === rid)
+          if (replayIdx <= 0) return undefined
+          for (let j = replayIdx - 1; j >= 0 && replayIdx - j <= 3; j--) {
+            const candidate = allMessages[j]
+            if (candidate.role === "assistant" && (candidate as { summary?: boolean }).summary) {
+              return (candidate as { parentID?: string }).parentID
+            }
+          }
+          return undefined
+        }
         for (const rid of replayIDs) {
           const hasChild = allMessages.some(
             (m) => m.role === "assistant" && (m as { parentID?: string }).parentID === rid,
           )
-          if (!hasChild) {
+          const originalID = findOriginalID(rid)
+          const originalPresent = !!originalID && all.some((m) => m.id === originalID)
+          if (hasChild) {
+            // Replay answered → it is the representative; hide the stale original.
+            if (originalID && originalPresent) supersededOriginals.add(originalID)
+          } else if (originalPresent) {
+            // Childless replay + original still visible → transient duplicate
+            // (removal not yet applied) → hide the replay this frame.
             childlessReplays.add(rid)
-          } else {
-            // Replay has children → find the original user message with
-            // the same text (its only non-summary child is the compaction
-            // anchor). The original's text parts match the replay's text.
-            // Rather than text-matching, use the structural hint: the
-            // compaction anchor (summary assistant) whose parentID equals
-            // the original lives immediately before the replay in id-order.
-            // Walk backwards from the replay to find its anchor's parent.
-            const replayIdx = allMessages.findIndex((m) => m.id === rid)
-            if (replayIdx > 0) {
-              for (let j = replayIdx - 1; j >= 0; j--) {
-                const candidate = allMessages[j]
-                if (candidate.role === "assistant" && (candidate as { summary?: boolean }).summary) {
-                  const originalID = (candidate as { parentID?: string }).parentID
-                  if (originalID) supersededOriginals.add(originalID)
-                  break
-                }
-                // Stop if we hit a much older message (more than 2 positions back)
-                if (replayIdx - j > 3) break
-              }
-            }
           }
+          // Childless replay + original already removed → keep the replay
+          // visible (sole representative): the swallow-free path.
         }
         const toHide = new Set([...childlessReplays, ...supersededOriginals])
         if (toHide.size > 0) all = all.filter((m) => !toHide.has(m.id))
