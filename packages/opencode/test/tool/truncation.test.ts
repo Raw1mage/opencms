@@ -33,9 +33,11 @@ describe("Truncate", () => {
       expect(result.content).toContain("...90 lines truncated...")
     })
 
-    test("truncates by byte count", async () => {
+    test("truncates when over the token budget", async () => {
+      // DD-1: externalization is token-gated, not byte-gated. A single long line
+      // over the per-call token budget is externalized.
       const content = "a".repeat(1000)
-      const result = await Truncate.output(content, { maxBytes: 100 })
+      const result = await Truncate.output(content, { maxTokens: 10 })
 
       expect(result.truncated).toBe(true)
       expect(result.content).toContain("truncated...")
@@ -68,13 +70,13 @@ describe("Truncate", () => {
       expect(Truncate.MAX_BYTES).toBe(256 * 1024)
     })
 
-    test("large single-line file truncates with byte message", async () => {
+    test("large single-line file truncates with token message", async () => {
       const content = await Bun.file(path.join(FIXTURES_DIR, "models-api.json")).text()
-      const result = await Truncate.output(content, { maxBytes: 10 * 1024 })
+      // Over the default token budget → externalized with a token-unit message.
+      const result = await Truncate.output(content)
 
       expect(result.truncated).toBe(true)
-      expect(result.content).toContain("bytes truncated...")
-      expect(Buffer.byteLength(content, "utf-8")).toBeGreaterThan(Truncate.MAX_BYTES)
+      expect(result.content).toContain("tokens truncated...")
     })
 
     test("writes full output to file when truncated", async () => {

@@ -100,7 +100,9 @@ Use this skill.
           expect(requests[0].always).toContain("tool-skill")
 
           expect(result.metadata.dir).toBe(dir)
-          expect(result.output).toContain(`<skill_content name="tool-skill">`)
+          // Skill tool now emits a <skill_loaded> marker; the actual content is
+          // injected via session-managed skill layers (dynamic context layers).
+          expect(result.output).toContain(`<skill_loaded name="tool-skill">`)
           expect(result.output).toContain(`Base directory for this skill: ${pathToFileURL(dir).href}`)
           expect(result.output).toContain(`<file>${file}</file>`)
         },
