@@ -27,6 +27,7 @@ const SYSTEM_MANAGER_TOOL_NAMES = [
   "switch_account",
   "switch_provider",
   "get_session",
+  "rename_session",
   "get_favorites",
   "switch_theme",
   "toggle_mcp",
@@ -124,8 +125,8 @@ function createSystemManagerTool(name: (typeof SYSTEM_MANAGER_TOOL_NAMES)[number
     return {
       description: definition.description,
       parameters: jsonSchemaToZodObject(definition.inputSchema as JsonSchema),
-      async execute(args) {
-        const result = (await callSystemManagerTool(name, args)) as {
+      async execute(args, ctx) {
+        const result = (await callSystemManagerTool(name, args, { currentSessionID: ctx.sessionID })) as {
           content?: McpContent[]
           metadata?: Record<string, unknown>
           isError?: boolean

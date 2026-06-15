@@ -157,6 +157,7 @@ export namespace Tool {
     "system-manager_open_in_editor": "modify",
     "system-manager_open_fileview": "modify",
     "system-manager_display_inline_image": "modify",
+    "system-manager_rename_session": "modify",
     "system-manager_manage_session": "modify",
     "system-manager_app_control": "modify",
     "system-manager_set_ui_config": "modify",

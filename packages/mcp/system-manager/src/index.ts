@@ -288,6 +288,33 @@ async function resolveSessionIDForMetadataMutation(sessionID: string) {
   return current.id
 }
 
+async function renameSessionViaDaemon(input: { sessionID?: string; title: string; currentSessionID?: string }) {
+  if (!input.title) throw new Error("title is required for rename operation")
+  const requestedSessionID = input.sessionID?.trim()
+  const resolvedSessionID =
+    requestedSessionID && requestedSessionID !== "current" ? requestedSessionID : input.currentSessionID
+
+  if (!resolvedSessionID) throw new Error("rename_session needs a current tool context or an explicit sessionID")
+  const baseUrl = await getServerApiBaseUrl()
+  const headers = await getServerRequestHeaders("PATCH")
+  await patchSessionViaApi({
+    fetchImpl: serverFetch as any,
+    baseUrl,
+    headers,
+    sessionID: resolvedSessionID,
+    body: { title: input.title },
+    errorPrefix: `Failed to rename session ${resolvedSessionID}`,
+  })
+  const info = await readSessionInfoFromDaemon(resolvedSessionID)
+  const dir = info.directory ?? ""
+  return {
+    id: info.id,
+    title: info.title ?? input.title,
+    directory: dir,
+    updated: info.time?.updated ?? info.time?.created ?? 0,
+  }
+}
+
 async function postSessionRevertToDaemon(sessionID: string, messageID: string) {
   const baseUrl = await getServerApiBaseUrl()
   const headers = await getServerRequestHeaders("POST")
@@ -532,6 +559,23 @@ export async function listSystemManagerTools() {
             sessionID: { type: "string" },
           },
           required: ["sessionID"],
+        },
+      },
+      {
+        name: "rename_session",
+        description:
+          "Rename an opencode session and return canonical post-write metadata. If sessionID is omitted or set to 'current', the built-in opencode tool uses the current serving session automatically. Pass sessionID only when the user explicitly wants to rename a different session.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            sessionID: {
+              type: "string",
+              description:
+                "Optional target session ID. Omit to rename the current serving session; pass an explicit ID to rename another session.",
+            },
+            title: { type: "string", description: "New session title." },
+          },
+          required: ["title"],
         },
       },
       {
@@ -919,7 +963,7 @@ export async function listSystemManagerTools() {
   }
 }
 
-export async function callSystemManagerTool(name: string, args: unknown) {
+export async function callSystemManagerTool(name: string, args: unknown, runtime?: { currentSessionID?: string }) {
   try {
     if (name === "get_system_status") {
       const accounts = JSON.parse(await fs.readFile(ACCOUNTS_PATH, "utf-8"))
@@ -1130,6 +1174,12 @@ export async function callSystemManagerTool(name: string, args: unknown) {
         execution: info.execution,
       }
       return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }] }
+    }
+
+    if (name === "rename_session") {
+      const { sessionID, title } = args as { sessionID?: string; title: string }
+      const info = await renameSessionViaDaemon({ sessionID, title, currentSessionID: runtime?.currentSessionID })
+      return { content: [{ type: "text", text: JSON.stringify(info, null, 2) }] }
     }
 
     if (name === "get_favorites") {
@@ -1352,20 +1402,15 @@ export async function callSystemManagerTool(name: string, args: unknown) {
       }
 
       if (operation === "rename") {
-        if (!sessionID) throw new Error("sessionID is required for rename operation")
-        if (!title) throw new Error("title is required for rename operation")
-        const resolvedSessionID = await resolveSessionIDForMetadataMutation(sessionID)
-        const baseUrl = await getServerApiBaseUrl()
-        const headers = await getServerRequestHeaders("PATCH")
-        await patchSessionViaApi({
-          fetchImpl: serverFetch as any,
-          baseUrl,
-          headers,
-          sessionID: resolvedSessionID,
-          body: { title },
-          errorPrefix: `Failed to rename session ${resolvedSessionID}`,
-        })
-        return { content: [{ type: "text", text: `Renamed session ${resolvedSessionID} to "${title}"` }] }
+        const info =
+          sessionID === "current"
+            ? await renameSessionViaDaemon({
+                sessionID,
+                title: title ?? "",
+                currentSessionID: runtime?.currentSessionID,
+              })
+            : await renameSessionViaDaemon({ sessionID, title: title ?? "" })
+        return { content: [{ type: "text", text: `Renamed session ${info.id} to "${info.title}"` }] }
       }
 
       if (operation === "create") {

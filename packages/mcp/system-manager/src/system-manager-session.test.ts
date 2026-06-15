@@ -1,7 +1,19 @@
 import { mkdtemp, mkdir, rm, writeFile } from "fs/promises"
 import os from "os"
 import path from "path"
+import { listSystemManagerTools } from "./index"
 import { validateForkResult, validateForkSource } from "./system-manager-session"
+
+describe("system-manager session tool surface", () => {
+  test("exposes direct rename_session with optional session target", async () => {
+    const listed = await listSystemManagerTools()
+    const rename = listed.tools.find((tool) => tool.name === "rename_session")
+
+    expect(rename).toBeDefined()
+    expect(rename?.inputSchema.required).toEqual(["title"])
+    expect(rename?.description).toContain("current serving session")
+  })
+})
 
 describe("system-manager session fork guards", () => {
   let tmpRoot = ""
