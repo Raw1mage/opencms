@@ -3,17 +3,14 @@ import path from "path"
 import os from "os"
 import { promises as fs } from "fs"
 import { applyEdits, modify, parse as parseJsonc } from "jsonc-parser"
-import { Config } from "../config/config"
 import { Instance } from "../project/instance"
 import { NamedError } from "@opencode-ai/util/error"
 import { ConfigMarkdown } from "../config/markdown"
 import { Log } from "../util/log"
 import { Global } from "@/global"
 import { Filesystem } from "@/util/filesystem"
-import { Flag } from "@/flag/flag"
 import { Bus } from "@/bus"
 import { Session } from "@/session"
-import { Discovery } from "./discovery"
 
 export namespace Skill {
   const log = Log.create({ service: "skill" })
@@ -43,12 +40,6 @@ export namespace Skill {
     }),
   )
 
-  // External skill directories to search for (project-level and global)
-  // These follow the directory layout used by Claude Code and other agents.
-  const EXTERNAL_DIRS = [".claude", ".agents"]
-  const EXTERNAL_SKILL_GLOB = new Bun.Glob("skills/**/SKILL.md")
-
-  const OPENCODE_SKILL_GLOB = new Bun.Glob("{skill,skills}/**/SKILL.md")
   const SKILL_GLOB = new Bun.Glob("**/SKILL.md")
 
   async function createState() {
@@ -89,85 +80,24 @@ export namespace Skill {
       }
     }
 
-    const scanExternal = async (root: string, scope: "global" | "project") => {
-      return Array.fromAsync(
-        EXTERNAL_SKILL_GLOB.scan({
-          cwd: root,
-          absolute: true,
-          onlyFiles: true,
-          followSymlinks: true,
-          dot: true,
-        }),
-      )
-        .then((matches) => Promise.all(matches.map(addSkill)))
-        .catch((error) => {
-          log.error(`failed to scan ${scope} skills`, { dir: root, error })
-        })
-    }
-
-    // Scan external skill directories (.claude/skills/, .agents/skills/, etc.)
-    // Load global (home) first, then project-level (so project-level overwrites)
-    if (!Flag.OPENCODE_DISABLE_EXTERNAL_SKILLS) {
-      for (const dir of EXTERNAL_DIRS) {
-        const root = path.join(Global.Path.home, dir)
-        if (!(await Filesystem.isDir(root))) continue
-        await scanExternal(root, "global")
-      }
-
-      for await (const root of Filesystem.up({
-        targets: EXTERNAL_DIRS,
-        start: Instance.directory,
-        stop: Instance.worktree,
-      })) {
-        await scanExternal(root, "project")
-      }
-    }
-
-    // Scan .opencode/skills/ directories
-    for (const dir of await Config.directories()) {
-      for await (const match of OPENCODE_SKILL_GLOB.scan({
-        cwd: dir,
-        absolute: true,
-        onlyFiles: true,
-        followSymlinks: true,
-      })) {
-        await addSkill(match)
-      }
-    }
-
-    // Scan additional skill paths from config
-    const config = await Config.get()
-    for (const skillPath of config.skills?.paths ?? []) {
-      const expanded = skillPath.startsWith("~/") ? path.join(os.homedir(), skillPath.slice(2)) : skillPath
-      const resolved = path.isAbsolute(expanded) ? expanded : path.join(Instance.directory, expanded)
-      if (!(await Filesystem.isDir(resolved))) {
-        log.warn("skill path not found", { path: resolved })
-        continue
-      }
+    // Single authoritative skill source: <data>/skills only (~/.local/share/opencode/skills).
+    // Deliberately NOT scanning ~/.claude, ~/.agents, ~/.config/opencode/skills,
+    // project .opencode/skills, config.skills.paths, or config.skills.urls — those
+    // pulled in same-name copies from other agents and produced shadowing ambiguity.
+    // MCP-server-carried skills (e.g. docxmcp/skills) are installed INTO this central
+    // directory, not read from their repos.
+    const skillRoot = path.join(Global.Path.data, "skills")
+    if (await Filesystem.isDir(skillRoot)) {
       for await (const match of SKILL_GLOB.scan({
-        cwd: resolved,
+        cwd: skillRoot,
         absolute: true,
         onlyFiles: true,
         followSymlinks: true,
       })) {
         await addSkill(match)
       }
-    }
-
-    // Download and load skills from URLs
-    for (const url of config.skills?.urls ?? []) {
-      const list = await Discovery.pull(url)
-      for (const dir of list) {
-        dirs.add(dir)
-        for await (const match of SKILL_GLOB.scan({
-          cwd: dir,
-          absolute: true,
-          onlyFiles: true,
-          followSymlinks: true,
-        })) {
-          await addSkill(match)
-        }
-      }
+    } else {
+      log.warn("skill root not found", { path: skillRoot })
     }
 
     return {

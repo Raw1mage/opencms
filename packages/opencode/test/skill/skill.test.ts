@@ -1,94 +1,72 @@
-import { test, expect } from "bun:test"
+import { test, expect, afterEach } from "bun:test"
 import { Skill } from "../../src/skill"
 import { Instance } from "../../src/project/instance"
+import { Global } from "../../src/global"
 import { tmpdir } from "../fixture/fixture"
 import path from "path"
 import fs from "fs/promises"
 
-async function createGlobalSkill(homeDir: string) {
-  const skillDir = path.join(homeDir, ".claude", "skills", "global-test-skill")
-  await fs.mkdir(skillDir, { recursive: true })
+// New architecture: skills are read from a SINGLE authoritative source —
+// Global.Path.data/skills (~/.local/share/opencode/skills). Sources that used
+// to be scanned (~/.claude, ~/.agents, ~/.config/opencode/skills, project
+// .opencode/skills, config.skills.paths/urls) are deliberately NOT scanned;
+// they pulled in same-name copies from other agents and caused shadowing.
+
+const skillRoot = path.join(Global.Path.data, "skills")
+
+async function writeCentralSkill(name: string, description: string) {
+  const dir = path.join(skillRoot, name)
+  await fs.mkdir(dir, { recursive: true })
   await Bun.write(
-    path.join(skillDir, "SKILL.md"),
+    path.join(dir, "SKILL.md"),
     `---
-name: global-test-skill
-description: A global skill from ~/.claude/skills for testing.
+name: ${name}
+description: ${description}
 ---
 
-# Global Test Skill
+# ${name}
 
-This skill is loaded from the global home directory.
+Instructions here.
 `,
   )
 }
 
-test("discovers skills from .opencode/skills/ directory", async () => {
-  await using tmp = await tmpdir({
-    git: true,
-    init: async (dir) => {
-      const skillDir = path.join(dir, ".opencode", "skills", "test-skill")
-      await Bun.write(
-        path.join(skillDir, "SKILL.md"),
-        `---
-name: test-skill
-description: A test skill for verification.
----
+async function cleanCentral() {
+  await fs.rm(skillRoot, { recursive: true, force: true }).catch(() => {})
+  Skill.reset()
+}
 
-# Test Skill
+afterEach(cleanCentral)
 
-Instructions here.
-`,
-      )
-    },
-  })
+test("discovers a skill from the central data/skills directory", async () => {
+  await cleanCentral()
+  await writeCentralSkill("test-skill", "A test skill for verification.")
+  Skill.reset()
 
+  await using tmp = await tmpdir({ git: true })
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
       const skills = await Skill.all()
-      expect(skills.length).toBe(1)
       const testSkill = skills.find((s) => s.name === "test-skill")
       expect(testSkill).toBeDefined()
       expect(testSkill!.description).toBe("A test skill for verification.")
-      expect(testSkill!.location).toContain("skills/test-skill/SKILL.md")
+      expect(testSkill!.location).toBe(path.join(skillRoot, "test-skill", "SKILL.md"))
     },
   })
 })
 
-test("discovers multiple skills from .opencode/skills/ directory", async () => {
-  await using tmp = await tmpdir({
-    git: true,
-    init: async (dir) => {
-      const skillDir1 = path.join(dir, ".opencode", "skills", "skill-one")
-      const skillDir2 = path.join(dir, ".opencode", "skills", "skill-two")
-      await Bun.write(
-        path.join(skillDir1, "SKILL.md"),
-        `---
-name: skill-one
-description: First test skill.
----
+test("discovers multiple skills from the central directory", async () => {
+  await cleanCentral()
+  await writeCentralSkill("skill-one", "First test skill.")
+  await writeCentralSkill("skill-two", "Second test skill.")
+  Skill.reset()
 
-# Skill One
-`,
-      )
-      await Bun.write(
-        path.join(skillDir2, "SKILL.md"),
-        `---
-name: skill-two
-description: Second test skill.
----
-
-# Skill Two
-`,
-      )
-    },
-  })
-
+  await using tmp = await tmpdir({ git: true })
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
       const skills = await Skill.all()
-      expect(skills.length).toBe(2)
       expect(skills.find((s) => s.name === "skill-one")).toBeDefined()
       expect(skills.find((s) => s.name === "skill-two")).toBeDefined()
     },
@@ -96,15 +74,38 @@ description: Second test skill.
 })
 
 test("skips skills with missing frontmatter", async () => {
+  await cleanCentral()
+  const dir = path.join(skillRoot, "no-frontmatter")
+  await fs.mkdir(dir, { recursive: true })
+  await Bun.write(path.join(dir, "SKILL.md"), `# No Frontmatter\n\nJust content, no YAML.\n`)
+  Skill.reset()
+
+  await using tmp = await tmpdir({ git: true })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const skills = await Skill.all()
+      expect(skills.find((s) => s.name === "no-frontmatter")).toBeUndefined()
+    },
+  })
+})
+
+test("does NOT scan project .opencode/skills (only central source)", async () => {
+  await cleanCentral()
   await using tmp = await tmpdir({
     git: true,
     init: async (dir) => {
-      const skillDir = path.join(dir, ".opencode", "skills", "no-frontmatter")
+      // A skill placed in the project's .opencode/skills must be IGNORED under
+      // the single-source policy.
+      const skillDir = path.join(dir, ".opencode", "skills", "project-local-skill")
       await Bun.write(
         path.join(skillDir, "SKILL.md"),
-        `# No Frontmatter
+        `---
+name: project-local-skill
+description: Should be ignored — project-local is no longer scanned.
+---
 
-Just some content without YAML frontmatter.
+# Project Local Skill
 `,
       )
     },
@@ -114,12 +115,13 @@ Just some content without YAML frontmatter.
     directory: tmp.path,
     fn: async () => {
       const skills = await Skill.all()
-      expect(skills).toEqual([])
+      expect(skills.find((s) => s.name === "project-local-skill")).toBeUndefined()
     },
   })
 })
 
-test("discovers skills from .claude/skills/ directory", async () => {
+test("does NOT scan ~/.claude/skills (only central source)", async () => {
+  await cleanCentral()
   await using tmp = await tmpdir({
     git: true,
     init: async (dir) => {
@@ -128,7 +130,7 @@ test("discovers skills from .claude/skills/ directory", async () => {
         path.join(skillDir, "SKILL.md"),
         `---
 name: claude-skill
-description: A skill in the .claude/skills directory.
+description: Should be ignored — .claude is no longer scanned.
 ---
 
 # Claude Skill
@@ -141,45 +143,22 @@ description: A skill in the .claude/skills directory.
     directory: tmp.path,
     fn: async () => {
       const skills = await Skill.all()
-      expect(skills.length).toBe(1)
-      const claudeSkill = skills.find((s) => s.name === "claude-skill")
-      expect(claudeSkill).toBeDefined()
-      expect(claudeSkill!.location).toContain(".claude/skills/claude-skill/SKILL.md")
+      expect(skills.find((s) => s.name === "claude-skill")).toBeUndefined()
     },
   })
 })
 
-test("discovers global skills from ~/.claude/skills/ directory", async () => {
+test("returns empty array when the central directory has no skills", async () => {
+  await cleanCentral()
   await using tmp = await tmpdir({ git: true })
-
-  const originalHome = process.env.OPENCODE_TEST_HOME
-  process.env.OPENCODE_TEST_HOME = tmp.path
-
-  try {
-    await createGlobalSkill(tmp.path)
-    await Instance.provide({
-      directory: tmp.path,
-      fn: async () => {
-        const skills = await Skill.all()
-        expect(skills.length).toBe(1)
-        expect(skills[0].name).toBe("global-test-skill")
-        expect(skills[0].description).toBe("A global skill from ~/.claude/skills for testing.")
-        expect(skills[0].location).toContain(".claude/skills/global-test-skill/SKILL.md")
-      },
-    })
-  } finally {
-    process.env.OPENCODE_TEST_HOME = originalHome
-  }
-})
-
-test("returns empty array when no skills exist", async () => {
-  await using tmp = await tmpdir({ git: true })
-
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
       const skills = await Skill.all()
-      expect(skills).toEqual([])
+      const local = skills.filter((s) =>
+        s.location.startsWith(skillRoot + path.sep),
+      )
+      expect(local).toEqual([])
     },
   })
 })
