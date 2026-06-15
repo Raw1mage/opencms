@@ -88,3 +88,25 @@ Tests: `compaction-extend-redaction`, `claude-refactor.inv0-baseline`, `dialog-s
 
 1. (Optional) if 1 round proves too little in practice, raise `bTailRounds`, or make it headroom-aware (keep more rounds when context utilization is low). Deferred until there's evidence one round is insufficient.
 2. Add a dedicated regression test: a narrative compaction whose most-recent round is large (multi-turn, well over the old 12K) verifies the whole round survives verbatim post-anchor (locks in the removal of the token cap).
+
+---
+
+# Second axis: the visible "stream swallow" (distinct from work-state loss)
+
+The original symptom had TWO independent causes sharing the `cache-aware narrative` trigger. The C-tail fix above addresses **work-state fidelity** (the model re-doing work). The **visible swallow** — already-rendered text retracted and replaced mid-view — is a separate, frontend rendering problem. Do not conflate them.
+
+## RCA (corrected by live evidence, 02:33:43 compaction on the test build)
+
+First hypothesis (the anchor's ~70K `<prior_context>` text part being streamed to live SSE) was **only partial**. Server-side suppression of that part was implemented and **confirmed working** in logs (`[PART-FLOW-A] suppressed part.updated (anchor, no broadcast)` ×2; the 70K text no longer forwarded) — yet the swallow persisted.
+
+The residual, dominant cause is **message-level churn**: a single compaction emits a burst of per-message SSE events to the live client — in the observed case **3× `message.removed`** (old anchor + folded rounds) + a new summary anchor (`message.updated`, pushed to array end) + the **replayed user message** (`compaction.replay.invoked`, newest ID → sorts to the bottom) + a Continue message. SolidJS reactively re-renders the transcript on each store mutation, so the visible turn list reflows/collapses mid-transition. The frontend's compaction-hiding machinery (summary filter in `session-turn.tsx`, replay dedup in `session.tsx` `visibleUserMessages`, the compaction status footer) are all **post-hoc memos** — they settle to the right end state but cannot prevent the intermediate reflow. `session.tsx` even documents the window: "during live streaming [the replay's] ID sorts AFTER all assistant messages → appears as duplicate question at the bottom."
+
+So the swallow is **not** the part payload size; it is the live application of compaction's message add/remove/replay burst.
+
+## Landed (server-side layer, on main 337dc18bc)
+
+`Session.updatePart` gained a `{ part, broadcast: false }` form ([session/index.ts](packages/opencode/src/session/index.ts)) that persists the part but skips the `PartUpdated` event. The two synthetic anchor writers (`writeAnchorFromBody` + `rebuildStreamFromText`) use it for their text + compaction parts. The anchor MESSAGE still broadcasts (context-metrics needs it). The `ai_paid` path is intentionally left broadcasting (its summary is a real streamed turn). Effect: removes the 70K-per-compaction-per-client bandwidth waste and the part-level leak — but does **not** by itself stop the visible swallow.
+
+## Remaining fix (frontend — NOT yet done)
+
+Make compaction's message mutations atomic/invisible to the live transcript. Sketch: the server already brackets the operation with `session.compaction.started` / `session.compacted`. On `started`, the client freezes the rendered transcript (render from a snapshot); apply the remove/add/replay burst to the store quietly; on `compacted`, reconcile once and unfreeze. Touches `packages/app/src/context/global-sync/event-reducer.ts` + `packages/app/src/pages/session.tsx`. Alternative: server stops emitting per-message remove/add/replay to live clients during compaction and lets the client pull one snapshot at `compacted`.
