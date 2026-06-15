@@ -92,7 +92,10 @@ describe("account providerKey compatibility guard", () => {
 
     // Auth / downstream account existence may return non-400 statuses depending on environment;
     // for this guard test we only require that mismatch guard is not the failure reason.
-    await expectNotMismatchGuard(response, [200, 401, 404, 503])
+    // 500 is accepted: Account.setActive throws for the nonexistent dummy-account
+    // AFTER the mismatch guard has already passed, so a 500 here still proves the
+    // guard did not fire.
+    await expectNotMismatchGuard(response, [200, 401, 404, 500, 503])
   })
 
   test("login does not trigger mismatch guard when providerKey matches legacy :family", async () => {

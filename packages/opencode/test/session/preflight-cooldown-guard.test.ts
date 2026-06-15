@@ -3,32 +3,33 @@ import fs from "fs"
 import path from "path"
 
 /**
- * Regression guard for the 2026-04-17 hotfix.
+ * Source-level guard for the pre-flight cooldown gate in session/processor.ts.
  *
- * Symptom: the persisted rate-limit tracker state silently blocked user
- * requests even after the operator had explicitly pinned an account. The
- * pre-flight gate in session/processor.ts rotated away from the pinned
- * account based on stale tracker data, surfacing "All accounts are rate
- * limited" even though the user wanted to deliberately target that account.
+ * Contract history:
+ *   - 2026-04-17 hotfix added a `&& !sessionPinnedAccountId` clause so a
+ *     manually pinned account would bypass pre-flight cooldown (the request
+ *     fired and upstream was expected to surface a real 429).
+ *   - That bypass was REVERSED: codex OAuth does not return 429 on a
+ *     quota-exhausted account — it hangs the connection, producing a silent
+ *     ~12-second black hole on every request. So pre-flight cooldown now
+ *     protects EVERY round, pinned or not: trust the local tracker and
+ *     rotate proactively. Worst case on a stale tracker is a one-round
+ *     detour through the fallback chain.
  *
- * Contract: the pre-flight cooldown gate is flood-protection for AUTO
- * rotation only. When the operator pinned an account
- * (sessionPinnedAccountId truthy), pre-flight must NOT rotate; the request
- * fires and upstream surfaces a real 429 if the limit is still active.
- *
- * This test is a source-level trip-wire: the pre-flight gate in
- * processor.ts must keep the `&& !sessionPinnedAccountId` clause. An
- * E2E-style behavior test would require rebuilding the whole stream/session
- * harness; for a one-line guard a grep assertion is the proportional
- * protection against accidental removal in a future refactor.
+ * Current contract: the pre-flight gate is an unconditional
+ * `if (isVectorRateLimited(vector))` — it must NOT be re-guarded by
+ * `!sessionPinnedAccountId`. This source-level trip-wire protects against a
+ * future refactor accidentally re-introducing the pin bypass (which would
+ * bring back the codex hang).
  */
-test("processor pre-flight rate-limit gate requires !sessionPinnedAccountId (manual pin bypasses cooldown)", () => {
+test("processor pre-flight rate-limit gate applies regardless of account pin (no pin bypass)", () => {
   const processorPath = path.join(import.meta.dir, "../../src/session/processor.ts")
   const src = fs.readFileSync(processorPath, "utf-8")
 
-  // The pre-flight gate must check isVectorRateLimited AND be guarded by
-  // !sessionPinnedAccountId. If the guard is removed, manual user requests
-  // get silently blocked by stale tracker state — exactly the bug this
-  // hotfix addresses.
-  expect(src).toMatch(/isVectorRateLimited\(vector\)\s*&&\s*!sessionPinnedAccountId/)
+  // The pre-flight gate must exist and fire on rate-limited vectors.
+  expect(src).toMatch(/if\s*\(isVectorRateLimited\(vector\)\)/)
+
+  // The pin bypass must NOT be present — re-adding it brings back the
+  // codex quota-hang black hole.
+  expect(src).not.toMatch(/isVectorRateLimited\(vector\)\s*&&\s*!sessionPinnedAccountId/)
 })

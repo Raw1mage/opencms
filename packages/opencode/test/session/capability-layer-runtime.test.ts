@@ -3,6 +3,8 @@ import * as fs from "fs/promises"
 import path from "path"
 import { tmpdir } from "../fixture/fixture"
 import { Instance } from "../../src/project/instance"
+import { Global } from "../../src/global"
+import { Skill } from "../../src/skill"
 import { RebindEpoch } from "../../src/session/rebind-epoch"
 import {
   CapabilityLayer,
@@ -11,6 +13,11 @@ import {
 import { buildProductionCapabilityLoader } from "../../src/session/capability-layer-loader"
 import { SkillLayerRegistry } from "../../src/session/skill-layer-registry"
 import { InstructionPrompt } from "../../src/session/instruction"
+
+// Skills are read from a SINGLE authoritative source: Global.Path.data/skills.
+// Project-local .claude/skills is no longer scanned (skill SSOT). Tests must
+// write skills into the central directory for Skill.get() to resolve them.
+const skillRoot = path.join(Global.Path.data, "skills")
 
 async function writeAgentsMd(dir: string, skills: string[], body = "# Project AGENTS.md") {
   const block = [
@@ -23,14 +30,17 @@ async function writeAgentsMd(dir: string, skills: string[], body = "# Project AG
   await fs.writeFile(path.join(dir, "AGENTS.md"), block, "utf-8")
 }
 
-async function writeSkill(dir: string, name: string, content: string) {
-  const skillDir = path.join(dir, ".claude", "skills", name)
+async function writeSkill(_dir: string, name: string, content: string) {
+  // Skill content is resolved from the central data/skills directory, not the
+  // project tree. The `_dir` arg is kept for call-site compatibility.
+  const skillDir = path.join(skillRoot, name)
   await fs.mkdir(skillDir, { recursive: true })
   await fs.writeFile(
     path.join(skillDir, "SKILL.md"),
     ["---", `name: ${name}`, `description: ${name} desc`, "---", "", content].join("\n"),
     "utf-8",
   )
+  Skill.reset()
 }
 
 function onlyFromProject(list: string[]) {

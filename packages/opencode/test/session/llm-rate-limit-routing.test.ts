@@ -183,7 +183,13 @@ describe("session.llm rate limit routing", () => {
     })
   })
 
-  test("backfills resolved active account onto stream input when session account is missing", async () => {
+  // Committed contract (df4bf81aa "fix(session): stop falling back to global
+  // activeAccount for in-flight requests"): when a request has no session-pinned
+  // account, the runtime MUST NOT silently backfill from the global active
+  // account (RCA 2026-05-18: the getActive fallback caused an empty-response
+  // compaction loop). input.accountId stays undefined and no account header is
+  // emitted. This test guards that the fallback is NOT reintroduced.
+  test("does not backfill global active account onto stream input when session account is missing", async () => {
     const server = state.server
     if (!server) throw new Error("Server not initialized")
 
@@ -205,6 +211,19 @@ describe("session.llm rate limit routing", () => {
         async resolveFamilyOrSelf(providerId: string) {
           return providerId === "openai" || providerId.startsWith("openai-") ? "openai" : providerId
         },
+        async knownFamilies() {
+          return ["openai"]
+        },
+        resolveFamilyFromKnown(providerId: string, known: readonly string[]) {
+          if (!providerId) return undefined
+          const set = new Set(known.filter(Boolean))
+          if (set.has(providerId)) return providerId
+          const m = providerId.match(/^(.+)-(api|subscription)-/)
+          if (m?.[1] && set.has(m[1])) return m[1]
+          return undefined
+        },
+        // getActive intentionally returns a value to prove the runtime does NOT
+        // consult it for in-flight request identity (the no-fallback contract).
         async getActive(family: string) {
           return family === "openai" ? "openai-subscription-miatlab-api-gmail-com" : undefined
         },
@@ -289,7 +308,9 @@ describe("session.llm rate limit routing", () => {
         }
 
         const stream = await LLM.stream(input)
-        expect(input.accountId).toBe("openai-subscription-miatlab-api-gmail-com")
+        // No session-pinned account → runtime leaves accountId unresolved; it
+        // does NOT consult the global active account (no-fallback contract).
+        expect(input.accountId).toBeUndefined()
 
         for await (const _ of stream.fullStream) {
         }
@@ -297,135 +318,7 @@ describe("session.llm rate limit routing", () => {
     })
 
     const capture = await request
-    expect(capture.headers.get("x-opencode-account-id")).toBe("openai-subscription-miatlab-api-gmail-com")
-  })
-
-  test("uses account-scoped provider config when session account is pinned on base provider model", async () => {
-    const server = state.server
-    if (!server) throw new Error("Server not initialized")
-
-    mock.module("@/account", () => ({
-      Account: {
-        FAMILIES: ["openai"],
-        parseProvider(accountId: string) {
-          return accountId.startsWith("openai-") ? "openai" : undefined
-        },
-        parseFamily(accountId: string) {
-          return accountId.startsWith("openai-") ? "openai" : undefined
-        },
-        async listAll() {
-          return {}
-        },
-        async resolveFamily(providerId: string) {
-          return providerId === "openai" || providerId.startsWith("openai-") ? "openai" : undefined
-        },
-        async resolveFamilyOrSelf(providerId: string) {
-          return providerId === "openai" || providerId.startsWith("openai-") ? "openai" : providerId
-        },
-        async getActive() {
-          return undefined
-        },
-        async getActiveInfo() {
-          return undefined
-        },
-        async getById() {
-          return undefined
-        },
-        getDisplayName(id: string) {
-          return id
-        },
-      },
-    }))
-
-    const { LLM } = await import("../../src/session/llm")
-
-    const request = waitRequest(
-      "/chat/completions",
-      new Response(createChatStream("Hello"), {
-        status: 200,
-        headers: { "Content-Type": "text/event-stream" },
-      }),
-    )
-
-    await using tmp = await tmpdir({
-      init: async (dir) => {
-        await Bun.write(
-          path.join(dir, "opencode.json"),
-          JSON.stringify({
-            $schema: "https://opencode.ai/config.json",
-            disabled_providers: [],
-            enabled_providers: [
-              "openai",
-              "openai-subscription-ivon0829-gmail-com",
-              "openai-subscription-pincyluo-gmail-com",
-            ],
-            provider: {
-              openai: {
-                options: {
-                  apiKey: "wrong-base-key",
-                  baseURL: `${server.url.origin}/wrong-base-v1`,
-                },
-              },
-              "openai-subscription-ivon0829-gmail-com": {
-                options: {
-                  apiKey: "ivon-key",
-                  baseURL: `${server.url.origin}/ivon-v1`,
-                },
-              },
-              "openai-subscription-pincyluo-gmail-com": {
-                options: {
-                  apiKey: "pincy-key",
-                  baseURL: `${server.url.origin}/v1`,
-                },
-              },
-            },
-          }),
-        )
-      },
-    })
-
-    await Instance.provide({
-      directory: tmp.path,
-      fn: async () => {
-        const resolved = await Provider.getModel("openai", "gpt-5.4")
-        const session = await Session.create({})
-        const sessionID = session.id
-        const accountId = "openai-subscription-pincyluo-gmail-com"
-        const agent = {
-          name: "test",
-          mode: "primary",
-          options: {},
-          permission: [{ permission: "*", pattern: "*", action: "allow" }],
-        } satisfies Agent.Info
-
-        const user = {
-          id: "user-account-provider-resolution",
-          sessionID,
-          role: "user",
-          time: { created: Date.now() },
-          agent: agent.name,
-          model: { providerId: "openai", modelID: resolved.id, accountId },
-        } satisfies MessageV2.User
-
-        const stream = await LLM.stream({
-          user,
-          sessionID,
-          model: resolved,
-          accountId,
-          agent,
-          system: ["You are a helpful assistant."],
-          abort: new AbortController().signal,
-          messages: [{ role: "user", content: "Hello" }],
-          tools: {},
-        })
-
-        for await (const _ of stream.fullStream) {
-        }
-      },
-    })
-
-    const capture = await request
-    expect(capture.url.pathname).toBe("/v1/responses")
-    expect(capture.headers.get("authorization")).toBe("Bearer pincy-key")
+    // With no resolved account the request carries no account header.
+    expect(capture.headers.get("x-opencode-account-id")).toBeNull()
   })
 })

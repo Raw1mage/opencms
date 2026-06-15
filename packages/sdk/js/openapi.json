@@ -25,11 +25,15 @@
                     },
                     "version": {
                       "type": "string"
+                    },
+                    "buildId": {
+                      "type": "string"
                     }
                   },
                   "required": [
                     "healthy",
-                    "version"
+                    "version",
+                    "buildId"
                   ]
                 }
               }
@@ -21482,11 +21486,15 @@
                     },
                     "version": {
                       "type": "string"
+                    },
+                    "buildId": {
+                      "type": "string"
                     }
                   },
                   "required": [
                     "healthy",
-                    "version"
+                    "version",
+                    "buildId"
                   ]
                 }
               }
@@ -45432,6 +45440,25 @@
                   "modelId",
                   "capturedAt"
                 ]
+              },
+              "rawTailProjection": {
+                "type": "object",
+                "properties": {
+                  "rounds": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "maxTokens": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "rounds",
+                  "maxTokens"
+                ]
               }
             }
           }
@@ -46645,6 +46672,32 @@
                 "items": {
                   "$ref": "#/components/schemas/SessionRecentEvent"
                 }
+              },
+              "committed": {
+                "type": "object",
+                "properties": {
+                  "providerId": {
+                    "type": "string"
+                  },
+                  "modelID": {
+                    "type": "string"
+                  },
+                  "accountId": {
+                    "type": "string"
+                  },
+                  "at": {
+                    "type": "number"
+                  },
+                  "sourceMessageId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "providerId",
+                  "modelID",
+                  "at",
+                  "sourceMessageId"
+                ]
               }
             },
             "required": [
@@ -46721,6 +46774,13 @@
                     "type": "string"
                   }
                 }
+              },
+              "freerunOverride": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ]
               }
             },
             "required": [
@@ -47719,7 +47779,7 @@
           },
           "id": {
             "description": "Unique identifier for the todo item (auto-generated if omitted)",
-            "default": "todo_mq8njxl0_klc690",
+            "default": "todo_mqf4shsm_uqprvh",
             "type": "string"
           },
           "action": {
@@ -50398,6 +50458,13 @@
                         "type": "string"
                       }
                     }
+                  },
+                  "freerunOverride": {
+                    "type": "string",
+                    "enum": [
+                      "on",
+                      "off"
+                    ]
                   }
                 },
                 "required": [
@@ -53741,6 +53808,16 @@
               "type": "string"
             }
           },
+          "specbase": {
+            "description": "specbase native tool settings (knowledge base location)",
+            "type": "object",
+            "properties": {
+              "repo": {
+                "description": "Canonical repo path whose .specbase store backs the in-process specbase tools (event log / wiki / plans). When set, all specbase_* tools target this repo regardless of the active session's project — keeping one knowledge base across sessions (parity with the former SPECBASE_TARGET_REPO env). Per-call `repo` and the SPECBASE_TARGET_REPO env still override. Defaults to the active project directory when unset.",
+                "type": "string"
+              }
+            }
+          },
           "snapshot": {
             "description": "Per-round git snapshot tracking for session diff/revert UX. Default false. Set to true to enable; cost is one `git add .` walk of the worktree per session round. Recommended off for data-heavy projects (logs, monitoring dumps, anything >1GB).",
             "type": "boolean"
@@ -55149,6 +55226,32 @@
                 "items": {
                   "$ref": "#/components/schemas/SessionRecentEvent"
                 }
+              },
+              "committed": {
+                "type": "object",
+                "properties": {
+                  "providerId": {
+                    "type": "string"
+                  },
+                  "modelID": {
+                    "type": "string"
+                  },
+                  "accountId": {
+                    "type": "string"
+                  },
+                  "at": {
+                    "type": "number"
+                  },
+                  "sourceMessageId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "providerId",
+                  "modelID",
+                  "at",
+                  "sourceMessageId"
+                ]
               }
             },
             "required": [
@@ -55225,6 +55328,13 @@
                     "type": "string"
                   }
                 }
+              },
+              "freerunOverride": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off"
+                ]
               }
             },
             "required": [

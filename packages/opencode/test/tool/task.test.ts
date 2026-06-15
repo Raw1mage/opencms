@@ -112,7 +112,7 @@ describe("task tool", () => {
     })
   })
 
-  it("still blocks dispatch when active child is in handoff", async () => {
+  it("clears a handoff active child and allows dispatch (handoff is no longer authoritative)", async () => {
     await using tmp = await tmpdir()
     await Instance.provide({
       directory: tmp.path,
@@ -134,6 +134,11 @@ describe("task tool", () => {
         })
 
         const tool = await TaskTool.init()
+        // A handoff-status child means the previous subagent already completed
+        // and the parent is resuming; getAuthoritativeActiveChildForDispatch
+        // clears the stale handoff state and permits dispatch. With an invalid
+        // subagent_type, dispatch then fails at agent validation — proving the
+        // handoff gate did NOT block (it would have thrown active_child_* first).
         await expect(
           tool.execute(
             {
@@ -153,7 +158,10 @@ describe("task tool", () => {
               ask: async () => undefined,
             },
           ),
-        ).rejects.toThrow(`active_child_dispatch_blocked:${root.id}:${handoffSessionID}:handoff`)
+        ).rejects.toThrow("Unknown agent type: missing-agent is not a valid agent type")
+
+        // The stale handoff child was cleared as a side effect.
+        expect(SessionActiveChild.get(root.id)).toBeUndefined()
       },
     })
   })

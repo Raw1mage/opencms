@@ -47,8 +47,11 @@ describe("session.compaction.isOverflow", () => {
     await Instance.provide({
       directory: tmp.path,
       fn: async () => {
-        const model = createModel({ context: 100_000, output: 32_000 })
-        const tokens = { input: 75_000, output: 5_000, reasoning: 0, cache: { read: 0, write: 0 } }
+        // Context must stay > FreerunResolver.SMALL_WINDOW_TOKENS (128K) or
+        // isOverflow short-circuits via the freerun bypass. usable = 200K - 32K
+        // output cap = 168K; count 165K + 5K = 170K crosses it.
+        const model = createModel({ context: 200_000, output: 32_000 })
+        const tokens = { input: 165_000, output: 5_000, reasoning: 0, cache: { read: 0, write: 0 } }
         expect(await SessionCompaction.isOverflow({ tokens, model })).toBe(true)
       },
     })
@@ -71,8 +74,11 @@ describe("session.compaction.isOverflow", () => {
     await Instance.provide({
       directory: tmp.path,
       fn: async () => {
-        const model = createModel({ context: 100_000, output: 32_000 })
-        const tokens = { input: 60_000, output: 10_000, reasoning: 0, cache: { read: 10_000, write: 0 } }
+        // Context > 128K to avoid the freerun bypass. usable = 200K - 32K = 168K;
+        // count = input 120K + output 10K + cache.read 50K = 180K crosses it,
+        // and cache.read participates in the count.
+        const model = createModel({ context: 200_000, output: 32_000 })
+        const tokens = { input: 120_000, output: 10_000, reasoning: 0, cache: { read: 50_000, write: 0 } }
         expect(await SessionCompaction.isOverflow({ tokens, model })).toBe(true)
       },
     })
@@ -404,7 +410,10 @@ describe("session.prompt cache-cliff classification", () => {
     compactionRequestAuto: undefined,
     parentID: undefined,
     continuationInvalidatedAt: undefined,
-    currentInputTokens: 1000,
+    // Must stay >= the warm-up cache read (100K) so the cliff predicate's
+    // `compaction_shrinkage` planned-source (currentInputTokens < prev.cacheRead)
+    // does not fire and mis-classify an unplanned cliff as planned.
+    currentInputTokens: 150_000,
     modelContextWindow: 200_000,
     // Force unplanned-cliff path to short-circuit (return null), planned
     // path to fall through to overflow → return "overflow". This is how

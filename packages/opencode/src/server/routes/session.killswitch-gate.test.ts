@@ -82,13 +82,15 @@ mock.module("../../session", () => ({
   },
 }))
 
+const actualMessageV2 = await import("../../session/message-v2")
 mock.module("../../session/message-v2", () => ({
   MessageV2: {
-    Info: z.object({}).passthrough(),
-    Part: z.object({}).passthrough(),
-    WithParts: z.object({}).passthrough(),
-    Assistant: z.object({}).passthrough(),
-    TextPart: z.object({}).passthrough(),
+    // Spread the REAL MessageV2 namespace so consumers in the import chain
+    // (task.ts reads MessageV2.PendingSubagentNotice.shape.result.optional,
+    // etc.) see the genuine zod schemas; only the two heavy IO helpers below
+    // are stubbed. A hand-rolled partial namespace silently drops members and
+    // surfaces as `undefined is not an object` deep in the import graph.
+    ...actualMessageV2.MessageV2,
     stream: async function* () {},
     get: mock(async () => ({ info: {}, parts: [] })),
   },
@@ -157,7 +159,14 @@ mock.module("@/session/monitor", () => ({
   },
 }))
 
+// Spread the REAL barrel and override only the two diff helpers this test needs
+// to stub. A partial mock (listing only those two) truncates the namespace, so
+// the static ESM linker then fails any other `import { … }` from this barrel
+// (e.g. WorkspaceOperation, WorkspaceDeleteOperationResultSchema) with
+// "Export named '…' not found".
+const actualWorkspace = await import("@/project/workspace")
 mock.module("@/project/workspace", () => ({
+  ...actualWorkspace,
   getSessionMessageDiff: mock(async () => []),
   getSessionOwnedDirtyDiff: mock(async () => []),
 }))

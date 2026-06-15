@@ -717,6 +717,10 @@ export type CompactionPart = {
       modelId: string
       capturedAt: number
     }
+    rawTailProjection?: {
+      rounds: number
+      maxTokens: number
+    }
   }
 }
 
@@ -1099,6 +1103,13 @@ export type Session = {
     continuationInvalidatedAt?: number
     activeImageRefs?: Array<string>
     recentEvents?: Array<SessionRecentEvent>
+    committed?: {
+      providerId: string
+      modelID: string
+      accountId?: string
+      at: number
+      sourceMessageId: string
+    }
   }
   workflow?: {
     autonomous: {
@@ -1119,6 +1130,7 @@ export type Session = {
       lastResumeCategory?: string
       lastResumeError?: string
     }
+    freerunOverride?: "on" | "off"
   }
   pendingSubagentNotices?: Array<PendingSubagentNotice>
   scheduled?: {
@@ -2073,6 +2085,7 @@ export type EventSessionWorkflowUpdated = {
         lastResumeCategory?: string
         lastResumeError?: string
       }
+      freerunOverride?: "on" | "off"
     }
   }
 }
@@ -3313,6 +3326,15 @@ export type Config = {
   }
   plugin?: Array<string>
   /**
+   * specbase native tool settings (knowledge base location)
+   */
+  specbase?: {
+    /**
+     * Canonical repo path whose .specbase store backs the in-process specbase tools (event log / wiki / plans). When set, all specbase_* tools target this repo regardless of the active session's project — keeping one knowledge base across sessions (parity with the former SPECBASE_TARGET_REPO env). Per-call `repo` and the SPECBASE_TARGET_REPO env still override. Defaults to the active project directory when unset.
+     */
+    repo?: string
+  }
+  /**
    * Per-round git snapshot tracking for session diff/revert UX. Default false. Set to true to enable; cost is one `git add .` walk of the worktree per session round. Recommended off for data-heavy projects (logs, monitoring dumps, anything >1GB).
    */
   snapshot?: boolean
@@ -3823,6 +3845,13 @@ export type GlobalSession = {
     continuationInvalidatedAt?: number
     activeImageRefs?: Array<string>
     recentEvents?: Array<SessionRecentEvent>
+    committed?: {
+      providerId: string
+      modelID: string
+      accountId?: string
+      at: number
+      sourceMessageId: string
+    }
   }
   workflow?: {
     autonomous: {
@@ -3843,6 +3872,7 @@ export type GlobalSession = {
       lastResumeCategory?: string
       lastResumeError?: string
     }
+    freerunOverride?: "on" | "off"
   }
   pendingSubagentNotices?: Array<PendingSubagentNotice>
   scheduled?: {
@@ -4215,6 +4245,7 @@ export type GlobalHealthResponses = {
   200: {
     healthy: true
     version: string
+    buildId: string
   }
 }
 
@@ -12419,6 +12450,7 @@ export type GlobalHealth2Responses = {
   200: {
     healthy: true
     version: string
+    buildId: string
   }
 }
 

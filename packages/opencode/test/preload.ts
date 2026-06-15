@@ -70,6 +70,20 @@ const cacheDir = path.join(dir, "cache", "opencode")
 await fs.mkdir(cacheDir, { recursive: true })
 await fs.writeFile(path.join(cacheDir, "version"), "14")
 
+// Clear server-auth env vars so a developer's local .env (which bun test
+// auto-loads) cannot flip Flag.OPENCODE_SERVER_PASSWORD truthy and route the
+// server test-suite into its 401 auth branch against an unauthenticated app.
+delete process.env["OPENCODE_SERVER_PASSWORD"]
+delete process.env["OPENCODE_SERVER_USERNAME"]
+delete process.env["OPENCODE_SERVER_AUTH_SECRET"]
+
+// Clear the global-filesystem-browse override so path-traversal protection
+// tests see the default project-boundary enforcement. A daemon environment
+// running with OPENCODE_ALLOW_GLOBAL_FS_BROWSE=1 would otherwise legitimately
+// bypass the boundary and make the guard appear broken. Tests that need the
+// flag (file/operations.test.ts) set+restore it themselves.
+delete process.env["OPENCODE_ALLOW_GLOBAL_FS_BROWSE"]
+
 // Clear provider env vars to ensure clean test state
 delete process.env["ANTHROPIC_API_KEY"]
 delete process.env["OPENAI_API_KEY"]

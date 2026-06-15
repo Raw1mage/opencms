@@ -9,7 +9,7 @@
 | Date | 2026-06-12 |
 | Severity | low-medium — 非無界洩漏，不致命；但 heavy 多專案 daemon 下子行程數 = 專案數 × local-MCP 數，浪費記憶體/PID，且舊專案 Instance 若不被 dispose 會長留 |
 | Priority | P3 |
-| Status | OPEN — 已診斷機制，未修；由 stale-child BR（[20260611_specbase_event_record_stale_local_mcp_child_issue.md](20260611_specbase_event_record_stale_local_mcp_child_issue.md)）§16 旁生線索分出 |
+| Status | OBSERVING — 方向 1 已實作+部署+live 驗證。process-global ref-counted pool（`packages/opencode/src/mcp/local-mcp-pool.ts`），commits `87d903ba7`(pool) + `23c3902d1`(keying refine)。**Live 驗證**：對 daemon 52952 觸發 3 個不同 project dir（/home/pkcs12、bodesign、games）的 MCP connect，全部 connected，但 system-manager / drawmiat 各只 **1 個共用子行程**（修前會是 3+3=6）。詳見 §10。 |
 
 ## 2. 觀測
 
@@ -65,4 +65,19 @@ per-Instance child 只在 Instance 被 dispose（`cleanupState` → `client.clos
 ## 9. Update (2026-06-12) — specbase 已不再貢獻本問題
 
 specbase 改 native（plan `specbase/internal-toolcall-dual-track` 已部署），不再有 per-Instance 子行程。**但本問題的一般情形（docxmcp/drawmiat 等仍為 local MCP）未解**，§4 的「Global dedup 註解 overpromise」仍成立。保持 OPEN。
-Status: OPEN — specbase 已移除貢獻；一般 local-MCP per-Instance 重複待修（方向見 §6）。
+
+## 10. Resolution (2026-06-15) — 方向 1，ref-counted pool，已 live 驗證
+
+採方向 1（使用者裁定）。實作 `local-mcp-pool.ts`：process-global ref-counted pool，acquire() **monkey-patch client.close() 做引用計數**，所以既有 5 個 close site（cleanupState / toggle / connect-replace / disconnect / refreshStale）全部不動就自動平衡；單一 Instance（refs 1）立即 close，與舊行為位元相同。`createInFlight`（只去重並行 create）退役，§4 的 overpromise 註解一併移除。
+
+**share key 設計**（commit `23c3902d1` 修正 `87d903ba7` 的不足）：
+- key = 解析後 command（cmd + finalArgs）+ env + source mtime；**cwd 僅在使用者明設 `mcp.cwd` 時才入 key**。預設 Instance.directory 屬偶然，不入 key 才能真正共用。
+- filesystem MCP 把 cwd 注入 finalArgs → 靠 args 天然分離，無需 cwd 入 key。
+- source mtime 入 key → stale-refresh（檔案內容變更）產生新 key → 全新子行程，pool 不會回傳 stale client。
+- 共用子行程跑在「第一個 spawn 者的 cwd」，對 cwd-無關 server（system-manager 走 socket/env；drawmiat 吃絕對路徑）無副作用。
+
+**為何 `87d903ba7` 不夠**：live 量到兩個 local MCP 都解析成 per-project cwd（system-manager 因 `config.ts:66` source-alias 走原始碼而非 /tmp-cwd 編譯檔；drawmiat 是 venv python script），cwd 入 key 等於每專案一份，沒達成 N→1。改為偶然-cwd 不入 key 後才真正共用。
+
+**驗證**：16 個 pool 單元測試（ref-count / 共用 / 併發 / respawn / 失敗 passthrough / key 推導 / filesystem args 分離 / 明設 cwd 分離）；mcp suite 全綠；typecheck 乾淨；live：3 個 project dir → system-manager / drawmiat 各 1 共用子行程，全部 connected 無 regression。
+
+Status: OBSERVING — 方向 1 已部署+即時驗證（3-Instance 共用 1 子行程、MCP 連線正常）。**Exit → closed/**：使用者重度多專案 daemon 日常運作下，靜態-enabled local MCP 子行程數維持「每 share-key 1 份」而非每專案一份，soak 數日無 MCP 連線/工具異常。**Regress → open**：同一 share-key 出現多份子行程；或共用子行程的 cwd-無關假設被打破（某 server 對 cwd 敏感卻被誤共用 → 工具行為跨專案串味）。

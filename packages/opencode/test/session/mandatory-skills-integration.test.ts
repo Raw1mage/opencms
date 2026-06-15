@@ -3,12 +3,19 @@ import * as fs from "fs/promises"
 import path from "path"
 import { tmpdir } from "../fixture/fixture"
 import { Instance } from "../../src/project/instance"
+import { Global } from "../../src/global"
+import { Skill } from "../../src/skill"
 import {
   resolveMandatoryList,
   preloadMandatorySkills,
   KEEP_RULES,
 } from "../../src/session/mandatory-skills"
 import { SkillLayerRegistry } from "../../src/session/skill-layer-registry"
+
+// Skill content is resolved from the SINGLE authoritative source
+// (Global.Path.data/skills) via Skill.get(); project .claude/skills is no
+// longer scanned. Tests write skills into the central directory.
+const skillRoot = path.join(Global.Path.data, "skills")
 
 async function writeAgentsMd(dir: string, skills: string[]) {
   const body = [
@@ -21,8 +28,10 @@ async function writeAgentsMd(dir: string, skills: string[]) {
   await fs.writeFile(path.join(dir, "AGENTS.md"), body, "utf-8")
 }
 
-async function writeSkill(dir: string, name: string, content: string) {
-  const skillDir = path.join(dir, ".claude", "skills", name)
+async function writeSkill(_dir: string, name: string, content: string) {
+  // Skill content resolves from the central data/skills directory via
+  // Skill.get(); the `_dir` arg is retained for call-site compatibility.
+  const skillDir = path.join(skillRoot, name)
   await fs.mkdir(skillDir, { recursive: true })
   await fs.writeFile(
     path.join(skillDir, "SKILL.md"),
@@ -36,10 +45,13 @@ async function writeSkill(dir: string, name: string, content: string) {
     ].join("\n"),
     "utf-8",
   )
+  Skill.reset()
 }
 
-afterEach(() => {
+afterEach(async () => {
   SkillLayerRegistry.reset()
+  await fs.rm(skillRoot, { recursive: true, force: true }).catch(() => {})
+  Skill.reset()
 })
 
 // Tests run against the real XDG_CONFIG_HOME (~/.config/opencode/AGENTS.md may

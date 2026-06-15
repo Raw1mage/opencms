@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, afterAll, test, expect } from "bun:test"
+import { beforeAll, beforeEach, afterAll, test, expect, mock } from "bun:test"
 import path from "path"
 import { LLM } from "../../src/session/llm"
 import { Session } from "../../src/session"
@@ -7,6 +7,29 @@ import { Provider } from "../../src/provider/provider"
 import type { Agent } from "../../src/agent/agent"
 import type { MessageV2 } from "../../src/session/message-v2"
 import { tmpdir } from "../fixture/fixture"
+
+// Auth.get gained a phantom-family gate (commits 4846236a7 / b952ee811) that
+// rejects any family not present in Account.knownFamilies(). These tests drive
+// LLM.stream with config-only synthetic provider ids (`cms-openai`) and a
+// canonical id (`google`); register both with the real knownFamilies set so the
+// gate accepts them. Spread the real module so every other Account member keeps
+// its production behavior.
+const actualAccount = await import("../../src/account")
+const TEST_FAMILIES = ["cms-openai", "google"]
+// Capture the real knownFamilies BEFORE installing the mock — otherwise the
+// override below would resolve `actualAccount.Account.knownFamilies` to itself
+// (bun mock.module rebinds the namespace) and recurse infinitely.
+const realKnownFamilies = actualAccount.Account.knownFamilies.bind(actualAccount.Account)
+mock.module("../../src/account", () => ({
+  ...actualAccount,
+  Account: {
+    ...actualAccount.Account,
+    async knownFamilies(options?: { includeStorage?: boolean }) {
+      const base = await realKnownFamilies(options)
+      return Array.from(new Set([...base, ...TEST_FAMILIES]))
+    },
+  },
+}))
 
 type Capture = {
   url: URL

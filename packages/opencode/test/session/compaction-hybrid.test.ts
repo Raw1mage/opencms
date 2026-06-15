@@ -298,13 +298,21 @@ describe("Hybrid.buildUserPayload", () => {
     expect(text.includes("DROP_MARKERS: toolu_aaa, toolu_bbb")).toBe(true)
   })
 
-  test("ends with the produce-now imperative", () => {
+  test("includes the produce-now imperative ahead of the TOOL_INDEX requirement", () => {
     const text = Hybrid.buildUserPayload(makeRequest(), {
       generatedAt: "x",
       provider: "p",
       model: "m",
     })
-    expect(text.trimEnd().endsWith("Produce the new anchor body now.")).toBe(true)
+    // The produce-now imperative is no longer the literal last line: the
+    // compaction/recall-affordance L1 feature appends a verbatim TOOL_INDEX
+    // requirement block after it. Assert the imperative is present and that
+    // the TOOL_INDEX requirement follows it (current contract).
+    const imperative = "Produce the new anchor body now."
+    expect(text.includes(imperative)).toBe(true)
+    const imperativeIdx = text.indexOf(imperative)
+    const toolIndexIdx = text.indexOf("TOOL_INDEX REQUIREMENT")
+    expect(toolIndexIdx).toBeGreaterThan(imperativeIdx)
   })
 })
 

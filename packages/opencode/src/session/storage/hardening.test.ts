@@ -11,7 +11,7 @@ import { DreamingWorker } from "./dreaming"
 import { SessionStorageEvent } from "./events"
 import { runIntegrityCheckUncached, StorageCorruptionError } from "./integrity"
 import { LegacyStore } from "./legacy"
-import { ensureSchema, rollbackTo } from "./migration-runner"
+import { ensureSchema, rollbackTo, TARGET_VERSION } from "./migration-runner"
 import { ConnectionPool } from "./pool"
 import { detectFormat, Router } from "./router"
 import { SqliteStore } from "./sqlite"
@@ -183,7 +183,12 @@ describe("session storage hardening", () => {
       }),
     ).rejects.toThrow(/pre-rename/)
 
-    expect(await fs.stat(dbPath(sid) + ".tmp").then(() => true).catch(() => false)).toBe(true)
+    expect(
+      await fs
+        .stat(dbPath(sid) + ".tmp")
+        .then(() => true)
+        .catch(() => false),
+    ).toBe(true)
     const cleanup = await DreamingWorker.cleanupStartup()
     expect(cleanup.deletedTmp).toContain(sid)
     expect(detectFormat(sid).format).toBe("legacy")
@@ -198,26 +203,31 @@ describe("session storage hardening", () => {
     const db = new Database(dbPath(sid))
     try {
       await ensureSchema(db, sid, dbPath(sid))
-      expect(db.query<{ user_version: number }, []>("PRAGMA user_version").get()?.user_version).toBe(1)
+      expect(db.query<{ user_version: number }, []>("PRAGMA user_version").get()?.user_version).toBe(TARGET_VERSION)
+      const syntheticNext = TARGET_VERSION + 1
       expect(() =>
         db.transaction(() => {
-          db.exec("CREATE TABLE synthetic_v2_probe (id TEXT PRIMARY KEY)")
-          db.exec("PRAGMA user_version = 2")
-          throw new Error("synthetic v2 failure")
+          db.exec("CREATE TABLE synthetic_vnext_probe (id TEXT PRIMARY KEY)")
+          db.exec(`PRAGMA user_version = ${syntheticNext}`)
+          throw new Error("synthetic vnext failure")
         })(),
       ).toThrow(/synthetic/)
-      expect(db.query<{ user_version: number }, []>("PRAGMA user_version").get()?.user_version).toBe(1)
+      expect(db.query<{ user_version: number }, []>("PRAGMA user_version").get()?.user_version).toBe(TARGET_VERSION)
       expect(
-        db.query<{ name: string }, [string]>("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(
-          "synthetic_v2_probe",
-        ),
+        db
+          .query<{ name: string }, [string]>("SELECT name FROM sqlite_master WHERE type='table' AND name=?")
+          .get("synthetic_vnext_probe"),
       ).toBeNull()
-      db.exec("CREATE TABLE synthetic_v2_probe (id TEXT PRIMARY KEY)")
-      db.exec("PRAGMA user_version = 2")
-      db.exec("DROP TABLE synthetic_v2_probe")
-      db.exec("PRAGMA user_version = 1")
+      db.exec("CREATE TABLE synthetic_vnext_probe (id TEXT PRIMARY KEY)")
+      db.exec(`PRAGMA user_version = ${syntheticNext}`)
+      db.exec("DROP TABLE synthetic_vnext_probe")
+      db.exec(`PRAGMA user_version = ${TARGET_VERSION}`)
       rollbackTo(db, 0)
-      expect(db.query<{ name: string }, [string]>("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get("messages")).toBeNull()
+      expect(
+        db
+          .query<{ name: string }, [string]>("SELECT name FROM sqlite_master WHERE type='table' AND name=?")
+          .get("messages"),
+      ).toBeNull()
       expect(db.query<{ user_version: number }, []>("PRAGMA user_version").get()?.user_version).toBe(0)
     } finally {
       db.close()

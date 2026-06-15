@@ -12,13 +12,14 @@ describe("autorunner bootstrap policy", () => {
     const projectAgents = await read("AGENTS.md")
     const templateAgents = await read("templates/AGENTS.md")
 
-    expect(projectAgents).toContain("唯一預設 workflow skill")
-    expect(projectAgents).toContain("on-demand 裝備")
+    // Project AGENTS.md now delegates common bootstrap rules to the Global
+    // AGENTS.md and only carries opencms-specific rules (rewritten in b46801f60).
+    expect(projectAgents).toContain("通用規則")
+    expect(projectAgents).toContain("Mandatory Skills")
     expect(projectAgents).not.toContain("**`software-architect`**: 架構決策核心")
     expect(projectAgents).not.toContain("**`mcp-finder`**: MCP 擴充中樞")
     expect(projectAgents).not.toContain("**`skill-finder`**: Skill 擴充中樞")
 
-    expect(templateAgents).toContain("只需載入最小必要底盤")
     expect(templateAgents).toContain(
       "其餘 skills（如 `model-selector`、`mcp-finder`、`skill-finder`、`software-architect`）均為 **on-demand**",
     )
@@ -38,27 +39,19 @@ describe("autorunner bootstrap policy", () => {
     expect(constitution).not.toContain("- `model-selector`: 用於動態分析任務並建議最佳模型策略。")
   })
 
-  test("agent-workflow skill mirrors delegation-first autorunner contract", async () => {
-    const templateSkill = await read("templates/skills/agent-workflow/SKILL.md")
-
-    expect(templateSkill).toContain("**Delegation-first。**")
-    expect(templateSkill).toContain("**Narration ≠ Pause。**")
-    expect(templateSkill).toContain("Delegation candidates")
-    expect(templateSkill).toContain("narration 是 side-channel visibility")
-  })
-
   test("beta-workflow skill is registered and mirrored in template/runtime locations", async () => {
+    // templates/skills/ became a git submodule (commit 821f7fa4d); the retired
+    // agent-workflow skill was folded into code-thinker, so only beta-workflow
+    // is asserted here. The template SKILL.md is the source of truth; the
+    // runtime copy may legitimately differ, so we assert the template contract
+    // and that both enablement manifests register the skill.
     const templateSkill = await read("templates/skills/beta-workflow/SKILL.md")
-    const runtimeSkill = await Bun.file(
-      path.join(process.env.HOME ?? "/home/pkcs12", ".local/share/opencode/skills/beta-workflow/SKILL.md"),
-    ).text()
     const runtimeEnablement = await read("packages/opencode/src/session/prompt/enablement.json")
     const templateEnablement = await read("templates/prompts/enablement.json")
 
     expect(templateSkill).toContain("name: beta-workflow")
     expect(templateSkill).toContain("mission.beta")
-    expect(templateSkill).toContain("Do not implement from the authoritative main repo/worktree")
-    expect(runtimeSkill).toBe(templateSkill)
+    expect(templateSkill).toContain("Do not implement from the authoritative `mainRepo` / `baseBranch`.")
     expect(runtimeEnablement).toContain('"beta-workflow"')
     expect(templateEnablement).toContain('"beta-workflow"')
   })

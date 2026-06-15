@@ -1,6 +1,12 @@
 # BR: session rename workflow is inconsistent across current-session resolution, list/search/get metadata, and cache invalidation
 
-Status: OPEN — contract-consistency fixes implemented + unit tests green (not yet deployed/live-verified). Remaining: live rename→get→search soak + the cross-process cache disagreement (E6/E7). See "Implementation note — 2026-06-15 (contract consistency)".
+Status: OBSERVING — RC1/RC2 (wrong `current` resolution, unverifiable readback, dataless list) fixed via shared `resolveTargetSessionID` + canonical same-path readback + structured `list`; commits `572e2e4cc` (fix + unit tests) and `c8f0635d6` (probe passthrough + measurement). Deployed via 3R (build-id `572e2e4cc`, gateway/daemon respawned). Live HTTP verification: write→read→search on the running daemon is fully coherent (probe pid 8655, cacheHit flips false→true, cached-GET == storage-search); E6/E7 did NOT reproduce. The cache-disagreement symptom is judged a multi-instance artifact (see `observing/20260612_local_mcp_child_per_instance_duplication`), not an invalidation-logic bug.
+
+Observing since: 2026-06-15.
+
+Exit → closed/: a real agent-driven rename→get_session→search through the opencode built-in tool (not curl) in a normal chat shows the renamed session is the one the user sees and all read paths agree immediately; no recurrence over a few days.
+
+Regress → open: any rename that targets a session the user did not intend, OR get_session/search disagreeing on title for the same session ID in normal (single-daemon) use.
 
 ## Intake update — 2026-06-15
 

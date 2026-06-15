@@ -163,10 +163,16 @@ describe("InstructionPrompt.system — epoch-based cache (session-rebind-capabil
         await RebindEpoch.bumpEpoch({ sessionID: "ses_a", trigger: "slash_reload" })
         const a2 = await InstructionPrompt.system("ses_a")
         const b2 = await InstructionPrompt.system("ses_b")
-        expect(a2.join("\n")).toContain("Shared v2")
-        // ses_b still at old epoch → still cached with V1
-        expect(b2.join("\n")).toContain("Shared")
-        expect(b2.join("\n")).not.toContain("v2")
+        // ses_a was bumped → re-reads the project AGENTS.md edit
+        const projectEntryA2 = a2.find((e) => e.includes(path.join(tmp.path, "AGENTS.md")))
+        expect(projectEntryA2).toContain("# Shared v2")
+        // ses_b still at old epoch → its project entry stays cached at "# Shared"
+        // (assert against the project file entry only; the global AGENTS.md fixture
+        // may itself contain unrelated "v2" substrings like "MessageV2"/"api/v2").
+        const projectEntryB2 = b2.find((e) => e.includes(path.join(tmp.path, "AGENTS.md")))
+        expect(projectEntryB2).toBeDefined()
+        expect(projectEntryB2).toContain("# Shared")
+        expect(projectEntryB2).not.toContain("# Shared v2")
       },
     })
   })

@@ -19,10 +19,19 @@
 import { describe, expect, test } from "bun:test"
 import {
   transformPostAnchorTail,
+  __test__,
   LayerPurityViolation,
   LAYER_PURITY_FORBIDDEN_KEYS,
 } from "../../src/session/post-anchor-transform"
 import type { MessageV2 } from "../../src/session/message-v2"
+
+// The public dispatch `transformPostAnchorTail` now defaults to the v7
+// pass-through path (Tweaks.compactionSync().enableDialogRedactionAnchor=true),
+// which returns input untouched with zero counters. The v6 drop-based logic
+// these tests exercise lives behind the `__test__.v6` seam, so the drop
+// assertions invoke it directly. The v7 default path is still covered by the
+// noop / single-task / no-user cases below (which match v7 pass-through too).
+const transformPostAnchorTailV6 = __test__.v6
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test fixtures
@@ -223,7 +232,7 @@ describe("transformPostAnchorTail v6 (drop before last user message)", () => {
       assistantTurn({ toolCount: 2 }),
       assistantTurn({ toolCount: 1 }),
     ]
-    const result = transformPostAnchorTail(messages)
+    const result = transformPostAnchorTailV6(messages)
 
     // 4 assistants from prior tasks dropped (indices 2, 3, 5, 6)
     expect(result.transformedTurnCount).toBe(4)
@@ -252,7 +261,7 @@ describe("transformPostAnchorTail v6 (drop before last user message)", () => {
       userMessage("u3"),
       assistantTurn({ toolCount: 1, inFlight: true }),
     ]
-    const result = transformPostAnchorTail(messages)
+    const result = transformPostAnchorTailV6(messages)
     // 2 prior-task assistants (indices 2, 4) dropped
     expect(result.transformedTurnCount).toBe(2)
     // In-flight survives (it's after u3, current task)
@@ -296,7 +305,7 @@ describe("transformPostAnchorTail v6 (drop before last user message)", () => {
       userMessage("u2"),
       assistantTurn({ toolCount: 2 }),
     ]
-    const result = transformPostAnchorTail(messages)
+    const result = transformPostAnchorTailV6(messages)
     // Compaction-bearing assistant is exempt; in this case it's BEFORE last user
     // but the carve-out keeps it
     expect(result.transformedTurnCount).toBe(0) // exempt + current task
@@ -312,7 +321,7 @@ describe("transformPostAnchorTail v6 (drop before last user message)", () => {
       assistantTurn({ toolCount: 1 }),
     ]
     // recentRawRounds=10 used to mean "keep 10 raw" — v6 ignores it
-    const result = transformPostAnchorTail(messages, { recentRawRounds: 10 })
+    const result = transformPostAnchorTailV6(messages)
     // 1 assistant (idx 2, before u2) dropped
     expect(result.transformedTurnCount).toBe(1)
   })
@@ -331,7 +340,7 @@ describe("transformPostAnchorTail v6 (drop before last user message)", () => {
     for (let t = 0; t < 5; t++) {
       messages.push(assistantTurn({ toolCount: 2, hasReasoning: true }))
     }
-    const result = transformPostAnchorTail(messages)
+    const result = transformPostAnchorTailV6(messages)
     // 20 tasks × 4 assistants = 80 prior assistants dropped
     expect(result.transformedTurnCount).toBe(80)
     // Kept: 1 anchor + 21 user + 5 current = 27 messages

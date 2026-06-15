@@ -3,7 +3,7 @@
 - **Date**: 2026-06-14
 - **Component**: opencode web frontend (stream/message rendering), NOT the session backend
 - **Severity**: high (makes the web UI unusable to watch — continuous flicker)
-- **Status**: fixed locally (pending runtime verification)
+- **Status**: OBSERVING — merge-safe resync committed (`623737f09` fix(web): merge-safe session transcript resync, in HEAD) and deployed (frontend fingerprint-skip confirms deployed == HEAD-built; `mergeSnapshot` in `packages/app/src/context/active-poll.ts`, 11 tests pass). Root cause fixed: SSE/viewing-session resync had treated the bounded `/session/:id/message` tail as authoritative full transcript and **replaced** `store.message[sessionID]` — that replace was both the blank-then-restore vector and the scrollback-shrink. `forceReload()` now merges by message/part id, preserving local-only messages/parts outside the tail (initial hydration still replaces an empty session). **Scope honesty**: directly covers acceptance #6–8 (scrollback preservation, no compaction hard-floor) and very likely #1–5 (the destructive replace was the flicker source); the explicit multi-session partitioning criteria #9–11 are now made non-destructive (a cross-session resync can't shrink/clobber) but NOT proven as full per-sessionID isolation — that needs the live multi-session repro. Observing since 2026-06-15. **Exit → closed/**: the Update-3 repro (2–3 concurrent sessions, one idle while another streams) shows stable flicker-free panes, each retaining full independent scrollback over ≥60s. **Regress → open**: periodic ~10s blank/re-mount returns, or scrollback truncates to a tail after resync/concurrency.
 
 ## Symptom
 

@@ -2,7 +2,7 @@
 
 - **Date**: 2026-06-14
 - **Severity**: high
-- **Status**: fixed locally
+- **Status**: OBSERVING — fix committed (`0419472f1` fix(compaction): preserve raw tail after narrative anchor, in HEAD) and deployed (HEAD rebuilds this session; binary carries `rawTailProjection`). Mechanism fix covers acceptance #1/#2: newest `fadeout.bTailRounds` completed C rounds are excluded from the narrative anchor and projected back raw via `metadata.rawTailProjection`; `MessageV2.filterCompacted` renders anchor + raw C tail + true post-anchor messages and skips lone pre-anchor unanswered originals, so an already-answered user message can't be replayed as new. Acceptance #3 (explicit post-compaction anchor-messageID monotonicity assertion + anomaly log) was NOT separately added — defense-in-depth follow-up, not blocking, since the rawTail mechanism prevents the rollback at source. Validation: dialog-serializer + compaction-extend-redaction (36 pass) + compaction-replay-deep + claude-refactor.inv0-baseline (42 pass). Observing since 2026-06-15. **Exit → closed/**: a real session crossing a narrative compaction keeps the visible anchor at the latest turn (no `我很疑惑`-style replay), soak clean. **Regress → open**: post-compaction transcript re-surfaces an already-answered user message as newest input.
 - **Component**: opencode session runtime — context compaction / anchor selection (NOT docxmcp; filed here per local-first issue policy because it was observed while working in this repo)
 - **Reporter**: pkcs12 (live observation during a docxmcp session)
 

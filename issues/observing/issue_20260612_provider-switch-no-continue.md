@@ -1,6 +1,6 @@
 # 切換 provider 後無法接續工作（provider-switch compaction loop）
 
-- **狀態**: fixed-pending-deploy（修改在 working tree，未部署；見 `docs/events/event_20260612_provider-switch-compaction-loop.md`）
+- **狀態**: OBSERVING — Fix A 已 commit 並部署。BR 原記「修改在 working tree、未部署」已過時：fix 經 provider-switch-suite 併入 main（`b95e737d9` feat(session): Phase 0 — anchorProviderId guard stops provider-switch loop，已在 HEAD），本 session 多次 `webctl.sh restart` 從 HEAD 重建 → 已部署（binary 含 `anchor-already-rebased`）。`identity-change.ts` 新增 `anchorProviderId` 守衛（head compaction anchor 已帶 incoming provider 時抑制切換，回 `kind:none, reason:anchor-already-rebased`，只動 provider 維度、不碰 account cache-key），`prompt.ts` lastAssistantIdentity 回掃計算 head-anchor provider 並傳入。Fix B 判定為 A 的 cascade、無獨立缺陷（snapshot/replay 既有邏輯正確，既有測試守住）。驗證：`identity-change.test.ts` 12 案全綠。Observing since 2026-06-15。**Exit → closed/**：真實「claude-cli→codex 切換後第一則訊息即由 codex 回覆、無 5×壓縮循環」live e2e 由使用者確認，soak 無復發。**Regress → open**：切 SS provider 後再現 provider-switched 壓縮循環 / codex telemetry 0。詳見 `docs/events/event_20260612_provider-switch-compaction-loop.md`。
 - **回報 session**: `ses_146e9ad43ffeZbCTA7MTgZP8BD`（silent-wizard，title「查最新br」）
 - **發生時間**: 2026-06-12 ~22:35–22:36（+08:00）
 - **daemon build**: `0.0.0-main-202606121437`（session 建立於 `202606112328`，有 version drift 警告，但實際執行碼＝daemon＝current HEAD）

@@ -25,7 +25,14 @@ const userSummaryMessage = (id: string, diffs: Snapshot.FileDiff[]) =>
   }) as any as MessageV2.WithParts
 
 describe("project.workspace.owned-diff", () => {
-  test("matches only files explicitly written by the session and still equal to current dirty content", () => {
+  test("matches files explicitly written by the session by status (bodies dropped per mobile-session-restructure)", () => {
+    // mobile-session-restructure (2026-04-23) dropped the before/after bodies
+    // from summary diffs, so computeOwnedSessionDirtyDiff now filters by
+    // explicit-touch + status equality ONLY — it no longer compares
+    // `latest.after === current.after`. Both a.ts and b.ts were written by the
+    // session and are still `modified`, so both are owned dirty diffs; the
+    // prior content-equality exclusion of b.ts is the accepted behavioural
+    // drift documented in src/project/workspace/owned-diff.ts.
     const current: Snapshot.FileDiff[] = [
       { file: "a.ts", before: "old", after: "session-final", additions: 1, deletions: 0, status: "modified" },
       { file: "b.ts", before: "old", after: "other-session", additions: 1, deletions: 0, status: "modified" },
@@ -43,6 +50,7 @@ describe("project.workspace.owned-diff", () => {
 
     expect(computeOwnedSessionDirtyDiff(current, messages)).toEqual([
       { file: "a.ts", before: "old", after: "session-final", additions: 1, deletions: 0, status: "modified" },
+      { file: "b.ts", before: "old", after: "other-session", additions: 1, deletions: 0, status: "modified" },
     ])
   })
 

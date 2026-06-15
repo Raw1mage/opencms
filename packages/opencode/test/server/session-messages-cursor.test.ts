@@ -71,9 +71,7 @@ describe("session.messages cursor pagination (R9)", () => {
         // ids are ascending → oldest-first. Pick id#20 as cursor.
         const cursor = ids[20]
 
-        const res = await app.request(
-          `/session/${session.id}/message?beforeMessageID=${encodeURIComponent(cursor)}&limit=10`,
-        )
+        const res = await app.request(`/session/${session.id}/message?before=${encodeURIComponent(cursor)}&limit=10`)
         if (Flag.OPENCODE_SERVER_PASSWORD) return
         expect(res.status).toBe(200)
         const body = (await res.json()) as Array<{ info: { id: string } }>
@@ -99,9 +97,7 @@ describe("session.messages cursor pagination (R9)", () => {
         const ids = await seedMessages(session.id, 10)
         const cursor = ids[0] // oldest
 
-        const res = await app.request(
-          `/session/${session.id}/message?beforeMessageID=${encodeURIComponent(cursor)}&limit=10`,
-        )
+        const res = await app.request(`/session/${session.id}/message?before=${encodeURIComponent(cursor)}&limit=10`)
         if (Flag.OPENCODE_SERVER_PASSWORD) return
         expect(res.status).toBe(200)
         const body = (await res.json()) as Array<{ info: { id: string } }>
@@ -139,9 +135,7 @@ describe("session.messages cursor pagination (R9)", () => {
         const ids = await seedMessages(session.id, 100)
         const cursor = ids[90]
 
-        const res = await app.request(
-          `/session/${session.id}/message?beforeMessageID=${encodeURIComponent(cursor)}&limit=15`,
-        )
+        const res = await app.request(`/session/${session.id}/message?before=${encodeURIComponent(cursor)}&limit=15`)
         if (Flag.OPENCODE_SERVER_PASSWORD) return
         expect(res.status).toBe(200)
         const body = (await res.json()) as Array<{ info: { id: string } }>
