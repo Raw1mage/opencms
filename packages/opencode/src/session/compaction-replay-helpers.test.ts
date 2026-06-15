@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 import { SessionCompaction } from "./compaction"
 import { Session } from "."
 import { Tweaks } from "../config/tweaks"
-import type { MessageV2 } from "./message-v2"
+import { MessageV2 } from "./message-v2"
 
 // ─────────────────────────────────────────────────────────────────────
 // Test seam state — restored after each test
@@ -13,6 +13,7 @@ const originalSessionUpdateMessage = Session.updateMessage
 const originalSessionUpdatePart = Session.updatePart
 const originalSessionRemoveMessage = Session.removeMessage
 const originalTweaksSync = Tweaks.compactionSync
+const originalFilterCompacted = MessageV2.filterCompacted
 
 afterEach(() => {
   ;(Session as any).messages = originalSessionMessages
@@ -20,7 +21,15 @@ afterEach(() => {
   ;(Session as any).updatePart = originalSessionUpdatePart
   ;(Session as any).removeMessage = originalSessionRemoveMessage
   ;(Tweaks as any).compactionSync = originalTweaksSync
+  ;(MessageV2 as any).filterCompacted = originalFilterCompacted
 })
+
+// Stub the runloop's projected view (MessageV2.filterCompacted) — the seam the
+// replay skip-gate now consults instead of raw ID order. The replay's stream
+// arg is ignored; the stub returns the controlled post-anchor view.
+function stubFilteredView(msgs: MessageV2.WithParts[]) {
+  ;(MessageV2 as any).filterCompacted = mock(async () => ({ messages: msgs, stoppedByBudget: false }))
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // Fixture helpers — compose minimal MessageV2.WithParts shapes
@@ -358,6 +367,7 @@ describe("SessionCompaction.replayUnansweredUserMessage", () => {
   beforeEach(() => {
     stubTweaks() // default: enableUserMsgReplay undefined → not false → proceed
     stubMessages([userMsg("msg_user_x")]) // snapshot still in stream by default
+    stubFilteredView([]) // default: folded out of the runloop view → replay
   })
 
   it("happy path: writes new user msg with id > anchor, copies parts, removes original", async () => {
@@ -439,7 +449,11 @@ describe("SessionCompaction.replayUnansweredUserMessage", () => {
     expect(writes).toHaveLength(0) // no storage writes
   })
 
-  it("skipped:already-after-anchor when snapshot.id > anchor.id", async () => {
+  it("skipped:already-after-anchor when the snapshot SURVIVES in the runloop's filtered view", async () => {
+    // The message is still present in the projected post-anchor stream the
+    // runloop drives off → it will be answered → replay would needlessly churn.
+    // (Skip is now decided on the filtered view, NOT raw ID order.)
+    stubFilteredView([userMsg("zzz_user_after_anchor")])
     const writes: number[] = []
     ;(Session as any).updateMessage = mock(async () => {
       writes.push(1)
@@ -449,7 +463,7 @@ describe("SessionCompaction.replayUnansweredUserMessage", () => {
     const result = await SessionCompaction.replayUnansweredUserMessage({
       sessionID: "ses_test",
       snapshot,
-      anchorMessageID: "msg_anchor", // alphabetic < "zzz_user..."
+      anchorMessageID: "msg_anchor",
       observed: "rebind",
       step: 1,
     })
@@ -457,6 +471,40 @@ describe("SessionCompaction.replayUnansweredUserMessage", () => {
     expect(result.replayed).toBe(false)
     expect(result.reason).toBe("already-after-anchor")
     expect(writes).toHaveLength(0)
+  })
+
+  it("bug_20260616 axis 3: REPLAYS a folded message even when its id > anchor id (no ID-order skip)", async () => {
+    // Live incident (03:12): a cold-B compaction folded the just-arrived user
+    // message into the anchor. The anchor was inserted at the folded position
+    // and got an OLDER id than the user message, so the old
+    // `originalUserID > anchorMessageID` gate skipped replay → the runloop hit
+    // no_user_after_compaction → the turn was silently dropped → resend needed.
+    // The message ROW still exists (stillExists=true) but filterCompacted
+    // excludes it from the runloop's view. Replay MUST fire.
+    stubMessages([userMsg("msg_user_zzz_newer_than_anchor")]) // row present
+    stubFilteredView([]) // but folded out of the runloop's projected view
+    const updates = { messages: [] as MessageV2.User[], removes: [] as string[] }
+    ;(Session as any).updateMessage = mock(async (m: MessageV2.User) => {
+      updates.messages.push(m)
+      return m
+    })
+    ;(Session as any).updatePart = mock(async (p: MessageV2.Part) => p)
+    ;(Session as any).removeMessage = mock(async (input: { messageID: string }) => {
+      updates.removes.push(input.messageID)
+    })
+
+    const snapshot = buildSnapshot("msg_user_zzz_newer_than_anchor", "你產出的填寫版，樣式格式完全不符合原檔")
+    const result = await SessionCompaction.replayUnansweredUserMessage({
+      sessionID: "ses_test",
+      snapshot,
+      anchorMessageID: "msg_anchor_aaa_older", // id < snapshot id → OLD gate would have skipped
+      observed: "cache-aware",
+      step: 1,
+    })
+
+    expect(result.replayed).toBe(true)
+    expect(result.newUserID).toBeDefined()
+    expect(updates.removes).toContain("msg_user_zzz_newer_than_anchor")
   })
 
   it("idempotent: skipped:no-unanswered when snapshot already removed from stream", async () => {

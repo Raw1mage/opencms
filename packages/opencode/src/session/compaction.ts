@@ -3205,9 +3205,24 @@ When constructing the summary, try to stick to this template:
       return { replayed: false, reason: "feature-flag-disabled" }
     }
 
-    if (originalUserID > input.anchorMessageID) {
+    // Decide on the runloop's ACTUAL view, not raw ID order. The next turn is
+    // driven by MessageV2.filterCompacted (prompt.ts) — the same projection the
+    // loop uses. A compaction folds the triggering user message into the anchor
+    // while LEAVING its row in place with an ID that still sorts after the
+    // (older-positioned) anchor. The old `originalUserID > anchorMessageID`
+    // proxy therefore read "already after anchor → skip replay" for exactly the
+    // message filterCompacted had excluded → the loop hit
+    // loop:no_user_after_compaction and the user's turn was silently dropped,
+    // forcing a manual resend (bug_20260616 axis 3, live 03:12). The snapshot is
+    // by construction UNANSWERED (snapshotUnansweredUserMessage only returns
+    // when unanswered), so skip ONLY when it still appears in the filtered
+    // post-anchor stream (it will be answered; replaying would churn). If the
+    // fold removed it from that view, replay so the loop has it to drive.
+    const filteredView = await MessageV2.filterCompacted(MessageV2.stream(input.sessionID)).catch(() => undefined)
+    const survivesInRunloopView = !!filteredView?.messages.some((m) => m.info.id === originalUserID)
+    if (survivesInRunloopView) {
       emitUserMsgReplayTelemetry({ ...baseTelemetry, outcome: "skipped:already-after-anchor" })
-      log.info("self-heal: replay skipped — snapshot already after anchor", {
+      log.info("self-heal: replay skipped — snapshot still present in runloop view", {
         sessionID: input.sessionID,
         step: input.step,
         originalUserID,
