@@ -1896,7 +1896,8 @@ When constructing the summary, try to stick to this template:
         // SCHEDULED every cache-aware turn (4×) yet skipped here every time →
         // the anchor only re-narrativised and GREW. claude triggers on the
         // ABSOLUTE aCompactTokens floor instead (per-provider tweak, claude-cli
-        // 100K). codex/copilot keep the ratio gate byte-identical (INV-0;
+        // 128K; SSOT: tweaks.ts COMPACTION_DEFAULTS). codex/copilot keep the
+        // ratio gate byte-identical (INV-0;
         // DD-23 codex profile is a separate later push). Foreground stays fast
         // narrative (the 0-token B buffer); this background pass does the
         // shrink, matching DD-23's non-blocking A design.

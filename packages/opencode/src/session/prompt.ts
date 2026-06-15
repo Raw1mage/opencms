@@ -663,7 +663,8 @@ async function evaluateSlCacheHealth(args: {
   // produces a real supersede-framed anchor on the claude path.
   // context/claude-refactor DD-23: B-compaction threshold is per-provider,
   // absolute tokens, tunable via tweak config (compaction_ctx_<provider>_b_tokens).
-  // claude-cli default 100K; other providers fall back to the `default` profile.
+  // claude-cli default 200K (the `default` profile is 100K); other providers
+  // fall back to the `default` profile. SSOT: tweaks.ts COMPACTION_DEFAULTS.
   const bCompactTokens = Tweaks.contextThresholdsSync(pinnedProviderId).bCompactTokens
   if (resolvePolicy(pinnedProviderId).coldCacheBGate({ promptTotal, bCompactTokens })) {
     // DD-16 cold detection has TWO sources, OR'd:
