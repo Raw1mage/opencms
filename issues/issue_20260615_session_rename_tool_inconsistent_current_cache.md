@@ -1,6 +1,6 @@
 # BR: session rename workflow is inconsistent across current-session resolution, list/search/get metadata, and cache invalidation
 
-Status: OPEN — observed during real session close-out; initial code path triage started, no fix merged yet.
+Status: OPEN — contract-consistency fixes implemented + unit tests green (not yet deployed/live-verified). Remaining: live rename→get→search soak + the cross-process cache disagreement (E6/E7). See "Implementation note — 2026-06-15 (contract consistency)".
 
 ## Intake update — 2026-06-15
 
@@ -87,6 +87,64 @@ Applied partial fix for the direct agent ergonomics failure:
 - Legacy `manage_session({ operation: "rename" })` now reuses the same rename helper; when it receives `sessionID="current"` from the built-in tool, it also uses runtime `ctx.sessionID` rather than cwd/newest-root selection.
 
 Validation: `bun test packages/mcp/system-manager/src/system-manager-session.test.ts` passed (6 tests).
+
+## Implementation note — 2026-06-15 (contract consistency)
+
+Closed the remaining contract gaps from "Fix direction" / "Requested improvements" (all in `packages/mcp/system-manager/src/index.ts`):
+
+1. **Single `current` resolver (RC1 + RC2).** Extracted `resolveTargetSessionID({ sessionID, currentSessionID })` as the one source of truth: explicit ID wins; `current`/omitted/whitespace → runtime `currentSessionID` (the serving session passed by the built-in opencode tool, `ctx.sessionID`); fails fast otherwise. **Deleted the dead `resolveSessionIDForMetadataMutation`** cwd/newest-root heuristic (RC1) — it is no longer reachable, so `current` can no longer silently rename an unrelated workspace-root session.
+2. **`get_session` now resolves `current`.** Schema drops `required: ["sessionID"]`, accepts `current`/omitted, and reads back via the same `GET /session/:id` path rename uses → a rename is verifiable by reading the same session. Description points at `rename_session` for the shared meaning of `current`.
+3. **`manage_session(list)` returns structured rows.** Returns `{ structuredContent: { sessions: [...] } }` (id/title/directory/updated/url) plus a readable text table, while still writing `ui_trigger=session.list` so human viewers still get the UI. Agents no longer have to title-guess via `search`.
+4. **`manage_session(rename)` returns the canonical post-write record** (same shape/read path as `get_session`) in both text and `structuredContent`, and always forwards `currentSessionID` so omitted-sessionID rename resolves to the serving session.
+
+Tests: added `resolveTargetSessionID` unit cases (explicit/current/omitted/whitespace/fail-fast) + tool-surface assertions (get_session `current`, manage_session docs). `bun test packages/mcp/system-manager/` → 22 pass / 0 fail.
+
+## Measurement probe — 2026-06-15 (E6/E7 RCA)
+
+Added an env-gated, default-off coherence probe (`OPENCODE_SESSION_COHERENCE_PROBE=1`) in
+`packages/opencode/src/server/routes/session.ts` (`coherenceProbe()`). It logs via `log.info`
+with tag `[coherence-probe]`, including `pid` + `daemonMode`, on all three session paths:
+
+- `session.update` — both `routed→per-user-daemon` and `served-in-process` (the pid that wrote
+  the title and fired `Session.Event.Updated`, which only invalidates *that* pid's SessionCache).
+- `session.get` — `routed→per-user-daemon` vs `served-in-process` + `cacheHit` + `version` + `title`.
+- `session.list` — `routed→per-user-daemon` vs `served-in-process` + `count` + first 10 `titles`
+  (storage is source of truth here, so its titles are the ground truth to compare against the
+  cached single-GET title).
+
+Topology found while wiring the probe:
+- Gateway sources `/etc/opencode/opencode.env` (all SESSION_LIST/READ/MUTATION routing flags =1).
+- `opencms-daemon-user@` sources `opencode.env`; `opencms-daemon-wheel@` sources `opencode.cfg`
+  (which lacks the routing flags). Probe flag added to **both** files so it fires everywhere.
+- `OPENCODE_TRUSTED_LOOPBACK_USER=pkcs12` → loopback MCP calls should resolve to `pkcs12` and
+  forward consistently to one per-user daemon. If reads are still stale, the prime suspect is
+  **duplicate per-user daemon instances** (overlaps the MCP-child duplication issue in observing/),
+  which the `pid` field will confirm/refute.
+
+### Protocol (run after a rebuild+restart picks up code + env)
+
+1. Rebuild+restart via `restart_self` (user-initiated). Ensure the pkcs12 per-user daemon is also
+   fresh (it runs `/usr/local/bin/opencode`; a stale long-lived instance keeps the OLD binary/env).
+2. Reproduce: `rename_session` (or `manage_session rename`) on the current session → `get_session`
+   same ID → `manage_session search` same title.
+3. Collect: `grep '\[coherence-probe\]' ~/.local/share/opencode/log/debug.log` (also
+   `journalctl --user -u 'opencms-daemon-user@*' -u 'opencms-daemon-wheel@*'` and the gateway unit).
+
+### Reading the result
+
+- **update pid == get pid**, and get `cacheHit` flips false→true with the NEW title → coherent;
+  E6/E7 not reproduced (likely closed by the same-path canonical readback).
+- **update pid ≠ get pid** → cross-process split confirmed. Disambiguate via `routed`/`daemonMode`:
+  one path `routed→per-user-daemon` while the other `served-in-process` = gateway-vs-daemon split
+  (identity/routing bug); two different `served-in-process` daemon pids = duplicate instances.
+- **get `cacheHit:true` + stale title while list `titles` show NEW** → confirms a stale per-process
+  SessionCache that never received the invalidation event → fix = bypass-cache for metadata (c),
+  pin routing identity (a), or cross-process invalidation bridge (b).
+
+### Still open (do NOT move to observing yet)
+
+- **Live verification**: needs a daemon rebuild+restart (via `restart_self`, user-initiated per repo daemon-lifecycle rule), then a real rename→get_session→search readback on the same session ID to confirm immediate agreement.
+- **E6/E7 cross-process cache disagreement**: `GET /session/:id` is served from `SessionCache` (invalidated on `Session.Event.Updated`); `GET /session` (list/search) reads storage directly. With the multi-daemon (`UserDaemonManager`) routing, a `Session.Event.Updated` fired in one process may not invalidate another process's `SessionCache` — the likely cause of get-stale-while-search-fresh. This is a bus-bridge/cache-coherence concern that overlaps the MCP-child duplication issue in `observing/`; tracked separately, not fixed here. The canonical-readback-from-same-path change reduces but does not prove-away the window.
 
 ## Requested improvements
 

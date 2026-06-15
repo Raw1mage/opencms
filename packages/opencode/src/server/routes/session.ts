@@ -180,6 +180,27 @@ function sessionRouteDebug(event: string, data: Record<string, unknown>) {
   debugCheckpoint("session.route", event, data)
 }
 
+/**
+ * Temporary cross-process cache-coherence probe — RCA for
+ * issues/issue_20260615_session_rename_tool_inconsistent_current_cache.md (E6/E7:
+ * get_session returns stale title while search returns fresh).
+ *
+ * Goal: prove which process serves each of PATCH /:id, GET /:id, GET / (list/search)
+ * and whether the single-GET hits a stale per-process SessionCache. Logged via
+ * log.info with a fixed tag so it can be grepped across the gateway + per-user
+ * daemon journals. Gated by env so it is a no-op (and safe to leave in) unless
+ * OPENCODE_SESSION_COHERENCE_PROBE=1.
+ */
+const SESSION_COHERENCE_PROBE_ENABLED = process.env.OPENCODE_SESSION_COHERENCE_PROBE === "1"
+function coherenceProbe(event: string, data: Record<string, unknown>) {
+  if (!SESSION_COHERENCE_PROBE_ENABLED) return
+  log.info(`[coherence-probe] ${event}`, {
+    pid: process.pid,
+    daemonMode: process.env.OPENCODE_USER_DAEMON_MODE === "1",
+    ...data,
+  })
+}
+
 export const SessionRoutes = lazy(() =>
   new Hono()
     .use(async (c, next) => {
@@ -234,6 +255,7 @@ export const SessionRoutes = lazy(() =>
         const query = c.req.valid("query")
         const username = RequestUser.username()
         if (username && UserDaemonManager.routeSessionListEnabled()) {
+          coherenceProbe("session.list routed→per-user-daemon", { username, search: query.search })
           const response = await UserDaemonManager.callSessionList<Session.Info[]>(username, query)
           if (response.ok && Array.isArray(response.data)) {
             return c.json(response.data)
@@ -257,6 +279,14 @@ export const SessionRoutes = lazy(() =>
         })) {
           sessions.push(session)
         }
+        coherenceProbe("session.list served-in-process", {
+          username: username ?? "local",
+          search: query.search,
+          count: sessions.length,
+          // storage is the source of truth for list/search; log the titles so a
+          // mismatch vs the cached single-GET title is directly visible.
+          titles: sessions.slice(0, 10).map((s) => s.title),
+        })
         return c.json(sessions)
       },
     )
@@ -462,6 +492,7 @@ export const SessionRoutes = lazy(() =>
           username: username ?? "local",
         })
         if (username && UserDaemonManager.routeSessionReadEnabled()) {
+          coherenceProbe("session.get routed→per-user-daemon", { sessionID, username })
           const response = await UserDaemonManager.callSessionGet<Session.Info>(username, sessionID)
           if (response.ok && response.data) return c.json(response.data)
           return c.json(
@@ -485,9 +516,20 @@ export const SessionRoutes = lazy(() =>
           return c.body(null, 304)
         }
 
-        const { data: session } = await SessionCache.get(`session:${sessionID}`, sessionID, async () => {
+        const {
+          data: session,
+          version: probeVersion,
+          hit: probeHit,
+        } = await SessionCache.get(`session:${sessionID}`, sessionID, async () => {
           const data = await Session.get(sessionID)
           return { data, version: SessionCache.getVersion(sessionID) }
+        })
+        coherenceProbe("session.get served-in-process", {
+          sessionID,
+          username: username ?? "local",
+          cacheHit: probeHit,
+          version: probeVersion,
+          title: (session as { title?: string } | undefined)?.title,
         })
         sessionRouteDebug("session.get response", {
           sessionID,
@@ -1120,6 +1162,11 @@ export const SessionRoutes = lazy(() =>
 
         const username = RequestUser.username()
         if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          coherenceProbe("session.update routed→per-user-daemon", {
+            sessionID,
+            username,
+            newTitle: updates.title,
+          })
           const response = await UserDaemonManager.callSessionUpdate<Session.Info>(username, sessionID, updates)
           if (response.ok && response.data) return c.json(response.data)
           return c.json(
@@ -1180,6 +1227,18 @@ export const SessionRoutes = lazy(() =>
           },
           { touch: false },
         )
+
+        // Coherence probe: this is the process that actually wrote the title and
+        // fired Session.Event.Updated (which only invalidates *this* process's
+        // SessionCache). If GET /:id is later served from a different pid, that
+        // pid's cache was never invalidated → stale read (E6/E7).
+        coherenceProbe("session.update served-in-process", {
+          sessionID,
+          username: username ?? "local",
+          newTitle: updates.title,
+          resultTitle: updatedSession.title,
+          version: SessionCache.getVersion(sessionID),
+        })
 
         // Rebind epoch bump — capability layer MUST refresh on identity change.
         // Without this, rotation or manual model switch leaves the cached

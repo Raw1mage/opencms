@@ -268,33 +268,29 @@ async function readSessionListFromDaemon(input?: {
   })
 }
 
-async function resolveSessionIDForMetadataMutation(sessionID: string) {
-  if (sessionID !== "current") return sessionID
-
-  const directory = process.env.OPENCODE_REPO_ROOT || process.cwd()
-  const sessions = await readSessionListFromDaemon({ directory, roots: true, limit: 20 })
-  const current = sessions
-    .filter((session) => !session.parentID)
-    .sort((left, right) => {
-      const rightUpdated = right.time?.updated ?? right.time?.created ?? 0
-      const leftUpdated = left.time?.updated ?? left.time?.created ?? 0
-      return rightUpdated - leftUpdated
-    })[0]
-
-  if (!current?.id) {
-    throw new Error(`current_session_not_found:${directory}`)
+/**
+ * Single source of truth for the meaning of `current` across every session
+ * metadata tool (rename / get / list-scope). `current` (or an omitted
+ * sessionID) resolves to the serving session the built-in opencode tool runs
+ * in (runtime.currentSessionID), never a cwd/newest-root heuristic — see
+ * issues/issue_20260615_session_rename_tool_inconsistent_current_cache.md.
+ * Fails fast when no runtime context and no explicit ID is available, so the
+ * caller cannot silently mutate an unrelated workspace session.
+ */
+export function resolveTargetSessionID(input: { sessionID?: string; currentSessionID?: string }): string {
+  const requested = input.sessionID?.trim()
+  const resolved = requested && requested !== "current" ? requested : input.currentSessionID
+  if (!resolved) {
+    throw new Error(
+      "session resolution needs a current tool context (run via the built-in opencode tool) or an explicit sessionID",
+    )
   }
-
-  return current.id
+  return resolved
 }
 
 async function renameSessionViaDaemon(input: { sessionID?: string; title: string; currentSessionID?: string }) {
   if (!input.title) throw new Error("title is required for rename operation")
-  const requestedSessionID = input.sessionID?.trim()
-  const resolvedSessionID =
-    requestedSessionID && requestedSessionID !== "current" ? requestedSessionID : input.currentSessionID
-
-  if (!resolvedSessionID) throw new Error("rename_session needs a current tool context or an explicit sessionID")
+  const resolvedSessionID = resolveTargetSessionID(input)
   const baseUrl = await getServerApiBaseUrl()
   const headers = await getServerRequestHeaders("PATCH")
   await patchSessionViaApi({
@@ -552,13 +548,16 @@ export async function listSystemManagerTools() {
       {
         name: "get_session",
         description:
-          "Read session metadata by sessionID, including title, directory, timestamps, parentID, and execution identity. Use this when the user asks what session/title/model/directory is currently associated with a specific session.",
+          "Read session metadata by sessionID, including title, directory, timestamps, parentID, and execution identity. Use this when the user asks what session/title/model/directory is currently associated with a specific session. Pass sessionID='current' (or omit it) to read the current serving session — the same 'current' that rename_session resolves, so a rename can be verified by reading back the same session.",
         inputSchema: {
           type: "object",
           properties: {
-            sessionID: { type: "string" },
+            sessionID: {
+              type: "string",
+              description:
+                "Target session ID. Use 'current' (or omit) to read the current serving session via the built-in opencode tool.",
+            },
           },
-          required: ["sessionID"],
         },
       },
       {
@@ -689,7 +688,7 @@ export async function listSystemManagerTools() {
       {
         name: "manage_session",
         description:
-          "Manage opencode sessions for non-switching operations (fork, summarize, undo, redo, create, list, search, rename). Dedicated tools switch_session / switch_model / switch_account / switch_provider remain the canonical path for execution-identity changes.\n\nFor operation='rename', pass sessionID + title. Use sessionID='current' for the active root session in the current workspace; the tool resolves it via the daemon session list and fails if none is found.\n\nFor operation='create' you may pass sessionID as a handover source: the new session will inherit the source's directory and model, and (unless handoverAutoPrompt=false) will be auto-seeded with a prompt telling the new session to read the source's eventlog / checkpoint / SharedContext and continue. Pass handover for extra free-form context appended after the canned instruction.",
+          "Manage opencode sessions for non-switching operations (fork, summarize, undo, redo, create, list, search, rename). Dedicated tools switch_session / switch_model / switch_account / switch_provider remain the canonical path for execution-identity changes.\n\nFor operation='rename', pass title and (optionally) sessionID. Omit sessionID or set it to 'current' to rename the current serving session — the same 'current' get_session resolves; the tool returns the canonical post-write record. Pass an explicit sessionID only to rename a different session. (The standalone rename_session tool is the direct equivalent.)\n\nFor operation='list', returns structured root-session rows (id/title/directory/updated/url) in structuredContent AND opens the session list UI. Use 'search' with query to filter by title.\n\nFor operation='create' you may pass sessionID as a handover source: the new session will inherit the source's directory and model, and (unless handoverAutoPrompt=false) will be auto-seeded with a prompt telling the new session to read the source's eventlog / checkpoint / SharedContext and continue. Pass handover for extra free-form context appended after the canned instruction.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1160,8 +1159,9 @@ export async function callSystemManagerTool(name: string, args: unknown, runtime
     }
 
     if (name === "get_session") {
-      const { sessionID } = args as { sessionID: string }
-      const info = await readSessionInfoFromDaemon(sessionID)
+      const { sessionID } = args as { sessionID?: string }
+      const resolvedSessionID = resolveTargetSessionID({ sessionID, currentSessionID: runtime?.currentSessionID })
+      const info = await readSessionInfoFromDaemon(resolvedSessionID)
       const dir = info.directory ?? ""
       const dirBase64 = Buffer.from(dir).toString("base64")
       const payload = {
@@ -1392,25 +1392,61 @@ export async function callSystemManagerTool(name: string, args: unknown, runtime
       }
 
       if (operation === "list") {
+        // Side effect: open/refresh the session list UI for human viewers.
         let kv: any = {}
         try {
           kv = JSON.parse(await fs.readFile(KV_PATH, "utf-8"))
         } catch (e) {}
         kv.ui_trigger = "session.list"
         await fs.writeFile(KV_PATH, JSON.stringify(kv, null, 2))
-        return { content: [{ type: "text", text: "Opening session list UI..." }] }
+
+        // Data: also return structured rows so an agent can locate sessions
+        // without guessing via title-keyword `search` calls.
+        const maxResults = searchLimit ?? 20
+        const sessions = await readSessionListFromDaemon({ roots: true, limit: maxResults })
+        const results = sessions.map((info) => {
+          const dir = info.directory ?? ""
+          const dirBase64 = Buffer.from(dir).toString("base64")
+          return {
+            id: info.id,
+            title: info.title ?? "(untitled)",
+            directory: dir,
+            updated: info.time?.updated ?? info.time?.created ?? 0,
+            url: `/${dirBase64}/session/${info.id}`,
+          }
+        })
+        const lines = results.map((s, i) => {
+          const date = new Date(s.updated).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })
+          return `${i + 1}. **${s.title}**\n   ID: ${s.id}\n   Updated: ${date}\n   URL: ${s.url}`
+        })
+        const header =
+          results.length === 0
+            ? "Opening session list UI... (no sessions found)"
+            : `Opening session list UI... ${results.length} root session(s):\n\n${lines.join("\n\n")}`
+        return {
+          content: [{ type: "text", text: header }],
+          structuredContent: { sessions: results },
+        }
       }
 
       if (operation === "rename") {
-        const info =
-          sessionID === "current"
-            ? await renameSessionViaDaemon({
-                sessionID,
-                title: title ?? "",
-                currentSessionID: runtime?.currentSessionID,
-              })
-            : await renameSessionViaDaemon({ sessionID, title: title ?? "" })
-        return { content: [{ type: "text", text: `Renamed session ${info.id} to "${info.title}"` }] }
+        // `current`/omitted resolves to the serving session via shared resolver;
+        // return the canonical post-write record (same shape/read path as
+        // get_session) so the rename is immediately verifiable.
+        const info = await renameSessionViaDaemon({
+          sessionID,
+          title: title ?? "",
+          currentSessionID: runtime?.currentSessionID,
+        })
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Renamed session ${info.id} to "${info.title}"\n${JSON.stringify(info, null, 2)}`,
+            },
+          ],
+          structuredContent: info,
+        }
       }
 
       if (operation === "create") {
