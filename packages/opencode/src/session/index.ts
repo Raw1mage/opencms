@@ -1266,6 +1266,16 @@ export namespace Session {
       part: MessageV2.ReasoningPart,
       delta: z.string(),
     }),
+    // Persist a part WITHOUT broadcasting PartUpdated to live clients. Used by
+    // compaction's anchor writer: the anchor's text (<prior_context> body) and
+    // compaction parts are hidden by the client anyway, so streaming them to a
+    // live SSE connection only churns the rendered transcript (the "stream
+    // swallow"). The part is still upserted to storage and loads normally on
+    // history hydration. See bug_20260616_*_compaction_workstate_regression.
+    z.object({
+      part: MessageV2.Part,
+      broadcast: z.literal(false),
+    }),
   ])
 
   // Instrumentation: track cumulative part sizes for delta effectiveness measurement
@@ -1324,8 +1334,11 @@ export namespace Session {
   }
 
   export const updatePart = fn(UpdatePartInput, async (input) => {
-    const part = "delta" in input ? input.part : input
-    const delta = "delta" in input ? input.delta : undefined
+    const wrapped = "part" in input
+    const part = wrapped ? input.part : input
+    const delta = wrapped && "delta" in input ? input.delta : undefined
+    // broadcast=false → persist only, no PartUpdated event (anchor parts).
+    const broadcast = !(wrapped && "broadcast" in input && input.broadcast === false)
     const storeKey = ["part", part.messageID, part.id]
     const keyStr = `${part.messageID}/${part.id}`
 
@@ -1379,7 +1392,15 @@ export namespace Session {
     // IMPORTANT: The first delta for a new part must carry full text so consumers
     // can insert the part with its initial content. We detect "first" by checking
     // if part.text === delta (text accumulated so far equals just this chunk).
-    if (delta && "text" in part && typeof part.text === "string" && part.text !== delta) {
+    if (!broadcast) {
+      // Anchor part: persisted above, but intentionally not broadcast to live
+      // clients (avoids the compaction "stream swallow"). Skip PartUpdated.
+      log.info("[PART-FLOW-A] suppressed part.updated (anchor, no broadcast)", {
+        sessionID: part.sessionID,
+        partId: part.id,
+        partType: part.type,
+      })
+    } else if (delta && "text" in part && typeof part.text === "string" && part.text !== delta) {
       const textLength = part.text.length
       const { text: _stripped, ...lightPart } = part as Record<string, unknown>
       Bus.publish(MessageV2.Event.PartUpdated, {

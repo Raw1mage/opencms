@@ -120,7 +120,10 @@ function setupDeepMocks(sid: string, initialMessages: MessageV2.WithParts[]): Ca
     }
     return m
   })
-  ;(Session as any).updatePart = mock(async (p: any) => {
+  ;(Session as any).updatePart = mock(async (input: any) => {
+    // Mirror the real Session.updatePart input contract: it accepts a bare
+    // part, { part, delta }, or { part, broadcast:false } (anchor writes).
+    const p = input && typeof input === "object" && "part" in input ? input.part : input
     captured.parts.push(p)
     const msgIdx = live.findIndex((x) => x.info.id === p.messageID)
     if (msgIdx >= 0) {
