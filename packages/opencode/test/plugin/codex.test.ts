@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test"
+// codex JWT-claim helpers moved from the retired src/plugin/codex into the
+// OpenAI/ChatGPT quota module (parseJwtClaims→parseCodexJwtClaims,
+// extractAccountId→extractAccountIdFromTokens, IdTokenClaims→CodexIdTokenClaims).
 import {
-  parseJwtClaims,
+  parseCodexJwtClaims,
   extractAccountIdFromClaims,
-  extractAccountId,
-  type IdTokenClaims,
-} from "../../src/plugin/codex"
+  extractAccountIdFromTokens,
+  type CodexIdTokenClaims,
+} from "../../src/account/quota/openai"
 
 function createTestJwt(payload: object): string {
   const header = Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")
@@ -17,41 +20,41 @@ describe("plugin.codex", () => {
     test("parses valid JWT with claims", () => {
       const payload = { email: "test@example.com", chatgpt_account_id: "acc-123" }
       const jwt = createTestJwt(payload)
-      const claims = parseJwtClaims(jwt)
+      const claims = parseCodexJwtClaims(jwt)
       expect(claims).toEqual(payload)
     })
 
     test("returns undefined for JWT with less than 3 parts", () => {
-      expect(parseJwtClaims("invalid")).toBeUndefined()
-      expect(parseJwtClaims("only.two")).toBeUndefined()
+      expect(parseCodexJwtClaims("invalid")).toBeUndefined()
+      expect(parseCodexJwtClaims("only.two")).toBeUndefined()
     })
 
     test("returns undefined for invalid base64", () => {
-      expect(parseJwtClaims("a.!!!invalid!!!.b")).toBeUndefined()
+      expect(parseCodexJwtClaims("a.!!!invalid!!!.b")).toBeUndefined()
     })
 
     test("returns undefined for invalid JSON payload", () => {
       const header = Buffer.from("{}").toString("base64url")
       const invalidJson = Buffer.from("not json").toString("base64url")
-      expect(parseJwtClaims(`${header}.${invalidJson}.sig`)).toBeUndefined()
+      expect(parseCodexJwtClaims(`${header}.${invalidJson}.sig`)).toBeUndefined()
     })
   })
 
   describe("extractAccountIdFromClaims", () => {
     test("extracts chatgpt_account_id from root", () => {
-      const claims: IdTokenClaims = { chatgpt_account_id: "acc-root" }
+      const claims: CodexIdTokenClaims = { chatgpt_account_id: "acc-root" }
       expect(extractAccountIdFromClaims(claims)).toBe("acc-root")
     })
 
     test("extracts chatgpt_account_id from nested https://api.openai.com/auth", () => {
-      const claims: IdTokenClaims = {
+      const claims: CodexIdTokenClaims = {
         "https://api.openai.com/auth": { chatgpt_account_id: "acc-nested" },
       }
       expect(extractAccountIdFromClaims(claims)).toBe("acc-nested")
     })
 
     test("prefers root over nested", () => {
-      const claims: IdTokenClaims = {
+      const claims: CodexIdTokenClaims = {
         chatgpt_account_id: "acc-root",
         "https://api.openai.com/auth": { chatgpt_account_id: "acc-nested" },
       }
@@ -59,14 +62,14 @@ describe("plugin.codex", () => {
     })
 
     test("extracts from organizations array as fallback", () => {
-      const claims: IdTokenClaims = {
+      const claims: CodexIdTokenClaims = {
         organizations: [{ id: "org-123" }, { id: "org-456" }],
       }
       expect(extractAccountIdFromClaims(claims)).toBe("org-123")
     })
 
     test("returns undefined when no accountId found", () => {
-      const claims: IdTokenClaims = { email: "test@example.com" }
+      const claims: CodexIdTokenClaims = { email: "test@example.com" }
       expect(extractAccountIdFromClaims(claims)).toBeUndefined()
     })
   })
@@ -76,7 +79,7 @@ describe("plugin.codex", () => {
       const idToken = createTestJwt({ chatgpt_account_id: "from-id-token" })
       const accessToken = createTestJwt({ chatgpt_account_id: "from-access-token" })
       expect(
-        extractAccountId({
+        extractAccountIdFromTokens({
           id_token: idToken,
           access_token: accessToken,
           refresh_token: "rt",
@@ -90,7 +93,7 @@ describe("plugin.codex", () => {
         "https://api.openai.com/auth": { chatgpt_account_id: "from-access" },
       })
       expect(
-        extractAccountId({
+        extractAccountIdFromTokens({
           id_token: idToken,
           access_token: accessToken,
           refresh_token: "rt",
@@ -101,7 +104,7 @@ describe("plugin.codex", () => {
     test("returns undefined when no tokens have accountId", () => {
       const token = createTestJwt({ email: "test@example.com" })
       expect(
-        extractAccountId({
+        extractAccountIdFromTokens({
           id_token: token,
           access_token: token,
           refresh_token: "rt",
@@ -112,7 +115,7 @@ describe("plugin.codex", () => {
     test("handles missing id_token", () => {
       const accessToken = createTestJwt({ chatgpt_account_id: "acc-123" })
       expect(
-        extractAccountId({
+        extractAccountIdFromTokens({
           id_token: "",
           access_token: accessToken,
           refresh_token: "rt",

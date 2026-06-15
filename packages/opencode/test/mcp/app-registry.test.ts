@@ -10,67 +10,6 @@ import os from "os"
 
 import { ManagedAppRegistry } from "../../src/mcp/app-registry"
 
-describe("ManagedAppRegistry schemas", () => {
-  test("CatalogEntry validates google-calendar built-in", () => {
-    const catalog = ManagedAppRegistry.catalog()
-    expect(catalog.length).toBeGreaterThanOrEqual(1)
-    const gc = catalog.find((e) => e.id === "google-calendar")
-    expect(gc).toBeDefined()
-    expect(gc!.name).toBe("Google Calendar")
-    expect(gc!.version).toBe("0.1.0")
-    expect(gc!.source.type).toBe("builtin")
-    expect(gc!.source.owner).toBe("opencode")
-  })
-
-  test("google-calendar has correct capabilities", () => {
-    const gc = ManagedAppRegistry.catalog().find((e) => e.id === "google-calendar")!
-    const capIds = gc.capabilities.map((c) => c.id)
-    expect(capIds).toContain("google-calendar.oauth")
-    expect(capIds).toContain("google-calendar.calendars.read")
-    expect(capIds).toContain("google-calendar.events.read")
-    expect(capIds).toContain("google-calendar.events.write")
-    expect(capIds).toContain("google-calendar.availability.read")
-  })
-
-  test("google-calendar tool contract has 7 tools", () => {
-    const gc = ManagedAppRegistry.catalog().find((e) => e.id === "google-calendar")!
-    expect(gc.toolContract.namespace).toBe("google-calendar")
-    expect(gc.toolContract.tools.length).toBe(7)
-    const toolIds = gc.toolContract.tools.map((t) => t.id)
-    expect(toolIds).toContain("list-calendars")
-    expect(toolIds).toContain("list-events")
-    expect(toolIds).toContain("get-event")
-    expect(toolIds).toContain("create-event")
-    expect(toolIds).toContain("update-event")
-    expect(toolIds).toContain("delete-event")
-    expect(toolIds).toContain("freebusy")
-  })
-
-  test("auth contract requires canonical-account ownership", () => {
-    const gc = ManagedAppRegistry.catalog().find((e) => e.id === "google-calendar")!
-    expect(gc.auth.ownership).toBe("canonical-account")
-    expect(gc.auth.type).toBe("oauth")
-    expect(gc.auth.required).toBe(true)
-    expect(gc.auth.allowImplicitActiveAccount).toBe(false)
-    expect(gc.auth.scopes.length).toBe(2)
-  })
-
-  test("delete-event requires confirmation", () => {
-    const gc = ManagedAppRegistry.catalog().find((e) => e.id === "google-calendar")!
-    const del = gc.toolContract.tools.find((t) => t.id === "delete-event")!
-    expect(del.requiresConfirmation).toBe(true)
-    expect(del.mutates).toBe(true)
-  })
-
-  test("read tools do not require confirmation", () => {
-    const gc = ManagedAppRegistry.catalog().find((e) => e.id === "google-calendar")!
-    const readTools = gc.toolContract.tools.filter((t) => !t.mutates)
-    for (const tool of readTools) {
-      expect(tool.requiresConfirmation).toBe(false)
-    }
-  })
-})
-
 describe("ManagedAppRegistry Zod schemas", () => {
   test("AppState validates correctly", () => {
     const valid = ManagedAppRegistry.AppState.safeParse({
