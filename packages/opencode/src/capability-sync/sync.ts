@@ -309,8 +309,11 @@ export namespace CapabilitySyncExec {
    *   - mcpAppPath: the external MCP repo root (mcp-apps.json apps.<id>.path) = SSOT.
    *   - projectionPath: the XDG projection leaf (Global.Path.data/skills/<name>).
    *   - computedHash: the freshly computed normalized source hash over the skill dir.
+   *   - relSourcePath: the skill source dir relative to mcpAppPath (POSIX). Lets
+   *     the skill convention resolver point at a non-default layout (DD-3);
+   *     defaults to "skills/<skillName>" to preserve the original T14 behavior.
    * - output: a validated CapabilityManifest.Repo with ssotOrigin=external-mcp-repo,
-   *   sourceRepoPath=mcpAppPath, sourcePaths=["skills/<name>"], version derived from hash.
+   *   sourceRepoPath=mcpAppPath, sourcePaths=[relSourcePath], version derived from hash.
    * - NOT: it does NOT write any file to the external MCP repo (in-memory only);
    *   it is NOT used for in-repo skills (those carry a real capability.json).
    * - done when: a schema-valid Repo manifest is returned.
@@ -320,6 +323,7 @@ export namespace CapabilitySyncExec {
     mcpAppPath: string
     projectionPath: string
     computedHash: string
+    relSourcePath?: string
   }): CapabilityManifest.Repo {
     const hashPolicy: CapabilityManifest.HashPolicy = {
       algorithm: "sha256",
@@ -336,7 +340,7 @@ export namespace CapabilitySyncExec {
       // version readable while staying tied to the full source hash.
       version: `0.0.0+${opts.computedHash.slice(0, 12)}`,
       schemaVersion: 1,
-      sourcePaths: [path.posix.join("skills", opts.skillName)],
+      sourcePaths: [opts.relSourcePath ?? path.posix.join("skills", opts.skillName)],
       hash: opts.computedHash,
       hashPolicy,
       projection: {
@@ -358,6 +362,10 @@ export namespace CapabilitySyncExec {
    * - input:
    *   - skillName: the bundled skill id (<name> in <app.path>/skills/<name>/).
    *   - mcpAppPath: the external MCP repo root (mcp-apps.json apps.<id>.path).
+   *   - sourceDir: optional absolute skill source dir, supplied by the MCP skill
+   *     convention resolver (DD-3) when the MCP declares a non-default skillPaths
+   *     layout. When omitted, falls back to <mcpAppPath>/skills/<skillName> (the
+   *     original T14 behavior) so existing callers are unchanged.
    *   - projectionPath: the XDG projection leaf (Global.Path.data/skills/<name>).
    *   - reload: optional reload hook fired after a successful sync-then-reload.
    *   - ttlMs: TTL for the cached probe verdict (DD-6); default 1h. When the
@@ -375,13 +383,22 @@ export namespace CapabilitySyncExec {
   export async function preflightMcpSkill(args: {
     skillName: string
     mcpAppPath: string
+    sourceDir?: string
     projectionPath: string
     reload?: () => void | Promise<void>
     ttlMs?: number
     forceRefresh?: boolean
   }): Promise<PreflightOutcome> {
+    // Resolve the authoritative skill source dir. When the convention resolver
+    // supplied an explicit sourceDir (DD-3), honor it; otherwise fall back to
+    // the original T14 layout <mcpAppPath>/skills/<skillName>.
+    const skillDir = args.sourceDir ?? path.join(args.mcpAppPath, "skills", args.skillName)
+    // The hash + synthesized manifest address the source by a POSIX path
+    // RELATIVE to mcpAppPath (sourceRepoPath). Derive it from skillDir so a
+    // non-default layout still hashes the right tree.
+    const relSourcePath = path.relative(args.mcpAppPath, skillDir).split(path.sep).join(path.posix.sep)
+
     // Scope boundary: no bundled skill dir => not capability-sync-managed.
-    const skillDir = path.join(args.mcpAppPath, "skills", args.skillName)
     try {
       const stat = await fs.stat(skillDir)
       if (!stat.isDirectory()) return { proceed: true }

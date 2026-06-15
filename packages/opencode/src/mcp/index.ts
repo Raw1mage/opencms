@@ -56,6 +56,8 @@ import { createLocalMcpPool, localShareKey } from "./local-mcp-pool"
 import { IncomingDispatcher } from "../incoming/dispatcher"
 import { Skill } from "../skill"
 import { CapabilitySyncExec } from "../capability-sync/sync"
+import { McpPrerequisite } from "./prerequisite"
+import { McpSkillConvention } from "./skill-convention"
 
 export namespace MCP {
   const log = Log.create({ service: "mcp" })
@@ -1373,28 +1375,18 @@ export namespace MCP {
    */
   async function syncMcpBundledSkills(enabledApps: [string, McpAppStore.AppEntry][]): Promise<void> {
     for (const [id, entry] of enabledApps) {
-      const skillsRoot = path.join(entry.path, "skills")
-      let names: import("fs").Dirent[]
-      try {
-        names = await fs.readdir(skillsRoot, { withFileTypes: true })
-      } catch {
-        // No skills/ dir => this MCP app bundles no skills => nothing to sync.
-        continue
-      }
-      for (const dirent of names) {
-        if (!dirent.isDirectory()) continue
-        const skillName = dirent.name
-        try {
-          // A bundled skill must actually carry a SKILL.md to be enrollable.
-          await fs.access(path.join(skillsRoot, skillName, "SKILL.md"))
-        } catch {
-          continue
-        }
+      // plans/mcp_connect-adaptation DD-3: locate bundled skills by this MCP's
+      // own convention (mcp.json skillPaths → default skills/* scan → none)
+      // instead of a frozen <path>/skills/<name> layout. The resolver only
+      // LOCATES sources; capability-sync still owns version compare + projection.
+      const sources = await McpSkillConvention.resolve({ id, entry })
+      for (const { skillName, sourceDir } of sources) {
         const projectionPath = path.join(Global.Path.data, "skills", skillName)
         try {
           const outcome = await CapabilitySyncExec.preflightMcpSkill({
             skillName,
             mcpAppPath: entry.path,
+            sourceDir,
             projectionPath,
             reload: Skill.reset,
           })
@@ -1453,6 +1445,30 @@ export namespace MCP {
                 backoffMs: appRetryState.get(id)?.nextBackoffMs,
               })
             }
+
+            // plans/mcp_connect-adaptation DD-1/DD-2/DD-4: connect-time
+            // prerequisite gate. Before dialing, evaluate what this MCP's own
+            // mcp.json structurally declares (transport reachability, declared
+            // command binary on PATH, declared env present). An unmet
+            // prerequisite is a per-app fail-fast: log the structured
+            // diagnostic + recordAppFailure + skip this app — NEVER a silent
+            // dial of an unsatisfiable endpoint. It does not throw, so other
+            // apps in this Promise.allSettled batch are unaffected (DD-4).
+            const prereq = await McpPrerequisite.probe({ id, entry })
+            if (!prereq.satisfied) {
+              log.warn("mcp-apps.json app prerequisite unmet — skipping connect", {
+                id,
+                path: entry.path,
+                missing: prereq.missing.map((m) => ({
+                  kind: m.kind,
+                  detail: m.detail,
+                  remediation: m.remediation,
+                })),
+              })
+              recordAppFailure(id)
+              return
+            }
+
             // /specs/docxmcp-http-transport DD-8: HTTP transport branch.
             // Entries that declare transport=streamable-http use `url`
             // (which may be unix:// for Unix domain socket) instead of
