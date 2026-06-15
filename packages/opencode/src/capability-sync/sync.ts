@@ -1,6 +1,7 @@
 import path from "path"
 import { promises as fs } from "fs"
 import { CapabilityManifest } from "./manifest"
+import { CapabilityHash } from "./hash"
 import { CapabilityScanner } from "./scanner"
 import { CapabilityInstalled } from "./installed"
 import { CapabilityResolver } from "./resolver"
@@ -290,5 +291,188 @@ export namespace CapabilitySyncExec {
     if (projected.action === "stop") return { proceed: false, verdict: projected }
     if (args.reload) await args.reload()
     return { proceed: true }
+  }
+
+  /** Default hash/projection policy for MCP-bundled skills (DD-9). Mirrors the
+   *  excludes a typical skill tree needs; aligned with BASE_EXCLUDES so the
+   *  source hash and the projected tree compare cleanly. */
+  const MCP_SKILL_EXCLUDES = [".git", "node_modules", "*.bak", ".run", ".logs", ".venv", ".artifacts"]
+
+  /**
+   * synthesizeMcpSkillManifest
+   * - what: build an in-memory RepoManifest for an MCP-bundled skill that has NO
+   *   capability.json of its own (DD-9). The skill dir's mere existence is the
+   *   enrollment signal; the normalized content hash is the authoritative version
+   *   (DD-4 — SKILL.md has no version frontmatter).
+   * - input:
+   *   - skillName: the skill id (the <name> in <app.path>/skills/<name>/).
+   *   - mcpAppPath: the external MCP repo root (mcp-apps.json apps.<id>.path) = SSOT.
+   *   - projectionPath: the XDG projection leaf (Global.Path.data/skills/<name>).
+   *   - computedHash: the freshly computed normalized source hash over the skill dir.
+   * - output: a validated CapabilityManifest.Repo with ssotOrigin=external-mcp-repo,
+   *   sourceRepoPath=mcpAppPath, sourcePaths=["skills/<name>"], version derived from hash.
+   * - NOT: it does NOT write any file to the external MCP repo (in-memory only);
+   *   it is NOT used for in-repo skills (those carry a real capability.json).
+   * - done when: a schema-valid Repo manifest is returned.
+   */
+  function synthesizeMcpSkillManifest(opts: {
+    skillName: string
+    mcpAppPath: string
+    projectionPath: string
+    computedHash: string
+  }): CapabilityManifest.Repo {
+    const hashPolicy: CapabilityManifest.HashPolicy = {
+      algorithm: "sha256",
+      excludes: MCP_SKILL_EXCLUDES,
+      normalize: { lineEndings: "lf", sortEntries: true },
+    }
+    return CapabilityManifest.parseRepo({
+      id: opts.skillName,
+      kind: "skill",
+      ssotOrigin: "external-mcp-repo",
+      sourceRepoPath: opts.mcpAppPath,
+      // Hash IS the version (DD-9): SKILL.md has no version field, so content
+      // identity is the only authoritative signal. A 12-char prefix keeps the
+      // version readable while staying tied to the full source hash.
+      version: `0.0.0+${opts.computedHash.slice(0, 12)}`,
+      schemaVersion: 1,
+      sourcePaths: [path.posix.join("skills", opts.skillName)],
+      hash: opts.computedHash,
+      hashPolicy,
+      projection: {
+        targetPath: opts.projectionPath,
+        method: "rsync",
+        delete: true,
+        reloadTarget: "skill-index-rebuild",
+      },
+    })
+  }
+
+  /**
+   * preflightMcpSkill
+   * - what: capability-sync gate for an MCP-bundled skill at MCP connect time
+   *   (DD-9/DD-10). The MCP's own external repo is the SSOT; the bundled skill
+   *   dir's existence enrolls it (no capability.json needed). Compares the repo
+   *   skill dir vs its XDG projection by content hash and rsyncs when the repo
+   *   is authoritative; fail-fast on a stop verdict (never use stale XDG).
+   * - input:
+   *   - skillName: the bundled skill id (<name> in <app.path>/skills/<name>/).
+   *   - mcpAppPath: the external MCP repo root (mcp-apps.json apps.<id>.path).
+   *   - projectionPath: the XDG projection leaf (Global.Path.data/skills/<name>).
+   *   - reload: optional reload hook fired after a successful sync-then-reload.
+   *   - ttlMs: TTL for the cached probe verdict (DD-6); default 1h. When the
+   *     installed sidecar's probeCachedUntil is still in the future, re-probing
+   *     the external repo is skipped and the cached projection is trusted.
+   *   - forceRefresh: bypass the TTL cache (explicit refresh override, DD-6).
+   * - output: PreflightOutcome — proceed:true (no bundled skill dir / current /
+   *   synced / within TTL), or proceed:false with the stop verdict.
+   * - NOT: a scope boundary, not a fallback — an MCP app WITHOUT a skills/<name>/
+   *   dir is simply not capability-sync-managed and is never blocked or touched.
+   *   It MUST NOT touch any path beyond projectionPath (DD-8).
+   * - done when: a proceed decision is returned (and, on sync-then-reload, the
+   *   projection + reload have run; on a within-TTL hit, no re-probe occurred).
+   */
+  export async function preflightMcpSkill(args: {
+    skillName: string
+    mcpAppPath: string
+    projectionPath: string
+    reload?: () => void | Promise<void>
+    ttlMs?: number
+    forceRefresh?: boolean
+  }): Promise<PreflightOutcome> {
+    // Scope boundary: no bundled skill dir => not capability-sync-managed.
+    const skillDir = path.join(args.mcpAppPath, "skills", args.skillName)
+    try {
+      const stat = await fs.stat(skillDir)
+      if (!stat.isDirectory()) return { proceed: true }
+    } catch {
+      return { proceed: true }
+    }
+
+    // TTL cache (DD-6): if a prior probe verdict is still valid, trust the
+    // existing projection and skip re-probing the external repo. A stop verdict
+    // is never cached (the sidecar is only written on a successful projection),
+    // so this can only short-circuit a known-good projection.
+    if (!args.forceRefresh) {
+      let installed: CapabilityManifest.Installed | undefined
+      try {
+        installed = await CapabilityInstalled.readInstalled(args.projectionPath)
+      } catch {
+        installed = undefined
+      }
+      if (installed?.probeCachedUntil) {
+        const until = Date.parse(installed.probeCachedUntil)
+        if (Number.isFinite(until) && until > Date.now()) return { proceed: true }
+      }
+    }
+
+    const hashPolicy: CapabilityManifest.HashPolicy = {
+      algorithm: "sha256",
+      excludes: MCP_SKILL_EXCLUDES,
+      normalize: { lineEndings: "lf", sortEntries: true },
+    }
+    const computedHash = await CapabilityHash.computeSourceHash(
+      args.mcpAppPath,
+      [path.posix.join("skills", args.skillName)],
+      hashPolicy,
+    )
+
+    const repo = synthesizeMcpSkillManifest({
+      skillName: args.skillName,
+      mcpAppPath: args.mcpAppPath,
+      projectionPath: args.projectionPath,
+      computedHash,
+    })
+
+    let installed: CapabilityManifest.Installed | undefined
+    try {
+      installed = await CapabilityInstalled.readInstalled(args.projectionPath)
+    } catch (err: any) {
+      if (CapabilityManifest.InvalidError.isInstance(err)) {
+        return { proceed: false, verdict: CapabilityResolver.invalidVerdict(repo.id, repo.kind, err.data.message) }
+      }
+      throw err
+    }
+
+    let freshProjectionHash: string | undefined
+    if (installed) {
+      freshProjectionHash = await CapabilityInstalled.currentProjectionHash(args.projectionPath, repo.hashPolicy)
+    }
+
+    const verdict = CapabilityResolver.resolve({ repo, installed, freshProjectionHash })
+
+    if (verdict.action === "load") {
+      // Refresh the TTL window on a confirmed-current projection (DD-6).
+      if (installed) await stampProbeTtl(installed, args.ttlMs)
+      return { proceed: true }
+    }
+    if (verdict.action === "stop") return { proceed: false, verdict }
+
+    // action === "sync-then-reload"
+    const scan: CapabilityScanner.ScanResult = { manifest: repo, declaredHash: repo.hash, computedHash: repo.hash }
+    const projected = await applyProjection({ scan, opencodeRepoRoot: args.mcpAppPath })
+    if (projected.action === "stop") return { proceed: false, verdict: projected }
+    // Stamp the TTL window on the freshly written sidecar (DD-6).
+    const written = await CapabilityInstalled.readInstalled(args.projectionPath)
+    if (written) await stampProbeTtl(written, args.ttlMs)
+    if (args.reload) await args.reload()
+    return { proceed: true }
+  }
+
+  /** Default probe TTL window (DD-6): 1 hour. */
+  const DEFAULT_PROBE_TTL_MS = 60 * 60 * 1000
+
+  /**
+   * stampProbeTtl
+   * - what: write probeCachedUntil onto an installed sidecar so connects within
+   *   the window skip re-probing the external MCP repo (DD-6).
+   * - input: a validated Installed manifest, optional ttlMs override.
+   * - output: void; the sidecar is rewritten with an updated probeCachedUntil.
+   * - NOT: does not change any hash/version fields — only the TTL stamp.
+   * - done when: the sidecar JSON is flushed with the new probeCachedUntil.
+   */
+  async function stampProbeTtl(installed: CapabilityManifest.Installed, ttlMs?: number): Promise<void> {
+    const until = new Date(Date.now() + (ttlMs ?? DEFAULT_PROBE_TTL_MS)).toISOString()
+    await CapabilityInstalled.writeInstalled({ ...installed, probeCachedUntil: until })
   }
 }

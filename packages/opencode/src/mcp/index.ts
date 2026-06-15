@@ -54,6 +54,8 @@ import fs from "fs/promises"
 import path from "path"
 import { createLocalMcpPool, localShareKey } from "./local-mcp-pool"
 import { IncomingDispatcher } from "../incoming/dispatcher"
+import { Skill } from "../skill"
+import { CapabilitySyncExec } from "../capability-sync/sync"
 
 export namespace MCP {
   const log = Log.create({ service: "mcp" })
@@ -1352,6 +1354,72 @@ export namespace MCP {
   }
 
   /**
+   * syncMcpBundledSkills (T14 / DD-9, DD-10)
+   * - what: for each enabled MCP app, treat its own external repo as the SSOT
+   *   for skills it bundles under <app.path>/skills/<name>/ and run the
+   *   capability-sync preflight (probe version by content hash, rsync from the
+   *   SSOT when authoritative, reload the skill index).
+   * - input: the enabled [id, entry] pairs from mcp-apps.json (entry.path = the
+   *   external MCP repo root).
+   * - output: void; side effect is XDG skill projection + a skill-index reset on
+   *   any successful sync. Drift / xdg-newer / sync-failed are logged as errors
+   *   and that one skill is skipped — NEVER silently treated as success (DD-2).
+   * - NOT: it does NOT block MCP connection or throw on a stop verdict (connect
+   *   stays best-effort, matching the surrounding per-app error style); it does
+   *   NOT touch any path beyond each skill's own XDG leaf (DD-8); an app with no
+   *   skills/ dir is simply skipped (scope boundary, not a fallback).
+   * - done when: every enabled app's bundled skills have been probed/synced or
+   *   explicitly logged as skipped.
+   */
+  async function syncMcpBundledSkills(enabledApps: [string, McpAppStore.AppEntry][]): Promise<void> {
+    for (const [id, entry] of enabledApps) {
+      const skillsRoot = path.join(entry.path, "skills")
+      let names: import("fs").Dirent[]
+      try {
+        names = await fs.readdir(skillsRoot, { withFileTypes: true })
+      } catch {
+        // No skills/ dir => this MCP app bundles no skills => nothing to sync.
+        continue
+      }
+      for (const dirent of names) {
+        if (!dirent.isDirectory()) continue
+        const skillName = dirent.name
+        try {
+          // A bundled skill must actually carry a SKILL.md to be enrollable.
+          await fs.access(path.join(skillsRoot, skillName, "SKILL.md"))
+        } catch {
+          continue
+        }
+        const projectionPath = path.join(Global.Path.data, "skills", skillName)
+        try {
+          const outcome = await CapabilitySyncExec.preflightMcpSkill({
+            skillName,
+            mcpAppPath: entry.path,
+            projectionPath,
+            reload: Skill.reset,
+          })
+          if (!outcome.proceed) {
+            const v = outcome.verdict
+            log.error("mcp bundled skill capability-sync stopped", {
+              app: id,
+              skill: skillName,
+              state: v.state,
+              reason: v.diagnostic?.reason,
+              remediation: v.diagnostic?.remediation,
+            })
+          }
+        } catch (err) {
+          log.error("mcp bundled skill capability-sync threw", {
+            app: id,
+            skill: skillName,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
+      }
+    }
+  }
+
+  /**
    * Connect all enabled Apps from mcp-apps.json. Called from tools() and
    * therefore re-entered on every session tool-resolve. Per-app retry
    * state ensures we don't spam reconnect attempts: a connected app is
@@ -1503,6 +1571,16 @@ export namespace MCP {
           }
         }),
       )
+
+      // capability-sync MCP skill preflight (T14 / DD-9, DD-10): each MCP app's
+      // own external repo is the SSOT for the skills it bundles under
+      // <app.path>/skills/<name>/. Before trusting the XDG-projected copy, probe
+      // the source version (content hash) and rsync from the SSOT when the repo
+      // is authoritative. A stop verdict (drift / xdg-newer / sync-failed) is
+      // surfaced as an error log and the app's skill sync is skipped — it is
+      // NEVER silently treated as success (no stale-fallback, DD-2). Probe is
+      // TTL-cached per skill (DD-6) so this does not re-hash on every connect.
+      await syncMcpBundledSkills(enabledApps)
     } catch (err) {
       log.warn("failed to load mcp-apps.json", {
         error: err instanceof Error ? err.message : String(err),
