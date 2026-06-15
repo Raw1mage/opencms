@@ -35,6 +35,9 @@ _save_global_fs="${OPENCODE_ALLOW_GLOBAL_FS_BROWSE:-}"
 _save_frontend_path="${OPENCODE_FRONTEND_PATH:-}"
 _save_repo_root="${OPENCODE_REPO_ROOT:-}"
 _save_webctl_path="${OPENCODE_WEBCTL_PATH:-}"
+# TEMP RCA probe (issue_20260615): allow the session cache-coherence probe flag
+# through the wipe so it reaches the daemon. Remove with the probe.
+_save_coherence_probe="${OPENCODE_SESSION_COHERENCE_PROBE:-}"
 
 # Read port config before wiping
 port_base="${OPENCODE_PER_USER_DAEMON_PORT_BASE:-41000}"
@@ -61,6 +64,7 @@ export OPENCODE_USER_DAEMON_MODE=1
 [[ -n "${_save_frontend_path}" ]] && export OPENCODE_FRONTEND_PATH="${_save_frontend_path}"
 [[ -n "${_save_repo_root}" ]] && export OPENCODE_REPO_ROOT="${_save_repo_root}"
 [[ -n "${_save_webctl_path}" ]] && export OPENCODE_WEBCTL_PATH="${_save_webctl_path}"
+[[ -n "${_save_coherence_probe}" ]] && export OPENCODE_SESSION_COHERENCE_PROBE="${_save_coherence_probe}"
 
 mkdir -p "${XDG_CONFIG_HOME}" "${XDG_DATA_HOME}" "${XDG_STATE_HOME}" "${XDG_CACHE_HOME}"
 

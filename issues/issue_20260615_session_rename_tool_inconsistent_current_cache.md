@@ -141,6 +141,43 @@ Topology found while wiring the probe:
   SessionCache that never received the invalidation event → fix = bypass-cache for metadata (c),
   pin routing identity (a), or cross-process invalidation bridge (b).
 
+### Measurement result — 2026-06-15 (E6/E7 NOT reproduced)
+
+Deployed (3R: build-id `572e2e4cc`) and drove a real write→read→search cycle against the live
+per-user daemon over its unix socket (the same transport the MCP uses). Discovery while wiring:
+the daemon launcher `templates/system/opencms-daemon-launch.sh` **wipes all `OPENCODE_*`** and
+re-exports a fixed allowlist — so the probe flag (and the routing flags) never reach the daemon;
+added a passthrough line for the probe var. pkcs12's daemon is the **wheel@** variant.
+
+Probe output — every op hit the **same process** (pid 8655, daemonMode:true):
+
+| seq | op | cacheHit | version | title |
+|-----|----|----------|---------|-------|
+| 266 | PATCH write | — | 1 | NEW |
+| 267 | GET #1 | false (write invalidated cache) | 1 | NEW |
+| 268 | GET #2 | true (re-cached) | 1 | NEW |
+| 270 | search (storage) | — | — | NEW |
+
+**Conclusion: fully coherent — E6/E7 does NOT reproduce in the current single-daemon topology.**
+The write fires `Session.Event.Updated` → SessionCache invalidates → the next GET misses → reads
+fresh from storage → re-caches; the cached single-GET and the storage-backed search agree. The
+original stale read therefore required a condition absent now — almost certainly **multiple
+per-user daemon instances** (overlaps `observing/20260612_local_mcp_child_per_instance_duplication`),
+not a logic bug in the invalidation path. No speculative cache fix (a/b/c) is warranted; the
+canonical same-path readback from the contract fix further shrinks any residual window.
+
+Probe turned OFF after measurement (flag removed from /etc/opencode/{opencode.env,opencode.cfg},
+daemon restarted). The probe code (`coherenceProbe`, default-off) and launcher passthrough are
+left dormant for future RCA, matching the existing `sessionRouteDebug` precedent.
+
+### Residual / next
+
+- **Disposition**: the tool-contract defect (RC1/RC2 — wrong `current`, unverifiable readback,
+  dataless list) is FIXED and unit-tested. The cache-disagreement symptom is NOT a standalone bug;
+  fold its residual risk into the MCP-child duplication issue in `observing/`.
+- Candidate to move this issue → `observing/` once a real agent-driven rename→get→search (through
+  the built-in tool, not curl) confirms the same coherence in normal use.
+
 ### Still open (do NOT move to observing yet)
 
 - **Live verification**: needs a daemon rebuild+restart (via `restart_self`, user-initiated per repo daemon-lifecycle rule), then a real rename→get_session→search readback on the same session ID to confirm immediate agreement.
