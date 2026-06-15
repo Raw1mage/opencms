@@ -175,7 +175,13 @@ export const isAuthError = _isAuthError
 // Minimum backoff guardrails
 // ============================================================================
 
-const MODEL_CAPACITY_MIN_BACKOFF_MS = 300_000 // 5 minutes
+// Floor for transient-capacity sidelines (503/529/overloaded). 503/529 carry
+// their own 300s base so this floor never reduces them; it only bounds the
+// MODEL_CAPACITY_EXHAUSTED (Anthropic overload) path, which we deliberately
+// keep short so a sidelined Opus account recovers ~90s after the overload
+// clears rather than staying locked for 5 minutes.
+// @event_20260606_claude-cli-phantom-accounts-529-and-login-label
+const MODEL_CAPACITY_MIN_BACKOFF_MS = 90_000 // 90 seconds
 
 // ============================================================================
 // Judge Result

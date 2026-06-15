@@ -35,6 +35,7 @@ import { WorkingCache } from "./working-cache"
 
 import z from "zod"
 import { findFallback, type ModelVector, type FallbackStrategy, isVectorRateLimited } from "@/account/rotation3d"
+import { getRateLimitTracker } from "@/account/rotation"
 import { withRotationCoalesce } from "@/account/rotation/coalesce"
 import { Bus } from "@/bus"
 import { BusEvent } from "@/bus/bus-event"
@@ -2638,6 +2639,17 @@ export namespace LLM {
         const isSameModel = fallback.modelID === currentModel.id
 
         const fallbackReason = isVectorRateLimited(currentVector) ? "rate-limit" : "unknown"
+        // Report the *judged* reason the tracker stored for the vector we are
+        // leaving (MODEL_CAPACITY_EXHAUSTED, QUOTA_EXHAUSTED, RATE_LIMIT_SHORT,
+        // …) rather than collapsing every rate-limit rotation to a generic
+        // RATE_LIMIT_EXCEEDED. The old binary label mislabeled Anthropic
+        // overloaded_error (capacity) rotations as rate limits.
+        const rotationReason =
+          getRateLimitTracker().getReason(
+            currentVector.accountId,
+            currentVector.providerId,
+            currentVector.modelID,
+          ) ?? (fallbackReason === "rate-limit" ? "RATE_LIMIT_EXCEEDED" : "UNKNOWN")
         const purposeValue = (fallback as unknown as Record<string, unknown>).purpose
         const purpose = typeof purposeValue === "string" ? purposeValue : fallbackReason
         const reasonLabel = PURPOSE_LABELS[purpose] || fallback.reason
@@ -2696,7 +2708,7 @@ export namespace LLM {
           toProviderId: fallback.providerId,
           toModelId: fallback.modelID,
           toAccountId: fallback.accountId,
-          reason: fallbackReason === "rate-limit" ? "RATE_LIMIT_EXCEEDED" : "UNKNOWN",
+          reason: rotationReason,
           timestamp: Date.now(),
         }).catch(() => {})
 
@@ -2715,7 +2727,7 @@ export namespace LLM {
                 fromAccountId: currentAccountId,
                 toProviderId: fallback.providerId,
                 toAccountId: fallback.accountId,
-                reason: fallbackReason === "rate-limit" ? "RATE_LIMIT_EXCEEDED" : "UNKNOWN",
+                reason: rotationReason,
               },
             })
           })().catch(() => {})

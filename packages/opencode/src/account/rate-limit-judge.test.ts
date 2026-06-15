@@ -12,7 +12,10 @@ describe("rate-limit judge provider cooldown promotion", () => {
   it("only promotes generic rate limits when cooldown is already long", () => {
     expect(shouldPromoteToProviderCooldown("RATE_LIMIT_EXCEEDED", 60_000)).toBe(false)
     expect(shouldPromoteToProviderCooldown("RATE_LIMIT_EXCEEDED", 18_000_000)).toBe(true)
-    expect(shouldPromoteToProviderCooldown("UNKNOWN", 18_000_000)).toBe(true)
+    // UNKNOWN must NOT promote — an unrecognised 429 (e.g. stale token) would
+    // otherwise wrongly lock the whole provider and cascade across accounts.
+    // (See shouldPromoteToProviderCooldown default branch.)
+    expect(shouldPromoteToProviderCooldown("UNKNOWN", 18_000_000)).toBe(false)
     expect(shouldPromoteToProviderCooldown("RATE_LIMIT_SHORT", 18_000_000)).toBe(false)
   })
 })

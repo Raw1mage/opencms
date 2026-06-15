@@ -163,6 +163,34 @@ export class RateLimitTracker {
   }
 
   /**
+   * Get the active rate-limit reason for a 3D vector, or undefined if not
+   * currently rate-limited. Mirrors isRateLimited()'s precedence: a live
+   * model-specific entry wins, otherwise the provider-level entry. Used by the
+   * rotation event emitter so telemetry reports the *judged* reason
+   * (MODEL_CAPACITY_EXHAUSTED, QUOTA_EXHAUSTED, …) instead of collapsing every
+   * rotation to a generic RATE_LIMIT_EXCEEDED label.
+   */
+  getReason(accountId: string, provider: string, model?: string): RateLimitReason | undefined {
+    this.loadFromFile()
+    const key = this.makeKey(provider, accountId)
+    this.clearExpired(key)
+
+    const providerLimits = this.limits.get(key)
+    if (!providerLimits) return undefined
+
+    const now = Date.now()
+    if (model) {
+      const modelLimit = providerLimits.get(`${provider}:${model}`)
+      if (modelLimit !== undefined && now < modelLimit.resetTime) return modelLimit.reason
+    }
+
+    const providerLimit = providerLimits.get(provider)
+    if (providerLimit !== undefined && now < providerLimit.resetTime) return providerLimit.reason
+
+    return undefined
+  }
+
+  /**
    * Get remaining wait time for a rate limited account
    */
   getWaitTime(accountId: string, provider: string, model?: string): number {

@@ -12,6 +12,16 @@ describe("rotation backoff guardrails", () => {
     expect(calculateBackoffMs("UNKNOWN", 0, undefined, 2)).toBeGreaterThanOrEqual(18_000_000)
   })
 
+  it("sidelines transient Anthropic overload (MODEL_CAPACITY_EXHAUSTED) for ~90s, not 5min", () => {
+    // base 90s ± 15s jitter — the in-place capacity retry already absorbs blips,
+    // so this short sideline lets a healthy Opus account recover once the
+    // overload clears instead of being locked for 5 minutes.
+    const backoff = calculateBackoffMs("MODEL_CAPACITY_EXHAUSTED", 0)
+    expect(backoff).toBeGreaterThanOrEqual(75_000)
+    expect(backoff).toBeLessThanOrEqual(105_000)
+    expect(backoff).toBeLessThan(300_000)
+  })
+
   it("treats OpenAI usage_limit_reached as quota exhaustion", () => {
     expect(parseRateLimitReason("usage_limit_reached", "The usage limit has been reached", 429)).toBe(
       "QUOTA_EXHAUSTED",

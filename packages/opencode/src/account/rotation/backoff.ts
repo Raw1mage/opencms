@@ -17,7 +17,14 @@ const RATE_LIMIT_LONG_BACKOFF = 86_400_000 // 24 hours for RPD
 const RATE_LIMIT_EXCEEDED_BACKOFF = 300_000 // 5 minutes default
 const SERVICE_UNAVAILABLE_503_BACKOFF = 300_000 // 5 minutes
 const SITE_OVERLOADED_529_BACKOFF = 300_000 // 5 minutes
-const MODEL_CAPACITY_EXHAUSTED_BASE_BACKOFF = 300_000 // 5 minutes
+// Transient Anthropic overload (overloaded_error → MODEL_CAPACITY_EXHAUSTED).
+// The in-place capacity retry (processor.isTransientCapacityError, 3×1-4s)
+// already absorbs momentary blips; this sideline only fires on SUSTAINED
+// overload. 5 minutes long outlived a typical overload, needlessly keeping a
+// healthy Opus account sidelined after the overload had cleared. 90s lets the
+// account come back on the overload's real timescale while still backing off.
+// @event_20260606_claude-cli-phantom-accounts-529-and-login-label
+const MODEL_CAPACITY_EXHAUSTED_BASE_BACKOFF = 90_000 // 90 seconds
 const MODEL_CAPACITY_EXHAUSTED_JITTER_MAX = 30_000
 const SERVER_ERROR_BACKOFF = 20_000
 const AUTH_FAILED_BACKOFF = 3_600_000 // 1 hour
