@@ -47,10 +47,54 @@ const tests = await collectTests()
 
 if (tests.length === 0) {
   console.warn("[verify] no test files discovered.")
-} else {
-  console.log(`[verify] running ${tests.length} tests.`)
+} else if (process.env.OPENCODE_TEST_NO_ISOLATE === "1") {
+  // Legacy single-process mode: all files share one `bun test` process. Faster,
+  // but a test's mock.module / global-state mutation leaks into later files
+  // (bun does not fork per file), producing false cross-file failures.
+  console.log(`[verify] running ${tests.length} tests (single process).`)
   const result = run(["bun", "test", "--timeout", TEST_TIMEOUT_MS, ...tests], ROOT)
   if (result.exitCode !== 0) process.exit(result.exitCode)
+} else {
+  // Default: run each file in its OWN process so mock.module replacements and
+  // module-level state cannot bleed across files. Bounded parallelism keeps the
+  // wall-clock close to the single-process run despite per-file startup.
+  const concurrency = Math.max(2, Math.min(16, (navigator.hardwareConcurrency ?? 4) - 1))
+  console.log(`[verify] running ${tests.length} tests (isolated per-file, concurrency ${concurrency}).`)
+  const decoder = new TextDecoder()
+  const queue = [...tests]
+  const failures: string[] = []
+  let done = 0
+
+  async function worker() {
+    while (true) {
+      const file = queue.shift()
+      if (!file) return
+      const proc = Bun.spawn(["bun", "test", "--timeout", TEST_TIMEOUT_MS, file], {
+        cwd: ROOT,
+        stdout: "pipe",
+        stderr: "pipe",
+        env: process.env,
+      })
+      const [out, err, code] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+        proc.exited,
+      ])
+      done++
+      if (code !== 0) {
+        failures.push(file)
+        process.stdout.write(`\n=== FAIL (${done}/${tests.length}): ${file} ===\n${out}${err}\n`)
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, () => worker()))
+  if (failures.length > 0) {
+    process.stdout.write(`\n[verify] ${failures.length} of ${tests.length} test files failed:\n`)
+    for (const f of failures.sort()) process.stdout.write(`  ${f}\n`)
+    process.exit(1)
+  }
+  console.log(`[verify] all ${tests.length} test files passed (isolated).`)
 }
 
 const appResult = run(["bun", "run", "test:unit"], `${ROOT}/packages/app`)
