@@ -726,7 +726,7 @@ export namespace SessionCompaction {
      * Defaults to "narrative" (the legacy behaviour for narrative anchors).
      */
     kind?: KindName
-    rawTailProjection?: { rounds: number; maxTokens: number }
+    rawTailProjection?: { rounds: number }
   }) {
     log.info("compacting with shared context", { sessionID: input.sessionID })
 
@@ -1242,7 +1242,7 @@ export namespace SessionCompaction {
          */
         serverCompactedItems?: unknown[]
         chainBinding?: { accountId: string; modelId: string; capturedAt: number }
-        rawTailProjection?: { rounds: number; maxTokens: number }
+        rawTailProjection?: { rounds: number }
       }
 
   /**
@@ -1299,7 +1299,7 @@ export namespace SessionCompaction {
     const fadeout = Tweaks.compactionSync().fadeout
     const rawTailProjection =
       _model && resolvePolicy(_model.providerId).kind === "claude" && fadeout.enabled && fadeout.bTailRounds > 0
-        ? { rounds: fadeout.bTailRounds, maxTokens: fadeout.bTailMaxTokens }
+        ? { rounds: fadeout.bTailRounds }
         : undefined
 
     const { text: tailText, messagesEmitted } = serializeRedactedDialog(tail, {
@@ -3481,7 +3481,7 @@ When constructing the summary, try to stick to this template:
     observed: Observed
     step: number
     snapshot?: UserMessageSnapshot
-    rawTailProjection?: { rounds: number; maxTokens: number }
+    rawTailProjection?: { rounds: number }
   }
   const defaultWriteAnchor = async (input: WriteAnchorInput) => {
     // compaction/recall-affordance L1: server-side TOOL_INDEX injection.

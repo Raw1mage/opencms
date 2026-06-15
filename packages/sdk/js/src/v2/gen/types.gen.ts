@@ -341,7 +341,7 @@ export type ParalysisDetectedError = {
   name: "ParalysisDetectedError"
   data: {
     message: string
-    detector: "signature" | "narrative"
+    detector: "signature" | "narrative" | "preface"
     consecutiveRounds: number
     similarity?: number
     samplePrefix?: string
@@ -719,7 +719,6 @@ export type CompactionPart = {
     }
     rawTailProjection?: {
       rounds: number
-      maxTokens: number
     }
   }
 }

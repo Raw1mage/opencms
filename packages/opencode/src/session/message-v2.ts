@@ -445,7 +445,6 @@ export namespace MessageV2 {
         rawTailProjection: z
           .object({
             rounds: z.number().int().nonnegative(),
-            maxTokens: z.number().int().positive(),
           })
           .optional(),
       })
@@ -1251,7 +1250,7 @@ export namespace MessageV2 {
         const rawTailProjection = compactionPart?.metadata?.rawTailProjection
         if (rawTailProjection && rawTailProjection.rounds > 0) {
           const postAnchor = result.slice(0, -1)
-          const rawTail = await collectRawTailAfterAnchor(stream, rawTailProjection.rounds, rawTailProjection.maxTokens)
+          const rawTail = await collectRawTailAfterAnchor(stream, rawTailProjection.rounds)
           return {
             messages: [msg, ...rawTail.reverse(), ...postAnchor.reverse()],
             stoppedByBudget,
@@ -1301,25 +1300,28 @@ export namespace MessageV2 {
     return { messages: result, stoppedByBudget }
   }
 
+  // Re-attaches the most recent `rounds` user→assistant cycles that the
+  // narrative anchor omitted from its body, so recent verbatim work survives
+  // compaction. Bounded ONLY by round count — there is deliberately no
+  // cumulative token ceiling here. The former `maxTokens` cap
+  // (`fadeout.bTailMaxTokens`, default 12K) was a single-tool-dump guard that
+  // had been mis-applied as a cumulative early-terminate, collapsing the tail
+  // to ~1-2 turns on dense agentic sessions and dropping recent work the model
+  // then redid (bug_20260616_cold_bgate_compaction_workstate_regression).
   async function collectRawTailAfterAnchor(
     stream: AsyncIterable<MessageV2.WithParts>,
     rounds: number,
-    maxTokens: number,
   ): Promise<MessageV2.WithParts[]> {
     const tail: MessageV2.WithParts[] = []
     let collectedRounds = 0
-    let collectedTokens = 0
     let hasAssistantForRound = false
 
     for await (const msg of stream) {
       if (msg.parts.some((p: any) => p.type === "compaction")) break
-      const msgTokens = estimateFilterTokens(msg)
-      if (tail.length > 0 && collectedTokens + msgTokens > maxTokens) break
 
       if (msg.info.role === "user") {
         if (!hasAssistantForRound) continue
         tail.push(msg)
-        collectedTokens += msgTokens
         collectedRounds += 1
         hasAssistantForRound = false
         if (collectedRounds >= rounds) break
@@ -1328,26 +1330,11 @@ export namespace MessageV2 {
 
       if (msg.info.role === "assistant") {
         tail.push(msg)
-        collectedTokens += msgTokens
         hasAssistantForRound = true
       }
     }
 
     return tail
-  }
-
-  function estimateFilterTokens(msg: MessageV2.WithParts): number {
-    if (msg.info.role === "assistant") {
-      const t = (msg.info as MessageV2.Assistant).tokens
-      return t?.total ?? (t?.input ?? 0) + (t?.output ?? 0) + (t?.cache?.read ?? 0) + (t?.cache?.write ?? 0)
-    }
-    let userBytes = 0
-    for (const p of msg.parts) {
-      if (p.type === "text" && typeof (p as { text?: string }).text === "string") {
-        userBytes += (p as { text: string }).text.length
-      }
-    }
-    return userBytes / 4
   }
 
   const isOpenAiErrorRetryable = (e: APICallError) => {

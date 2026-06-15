@@ -33,7 +33,7 @@ const rawTailAnchorMsg = (id: string) =>
         type: "compaction",
         sessionID: "ses_inv0_fc",
         messageID: id,
-        metadata: { rawTailProjection: { rounds: 1, maxTokens: 12_000 } },
+        metadata: { rawTailProjection: { rounds: 1 } },
       },
     ],
   }) as any

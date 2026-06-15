@@ -341,8 +341,6 @@ export namespace Tweaks {
       aEssenceTokens: number
       /** B+C→new_B: 保留最近幾個 C round 逐字不折 */
       bTailRounds: number
-      /** C-tail 絕對 cap (防單一大 tool dump) */
-      bTailMaxTokens: number
       /** A+B→new_A: 保留最近幾個 B round 逐字不蒸餾 */
       aTailRounds: number
       /** B-tail 下限 (湊不足多留) */
@@ -508,7 +506,6 @@ export namespace Tweaks {
       enabled: true,
       aEssenceTokens: 5_000,
       bTailRounds: 1,
-      bTailMaxTokens: 12_000,
       aTailRounds: 3,
       aTailFloorTokens: 20_000,
       aMethod: "ai_paid",
@@ -1282,11 +1279,6 @@ export namespace Tweaks {
     if (foBTailRoundsRaw !== undefined) {
       const v = parseIntRange(foBTailRoundsRaw, "compaction_fadeout_b_tail_rounds", 0, 50)
       if (v !== undefined) compaction.fadeout.bTailRounds = v
-    }
-    const foBTailMaxRaw = parsed.get("compaction_fadeout_b_tail_max_tokens")
-    if (foBTailMaxRaw !== undefined) {
-      const v = parseIntRange(foBTailMaxRaw, "compaction_fadeout_b_tail_max_tokens", 1_000, 500_000)
-      if (v !== undefined) compaction.fadeout.bTailMaxTokens = v
     }
     const foATailRoundsRaw = parsed.get("compaction_fadeout_a_tail_rounds")
     if (foATailRoundsRaw !== undefined) {

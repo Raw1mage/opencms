@@ -44085,7 +44085,8 @@
                 "type": "string",
                 "enum": [
                   "signature",
-                  "narrative"
+                  "narrative",
+                  "preface"
                 ]
               },
               "consecutiveRounds": {
@@ -45448,16 +45449,10 @@
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 9007199254740991
-                  },
-                  "maxTokens": {
-                    "type": "integer",
-                    "exclusiveMinimum": 0,
-                    "maximum": 9007199254740991
                   }
                 },
                 "required": [
-                  "rounds",
-                  "maxTokens"
+                  "rounds"
                 ]
               }
             }
@@ -47779,7 +47774,7 @@
           },
           "id": {
             "description": "Unique identifier for the todo item (auto-generated if omitted)",
-            "default": "todo_mqf4shsm_uqprvh",
+            "default": "todo_mqfheu33_8cohew",
             "type": "string"
           },
           "action": {

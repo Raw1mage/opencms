@@ -187,7 +187,6 @@ describe("tryNarrative (redacted-dialog body source)", () => {
         ...originalTweaksSync().fadeout,
         enabled: true,
         bTailRounds: 1,
-        bTailMaxTokens: 12_000,
       },
     })
 
@@ -204,7 +203,7 @@ describe("tryNarrative (redacted-dialog body source)", () => {
     expect(result.summaryText).toContain("B answer")
     expect(result.summaryText).not.toContain("C decision")
     expect(result.summaryText).not.toContain("C artifact")
-    expect(result.rawTailProjection).toEqual({ rounds: 1, maxTokens: 12_000 })
+    expect(result.rawTailProjection).toEqual({ rounds: 1 })
   })
 
   it("non-claude narrative keeps existing B+C folding behavior", async () => {
