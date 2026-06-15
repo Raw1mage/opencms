@@ -988,11 +988,44 @@ that need per-machine-portable paths.
 failure; the `install_mcp_app` system-manager tool surfaces these in
 its text response.
 
+### Connect-time adaptation (plans/mcp_connect-adaptation MVP, 2026-06-15)
+
+`connectMcpApps()` runs two per-app adaptation steps so opencms adapts to
+each MCP's own connection conditions, sourced from that MCP's own
+`mcp.json` (structured declarations only — prose-only prerequisites in
+`instructions` are out of scope):
+
+- **Prerequisite probe** — `McpPrerequisite.probe(id, entry, mcpJson)`
+  (`packages/opencode/src/mcp/prerequisite.ts`) evaluates before dial:
+  manifest parseable / transport reachable (UDS socket exists, TCP port
+  resolvable, stdio command on PATH) / declared `command` binary on PATH
+  / declared `env` present. Returns `satisfied | unmet{missing[]}` with
+  per-item `detail` + `remediation`. Reads `mcp.json` **raw** to avoid
+  `McpAppManifest.load()`'s auto-infer write side effect. On `unmet`:
+  structured diagnostic log + `recordAppFailure(id)` + return — **per-app
+  fail-fast, never throws, does not block other apps** (no silent
+  fallback).
+- **Skill-path convention resolver** — `McpSkillConvention.resolve(id,
+entry, mcpJson)` (`packages/opencode/src/mcp/skill-convention.ts`)
+  locates an MCP's bundled-skill source by convention: `mcp.json`
+  `skillPaths` (docxmcp declares `["skills"]`) → default `<path>/skills/*`
+  scan → `[]`; candidates must contain `SKILL.md`. `syncMcpBundledSkills()`
+  now resolves source via this instead of a hardcoded `skills/` readdir,
+  feeding each resolved `sourceDir` to capability-sync `preflightMcpSkill`
+  (T14 hardcode lifted to optional `sourceDir`/`relSourcePath`, default
+  preserves `skills/<name>`).
+
+This is the first slice of a 4-layer connect-time adaptation vision
+(prereq + skill convention done; transport-depth adaptation + capability
+negotiation deferred). Commit `b2d451d4f`.
+
 ### Key Files
 
 - `packages/opencode/src/mcp/app-store.ts` — Schema, layered merge, persistence, structured error
 - `packages/opencode/src/mcp/url-resolver.ts` — Closed-token URL template expansion
-- `packages/opencode/src/mcp/index.ts` — `connectMcpApps()` consumer
+- `packages/opencode/src/mcp/prerequisite.ts` — Connect-time structured prerequisite probe (per-app fail-fast)
+- `packages/opencode/src/mcp/skill-convention.ts` — Bundled-skill source resolver (`skillPaths` convention)
+- `packages/opencode/src/mcp/index.ts` — `connectMcpApps()` consumer (probe + convention + bundled-skill sync)
 - `packages/opencode/src/incoming/dispatcher.ts` — HTTP upload route consumer
 - `packages/mcp/system-manager/src/index.ts` — `install_mcp_app` tool with `target` parameter
 - `packages/opencode/src/server/routes/mcp.ts` — POST `/mcp/store/apps` (accepts `target`, returns structured error)
