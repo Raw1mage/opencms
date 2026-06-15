@@ -428,6 +428,70 @@ export function shouldSurfaceContentFilterNotice(input: { finish: string | undef
   return input.finish === "content-filter" && input.outputTokens <= 8
 }
 
+// Paralysis guard tuning. See
+// issues/bug_20260615_paralysis_guard_evaded_by_preface_perseveration.md.
+//
+// PARALYSIS_CLEAN_STREAK_RESET: how many turns that made REAL progress (mutated
+// a file) are required before the recovery counter clears. Was effectively 1
+// non-paralyzed turn, which a perseverating model games by emitting one cosmetic
+// "you're right, changing course" read-only turn after each nudge — the ladder
+// resets and it relapses forever (observed: nudge fired 3× in one session and
+// never escalated to halt). Crucially the streak counts only file-mutating
+// turns, NOT merely "didn't trip the triple this turn": a read-only cosmetic
+// turn also delays re-detection (it sits in the 3-turn window), so counting
+// non-detection turns would still be gameable. Only genuine work clears it.
+export const PARALYSIS_CLEAN_STREAK_RESET = 2
+// Short-preface bigram-jaccard threshold for Detector D (preface perseveration).
+// Higher than the whole-turn narrative threshold (0.5) because a 140-char
+// prefix is more variable — only a strongly-repeated opening should trip it.
+export const PARALYSIS_PREFACE_SIM_THRESHOLD = 0.6
+// File-mutating tools. Their presence in the window is treated as real
+// progress, which vetoes Detector D (so genuine batch-edit work, whose turns
+// share a preface but actually mutate files, never trips it).
+export const PARALYSIS_PROGRESS_TOOLS = new Set(["write", "edit", "multiedit", "apply_patch"])
+
+/**
+ * Detector D — preface perseveration with no real progress.
+ *
+ * Catches the failure mode in
+ * issues/bug_20260615_paralysis_guard_evaded_by_preface_perseveration.md:
+ * the model opens 3+ consecutive turns with a near-identical reassurance
+ * preface ("X notice drained / context is green / continuing Y") while doing
+ * only a tiny read/grep each turn and editing nothing. Detectors A/B miss it
+ * because the tool signature changes every turn (different read offset) and the
+ * varying turn tail dilutes whole-turn narrative similarity below 0.5.
+ *
+ * Keyed on the SHORT leading preface (high threshold) AND gated by "no
+ * file-mutating tool in the window", so it fires only on read-only spinning.
+ * Pure + exported for unit testing; the runloop wires real message parts in.
+ */
+export function detectPrefaceParalysis(input: {
+  prefaces: string[] // normalized leading ~140 chars, one per recent turn
+  mutatedPerTurn: boolean[] // did each turn issue a file-mutating tool?
+}): { paralyzed: boolean; similarity: number } {
+  const { prefaces, mutatedPerTurn } = input
+  if (prefaces.length < 3) return { paralyzed: false, similarity: 0 }
+  // Any real progress (a file mutation) in the window → not paralysis.
+  if (mutatedPerTurn.slice(0, 3).some(Boolean)) return { paralyzed: false, similarity: 0 }
+  // Too-short prefaces are not reliable signal.
+  if (prefaces.slice(0, 3).some((p) => p.length < 40)) return { paralyzed: false, similarity: 0 }
+  const bigrams = (s: string): Set<string> => {
+    const out = new Set<string>()
+    for (let i = 0; i < s.length - 1; i++) out.add(s.slice(i, i + 2))
+    return out
+  }
+  const jaccard = (a: Set<string>, b: Set<string>): number => {
+    if (a.size === 0 || b.size === 0) return 0
+    let inter = 0
+    for (const x of a) if (b.has(x)) inter++
+    return inter / (a.size + b.size - inter)
+  }
+  const j01 = jaccard(bigrams(prefaces[0]), bigrams(prefaces[1]))
+  const j12 = jaccard(bigrams(prefaces[1]), bigrams(prefaces[2]))
+  const similarity = Math.min(j01, j12)
+  return { paralyzed: similarity > PARALYSIS_PREFACE_SIM_THRESHOLD, similarity }
+}
+
 function findContextBudgetSource(messages: MessageV2.WithParts[]): MessageV2.Assistant | undefined {
   for (let i = messages.length - 1; i >= 0; i--) {
     const info = messages[i].info
@@ -1655,6 +1719,10 @@ export namespace SessionPrompt {
     let lastDecisionReason: Awaited<ReturnType<typeof decideAutonomousContinuation>>["reason"] | undefined
     let emptyRoundCount = 0
     let paralysisRecoveryCount = 0
+    // Consecutive non-paralyzed turns since the last nudge. The recovery
+    // counter only clears after this reaches PARALYSIS_CLEAN_STREAK_RESET, so a
+    // single cosmetic "changing course" turn can't reset the escalation ladder.
+    let paralysisCleanStreak = 0
     let consecutiveCompactions = 0
     // Self-heal circuit breaker for the "polluted by many low-value rounds"
     // class (Claude Fable 5 at large context: 150+ output=2/finish=other rounds
@@ -2480,6 +2548,7 @@ export namespace SessionPrompt {
           const narrativeMatch = narrativePairsMatch(0, 1) > 0.5
           if (stuck0 && stuck1 && (sigMatch || narrativeMatch)) {
             paralysisRecoveryCount = 1
+            paralysisCleanStreak = 0
             log.warn("paralysis-recover: 2-turn self-stuck phrase, injecting nudge", {
               sessionID,
               step,
@@ -2530,10 +2599,28 @@ export namespace SessionPrompt {
           const j12 = narrativePairsMatch(1, 2)
           const narrativeTriple = j01 > 0.5 && j12 > 0.5
 
-          if (sigTriple || narrativeTriple) {
-            const detector = sigTriple ? "signature" : "narrative"
-            const similarity = narrativeTriple ? Math.min(j01, j12) : undefined
-            const samplePrefix = narrativeTriple ? texts[0].slice(0, 120) : sigs[0].slice(0, 120)
+          // Detector D — preface perseveration with no file mutation in the
+          // window (the read-only spinning that A/B miss; see the
+          // detectPrefaceParalysis docstring).
+          const mutatedPerTurn = recentAssistants.map((m) =>
+            m.parts.some(
+              (p) => p.type === "tool" && PARALYSIS_PROGRESS_TOOLS.has((p as MessageV2.ToolPart).tool),
+            ),
+          )
+          const prefaceResult = detectPrefaceParalysis({
+            prefaces: texts.map((t) => t.slice(0, 140)),
+            mutatedPerTurn,
+          })
+          const prefaceTriple = prefaceResult.paralyzed
+
+          if (sigTriple || narrativeTriple || prefaceTriple) {
+            const detector = sigTriple ? "signature" : narrativeTriple ? "narrative" : "preface"
+            const similarity = narrativeTriple
+              ? Math.min(j01, j12)
+              : prefaceTriple
+                ? prefaceResult.similarity
+                : undefined
+            const samplePrefix = sigTriple ? sigs[0].slice(0, 120) : texts[0].slice(0, 120)
 
             // Bloated-input compaction comes BEFORE the recoveryCount gate.
             // A nudge can't drain a 500-item conversation — only compaction
@@ -2580,6 +2667,7 @@ export namespace SessionPrompt {
                 // post-compaction paralysis (under the new, smaller context)
                 // gets its own first-paralysis nudge before halting.
                 paralysisRecoveryCount = 0
+                paralysisCleanStreak = 0
                 continue
               } catch (err) {
                 log.warn("paralysis-recover: compaction failed, falling through to nudge/halt", {
@@ -2599,6 +2687,7 @@ export namespace SessionPrompt {
               // "you repeated, try different" is concrete enough to
               // break attention pattern without prescribing the answer.
               paralysisRecoveryCount = 1
+              paralysisCleanStreak = 0
               log.warn("paralysis-recover: 3-turn repetition, injecting nudge", {
                 sessionID,
                 step,
@@ -2656,15 +2745,38 @@ export namespace SessionPrompt {
             await Session.updateMessage(lastAssistant)
             break
           }
-          // No triple this iteration — clear recovery counter so a
-          // future independent paralysis episode gets its own nudge.
+          // No triple this iteration. Clear the escalation ONLY after enough
+          // turns that made real progress (mutated a file). A read-only "you're
+          // right, changing course" turn is exactly the cosmetic move a
+          // perseverating model uses to dodge the ladder — and because it also
+          // sits in the 3-turn detection window it delays re-detection by two
+          // turns, so counting non-detection turns would still be gameable.
+          // Gating the streak on file mutation means only genuine work resets
+          // the ladder; pure read-only spinning keeps the escalation armed so
+          // the next detected triple hard-halts (issue
+          // bug_20260615_paralysis_guard_evaded_by_preface_perseveration: the
+          // nudge fired 3× in one session and never reached hard-halt).
           if (paralysisRecoveryCount > 0) {
-            log.info("paralysis-recover: cleared after non-paralyzed turn", {
-              sessionID,
-              step,
-              priorRecoveryCount: paralysisRecoveryCount,
-            })
-            paralysisRecoveryCount = 0
+            if (mutatedPerTurn[0]) {
+              paralysisCleanStreak++
+              if (paralysisCleanStreak >= PARALYSIS_CLEAN_STREAK_RESET) {
+                log.info("paralysis-recover: cleared after sustained progress streak", {
+                  sessionID,
+                  step,
+                  priorRecoveryCount: paralysisRecoveryCount,
+                  progressStreak: paralysisCleanStreak,
+                })
+                paralysisRecoveryCount = 0
+                paralysisCleanStreak = 0
+              } else {
+                log.info("paralysis-recover: progress turn, streak building (escalation retained)", {
+                  sessionID,
+                  step,
+                  progressStreak: paralysisCleanStreak,
+                  needed: PARALYSIS_CLEAN_STREAK_RESET,
+                })
+              }
+            }
           }
         }
       }
