@@ -162,7 +162,11 @@ export namespace CapabilityHash {
     projectionRoot: string,
     hashPolicy?: CapabilityManifest.HashPolicy,
   ): Promise<string> {
-    const excludes = hashPolicy?.excludes ?? []
+    // The sidecar is non-authoritative evidence written AFTER rsync + the
+    // recorded projectionHash is computed; it must never be hashed (see the
+    // INSTALLED_SIDECAR_FILENAME note above), or a freshly-synced projection
+    // would be misread as drift. Always exclude it, independent of hashPolicy.
+    const excludes = [...(hashPolicy?.excludes ?? []), INSTALLED_SIDECAR_FILENAME]
     const normalize = hashPolicy?.normalize
     const files = await collectFiles(projectionRoot, excludes)
     return hashEntries(projectionRoot, files, normalize)
