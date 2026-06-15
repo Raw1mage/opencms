@@ -7,6 +7,8 @@ import { PermissionNext } from "../permission/next"
 import { Ripgrep } from "../file/ripgrep"
 import { iife } from "@/util/iife"
 import { SkillLayerRegistry } from "@/session/skill-layer-registry"
+import { Global, getTemplatesDir } from "@/global"
+import { CapabilitySyncExec } from "@/capability-sync/sync"
 
 export const SkillTool = Tool.define("skill", async (ctx) => {
   const skills = await Skill.all()

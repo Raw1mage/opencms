@@ -115,9 +115,9 @@ type TemplateManifestEntry = {
 }
 
 const SENSITIVE_FILES = new Set(["accounts.json", "mcp-auth.json"])
-const getTemplatesDir = () => {
+export const getTemplatesDir = () => {
   if (process.env.OPENCODE_TEMPLATES_DIR) return process.env.OPENCODE_TEMPLATES_DIR
-  
+
   // 1. Check relative to current working directory (Dev mode)
   const devPath = path.join(process.cwd(), "templates")
   if (path.basename(process.cwd()) === "opencode" || path.basename(process.cwd()) === "opencode-data") {
@@ -134,12 +134,14 @@ const getTemplatesDir = () => {
   // Heuristic check: check for manifest.json
   if (fsSync.existsSync(path.join(repoPath, "manifest.json"))) return repoPath
   if (fsSync.existsSync(path.join(systemPath, "manifest.json"))) return systemPath
-  
+
   // In compiled binary mode, bunfs repo paths are invalid — prefer system path.
   // In dev mode, repo path is valid even without manifest.json.
   const isCompiledBinary = import.meta.url.includes("/$bunfs/")
   if (isCompiledBinary) {
-    console.warn(`[templates] no manifest.json found at system path ${systemPath}, using it anyway (compiled binary mode)`)
+    console.warn(
+      `[templates] no manifest.json found at system path ${systemPath}, using it anyway (compiled binary mode)`,
+    )
     return systemPath
   }
   return repoPath
@@ -247,7 +249,7 @@ const installUserShellProfile = async () => {
   const marker = "# OpenCode Terminal Protection"
   const homeDir = os.homedir()
   const bashrcPath = path.join(homeDir, ".bashrc")
-  
+
   if (!(await Bun.file(bashrcPath).exists())) return
 
   try {
