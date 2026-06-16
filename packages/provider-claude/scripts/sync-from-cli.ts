@@ -48,7 +48,7 @@ import { MODEL_CATALOG, getOutputLimit, normalizeModelId } from "../src/models.j
 import { OAUTH_USER_AGENT } from "../src/auth.js"
 
 /** The CLI version this provider is currently aligned to. Bump deliberately. */
-const PINNED_VERSION = "2.1.170"
+const PINNED_VERSION = "2.1.178"
 
 const args = process.argv.slice(2)
 const versionArg = args.includes("--version") ? args[args.indexOf("--version") + 1] : undefined
