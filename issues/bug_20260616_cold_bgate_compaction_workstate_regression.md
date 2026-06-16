@@ -110,3 +110,108 @@ So the swallow is **not** the part payload size; it is the live application of c
 ## Remaining fix (frontend — NOT yet done)
 
 Make compaction's message mutations atomic/invisible to the live transcript. Sketch: the server already brackets the operation with `session.compaction.started` / `session.compacted`. On `started`, the client freezes the rendered transcript (render from a snapshot); apply the remove/add/replay burst to the store quietly; on `compacted`, reconcile once and unfreeze. Touches `packages/app/src/context/global-sync/event-reducer.ts` + `packages/app/src/pages/session.tsx`. Alternative: server stops emitting per-message remove/add/replay to live clients during compaction and lets the client pull one snapshot at `compacted`.
+
+---
+
+# Third axis: dropped user turn — message swallowed, NO response, resend required (most severe)
+
+Reported 2026-06-16 03:12 (live, same session `ses_1347b6b8bffe`). Distinct from axis 1
+(redoing work) and axis 2 (visible reflow): here the **user's message gets no response at
+all** — the turn dies silently and the user must resend. This is the back-end correctness
+hole the user-message-replay self-heal was built to close, recurring through a gap.
+
+## Timeline (DB + debug.log, exact)
+
+| Time | Event |
+|---|---|
+| 03:12:32.6 | user msg `msg_eccb32526001Q4fIKR2ZMEmcEO`「你產出的填寫版，樣式格式完全不符合原檔」arrives; runloop enters |
+| 03:12:32.753 | `claude_cold_compaction_gate` promptTotal>200K cold → `loop:state_driven_compaction` → compact requested **before responding** |
+| 03:12:32.858 | `compaction.snapshot.captured` (captured AFTER the user msg) |
+| 03:12:33.061 | `message.removed` — user msg folded into the anchor |
+| 03:12:33.121 | `compaction.replay.invoked` |
+| 03:12:33.122 | ⚠ `self-heal: replay skipped — snapshot already after anchor` |
+| 03:12:33.215 | `compaction.completed` (anchor `msg_eccb324f6001ROp9IfoRXTQnkY`) |
+| 03:12:33.254 | ⚠ `loop:no_user_after_compaction — exiting cleanly` |
+| 03:12:33.258 | `loop:found_assistant_message_returning` (returns the OLD assistant turn; no new response) |
+| 03:13:09 | user RESENDS identical text `…3iYVyL` → assistant `…IhPnEQ` responds (out=4785) |
+
+36-second dead window; the first message produced zero response.
+
+## Root cause
+
+[compaction.ts:3208-3217](packages/opencode/src/session/compaction.ts#L3208-L3217) — the
+replay self-heal skips when `originalUserID > anchorMessageID`, using **ID ordering** as a
+proxy for "the user message is preserved after the anchor, so no replay needed."
+
+The proxy is false under fold: a compaction anchor is inserted at the **folded content's
+position** and receives an **older (smaller) ID** than a user message that arrived moments
+earlier. Confirmed: user `…32526…` > anchor `…324f6…` → gate FIRES → skip. But the same
+compaction **removed** the user message (folded it into the anchor body, `message.removed`
+03:12:33.061). So:
+
+- ID-ordering says "after anchor → preserved → skip replay" — **wrong**, it was folded out.
+- The later `stillExists` guard ([compaction.ts:3221](packages/opencode/src/session/compaction.ts#L3221))
+  would ALSO skip (message gone → `snapshot-already-consumed`) — it treats *removed-by-fold*
+  identically to *removed-by-being-answered*.
+- Net: replay skipped, message absent post-anchor → [prompt.ts:2227](packages/opencode/src/session/prompt.ts#L2227)
+  `loop:no_user_after_compaction — exiting cleanly` → turn returns the prior assistant
+  message, generates nothing. User sees no reply.
+
+The code even anticipates this exact failure ([compaction.ts:673](packages/opencode/src/session/compaction.ts#L673),
+[3109-3119](packages/opencode/src/session/compaction.ts#L3109)) — the self-heal exists to
+prevent it — but both skip-gates infer "handled" from signals (ID order / message-absence)
+that a fold also produces, so they misfire.
+
+## Trigger conditions (why it's intermittent)
+
+All must coincide in one turn: (1) prompt ≥ 200K and cold → cold B-gate fires; (2) a user
+message arrives and the runloop compacts **before** answering it; (3) the compaction **folds
+that very message** into the anchor; (4) the anchor's ID sorts before the user message's.
+Normal interactive turns under 200K never hit it. Matches the "hundreds of hours, only now"
+character — it needs the ≥200K cold-compaction regime.
+
+## Fix direction (NOT yet implemented — sensitive replay/invariant code)
+
+The skip decision must distinguish **removed-because-answered** (skip replay) from
+**removed-because-folded-while-unanswered** (MUST replay). ID ordering and bare
+message-absence cannot tell them apart. Options:
+
+1. Before skipping, verify the snapshot's user message has an **assistant answer** after it
+   (an assistant message child / a post-anchor reply). If it was folded with no answer →
+   replay regardless of ID ordering.
+2. Have the fold path tag whether the folded user message was already answered; replay keys
+   on that tag, not on ID order.
+3. Make `no_user_after_compaction` consult the captured snapshot: if a snapshot exists and was
+   never answered, replay it instead of exiting cleanly.
+
+Relationship: same cold-B-gate trigger as axes 1/2; same architectural root (compaction
+governance decoupled from turn/work fidelity). This axis is the **turn-loss** facet — the
+most severe, since the user's input is silently discarded.
+
+## Fix applied — axis 3 (2026-06-16, working-tree)
+
+`replayUnansweredUserMessage` ([compaction.ts:3208](packages/opencode/src/session/compaction.ts#L3208)):
+replaced the unsound `originalUserID > anchorMessageID` ID-ordering skip with a
+check against the runloop's ACTUAL projection — `MessageV2.filterCompacted`
+(the same view prompt.ts drives the next turn off). Skip replay only when the
+snapshot's user message still appears in that filtered post-anchor view (it will
+be answered; replaying would churn). When the fold removed it from that view —
+the incident — replay fires, so the loop has the unanswered input to drive
+instead of hitting `no_user_after_compaction` and silently dropping the turn.
+`stillExists` (double-replay idempotency) kept as-is — a fold leaves the row in
+place, so it never misfires; it only trips after a real prior replay removed the
+original. Fail-safe: `filterCompacted` throw → treat as not-present → replay
+(never drop the user's input).
+
+Why the filtered view, not "remove the gate": the gate's INTENT (don't replay a
+message that genuinely survived post-anchor) is valid — only its ID-order
+implementation was wrong. Deciding on the same projection the runloop uses makes
+the skip exactly track "will the loop see this message?", so survived messages
+don't churn and folded ones aren't dropped.
+
+Tests: `compaction-replay-helpers` (31 pass) — rewrote the old `snapshot.id >
+anchor.id` skip test to the filtered-view semantics, added a regression test
+(`bug_20260616 axis 3`: folded message with id > anchor → replay fires).
+Regression suite `compaction-replay-integration|deep`, `claude-refactor.inv0-
+baseline`, `dialog-serializer` (67 pass). Typecheck clean for touched files.
+**Not yet built/restarted** — takes effect on next 3R.
