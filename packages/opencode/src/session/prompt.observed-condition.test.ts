@@ -378,7 +378,11 @@ describe("deriveObservedCondition (DD-1 state-driven)", () => {
   })
 })
 
-describe("claude cold-cache size-gate (DD-13/14/16/18)", () => {
+// compaction-rules Rule 1: the claude trigger is now the SIZE of the raw
+// un-anchored tail C (= promptTotal − anchorTokens − 40K reserve) > 150K,
+// UNCONDITIONAL of cache temperature / idle / post-compaction echo. With
+// msgs=[] (no anchor) C = promptTotal − 40K, so C>150K ⟺ promptTotal>190K.
+describe("claude C-size narrative gate (compaction-rules Rule 1)", () => {
   // lastFinished with explicit token split so we can drive promptTotal and the
   // cache-read fraction independently. promptTotal = input + cache.read + write.
   function finished(opts: {
@@ -436,12 +440,15 @@ describe("claude cold-cache size-gate (DD-13/14/16/18)", () => {
     expect(result).toBe("cache-aware")
   })
 
-  it("claude WARM (cache served >50%) at >200K → no gate (null, raw resend stays cheap)", async () => {
+  it("claude WARM (cache served >50%) but C>150K → cache-aware (size gate ignores cache temperature)", async () => {
+    // Rule 1: warmth no longer suppresses. promptTotal 260K → C=220K>150K → fire.
+    // This is the whole point — rotation/rebind fake-cold (and genuine warmth)
+    // both stop mattering; only the tail SIZE drives C→B.
     ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
     const result = await deriveObservedCondition(
       gateInput({ lastFinished: finished({ input: 10_000, read: 250_000 }) }),
     )
-    expect(result).toBeNull()
+    expect(result).toBe("cache-aware")
   })
 
   it("claude cold but SMALL (<200K) → no gate (null, anchor not worth it)", async () => {
@@ -462,12 +469,14 @@ describe("claude cold-cache size-gate (DD-13/14/16/18)", () => {
     expect(result).toBe("cache-aware")
   })
 
-  it("active warm + RECENT (idle < cache TTL) → no gate (resume signal off, cache still alive)", async () => {
+  it("active warm + RECENT (idle short) but C>150K → cache-aware (idle/warmth no longer gates)", async () => {
+    // Under Rule 1 the idle-vs-recent and warm-vs-cold distinctions are gone:
+    // identical promptTotal (260K → C=220K) fires regardless of staleMs.
     ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
     const result = await deriveObservedCondition(
-      gateInput({ lastFinished: finished({ input: 10_000, read: 250_000, staleMs: 60 * 1000 }) }), // 1 min < 5 min
+      gateInput({ lastFinished: finished({ input: 10_000, read: 250_000, staleMs: 60 * 1000 }) }),
     )
-    expect(result).toBeNull()
+    expect(result).toBe("cache-aware")
   })
 
   it("SESSION RESUME but SMALL (<200K) → still no gate (size gate is the outer condition)", async () => {
@@ -509,19 +518,23 @@ describe("claude cold-cache size-gate (DD-13/14/16/18)", () => {
   // not cached server-side yet). The top-of-fn 30s Cooldown covers the within-30s
   // window; this catches the first cold turn after it expires. Mirrors the SS
   // branch's `recent_compaction` planned-source classifier.
-  it("F2: cold >200K but an anchor written AFTER last observation → SKIP (null)", async () => {
+  it("cascade-immune: after C→B the folded tail collapses promptTotal → C below gate → no re-fire", async () => {
+    // Rule 1 is cascade-immune by SIZE, not by an echo-suppression hack: once
+    // C→B folds the tail into the anchor, the next turn's promptTotal collapses
+    // (anchor replaces the folded rounds), so C drops below 150K and the gate
+    // does not re-fire. (The old postCompactionEcho skip is gone.)
     ;(SessionCompaction.Cooldown as any).shouldThrottle = mock(async () => false)
-    const sid = "ses_f2_echo"
-    // Call 1 (no anchor): fires cache-aware AND seeds lastCacheReadState.ts = now.
+    const sid = "ses_cascade"
+    // Pre-compaction: large raw tail → fires.
     expect(
       await deriveObservedCondition(gateInput({ sessionID: sid, lastFinished: finished({ input: 250_000 }) })),
     ).toBe("cache-aware")
-    // Call 2: an anchor created AFTER call-1's observation → post-compaction echo.
+    // Post-compaction: tail folded into anchor → promptTotal collapses (50K) →
+    // C ≈ 10K < 150K → null.
     const anchor = makeAnchor("claude-cli", "claude-opus-4-8", "acc-A")
-    ;(anchor.info as any).time = { created: Date.now() + 1_000_000, completed: Date.now() + 1_000_000 }
     expect(
       await deriveObservedCondition(
-        gateInput({ sessionID: sid, msgs: [anchor], lastFinished: finished({ input: 250_000 }) }),
+        gateInput({ sessionID: sid, msgs: [anchor], lastFinished: finished({ input: 50_000 }) }),
       ),
     ).toBeNull()
   })

@@ -1938,6 +1938,9 @@ When constructing the summary, try to stick to this template:
           anchorTokens: gateAnchorTokens,
           contextLimit,
           aFloorTokens,
+          // compaction-rules Rule 2: claude gates B→A on the WHOLE prompt size
+          // (realPromptTokens > CLAUDE_TOTAL_AIPAID_TOKENS), not the anchor floor.
+          realPromptTokens,
         })
         if (belowGate) {
           log.info("hybrid_llm enrichment skipped (anchor body below A-tier floor)", {

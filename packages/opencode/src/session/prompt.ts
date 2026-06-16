@@ -73,7 +73,7 @@ import { buildUserMessageParts } from "./user-message-parts"
 import { materializeToolAttachments } from "./attachment-ownership"
 import { emitSessionNarration, isNarrationAssistantMessage } from "./narration"
 import { CLAUDE_CACHE_TTL_MS } from "./claude-context-policy"
-import { resolvePolicy } from "./context-policy"
+import { resolvePolicy, CLAUDE_C_NARRATIVE_TOKENS, CLAUDE_SYSTEM_RESERVE_TOKENS } from "./context-policy"
 import {
   decideAutonomousContinuation,
   describeAutonomousNextAction,
@@ -647,79 +647,43 @@ async function evaluateSlCacheHealth(args: {
   }
   lastCacheReadState.set(sessionID, nextState)
 
-  // context/claude-refactor DD-13/14/16/18: claude cold-cache size-gated
-  // compaction. The SL telemetry above never compacts; claude must compact
-  // when the cold resend is BOTH expensive (cache served <half the prompt)
-  // AND large, so subsequent turns send a bounded supersede-framed
-  // anchor+tail instead of the full 1M array on every cold (>5min TTL)
-  // resend. The trigger gates on observable context SIZE + cache-read share
-  // only — NEVER on the codex `cache_read`-drop=chain-lost heuristic in the
-  // SS branch — so it is structurally cascade-immune (post-compaction
-  // the array shrinks below the gate → no re-trigger; negative feedback).
-  // Warm-near-window growth stays covered by the existing `overflow`
-  // trigger. claude-gated: other SL providers (gemini) keep the
-  // telemetry-only path byte-identical (INV-0). "cache-aware" → KIND_CHAIN
-  // ["narrative","ai_paid"] and is NOT a CLAUDE_NOOP_OBSERVED, so it
-  // produces a real supersede-framed anchor on the claude path.
-  // context/claude-refactor DD-23: B-compaction threshold is per-provider,
-  // absolute tokens, tunable via tweak config (compaction_ctx_<provider>_b_tokens).
-  // claude-cli default 200K (the `default` profile is 100K); other providers
-  // fall back to the `default` profile. SSOT: tweaks.ts COMPACTION_DEFAULTS.
-  const bCompactTokens = Tweaks.contextThresholdsSync(pinnedProviderId).bCompactTokens
-  if (resolvePolicy(pinnedProviderId).coldCacheBGate({ promptTotal, bCompactTokens })) {
-    // DD-16 cold detection has TWO sources, OR'd:
-    //  (1) cache_read share < half  → the LAST turn was cold (active-session).
-    //  (2) idle gap > cache TTL     → SESSION RESUME / rebind: enough time has
-    //      passed that the ephemeral cache is GONE, so the NEXT request is a
-    //      guaranteed cold full-prefill — regardless of the previous turn's
-    //      (now-stale) recorded cache split. Without (2), a session whose last
-    //      turn was warm would full-prefill its whole array on first cold
-    //      resume, unbounded. resume==rebind here: claude has no server chain
-    //      to rebind, so the resume work is purely "cache dead → bound the
-    //      resend"; codex's chain reset is handled separately in the SS branch.
-    const cacheReadFraction = promptTotal > 0 ? t.cache.read / promptTotal : 0
-    const lastCompletedAt = finished.time?.completed ?? finished.time?.created ?? 0
-    const idleMs = lastCompletedAt > 0 ? Date.now() - lastCompletedAt : 0
-    const idleColdResume = idleMs > CLAUDE_CACHE_TTL_MS
-    if (cacheReadFraction < 0.5 || idleColdResume) {
-      // F2 / DD-5 (claude-gated, loop-B defense-in-depth): if a compaction
-      // anchor was written AFTER our last observation, the current active-
-      // session cold is the EXPECTED post-compaction warm-up echo — the
-      // freshly rewritten prefix is not cached server-side yet — NOT cache
-      // thrash. Compacting again on it is exactly the self-feeding cascade
-      // (loop B). The top-of-function 30s Cooldown.shouldThrottle covers the
-      // within-30s window; this guard catches the FIRST cold turn after that
-      // window expires (e.g. a slow tool turn). It fires for at most one turn
-      // (prev.ts advances past the anchor on the next observation). Idiom
-      // mirrors the SS branch's `recent_compaction` planned-source classifier.
-      // idleColdResume (TTL elapsed) is a genuine cold prefill
-      // regardless of anchor age, so it is NEVER suppressed here.
-      const recentAnchor = findMostRecentAnchor(msgs)
-      const postCompactionEcho =
-        !idleColdResume && !!prev && !!recentAnchor?.createdAt && recentAnchor.createdAt > prev.ts
-      if (postCompactionEcho) {
-        debugCheckpoint("prompt", "claude_cold_gate_recent_compaction_skip", {
-          sessionID,
-          step,
-          promptTotal,
-          cacheReadFraction,
-          anchorCreatedAt: recentAnchor!.createdAt,
-          prevObservedAt: prev!.ts,
-        })
-        // fall through — do not compact on the expected post-compaction cold
-      } else {
-        debugCheckpoint("prompt", "claude_cold_compaction_gate", {
-          sessionID,
-          step,
-          promptTotal,
-          cacheRead: t.cache.read,
-          cacheReadFraction,
-          idleMs,
-          idleColdResume,
-          gate: bCompactTokens,
-        })
-        return "cache-aware"
-      }
+  // claude-only SIZE-based narrative trigger (replaces the former cold-cache
+  // B-gate). Rule 1 (compaction-rules, issues/bug_20260616_cold_bgate...):
+  // C→B narrative fires when C — the raw conversation tail not yet folded into
+  // an anchor — exceeds CLAUDE_C_NARRATIVE_TOKENS, UNCONDITIONALLY of cache
+  // temperature.
+  //
+  // Why drop the cold condition: on a 1M-window claude session the cold gate
+  // fired on rotation/rebind-induced FAKE cold (rate-limit 429 → account
+  // rotation → chain rebind → cache invalidated → cacheReadFraction < 0.5)
+  // every 1–2 minutes WITHOUT shrinking anything — the live cascade. A rebind
+  // does not change C's SIZE, so a size gate is structurally immune to it.
+  // Still cascade-immune the right way: after C→B the tail folds into the
+  // anchor → C resets far below threshold → no re-trigger (the 30s Cooldown at
+  // the top of deriveObservedCondition covers the momentary post-compaction
+  // window). Warm-near-window growth stays covered by the `overflow` trigger.
+  // "cache-aware" → KIND_CHAIN ["narrative","ai_paid"]; claude-gated so other
+  // SL providers (gemini) keep the telemetry-only path byte-identical (INV-0).
+  //
+  // C ≈ realPromptTotal − anchorTokens − CLAUDE_SYSTEM_RESERVE_TOKENS. The live
+  // finalSystemTokens is not computed until prompt assembly (after this check),
+  // so the established system+preface reserve constant stands in. Anchoring on
+  // the REAL promptTotal (not a per-message tail estimate) avoids under-counting
+  // a CJK-heavy tail.
+  if (resolvePolicy(pinnedProviderId).kind === "claude") {
+    const anchorIdx = findMostRecentAnchorIndex(msgs)
+    const anchorTokens = anchorIdx >= 0 ? estimateMsgsTokenCount([msgs[anchorIdx]]) : 0
+    const rawTailTokens = Math.max(0, promptTotal - anchorTokens - CLAUDE_SYSTEM_RESERVE_TOKENS)
+    if (rawTailTokens > CLAUDE_C_NARRATIVE_TOKENS) {
+      debugCheckpoint("prompt", "claude_c_narrative_gate", {
+        sessionID,
+        step,
+        promptTotal,
+        anchorTokens,
+        rawTailTokens,
+        threshold: CLAUDE_C_NARRATIVE_TOKENS,
+      })
+      return "cache-aware"
     }
   }
   return undefined
