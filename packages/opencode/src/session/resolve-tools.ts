@@ -455,10 +455,20 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
       ;(tools["tool_loader"] as any).description = TOOL_LOADER_STATIC_DESCRIPTION
     }
 
-    // Active Loader: collect lazy tools before removing them
+    // Active Loader: lazy tools are NEVER promoted into the wire tools[]. The
+    // wire set stays = ALWAYS_PRESENT for the whole session so the cached
+    // tools→system→messages prefix is byte-immutable turn-to-turn. A previously
+    // "unlocked" tool is intentionally NOT re-added here — the old
+    // `&& !unlocked.has(id)` clause grew the wire prefix on every first use and
+    // cold-missed the ENTIRE cache (the DD-21 follow-up that was never finished:
+    // DD-21 moved the catalog *text* off the prefix but left the tool
+    // *definitions* leaking back in via unlock). Lazy tools execute via the
+    // request-local repair path (llm.ts experimental_repairToolCall), which
+    // registers + runs them the same turn with no extra round-trip and without
+    // mutating the already-sent wire. See plan provider-claude/tool-cache-stability.
     lazyTools = new Map<string, AITool>()
     for (const id of Object.keys(tools)) {
-      if (!alwaysPresent.has(id) && !unlocked.has(id)) {
+      if (!alwaysPresent.has(id)) {
         lazyTools.set(id, tools[id])
         delete tools[id]
       }
