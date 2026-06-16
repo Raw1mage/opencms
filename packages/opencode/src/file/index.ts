@@ -866,7 +866,8 @@ export namespace File {
 
   async function shouldEncode(file: BunFile): Promise<boolean> {
     const type = file.type?.toLowerCase()
-    log.info("shouldEncode", { type })
+    // [log-volume] per-read encoding probe — firehose (~70% of debug.log). Verbose-only.
+    log.debug("shouldEncode", { type })
     if (!type) return false
 
     if (type.startsWith("text/")) return false

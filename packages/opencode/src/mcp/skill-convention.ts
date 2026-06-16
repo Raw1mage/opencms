@@ -79,10 +79,11 @@ export namespace McpSkillConvention {
       }
     }
 
+    // [log-volume] skill-resolution restated every turn per app. Verbose-only.
     if (sources.length === 0) {
-      log.info("mcp app bundles no enrollable skills", { id, appRoot })
+      log.debug("mcp app bundles no enrollable skills", { id, appRoot })
     } else {
-      log.info("mcp app bundled skills resolved", {
+      log.debug("mcp app bundled skills resolved", {
         id,
         skills: sources.map((s) => s.skillName),
         declared: declaredPaths ?? null,

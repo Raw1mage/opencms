@@ -260,15 +260,20 @@ export namespace ToolRegistry {
       })
     }
 
+    // [log-volume] previously each tool emitted started+completed INFO via log.time(t.id)
+    // (~2 lines × N tools per turn). Collapsed into the single "tools: ready" checkpoint
+    // below, which now carries the slowest per-tool init timings.
+    const initMs: Record<string, number> = {}
     const result = await Promise.all(
       deduped.map(async (t) => {
-        using _ = log.time(t.id)
+        const startedAt = Date.now()
         const tool = await t.init({ agent })
         const output = {
           description: tool.description,
           parameters: tool.parameters,
         }
         await Plugin.trigger("tool.definition", { toolID: t.id }, output)
+        initMs[t.id] = Date.now() - startedAt
         return {
           id: t.id,
           source: t.source,
@@ -278,9 +283,14 @@ export namespace ToolRegistry {
         }
       }),
     )
+    const slowestInit = Object.entries(initMs)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([id, ms]) => ({ id, ms }))
     debugCheckpoint("tool.registry", "tools: ready", {
       count: result.length,
       ids: result.map((item) => item.id),
+      slowestInit,
     })
     return result
   }

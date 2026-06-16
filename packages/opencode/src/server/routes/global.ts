@@ -400,7 +400,8 @@ export const GlobalRoutes = lazy(() =>
                 )
               }
               const part = payload?.properties?.part
-              log.info("[PART-FLOW-B] forwarding part.updated to SSE", {
+              // [log-volume] per-part SSE forward trace — high-volume streaming detail. Verbose-only.
+              log.debug("[PART-FLOW-B] forwarding part.updated to SSE", {
                 connId,
                 partType: part?.type,
                 tool: part?.tool,

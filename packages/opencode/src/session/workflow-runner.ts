@@ -971,7 +971,7 @@ export async function resumePendingContinuations(input?: { maxCount?: number; pr
       resumeInFlight.delete(item.sessionID)
     }
     if (inFlight) {
-      log.info("resumePendingContinuations: skipping in-flight", { sessionID: item.sessionID })
+      log.debug("resumePendingContinuations: skipping in-flight", { sessionID: item.sessionID })
       continue
     }
     const session = await Session.get(item.sessionID).catch(() => undefined)
@@ -1002,7 +1002,8 @@ export async function resumePendingContinuations(input?: { maxCount?: number; pr
   }
 
   const maxCount = input?.maxCount ?? 1
-  log.info("resumePendingContinuations: resumable", {
+  // [log-volume] per-tick resume bookkeeping — fires every continuation tick. Verbose-only.
+  log.debug("resumePendingContinuations: resumable", {
     count: resumable.length,
     sessionIDs: resumable.map((r) => r.pending.sessionID),
   })
@@ -1011,7 +1012,7 @@ export async function resumePendingContinuations(input?: { maxCount?: number; pr
     maxCount,
     preferredSessionID: input?.preferredSessionID,
   })
-  log.info("resumePendingContinuations: selected", {
+  log.debug("resumePendingContinuations: selected", {
     count: selected.length,
     sessionIDs: selected.map((s) => s.pending.sessionID),
   })

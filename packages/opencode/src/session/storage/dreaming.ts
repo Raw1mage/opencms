@@ -545,7 +545,8 @@ export class DreamingWorker {
       // daemon restarts (which clears the in-memory list) or a code fix
       // ships for the underlying limit.
       const picked = candidates.find((c) => !this.blockedSessionIDs.has(c.sessionID))?.sessionID
-      log.info("dreaming.tick", {
+      // [log-volume] background idle-migration tick — fires on every idle interval. Verbose-only.
+      log.debug("dreaming.tick", {
         idle_for_ms: idleForMs,
         pending_count: candidates.length,
         blocked_count: this.blockedSessionIDs.size,

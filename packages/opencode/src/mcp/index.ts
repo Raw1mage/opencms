@@ -1373,6 +1373,11 @@ export namespace MCP {
    * - done when: every enabled app's bundled skills have been probed/synced or
    *   explicitly logged as skipped.
    */
+  // [log-volume] capability-sync stop verdicts are restated on every connect/turn.
+  // Keep the ERROR signal but emit it once per (app, skill, state) per process; repeats
+  // drop to debug so a persistent benign stop can't flood debug.log (~99 lines/turn).
+  const capabilitySyncStopSeen = new Set<string>()
+
   async function syncMcpBundledSkills(enabledApps: [string, McpAppStore.AppEntry][]): Promise<void> {
     for (const [id, entry] of enabledApps) {
       // plans/mcp_connect-adaptation DD-3: locate bundled skills by this MCP's
@@ -1392,7 +1397,11 @@ export namespace MCP {
           })
           if (!outcome.proceed) {
             const v = outcome.verdict
-            log.error("mcp bundled skill capability-sync stopped", {
+            const dedupKey = `${id}:${skillName}:${v.state}`
+            const firstTime = !capabilitySyncStopSeen.has(dedupKey)
+            if (firstTime) capabilitySyncStopSeen.add(dedupKey)
+            const emit = firstTime ? log.error : log.debug
+            emit("mcp bundled skill capability-sync stopped", {
               app: id,
               skill: skillName,
               state: v.state,

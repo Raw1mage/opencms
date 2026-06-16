@@ -82,7 +82,7 @@ export namespace ConnectionPool {
       applyPragmas(db)
       const durationMs = Date.now() - start
       SessionStorageMetrics.observeMs("session_open_ms", durationMs, { mode: opts.mode, cold_open: true })
-      log.info("connection.pool.acquire", { sessionID: opts.sessionID, mode: opts.mode, cold_open: true })
+      log.debug("connection.pool.acquire", { sessionID: opts.sessionID, mode: opts.mode, cold_open: true })
       return db
     }
 
@@ -90,7 +90,7 @@ export namespace ConnectionPool {
     if (cached) {
       cached.lastUsedMs = Date.now()
       SessionStorageMetrics.observeMs("session_open_ms", Date.now() - start, { mode: opts.mode, cold_open: false })
-      log.info("connection.pool.acquire", { sessionID: opts.sessionID, mode: opts.mode, cold_open: false })
+      log.debug("connection.pool.acquire", { sessionID: opts.sessionID, mode: opts.mode, cold_open: false })
       return cached.db
     }
 
@@ -126,7 +126,8 @@ export namespace ConnectionPool {
     SessionStorageMetrics.observeMs("session_open_ms", Date.now() - start, { mode: opts.mode, cold_open: true })
     SessionStorageMetrics.gauge("connection_pool_size", entries.size)
     SessionStorageMetrics.gauge("connection_pool_capacity", capacity)
-    log.info("connection.pool.acquire", { sessionID: opts.sessionID, mode: opts.mode, cold_open: true })
+    // [log-volume] per-acquire trace — high-volume. Verbose-only; cold/warm split survives in metrics.
+    log.debug("connection.pool.acquire", { sessionID: opts.sessionID, mode: opts.mode, cold_open: true })
     return db
   }
 

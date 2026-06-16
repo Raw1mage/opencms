@@ -1395,7 +1395,8 @@ export namespace Session {
     if (!broadcast) {
       // Anchor part: persisted above, but intentionally not broadcast to live
       // clients (avoids the compaction "stream swallow"). Skip PartUpdated.
-      log.info("[PART-FLOW-A] suppressed part.updated (anchor, no broadcast)", {
+      // [log-volume] per-part broadcast trace — high-volume streaming detail. Verbose-only.
+      log.debug("[PART-FLOW-A] suppressed part.updated (anchor, no broadcast)", {
         sessionID: part.sessionID,
         partId: part.id,
         partType: part.type,
@@ -1408,7 +1409,7 @@ export namespace Session {
         delta,
         textLength,
       })
-      log.info("[PART-FLOW-A] published part.updated (delta-stripped)", {
+      log.debug("[PART-FLOW-A] published part.updated (delta-stripped)", {
         sessionID: part.sessionID,
         partId: part.id,
         partType: part.type,
@@ -1420,7 +1421,7 @@ export namespace Session {
         part,
         delta,
       })
-      log.info("[PART-FLOW-A] published part.updated", {
+      log.debug("[PART-FLOW-A] published part.updated", {
         sessionID: part.sessionID,
         partId: part.id,
         partType: part.type,

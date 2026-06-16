@@ -223,7 +223,9 @@ export namespace Tool {
             throw err
           }
           const durationMs = Date.now() - startedAt
-          telemetryLog.info("tool-call", {
+          // [log-volume] per-call success telemetry — round telemetry already summarizes. Verbose-only.
+          // Failure path above stays at info() for diagnostics.
+          telemetryLog.debug("tool-call", {
             tool: id,
             ok: true,
             durationMs,
