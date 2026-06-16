@@ -1,5 +1,5 @@
 /**
- * Protocol constants extracted from @anthropic-ai/claude-code@2.1.170
+ * Protocol constants extracted from @anthropic-ai/claude-code@2.1.178
  *
  * Single file to update when official CLI upgrades.
  * Source of truth: plans/claude-provider/protocol-datasheet.md
@@ -9,6 +9,12 @@
  * (Claude Fable 5 / Mythos 5). The mid-conversation-system gate (upstream O98)
  * widened from opus-4-8-only to {opus-4-8, fable-5, mythos-5}; fable-5/mythos-5
  * join the 1M-context and 64000 max-output tiers. See docs/events.
+ *
+ * 2026-06-16: bumped 2.1.170 → 2.1.178 (fingerprint only). sync-from-cli
+ * drift-check against 2.1.178 = 53/53 PASS except the VERSION string itself;
+ * all scopes / OAuth hosts / UA / betas / model catalog / max-output unchanged.
+ * Confirmed claude-opus-4-8 is officially "Opus 4.8 (1M context)" — our 1M
+ * treatment matches upstream.
  */
 import { createHash } from "node:crypto"
 import { normalizeModelId } from "./models.js"
@@ -17,7 +23,7 @@ import { normalizeModelId } from "./models.js"
 // § 0.2  Core Constants
 // ---------------------------------------------------------------------------
 
-export const VERSION = "2.1.170"
+export const VERSION = "2.1.178"
 export const CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 export const ATTRIBUTION_SALT = "59cf53e54c78"
 export const API_VERSION = "2023-06-01"

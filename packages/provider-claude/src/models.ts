@@ -1,7 +1,7 @@
 /**
  * Claude model catalog.
  *
- * Source of truth: @anthropic-ai/claude-code@2.1.170 (LMH() output table)
+ * Source of truth: @anthropic-ai/claude-code@2.1.178 (LMH() output table)
  * + protocol-datasheet.md § 9. Verify/realign with:
  *   bun packages/provider-claude/scripts/sync-from-cli.ts
  *
