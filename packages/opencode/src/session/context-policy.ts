@@ -49,21 +49,6 @@ export const CLAUDE_CACHE_TTL_MS = 60 * 60 * 1000
  */
 export const UNDERCOUNT_CAP_RATIO = 1.5
 
-// compaction-rules (claude-only, size-based, UNCONDITIONAL of cache temperature).
-// Rule 1: C→B narrative fires when the raw un-anchored tail C exceeds
-// CLAUDE_C_NARRATIVE_TOKENS. Rule 2: B→A ai_paid fires when the whole prompt
-// exceeds CLAUDE_TOTAL_AIPAID_TOKENS (ClaudePolicy.shouldEnrichAnchor). Replaces
-// the cold-cache B-gate + the 128K anchor A-floor for claude only — a
-// rotation/rebind-induced FAKE cold does not change context SIZE, so size gates
-// are immune to that cascade (issues/bug_20260616_cold_bgate...). codex/general
-// keep their existing gates (INV-0).
-export const CLAUDE_C_NARRATIVE_TOKENS = 150_000
-export const CLAUDE_TOTAL_AIPAID_TOKENS = 225_000
-// System+preface reserve subtracted from the real promptTotal to isolate C.
-// Mirrors compaction.ts REAL_SYSTEM_RESERVE; the live finalSystemTokens is not
-// available at compaction-decision time (computed later, in prompt assembly).
-export const CLAUDE_SYSTEM_RESERVE_TOKENS = 40_000
-
 /**
  * Most recent COMPLETED assistant turn's total prompt tokens (input + cache.read
  * + cache.write), newest→oldest, skipping compaction-anchor rows (summary===true)
@@ -102,20 +87,13 @@ export interface ContextPolicy {
   itemOverflowThreshold(): number
 
   /**
-   * A-tier (background ai_paid) enrichment gate — should B→A fire?
-   * - general (INV-0): absolute aFloorTokens on the anchor size (anchorTokens ≥
-   *   aFloorTokens; the legacy ratio gate is retired).
-   * - claude (compaction-rules Rule 2): UNCONDITIONAL on the WHOLE prompt size
-   *   (realPromptTokens > CLAUDE_TOTAL_AIPAID_TOKENS), independent of the
-   *   anchor's own size, so a bloated total deep-compresses even when the
-   *   narrative anchor alone is below the old 128K floor.
+   * A-tier (background ai_paid) enrichment gate — is a just-written narrative B
+   * anchor big enough to be worth recompressing into the smaller A-tier?
+   * Both policies: absolute aFloorTokens (compaction_enrichment-ai-first DD-3/DD-8:
+   * the legacy general ratio gate (≤128K→25%, else 40%) is retired — per-provider
+   * aCompactTokens is the single trigger, unified at 128K).
    */
-  shouldEnrichAnchor(input: {
-    anchorTokens: number
-    contextLimit: number
-    aFloorTokens: number
-    realPromptTokens: number
-  }): boolean
+  shouldEnrichAnchor(input: { anchorTokens: number; contextLimit: number; aFloorTokens: number }): boolean
 
   /**
    * Gate-input floor for shouldEnrichAnchor. claude floors the chars-estimate on
@@ -152,14 +130,10 @@ class GeneralPolicy implements ContextPolicy {
     return Tweaks.compactionSync().codexItemOverflowThreshold
   }
 
-  shouldEnrichAnchor(input: {
-    anchorTokens: number
-    contextLimit: number
-    aFloorTokens: number
-    realPromptTokens: number
-  }): boolean {
-    // INV-0: general/codex keep the absolute anchor floor (realPromptTokens is
-    // accepted but ignored here — only claude uses the whole-prompt gate).
+  shouldEnrichAnchor(input: { anchorTokens: number; contextLimit: number; aFloorTokens: number }): boolean {
+    // compaction_enrichment-ai-first DD-3: absolute floor, same shape as ClaudePolicy.
+    // The legacy ratio gate (≤128K window → 25%, else 40%) is retired — it ignored
+    // the per-provider aCompactTokens config entirely (dead config since inception).
     return input.anchorTokens >= input.aFloorTokens
   }
 
@@ -191,19 +165,8 @@ class ClaudePolicy implements ContextPolicy {
     return Tweaks.compactionSync().claudeItemOverflowThreshold
   }
 
-  shouldEnrichAnchor(input: {
-    anchorTokens: number
-    contextLimit: number
-    aFloorTokens: number
-    realPromptTokens: number
-  }): boolean {
-    // compaction-rules Rule 2 (claude-only): B→A ai_paid fires UNCONDITIONALLY
-    // when the WHOLE prompt exceeds CLAUDE_TOTAL_AIPAID_TOKENS, regardless of the
-    // anchor's own size. Replaces the 128K anchor floor — that floor created a
-    // dead zone where a ~60K narrative anchor caused dense compaction (total
-    // pinned ~207K) yet was too small to ever trigger B→A, so the total never
-    // shrank (issues/bug_20260616_cold_bgate...). Gating on the total fixes that.
-    return input.realPromptTokens > CLAUDE_TOTAL_AIPAID_TOKENS
+  shouldEnrichAnchor(input: { anchorTokens: number; contextLimit: number; aFloorTokens: number }): boolean {
+    return input.anchorTokens >= input.aFloorTokens
   }
 
   gateAnchorTokens(input: { estimateTokens: number; realPromptTokens: number; systemReserveTokens: number }): number {

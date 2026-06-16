@@ -31,8 +31,6 @@ export function shouldEnrichAnchor(input: {
   anchorTokens: number
   contextLimit: number
   aFloorTokens: number
-  // compaction-rules Rule 2: claude gates B→A on the whole-prompt size.
-  realPromptTokens: number
 }): boolean {
   return resolvePolicy(input.providerId).shouldEnrichAnchor(input)
 }
