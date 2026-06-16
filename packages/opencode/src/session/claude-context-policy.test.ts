@@ -47,31 +47,34 @@ describe("claude-context-policy: event-compaction no-op (DD-4)", () => {
 describe("claude-context-policy: A-tier enrichment gate (DD-23 P4-2, enrichment-ai-first DD-8)", () => {
   const claudeFloor = 128_000 // claude-cli aCompactTokens (DD-8: unified 128K floor)
 
-  // compaction-rules Rule 2: claude now gates B→A on the WHOLE prompt size
-  // (realPromptTokens > CLAUDE_TOTAL_AIPAID_TOKENS = 225K), NOT the anchor floor.
-  it("claude: whole prompt > 225K => enrich, regardless of anchor size (even a thin anchor)", () => {
-    // A 30K anchor would NEVER have crossed the old 128K floor — but with a
-    // 230K total prompt, B→A must fire so the total actually shrinks.
-    expect(
-      shouldEnrichAnchor({
-        providerId: "claude-cli",
-        anchorTokens: 30_000,
-        contextLimit: 1_000_000,
-        aFloorTokens: claudeFloor,
-        realPromptTokens: 230_000,
-      }),
-    ).toBe(true)
-  })
-
-  it("claude: whole prompt <= 225K => skip, even with a fat anchor", () => {
-    // Anchor far above the old floor, but the total is below 225K → no B→A.
+  it("claude: anchor at/above absolute floor => enrich, regardless of 1M ratio", () => {
+    // ses_188bb5576 #6 reality: a fat anchor in a 1M window has a tiny ratio.
+    // Legacy 0.4 ratio gate skipped it; absolute floor must RUN it.
     expect(
       shouldEnrichAnchor({
         providerId: "claude-cli",
         anchorTokens: 160_000,
         contextLimit: 1_000_000,
         aFloorTokens: claudeFloor,
-        realPromptTokens: 225_000,
+      }),
+    ).toBe(true)
+    expect(
+      shouldEnrichAnchor({
+        providerId: "claude-cli",
+        anchorTokens: 128_000,
+        contextLimit: 1_000_000,
+        aFloorTokens: claudeFloor,
+      }),
+    ).toBe(true)
+  })
+
+  it("claude: anchor below absolute floor => skip (don't recompress a thin anchor)", () => {
+    expect(
+      shouldEnrichAnchor({
+        providerId: "claude-cli",
+        anchorTokens: 127_999,
+        contextLimit: 1_000_000,
+        aFloorTokens: claudeFloor,
       }),
     ).toBe(false)
     expect(
@@ -80,34 +83,19 @@ describe("claude-context-policy: A-tier enrichment gate (DD-23 P4-2, enrichment-
         anchorTokens: 30_000,
         contextLimit: 1_000_000,
         aFloorTokens: claudeFloor,
-        realPromptTokens: 200_000,
       }),
     ).toBe(false)
   })
 
-  it("non-claude keeps the absolute anchor floor (INV-0: realPromptTokens ignored on general)", () => {
-    // realPromptTokens is set HIGH to prove general does NOT use it — only the
-    // anchor floor governs codex/general (claude alone gates on the total).
+  it("non-claude uses the SAME absolute floor (DD-3/DD-8: ratio gate retired, no ratio path exists)", () => {
     // codex 272K window: anchor below 128K floor => skip, regardless of any ratio.
     expect(
-      shouldEnrichAnchor({
-        providerId: "codex",
-        anchorTokens: 127_999,
-        contextLimit: 272_000,
-        aFloorTokens: 128_000,
-        realPromptTokens: 999_999,
-      }),
+      shouldEnrichAnchor({ providerId: "codex", anchorTokens: 127_999, contextLimit: 272_000, aFloorTokens: 128_000 }),
     ).toBe(false)
     // codex: anchor at floor => enrich. Old 0.4 ratio gate would need 108.8K(0.4×272K);
     // the point is the trigger is the FLOOR, not any window proportion.
     expect(
-      shouldEnrichAnchor({
-        providerId: "codex",
-        anchorTokens: 128_000,
-        contextLimit: 272_000,
-        aFloorTokens: 128_000,
-        realPromptTokens: 0,
-      }),
+      shouldEnrichAnchor({ providerId: "codex", anchorTokens: 128_000, contextLimit: 272_000, aFloorTokens: 128_000 }),
     ).toBe(true)
     // 1M-window general provider: 160K anchor (0.16 ratio — legacy 0.4 gate said skip)
     // now enriches because it crosses the absolute floor.
@@ -117,7 +105,6 @@ describe("claude-context-policy: A-tier enrichment gate (DD-23 P4-2, enrichment-
         anchorTokens: 160_000,
         contextLimit: 1_000_000,
         aFloorTokens: 128_000,
-        realPromptTokens: 0,
       }),
     ).toBe(true)
     // Tiny anchor in any window: below floor => skip.
@@ -127,7 +114,6 @@ describe("claude-context-policy: A-tier enrichment gate (DD-23 P4-2, enrichment-
         anchorTokens: 40_000,
         contextLimit: 272_000,
         aFloorTokens: 128_000,
-        realPromptTokens: 999_999,
       }),
     ).toBe(false)
   })
@@ -136,30 +122,25 @@ describe("claude-context-policy: A-tier enrichment gate (DD-23 P4-2, enrichment-
 describe("A-tier drain gate fed by the shared estimator (anchor-unbounded-growth)", () => {
   const legacyDiv4 = (s: string) => Math.ceil(s.length / 4)
 
-  // Repointed to codex/general: claude no longer uses the anchor floor
-  // (compaction-rules Rule 2 gates claude on the total). The shared CJK-aware
-  // estimator feeding the floor gate is a general-path concern now.
   it("THE FIX: a CJK anchor that chars/4 hid below the 100K floor crosses it via the shared CJK-aware estimator", () => {
     const cjkAnchor = "字".repeat(120_000) // realistic CJK-heavy anchor
     const floor = 100_000
     // OLD inlined chars/4 = 30K → drain gate FALSE → anchor never shrinks (the bug)
     expect(
       shouldEnrichAnchor({
-        providerId: "codex",
+        providerId: "claude-cli",
         anchorTokens: legacyDiv4(cjkAnchor),
         contextLimit: 1_000_000,
         aFloorTokens: floor,
-        realPromptTokens: 0,
       }),
     ).toBe(false)
     // shared ToolBudget.estimateTokens (now CJK-aware) ≈ 120K → gate TRUE → drain fires (the fix)
     expect(
       shouldEnrichAnchor({
-        providerId: "codex",
+        providerId: "claude-cli",
         anchorTokens: ToolBudget.estimateTokens(cjkAnchor),
         contextLimit: 1_000_000,
         aFloorTokens: floor,
-        realPromptTokens: 0,
       }),
     ).toBe(true)
   })
@@ -169,11 +150,10 @@ describe("A-tier drain gate fed by the shared estimator (anchor-unbounded-growth
     expect(ToolBudget.estimateTokens(asciiAnchor)).toBe(legacyDiv4(asciiAnchor)) // byte-identical
     expect(
       shouldEnrichAnchor({
-        providerId: "codex",
+        providerId: "claude-cli",
         anchorTokens: ToolBudget.estimateTokens(asciiAnchor),
         contextLimit: 1_000_000,
         aFloorTokens: 100_000,
-        realPromptTokens: 0,
       }),
     ).toBe(false) // 30K < 100K, same as before
   })

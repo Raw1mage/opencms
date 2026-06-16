@@ -128,40 +128,27 @@ describe("gateAnchorTokensForClaude", () => {
   })
 })
 
-describe("gate integration (Rule 2): claude enrich is total-gated; codex unchanged", () => {
+describe("gate integration: under-counted anchor now fires on claude, codex unchanged", () => {
   const aFloorTokens = 100_000 // claude-cli aCompactTokens
   const contextLimit = 1_000_000
 
-  test("claude: total below 225K → no enrich (anchor size irrelevant under Rule 2)", () => {
+  test("BEFORE-style: raw under-counted estimate would skip the A-tier gate", () => {
+    // estimate 81K < 100K floor → shouldEnrichAnchor false → drop_old never runs
     expect(
-      shouldEnrichAnchor({
-        providerId: "claude-cli",
-        anchorTokens: 81_000,
-        contextLimit,
-        aFloorTokens,
-        realPromptTokens: 200_000,
-      }),
+      shouldEnrichAnchor({ providerId: "claude-cli", anchorTokens: 81_000, contextLimit, aFloorTokens }),
     ).toBe(false)
   })
 
-  test("claude: total above 225K → enrich, regardless of the anchor/gate-lift (Rule 2)", () => {
-    // gateAnchorTokens still computes the CJK/real-token lift (kept for the skip-log
-    // / codex), but it no longer drives claude's enrich — the whole prompt does.
+  test("AFTER: real-token floor lifts the gate input over the floor → enrichment fires", () => {
     const gated = gateAnchorTokensForClaude({
       providerId: "claude-cli",
       estimateTokens: 81_000,
-      realPromptTokens: 146_000,
+      realPromptTokens: 146_000, // real prompt right after a B-only compaction
       systemReserveTokens: 40_000,
     })
-    expect(gated).toBe(106_000) // lift still computed
+    expect(gated).toBe(106_000)
     expect(
-      shouldEnrichAnchor({
-        providerId: "claude-cli",
-        anchorTokens: gated,
-        contextLimit,
-        aFloorTokens,
-        realPromptTokens: 230_000,
-      }),
+      shouldEnrichAnchor({ providerId: "claude-cli", anchorTokens: gated, contextLimit, aFloorTokens }),
     ).toBe(true)
   })
 
@@ -175,7 +162,7 @@ describe("gate integration (Rule 2): claude enrich is total-gated; codex unchang
     expect(gated).toBe(81_000) // INV-0: estimate untouched
     // 81K / 1M = 0.081 < 0.4 ratio gate → still does not fire (byte-identical to before)
     expect(
-      shouldEnrichAnchor({ providerId: "codex", anchorTokens: gated, contextLimit, aFloorTokens, realPromptTokens: 999_999 }),
+      shouldEnrichAnchor({ providerId: "codex", anchorTokens: gated, contextLimit, aFloorTokens }),
     ).toBe(false)
   })
 })
