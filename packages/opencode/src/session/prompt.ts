@@ -1001,7 +1001,23 @@ export async function deriveObservedCondition(input: {
   // observable on rotation-heavy sessions as orphan turns / repeated empty
   // streams (incident 2026-05-10 ses_1ee7b8bccffeG73CQxXDDSw3og).
   if (lastAnchor) {
-    if (lastAnchor.providerId && lastAnchor.providerId !== input.pinnedProviderId) {
+    if (
+      lastAnchor.providerId &&
+      lastAnchor.providerId !== input.pinnedProviderId &&
+      // DD-12: provider switch is a FACT, not an unconditional compaction
+      // trigger — whether a takeover warrants narrative compaction is the
+      // provider strategy's call (CompactionManager.shouldCompactOnTakeover),
+      // the same SSOT the switch pre-loop consults at the top of the runloop.
+      // The centralized trigger MUST defer to it too. Otherwise a stateless
+      // full-retransmit provider (claude, shouldCompactOnTakeover=false) that
+      // deliberately writes NO takeover anchor leaves lastAnchor.providerId
+      // stale, so this guard re-fires "provider-switched" every step while the
+      // executor noops it (CLAUDE_NOOP_OBSERVED) → infinite fire→noop→fire
+      // busy-loop (observed live on ses_12fc5ddab after a codex→claude switch).
+      // Deferring here keeps the trigger consistent with the pre-loop instead of
+      // papering over it with a provider check or a needless anchor rebind.
+      CompactionManager.shouldCompactOnTakeover(input.pinnedProviderId)
+    ) {
       return "provider-switched"
     }
     if (lastAnchor.accountId && input.pinnedAccountId && lastAnchor.accountId !== input.pinnedAccountId) {
