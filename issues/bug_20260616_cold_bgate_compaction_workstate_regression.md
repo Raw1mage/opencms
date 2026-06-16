@@ -215,3 +215,31 @@ anchor.id` skip test to the filtered-view semantics, added a regression test
 Regression suite `compaction-replay-integration|deep`, `claude-refactor.inv0-
 baseline`, `dialog-serializer` (67 pass). Typecheck clean for touched files.
 **Not yet built/restarted** — takes effect on next 3R.
+
+---
+
+## Resolution (2026-06-16): claude size-based compaction triggers — LANDED on main
+
+The cold-cache B-gate was replaced (claude only; codex/general INV-0) with
+UNCONDITIONAL size triggers, because the live cascade root cause was
+rotation/rebind-induced FAKE cold: rate-limit 429 → account rotation → chain
+rebind → cache invalidated (cacheReadFraction<0.5) → cold-B fired every 1–2 min
+WITHOUT shrinking (the anchor sat ~60K, below the 128K A-floor, so B→A never
+fired and the total stayed pinned ~207K). A rebind doesn't change context SIZE,
+so size gates are immune.
+
+- **Rule 1 (C→B narrative)**: fires when the raw un-anchored tail C
+  (= realPromptTotal − anchorTokens − 40K reserve) > 150K. `evaluateSlCacheHealth`
+  (prompt.ts), claude-gated. Cascade-immune: post-fold C resets below gate.
+- **Rule 2 (B→A ai_paid)**: `ClaudePolicy.shouldEnrichAnchor` gates on the WHOLE
+  prompt (realPromptTokens > 225K), not the 128K anchor floor — kills the dead
+  zone. context-policy.ts.
+
+Validated: typecheck clean; 245 affected tests pass (incl. INV-0 baseline,
+atier-gate migration). Merged to main; beta worktree + test/beta branches
+removed; the temporary tweaks.cfg band-aid (compaction_ctx_claude-cli_b_tokens
+=500000) removed (cold-B gate gone → dead config).
+
+Follow-up (optional): claude's gateAnchorTokens CJK/undercount-floor machinery
+is now vestigial (only feeds the skip-log; codex/general still use it). Cleanup
+deferred.
