@@ -2,7 +2,7 @@
 
 - **Date**: 2026-06-16
 - **Severity**: high
-- **Status**: FIX LANDED 2026-06-16 (working-tree; pending build/restart). RCA complete; primary fix = grow the raw C-tail budget. See *Fix applied* below.
+- **Status**: CLOSED (2026-06-17, won't-fix / superseded). The size-based-trigger "Resolution" that this file claimed landed on main was **reverted** (`c2dec8405 revert(compaction): restore cold-gated 200K+ trigger`); the runtime is back on the cold-gated 200K+ trigger. The C-tail budget fix (axis 1, `bTailRounds` / cap removal) was **never committed** — `tweaks.ts` still has `bTailRounds: 1` and the working tree carries no compaction change. Per user decision (2026-06-17) the cold-B-gate work-state-fidelity line is **not being pursued further**. The other two axes documented here live on independently: **axis 2** (visible stream swallow) is tracked by `issue_20260615_stream_text_vanishes_and_regenerates.md` (OPEN); **axis 3** (silent dropped user turn) was fixed and committed (`d852214c0 fix(compaction): replay folded user turn — decide skip on filterCompacted view`). Historical RCA/fix notes below retained for reference but no longer reflect runtime state.
 - **Component**: opencode session runtime — narrative raw-tail (C-tail) projection budget
 - **Reporter**: pkcs12 (live observation in session `ses_1347b6b8bffepnVyQSPGQCfJAW`, "nimble-mountain", 資安署廠商稽核報告)
 
