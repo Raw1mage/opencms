@@ -193,6 +193,100 @@ export namespace MCP {
     )
   }
 
+  // ── Typed-arg repair (bug_20260617) ──────────────────────────────────
+  //
+  // Root cause: when the model emits a tool call in Claude's innate ANTML text
+  // format (<invoke><parameter name="x">…</parameter></invoke>),
+  // provider-claude's salvageAntmlInvokes() captures every <parameter> body as
+  // a STRING (Record<string,string>) and JSON.stringify()s the bag. So an
+  // object/number arg reaches the MCP server as the JSON-string literal
+  // '{"a":1}' / '2.5' and fails the server's JSON-schema type check, while
+  // pure string args happen to pass. Deferred/lazy MCP tools (whose full
+  // inputSchema is not on the wire) are exactly the ones the model tends to
+  // call via this text format, so they bear the brunt.
+  //
+  // Fix at the single MCP execute chokepoint (every MCP tool call, any
+  // provider, active or deferred, flows through here with the server's full
+  // schema in scope): for each top-level property the inputSchema declares as
+  // a NON-string type, if the incoming value is a string, JSON.parse it and
+  // adopt the parsed value ONLY when its runtime type matches the declared
+  // type. Conservative by construction — a property whose schema also permits
+  // `string` is left untouched (ambiguous), and a parse failure or type
+  // mismatch leaves the original string in place. This is NOT a silent
+  // fallback: it restores the type the schema explicitly demands; anything
+  // ambiguous is passed through unchanged so the server still validates.
+  function tryParseJson(value: string): unknown | undefined {
+    const trimmed = value.trim()
+    if (trimmed === "") return undefined
+    try {
+      return JSON.parse(trimmed)
+    } catch {
+      return undefined
+    }
+  }
+
+  // Returns the declared non-string types iff the schema names a concrete type
+  // that does NOT include "string"; null otherwise (= "do not coerce").
+  function declaredNonStringTypes(propSchema: JSONSchema7): Set<string> | null {
+    const t = propSchema.type
+    let types: string[]
+    if (typeof t === "string") types = [t]
+    else if (Array.isArray(t)) types = t.map((x) => String(x))
+    else return null
+    if (types.length === 0) return null
+    if (types.includes("string")) return null // ambiguous — leave as-is
+    const usable = types.filter(
+      (x) => x === "object" || x === "array" || x === "number" || x === "integer" || x === "boolean",
+    )
+    if (usable.length === 0) return null
+    return new Set(usable)
+  }
+
+  function runtimeTypeMatches(value: unknown, declared: Set<string>): boolean {
+    for (const t of declared) {
+      switch (t) {
+        case "object":
+          if (value !== null && typeof value === "object" && !Array.isArray(value)) return true
+          break
+        case "array":
+          if (Array.isArray(value)) return true
+          break
+        case "number":
+          if (typeof value === "number" && Number.isFinite(value)) return true
+          break
+        case "integer":
+          if (typeof value === "number" && Number.isInteger(value)) return true
+          break
+        case "boolean":
+          if (typeof value === "boolean") return true
+          break
+      }
+    }
+    return false
+  }
+
+  export function coerceArgsToSchema(
+    args: Record<string, unknown>,
+    schema: JSONSchema7 | undefined,
+  ): Record<string, unknown> {
+    const props = schema?.properties as Record<string, JSONSchema7> | undefined
+    if (!props) return args
+    let out: Record<string, unknown> | null = null
+    for (const [key, value] of Object.entries(args)) {
+      if (typeof value !== "string") continue
+      const propSchema = props[key]
+      if (!propSchema || typeof propSchema !== "object") continue
+      const declared = declaredNonStringTypes(propSchema)
+      if (!declared) continue
+      const parsed = tryParseJson(value)
+      if (parsed === undefined) continue
+      if (!runtimeTypeMatches(parsed, declared)) continue
+      if (!out) out = { ...args }
+      out[key] = parsed
+    }
+    return out ?? args
+  }
+
   // Convert MCP tool definition to AI SDK Tool type
   async function convertMcpTool(
     mcpTool: MCPToolDef,
@@ -238,7 +332,13 @@ export namespace MCP {
         }
         log.info("mcp tool execute: client resolved", { tool: mcpTool.name, clientKey })
 
-        const argsObj = (args || {}) as Record<string, unknown>
+        // bug_20260617: restore typed args that arrived stringified (Claude
+        // ANTML-salvage path captures every <parameter> as a string). Coerce
+        // against the server's own inputSchema BEFORE dispatch/callTool so the
+        // downstream MCP server sees object/number/array/boolean as the schema
+        // declares, not a JSON-string literal. No-op when the schema permits
+        // string or doesn't name a concrete non-string type.
+        const argsObj = coerceArgsToSchema((args || {}) as Record<string, unknown>, schema)
         // sessionID is not available through the AI SDK dynamicTool seam.
         // History entries written by the dispatcher carry null sessionId
         // for mcp-driven events; that's acceptable for traceability.
