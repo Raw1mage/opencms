@@ -1132,6 +1132,7 @@ export type Session = {
     freerunOverride?: "on" | "off"
   }
   pendingSubagentNotices?: Array<PendingSubagentNotice>
+  resumedSubagentJobIds?: Array<string>
   scheduled?: {
     jobId: string
     fireAtMs: number
@@ -3874,6 +3875,7 @@ export type GlobalSession = {
     freerunOverride?: "on" | "off"
   }
   pendingSubagentNotices?: Array<PendingSubagentNotice>
+  resumedSubagentJobIds?: Array<string>
   scheduled?: {
     jobId: string
     fireAtMs: number

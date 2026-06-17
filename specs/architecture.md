@@ -1784,6 +1784,7 @@ This architecture **restores the pre-2026-04-09 async dispatch intent** that was
 - Every `tool_use` gets a paired `tool_result` in the same turn (stub satisfies provider hard requirement)
 - Every terminal subagent finish delivers a `PendingSubagentNotice` within `DISK_GRACE_MS + WATCHDOG_INTERVAL_MS` (≤ 10 s) — even if IPC is severed
 - Each notice is consumed exactly once (per-turn atomic drain)
+- **Each subagent jobId auto-resumes the parent at most once** (bugfix/subagent-double-turn). The notice APPEND idempotency (latest-wins by jobId) and the AUTO-RESUME idempotency are SEPARATE domains. A persisted, bounded-FIFO `session.info#resumedSubagentJobIds` ledger records jobIds that already triggered a parent turn; the appender atomically claims a jobId under the lock-serialized `Session.update` before enqueuing, and `prompt.ts` folds drained jobIds into the same ledger (consumed-once). A re-fire — orphan reconcile after daemon restart (`task.ts:531`), or a near-simultaneous multi-subagent fan-out — only re-appends the notice and **never** mints a second synthetic continuation message. The appender also coalesces: if a pending continuation already exists, the queued turn drains all notices at once instead of enqueuing a duplicate. This closes the "two souls" double-turn where every completion event minted its own persisted synthetic user message and re-drove the parent each turn.
 - Main agent never blocks on subagent lifecycle
 
 Violations = P0 (user-facing orchestrator hang).

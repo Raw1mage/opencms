@@ -46790,6 +46790,12 @@
               "$ref": "#/components/schemas/PendingSubagentNotice"
             }
           },
+          "resumedSubagentJobIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "scheduled": {
             "type": "object",
             "properties": {
@@ -47774,7 +47780,7 @@
           },
           "id": {
             "description": "Unique identifier for the todo item (auto-generated if omitted)",
-            "default": "todo_mqfkxoa0_6zrayg",
+            "default": "todo_mqi35htf_u57pn0",
             "type": "string"
           },
           "action": {
@@ -55342,6 +55348,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PendingSubagentNotice"
+            }
+          },
+          "resumedSubagentJobIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           },
           "scheduled": {

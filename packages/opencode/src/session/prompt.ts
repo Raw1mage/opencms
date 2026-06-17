@@ -2620,9 +2620,7 @@ export namespace SessionPrompt {
           // window (the read-only spinning that A/B miss; see the
           // detectPrefaceParalysis docstring).
           const mutatedPerTurn = recentAssistants.map((m) =>
-            m.parts.some(
-              (p) => p.type === "tool" && PARALYSIS_PROGRESS_TOOLS.has((p as MessageV2.ToolPart).tool),
-            ),
+            m.parts.some((p) => p.type === "tool" && PARALYSIS_PROGRESS_TOOLS.has((p as MessageV2.ToolPart).tool)),
           )
           const prefaceResult = detectPrefaceParalysis({
             prefaces: texts.map((t) => t.slice(0, 140)),
@@ -3789,6 +3787,19 @@ export namespace SessionPrompt {
           // and write survive.
           const consumed = new Set(pendingNotices.map((n) => n.jobId))
           draft.pendingSubagentNotices = (draft.pendingSubagentNotices ?? []).filter((n) => !consumed.has(n.jobId))
+          // bugfix/subagent-double-turn DD-2 (consumed-once): a notice that has
+          // now been rendered into this turn's addendum must never trigger a
+          // FRESH auto-resume if its jobId re-fires later (e.g. orphan reconcile
+          // after a daemon restart). Fold the consumed jobIds into the same
+          // per-jobId resume ledger the appender consults, so a post-drain
+          // re-fire only re-appends the notice and never starts a new turn.
+          // Bounded FIFO (MAX_RESUMED_JOBIDS=64) — mirrors the appender's cap.
+          const MAX_RESUMED_JOBIDS = 64
+          const ledger = draft.resumedSubagentJobIds ?? []
+          const merged = [...ledger]
+          for (const id of consumed) if (!merged.includes(id)) merged.push(id)
+          draft.resumedSubagentJobIds =
+            merged.length > MAX_RESUMED_JOBIDS ? merged.slice(merged.length - MAX_RESUMED_JOBIDS) : merged
         }).catch(() => undefined)
       }
 

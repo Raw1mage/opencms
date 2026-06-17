@@ -412,6 +412,18 @@ export namespace Session {
       // by rendering each notice into a one-line system-prompt addendum
       // then atomically removing consumed entries.
       pendingSubagentNotices: MessageV2.PendingSubagentNotice.array().optional(),
+      // bugfix/subagent-double-turn DD-1/DD-3: per-jobId auto-resume idempotency
+      // ledger, kept in a SEPARATE idempotency domain from the append above
+      // (which dedups by latest-wins on pendingSubagentNotices). A subagent
+      // jobId whose completion has ALREADY triggered exactly one parent
+      // auto-resume is recorded here; the pending-notice-appender consults this
+      // set BEFORE enqueuing a continuation, so a re-fire (orphan reconcile on
+      // daemon restart, or a near-simultaneous duplicate event) only re-appends
+      // the notice and never starts a second parent turn. Persisted (not
+      // in-memory) precisely because the re-fire path is daemon restart, where
+      // in-memory guards are already gone. Bounded FIFO (MAX_RESUMED_JOBIDS=64)
+      // so it never grows unbounded across a long-lived session.
+      resumedSubagentJobIds: z.string().array().optional(),
       // harness/scheduled-subsession DD-2: dormant scheduling marker. When present, this
       // session is a deferred task whose runloop must NOT fire until the cron heartbeat
       // releases it (by clearing this field). While set, every autonomous resume / enqueue /
