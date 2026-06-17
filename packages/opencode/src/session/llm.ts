@@ -32,6 +32,7 @@ import { PermissionNext } from "@/permission/next"
 import { Auth } from "@/auth"
 import { Token } from "@/util/token"
 import { WorkingCache } from "./working-cache"
+import { CoerceArgs } from "@/tool/coerce-args"
 
 import z from "zod"
 import { findFallback, type ModelVector, type FallbackStrategy, isVectorRateLimited } from "@/account/rotation3d"
@@ -2248,7 +2249,19 @@ export namespace LLM {
             // empty — the SDK coerces "" → {}). Malformed JSON falls back to the
             // `invalid` redirect so it self-heals via our InvalidTool rather
             // than the AI SDK's native invalid-tool-call path.
-            const rawInput = failed.toolCall.input
+            // Typed-arg repair (bug_20260617): the ANTML-salvage path
+            // (provider-claude) stringifies EVERY <parameter> body, so an
+            // array/object/number arg arrives as a JSON-string literal
+            // (`"[\"daemon\"]"`). Under the Active Loader this is the dominant
+            // path for deferred tools (off the wire → no structured tool_use
+            // slot). Coerce against the just-unlocked tool's own schema BEFORE
+            // pass-through so the value matches what the tool's zod parse
+            // demands; conservative — only re-types fields whose schema names a
+            // concrete non-string type and whose parsed value matches.
+            const rawInput = CoerceArgs.coerceToolCallInput(
+              failed.toolCall.input,
+              CoerceArgs.jsonSchemaOf(lazyTool),
+            )
             const inputParseable =
               typeof rawInput !== "string" ||
               rawInput.trim() === "" ||
@@ -2263,6 +2276,7 @@ export namespace LLM {
             if (inputParseable) {
               return {
                 ...failed.toolCall,
+                input: rawInput,
                 toolName,
               }
             }
@@ -2292,6 +2306,24 @@ export namespace LLM {
         // Internal-execution failures still throw and surface as before.
         const activeHit = tools[toolName] ?? tools[lower]
         if (activeHit) {
+          // Typed-arg repair, second seam (bug_20260617): a deferred tool
+          // already unlocked earlier IN THIS SAME request is in the active set,
+          // so a repeat ANTML-salvaged call skips the lazy branch above and its
+          // stringified typed args fail the tool's zod parse here. Try the same
+          // schema-aware coercion; if it actually changed the input, re-run the
+          // corrected call instead of burning the turn on an `invalid` redirect.
+          const coerced = CoerceArgs.coerceToolCallInput(failed.toolCall.input, CoerceArgs.jsonSchemaOf(activeHit))
+          if (coerced !== failed.toolCall.input) {
+            l.info("typed-arg coercion repaired active-tool call — re-running", {
+              sessionID: input.sessionID,
+              tool: toolName,
+            })
+            return {
+              ...failed.toolCall,
+              input: coerced,
+              toolName: tools[toolName] ? toolName : lower,
+            }
+          }
           const alwaysPresent = ALWAYS_PRESENT_TOOLS.has(toolName) || ALWAYS_PRESENT_TOOLS.has(lower)
           l.warn("tool call schema validation failed — redirecting to invalid for self-heal", {
             sessionID: input.sessionID,
