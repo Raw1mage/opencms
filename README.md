@@ -367,9 +367,27 @@ templates/             XDG 部署模板
 
 ---
 
+## 近期變更與已知問題
+
+完整變更紀錄見 [CHANGELOG.md](CHANGELOG.md);根因／決策留痕見 [`docs/events/`](docs/events/),issue 生命週期見 [`issues/`](issues/)。
+
+**近期變更（2026-06-17）**
+
+- typed-args 修復:object/number/array 工具參數不再被當字串轉送而被下游 schema reject（共用 `tool/coerce-args.ts` 在 MCP + llm 兩個 seam 統一 coercion）。
+- tool-loader 改為誠實 shim 訊息;task per-jobId auto-resume 冪等性修復。
+- compaction 還原 claude cold-gated 200K+ 觸發（撤回 size-only Rule 1）。
+
+**已知問題（open issues 摘要）**
+
+- typed-args 已部署,待真實 session 端到端驗收後轉 observing。
+- 前端 stream 文字偶發「先顯示後抽回再重生」(`issue_20260615_stream_text_vanishes`)。
+- warm 長壽 subagent 工作記憶不受治理（size-gate 永不觸發,修法待設計）。
+- 全 repo baseline cleanup 收尾中;2 個非機械性 skip 待真修。
+
 ## 延伸文件
 
 - [系統架構總覽](specs/architecture.md)
 - [per-chapter 規格 wiki](specs/README.md)
 - [事件記錄與運維文件](docs/)
+- [變更紀錄（CHANGELOG）](CHANGELOG.md)
 - [專案開發指引（AGENTS.md）](AGENTS.md)
