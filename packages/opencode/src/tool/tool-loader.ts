@@ -164,9 +164,10 @@ export function resolveToolLoaderRequest(available: Set<string>, requested: stri
 // sits in the cached tools→system→messages prefix), or every lazy unlock would
 // churn the whole prefix → full rd=0 cold. This string never changes.
 export const TOOL_LOADER_STATIC_DESCRIPTION =
-  "Load additional on-demand tools into this session by name — they become available on your next action. " +
-  "The catalog of loadable tools is listed in your context (the lazy-tool catalog). " +
-  'Pass tool names as an array: tool_loader({ tools: ["bash", "edit"] }).'
+  "Compatibility shim — usually unnecessary. The deferred tools listed in your context (the lazy-tool catalog) " +
+  "are ALREADY directly callable: just call one and it auto-loads on first use. " +
+  "Use this only to confirm a name resolves (e.g. an app/namespace alias) before calling it; " +
+  'pass tool names as an array: tool_loader({ tools: ["bash", "edit"] }). It does not gate callability.'
 
 // Retained for any caller still wanting the inline catalog; the active tool_loader
 // path uses TOOL_LOADER_STATIC_DESCRIPTION instead (DD-21).
@@ -239,6 +240,53 @@ export function formatLazyCatalogPrompt(lazyTools: Map<string, { description?: s
   return lines.join("\n")
 }
 
+/**
+ * Build the user/AI-facing output for a tool_loader resolution.
+ *
+ * Active Loader (DD-21): deferred tools are NEVER promoted into the wire
+ * tools[] set — resolveTools keeps the cached prefix byte-immutable and the
+ * real unlock happens request-locally via experimental_repairToolCall when the
+ * model CALLS the tool. So tool_loader does not gate callability; the tools in
+ * the <deferred-tools> catalog are already directly callable. This output must
+ * therefore NOT claim "available on your next action" (the old wording was a
+ * lie that made agents wait a turn for a callable that never arrives — see
+ * issues/issue_20260617_tool_loader_loaded_tool_not_callable.md). Pulled out as
+ * a pure function so the messaging contract is regression-testable without a ctx.
+ */
+export function formatLoaderOutput(resolution: ToolLoaderResolution): { title: string; output: string } {
+  const { found, notFound, aliases, ambiguous } = resolution
+  const lines: string[] = []
+  if (found.length > 0) {
+    lines.push(
+      `These tools are available — call them directly now: ${found.join(", ")}. ` +
+        "No tool_loader round-trip is needed; deferred tools auto-load on first use.",
+    )
+  }
+  for (const alias of aliases) {
+    lines.push(`Resolved alias ${alias.requested} → ${alias.resolved.join(", ")}.`)
+  }
+  for (const item of ambiguous) {
+    lines.push(`Ambiguous tool alias ${item.requested}; candidates: ${item.candidates.join(", ")}.`)
+  }
+  if (notFound.length > 0) {
+    lines.push(
+      `ERROR — tools not found: ${notFound.join(", ")}. ` +
+        "These tools do not exist in the current tool pool. " +
+        "Possible causes: the MCP server providing them is not connected, " +
+        "the tool name is misspelled, or the tool is not registered. " +
+        "Check MCP server status and tool catalog before retrying.",
+    )
+  }
+
+  const allFailed = found.length === 0
+  return {
+    title: allFailed
+      ? `Failed to load ${notFound.length} tool(s)`
+      : `${found.length} tool(s) ready${notFound.length > 0 ? `, ${notFound.length} not found` : ""}`,
+    output: lines.join("\n"),
+  }
+}
+
 export const ToolLoaderTool = Tool.define("tool_loader", async () => ({
   description: "Load additional tools into this session. Use this to unlock tools not currently available.",
   parameters: z.object({
@@ -253,28 +301,7 @@ export const ToolLoaderTool = Tool.define("tool_loader", async () => ({
       UnlockedTools.unlock(ctx.sessionID, found)
     }
 
-    const lines: string[] = []
-    if (found.length > 0) {
-      lines.push(`Loaded tools: ${found.join(", ")}. They are available on your next action.`)
-    }
-    if (aliases.length > 0) {
-      for (const alias of aliases) {
-        lines.push(`Resolved alias ${alias.requested} → ${alias.resolved.join(", ")}.`)
-      }
-    }
-    if (ambiguous.length > 0) {
-      for (const item of ambiguous) {
-        lines.push(`Ambiguous tool alias ${item.requested}; candidates: ${item.candidates.join(", ")}.`)
-      }
-    }
     if (notFound.length > 0) {
-      lines.push(
-        `ERROR — tools not found: ${notFound.join(", ")}. ` +
-          "These tools do not exist in the current tool pool. " +
-          "Possible causes: the MCP server providing them is not connected, " +
-          "the tool name is misspelled, or the tool is not registered. " +
-          "Check MCP server status and tool catalog before retrying.",
-      )
       log.warn("tool_loader: requested tools not in available pool", {
         sessionID: ctx.sessionID,
         notFound,
@@ -282,13 +309,9 @@ export const ToolLoaderTool = Tool.define("tool_loader", async () => ({
       })
     }
 
-    const allFailed = found.length === 0
     return {
-      title: allFailed
-        ? `Failed to load ${notFound.length} tool(s)`
-        : `Loaded ${found.length} tool(s)${notFound.length > 0 ? `, ${notFound.length} not found` : ""}`,
+      ...formatLoaderOutput({ found, notFound, aliases, ambiguous }),
       metadata: { truncated: false as const },
-      output: lines.join("\n"),
     }
   },
 }))

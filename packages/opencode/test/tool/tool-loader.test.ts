@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import { ALWAYS_PRESENT_TOOLS, buildCatalog, resolveToolLoaderRequest } from "../../src/tool/tool-loader"
+import {
+  ALWAYS_PRESENT_TOOLS,
+  buildCatalog,
+  formatLoaderOutput,
+  resolveToolLoaderRequest,
+} from "../../src/tool/tool-loader"
 
 describe("tool-loader alias resolution", () => {
   const available = new Set([
@@ -44,6 +49,47 @@ describe("tool-loader alias resolution", () => {
     expect(conflict.ambiguous).toEqual([
       { requested: "restart_self", candidates: ["other_restart_self", "system-manager_restart_self"] },
     ])
+  })
+})
+
+describe("tool-loader honest output (issue_20260617)", () => {
+  test("direct-tool load reports callable-now, never 'available on your next action'", () => {
+    const resolution = resolveToolLoaderRequest(new Set(["system-manager_rename_session", "bash"]), [
+      "system-manager_rename_session",
+    ])
+    const { output, title } = formatLoaderOutput(resolution)
+
+    expect(resolution.found).toEqual(["system-manager_rename_session"])
+    // The old lie that caused the bug must be gone.
+    expect(output).not.toContain("available on your next action")
+    expect(output).not.toContain("Loaded tools")
+    // The honest contract: deferred tools are directly callable now.
+    expect(output).toContain("call them directly now")
+    expect(output).toContain("system-manager_rename_session")
+    expect(title).toBe("1 tool(s) ready")
+  })
+
+  test("alias load resolves and still reports callable-now without next-action wording", () => {
+    const available = new Set([
+      "system-manager_get_system_status",
+      "system-manager_restart_self",
+      "system-manager_set_log_level",
+    ])
+    const resolution = resolveToolLoaderRequest(available, ["system-manager"])
+    const { output } = formatLoaderOutput(resolution)
+
+    expect(output).toContain("call them directly now")
+    expect(output).toContain("Resolved alias system-manager →")
+    expect(output).not.toContain("available on your next action")
+  })
+
+  test("all-not-found yields a failure title and the error guidance", () => {
+    const resolution = resolveToolLoaderRequest(new Set(["bash"]), ["does_not_exist"])
+    const { output, title } = formatLoaderOutput(resolution)
+
+    expect(title).toBe("Failed to load 1 tool(s)")
+    expect(output).toContain("ERROR — tools not found: does_not_exist")
+    expect(output).not.toContain("call them directly now")
   })
 })
 
