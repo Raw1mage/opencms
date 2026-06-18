@@ -449,6 +449,34 @@ export const PARALYSIS_PREFACE_SIM_THRESHOLD = 0.6
 // progress, which vetoes Detector D (so genuine batch-edit work, whose turns
 // share a preface but actually mutate files, never trips it).
 export const PARALYSIS_PROGRESS_TOOLS = new Set(["write", "edit", "multiedit", "apply_patch"])
+// No-op meta-tools: calling them has no side effect (e.g. tool_loader is a
+// compatibility shim — the deferred tools it "loads" are already directly
+// callable). When perseveration repeats one of these, the generic "try a
+// different action" nudge is too vague to break the loop; the model needs the
+// concrete escape ("stop calling the shim, call the real tool"). DD-2, see
+// issues/bug_20260618_post_compaction_tool_loader_perseveration_noop_shim.md.
+export const PARALYSIS_NOOP_META_TOOLS = new Set(["tool_loader"])
+
+/**
+ * Pick the 3-turn paralysis nudge text. Pure so the messaging contract is
+ * regression-testable without a runloop (mirrors formatLoaderOutput). DD-2:
+ * a no-op meta-tool loop (e.g. tool_loader) gets a directional escape instead
+ * of the generic "try a different action", which empirically did not break the
+ * loop (bug_20260618_post_compaction_tool_loader_perseveration_noop_shim).
+ */
+export function selectParalysisNudge(input: {
+  detector: "signature" | "narrative" | "preface"
+  repeatedToolName?: string
+}): string {
+  const { detector, repeatedToolName } = input
+  if (detector === "signature" && repeatedToolName && PARALYSIS_NOOP_META_TOOLS.has(repeatedToolName)) {
+    return `${repeatedToolName} 是 no-op 相容 shim，呼叫它不會有任何效果。停止呼叫 ${repeatedToolName}，直接呼叫你要用的目標工具（它已可直接呼叫）。`
+  }
+  if (detector === "signature") {
+    return "你連續 3 輪呼叫了同一個 tool 加同樣參數。停下來想想：是不是該檢查當前實際狀態，而不是重複 plan？換一個動作。"
+  }
+  return "你連續 3 輪講了非常相似的計畫但沒實際前進。停下來換一條路徑 — 檢查 state、嘗試不同 tool、或直接告訴 user 你卡在哪。"
+}
 
 /**
  * Detector D — preface perseveration with no real progress.
@@ -2710,10 +2738,12 @@ export namespace SessionPrompt {
                 similarity,
                 samplePrefix,
               })
-              const nudgeText =
-                detector === "signature"
-                  ? "你連續 3 輪呼叫了同一個 tool 加同樣參數。停下來想想：是不是該檢查當前實際狀態，而不是重複 plan？換一個動作。"
-                  : "你連續 3 輪講了非常相似的計畫但沒實際前進。停下來換一條路徑 — 檢查 state、嘗試不同 tool、或直接告訴 user 你卡在哪。"
+              // DD-2: a no-op meta-tool loop (tool_loader) gets a directional
+              // escape; see selectParalysisNudge.
+              const repeatedToolName = recentAssistants[0]?.parts
+                .filter((p) => p.type === "tool")
+                .map((p) => (p as MessageV2.ToolPart).tool)[0]
+              const nudgeText = selectParalysisNudge({ detector, repeatedToolName })
               const nudgeUser: MessageV2.User = {
                 id: Identifier.ascending("message"),
                 sessionID,
