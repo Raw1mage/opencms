@@ -1,0 +1,114 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "bare_chat_session data contracts",
+  "description": "opencode daemon bare/passthrough session 的 request/response 契約。對應 design.md DD-1..DD-9。",
+  "definitions": {
+    "CreateSessionRequest": {
+      "type": "object",
+      "description": "POST /api/v2/session — 開一個 session（bare 與一般共用此端點）",
+      "properties": {
+        "title": { "type": "string", "description": "session 標題，如 'cecelearn-小雞老師'" },
+        "parentID": { "type": "string", "pattern": "^ses.*", "description": "父 session（bare session 不需要，省略）" },
+        "permission": { "type": "object", "description": "PermissionRuleset；bare session 由 reserved agent 帶最小權限" }
+      },
+      "additionalProperties": false
+    },
+    "CreateSessionResponse": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^ses.*", "description": "session id，後續 message 用" }
+      },
+      "required": ["id"]
+    },
+    "ModelPin": {
+      "type": "object",
+      "description": "固定帳號 pin（DD-6 POC）。providerId+modelID 必填；accountId 帶了即 pin 該帳號、不走 rotation",
+      "properties": {
+        "providerId": { "type": "string", "description": "POC 固定 'claude-cli'" },
+        "modelID": { "type": "string", "description": "POC 固定 'claude-opus-4-8'" },
+        "accountId": { "type": "string", "description": "POC 固定 'claude-cli-subscription-claude-cli-d5002de6' (yeatsluo@g.ncu.edu.tw)" }
+      },
+      "required": ["providerId", "modelID"],
+      "additionalProperties": false
+    },
+    "OutputFormatJsonSchema": {
+      "type": "object",
+      "description": "結構化輸出（DD-5）。daemon 轉成 StructuredOutput tool + toolChoice required；Claude 上強制生效",
+      "properties": {
+        "type": { "type": "string", "enum": ["json_schema"] },
+        "schema": { "type": "object", "description": "呼叫端的 JSON Schema，如 cecelearn intent enum + payload" }
+      },
+      "required": ["type", "schema"],
+      "additionalProperties": false
+    },
+    "BareMessageRequest": {
+      "type": "object",
+      "description": "POST /api/v2/session/{id}/message — bare session 送一輪對話。對應現有 message API schema 子集",
+      "properties": {
+        "agent": {
+          "type": "string",
+          "enum": ["bare"],
+          "description": "DD-1：reserved agent 'bare' 觸發 passthrough（清零人格層 + 無內建工具 + 不 continuation）"
+        },
+        "system": {
+          "type": "string",
+          "description": "DD-2：呼叫端自己的 system prompt（小雞老師 persona）。bare 模式下這是唯一注入的 system 層"
+        },
+        "format": {
+          "$ref": "#/definitions/OutputFormatJsonSchema",
+          "description": "可選；要結構化輸出時帶（DD-5）"
+        },
+        "model": {
+          "$ref": "#/definitions/ModelPin",
+          "description": "DD-6：POC 帶固定帳號 pin。省略則走帳號池（生產 DD-7 邊界，POC 不用）"
+        },
+        "parts": {
+          "type": "array",
+          "description": "對話內容；bare 一輪通常一個 text part",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "enum": ["text"] },
+              "text": { "type": "string" }
+            },
+            "required": ["type", "text"]
+          },
+          "minItems": 1
+        }
+      },
+      "required": ["agent", "system", "parts"],
+      "additionalProperties": true
+    },
+    "BareMessageResponse": {
+      "type": "object",
+      "description": "bare session 回應。帶 format 時 structured 為 schema 受限 JSON；否則純 reply 文字",
+      "properties": {
+        "structured": {
+          "type": "object",
+          "description": "DD-5：format=json_schema 時，模型經 StructuredOutput tool 產出的 schema 受限 JSON（= 呼叫端 schema 的實例）"
+        },
+        "text": { "type": "string", "description": "無 format 時的自由文字回應" },
+        "finish": { "type": "string", "description": "結束原因（stop / tool-calls / rate_limited ...）" }
+      }
+    },
+    "StructuredOutputError": {
+      "type": "object",
+      "description": "DD-5/DD-8：帶 format 但模型未產出結構化輸出時的明確錯誤（非靜默回自由文字，天條 #11）",
+      "properties": {
+        "error": { "type": "string", "enum": ["StructuredOutputError"] },
+        "message": { "type": "string" },
+        "retries": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["error", "message"]
+    },
+    "FailFastError": {
+      "type": "object",
+      "description": "DD-8：bare 模式違規（指定帳號不存在 / 被要求注入非 userSystem 層 / provider 不支援強制結構化卻要求 format）→ 明確報錯，不 silent fallback（天條 #11）",
+      "properties": {
+        "error": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "required": ["error", "message"]
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-06-18T11:49:41.094Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-06-18T12:40:46.034Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "designed artifacts complete: spec.md/design.md(Goals heading fixed)/data-schema.json/grafcet.json/c4.json(top-level systems/containers/components/relationships)/sequence.json(array); IDEF0+GRAFCET drawmiat-validated with SVG"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-06-18T13:08:05.236Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "planned artifacts complete: tasks.md(8 phases incl beta admission/fetch-back/cleanup)/handoff.md(beta authority SSOT)/test-vectors.json(8 vectors as array)/errors.md/observability.md"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-06-18T13:14:36.706Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "User approved 開工; entering beta-workflow admission. baseBranch=main, implementationBranch=beta/bare-chat-session"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-06-18T16:35:44.479Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "POC validated over unix socket (start_dictation structured intent, zero persona contamination, pinned account, one-shot, no built-in tools); finalized test→main (b69e7e6e9); daemon rebuilt on main; cleanup done; architecture.md synced. All TV checks resolved (TV4/StructuredOutputError N/A — soft structured output on claude-cli, absorbed by cecelearn cascade)."
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-06-18T16:40:00.177Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "User-confirmed graduation to daemon family (external same-host caller borrows daemon conversation layer over unix socket). POC-validated, finalized to main b69e7e6e9."
+    }
+  ]
+}

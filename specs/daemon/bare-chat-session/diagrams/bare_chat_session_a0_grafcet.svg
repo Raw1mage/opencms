@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="922" height="1440" viewBox="2.00 -2.00 46.11 72.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.action-inner{fill:none;stroke:#111;stroke-width:.08}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="2.00" y="-2.00" width="46.11" height="72.00" fill="white"/>
+<path class="edge edge-arrow" data-edge-id="edge:S0O1S1I1" data-segment-ids="S0O1S1I1:1S" d="M 22.37 7.00 L 22.37 11.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S1O1S2I1" data-segment-ids="S1O1S2I1:1S" d="M 22.37 14.00 L 22.37 18.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S2O1S3I1" data-segment-ids="S2O1S3I1:1S" d="M 22.37 21.00 L 22.37 25.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S3O1G1I1" data-segment-ids="S3O1G1I1:1S" d="M 22.37 28.00 L 22.37 30.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:G1O1S4I1" data-segment-ids="G1O1S4I1:1S" d="M 34.74 30.00 L 34.74 34.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:G1O2S5I1" data-segment-ids="G1O2S5I1:1S" d="M 22.37 30.00 L 22.37 34.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S4O1G3I1" data-segment-ids="S4O1G3I1:1S" d="M 34.74 37.00 L 34.74 57.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:G3O1S9I1" data-segment-ids="G3O1S9I1:1S" d="M 22.37 57.00 L 22.37 59.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S5O1S6I1" data-segment-ids="S5O1S6I1:1S" d="M 22.37 37.00 L 22.37 41.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S6O1G2I1" data-segment-ids="S6O1G2I1:1S" d="M 22.37 44.00 L 22.37 46.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:G2O1S7I1" data-segment-ids="G2O1S7I1:1S" d="M 10.00 46.00 L 10.00 50.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:G2O2S8I1" data-segment-ids="G2O2S8I1:1S" d="M 22.37 46.00 L 22.37 50.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S7O1G3I2" data-segment-ids="S7O1G3I2:1S" d="M 10.00 53.00 L 10.00 57.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S8O1G3I3" data-segment-ids="S8O1G3I3:1S" d="M 22.37 53.00 L 22.37 57.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S9O1S0I1" data-segment-ids="S9O1S0I1:1S S9O1S0I1:2W S9O1S0I1:3N S9O1S0I1:4E S9O1S0I1:5S" d="M 22.37 62.00 L 22.37 65.50 Q 22.37 66.00 21.87 66.00 L 6.50 66.00 Q 6.00 66.00 6.00 65.50 L 6.00 2.50 Q 6.00 2.00 6.50 2.00 L 21.87 2.00 Q 22.37 2.00 22.37 2.50 L 22.37 4.00"/>
+<rect class="step" x="20.37" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="20.62" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="22.37" y="5.50">0</text>
+<rect class="step" x="20.37" y="11.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="22.37" y="12.50">1</text>
+<rect class="step" x="20.37" y="18.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="22.37" y="19.50">2</text>
+<rect class="step" x="20.37" y="25.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="22.37" y="26.50">3</text>
+<rect class="step" x="32.74" y="34.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="34.74" y="35.50">4</text>
+<rect class="step" x="20.37" y="34.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="22.37" y="35.50">5</text>
+<rect class="step" x="20.37" y="41.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="22.37" y="42.50">6</text>
+<rect class="step" x="8.00" y="50.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="10.00" y="51.50">7</text>
+<rect class="step" x="20.37" y="50.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="22.37" y="51.50">8</text>
+<rect class="step" x="20.37" y="59.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="22.37" y="60.50">9</text>
+<line class="assoc" x1="24.37" y1="5.50" x2="25.37" y2="5.50"/>
+<rect class="action" x="25.37" y="4.07" width="6.37" height="2.86"/>
+<text class="action-label" x="28.55" y="5.09"><tspan x="28.55" dy="0">Idle — await bare</tspan><tspan x="28.55" dy="0.82">message on unix socket</tspan></text>
+<line class="assoc" x1="24.37" y1="12.50" x2="25.37" y2="12.50"/>
+<rect class="action" x="25.37" y="11.07" width="6.37" height="2.86"/>
+<text class="action-label" x="28.55" y="11.68"><tspan x="28.55" dy="0">Parse request:</tspan><tspan x="28.55" dy="0.82">agent=bare, system,</tspan><tspan x="28.55" dy="0.82">format, model, parts</tspan></text>
+<line class="assoc" x1="24.37" y1="19.50" x2="25.37" y2="19.50"/>
+<rect class="action" x="25.37" y="18.07" width="6.37" height="2.86"/>
+<text class="action-label" x="28.55" y="18.68"><tspan x="28.55" dy="0">Assemble bare system</tspan><tspan x="28.55" dy="0.82">block via buildStaticBlock</tspan><tspan x="28.55" dy="0.82">(userSystem only)</tspan></text>
+<line class="assoc" x1="24.37" y1="26.50" x2="25.37" y2="26.50"/>
+<rect class="action" x="25.37" y="25.07" width="6.37" height="2.86"/>
+<text class="action-label" x="28.55" y="25.68"><tspan x="28.55" dy="0">Resolve pinned account</tspan><tspan x="28.55" dy="0.82">from model triple (claude-</tspan><tspan x="28.55" dy="0.82">cli, fixed accountId)</tspan></text>
+<line class="assoc" x1="36.74" y1="35.50" x2="37.74" y2="35.50"/>
+<rect class="action" x="37.74" y="34.07" width="6.37" height="2.86"/>
+<text class="action-label" x="40.93" y="34.68"><tspan x="40.93" dy="0">Fail-fast: pinned account</tspan><tspan x="40.93" dy="0.82">not found → return</tspan><tspan x="40.93" dy="0.82">error (no silent fallback)</tspan></text>
+<line class="assoc" x1="24.37" y1="35.50" x2="25.37" y2="35.50"/>
+<rect class="action" x="25.37" y="34.07" width="6.37" height="2.86"/>
+<text class="action-label" x="28.55" y="34.68"><tspan x="28.55" dy="0">Execute Claude turn with</tspan><tspan x="28.55" dy="0.82">StructuredOutput tool</tspan><tspan x="28.55" dy="0.82">+ toolChoice required</tspan></text>
+<line class="assoc" x1="24.37" y1="42.50" x2="25.37" y2="42.50"/>
+<rect class="action" x="25.37" y="41.07" width="6.37" height="2.86"/>
+<text class="action-label" x="28.55" y="42.09"><tspan x="28.55" dy="0">Inspect LLM finish:</tspan><tspan x="28.55" dy="0.82">tool-call present?</tspan></text>
+<line class="assoc" x1="12.00" y1="51.50" x2="13.00" y2="51.50"/>
+<rect class="action" x="13.00" y="50.07" width="6.37" height="2.86"/>
+<text class="action-label" x="16.19" y="50.68"><tspan x="16.19" dy="0">Capture structured</tspan><tspan x="16.19" dy="0.82">JSON from</tspan><tspan x="16.19" dy="0.82">StructuredOutput tool</tspan></text>
+<line class="assoc" x1="24.37" y1="51.50" x2="25.37" y2="51.50"/>
+<rect class="action" x="25.37" y="50.07" width="6.37" height="2.86"/>
+<text class="action-label" x="28.55" y="50.68"><tspan x="28.55" dy="0">Emit StructuredOutputError</tspan><tspan x="28.55" dy="0.82">(model produced no</tspan><tspan x="28.55" dy="0.82">structured output)</tspan></text>
+<line class="assoc" x1="24.37" y1="60.50" x2="25.37" y2="60.50"/>
+<rect class="action" x="25.37" y="59.07" width="6.37" height="2.86"/>
+<text class="action-label" x="28.55" y="59.68"><tspan x="28.55" dy="0">Return response over</tspan><tspan x="28.55" dy="0.82">socket; no autorun</tspan><tspan x="28.55" dy="0.82">continuation (passthrough)</tspan></text>
+<line class="gate" x1="20.37" y1="30.00" x2="36.74" y2="30.00"/>
+<line class="gate" x1="8.00" y1="57.00" x2="36.74" y2="57.00"/>
+<line class="gate" x1="8.00" y1="46.00" x2="24.37" y2="46.00"/>
+<line class="gate" x1="21.37" y1="9.00" x2="23.37" y2="9.00" data-label-kind="condition-stub" data-edge-id="edge:S0O1S1I1" data-arrow-id="condition_stub:T1" data-transition-id="T1" data-condition-stub-id="condition_stub:T1"/>
+<text class="gate-label" x="23.77" y="9.00" data-label-kind="condition-stub" data-edge-id="edge:S0O1S1I1" data-arrow-id="condition_stub:T1" data-transition-id="T1" data-condition-stub-id="condition_stub:T1"><tspan x="23.77" dy="0">bare_message_received</tspan></text>
+<line class="gate" x1="21.37" y1="16.00" x2="23.37" y2="16.00" data-label-kind="condition-stub" data-edge-id="edge:S1O1S2I1" data-arrow-id="condition_stub:T2" data-transition-id="T2" data-condition-stub-id="condition_stub:T2"/>
+<text class="gate-label" x="23.77" y="16.00" data-label-kind="condition-stub" data-edge-id="edge:S1O1S2I1" data-arrow-id="condition_stub:T2" data-transition-id="T2" data-condition-stub-id="condition_stub:T2"><tspan x="23.77" dy="0">request_valid</tspan></text>
+<line class="gate" x1="21.37" y1="23.00" x2="23.37" y2="23.00" data-label-kind="condition-stub" data-edge-id="edge:S2O1S3I1" data-arrow-id="condition_stub:T3" data-transition-id="T3" data-condition-stub-id="condition_stub:T3"/>
+<text class="gate-label" x="23.77" y="23.00" data-label-kind="condition-stub" data-edge-id="edge:S2O1S3I1" data-arrow-id="condition_stub:T3" data-transition-id="T3" data-condition-stub-id="condition_stub:T3"><tspan x="23.77" dy="0">system_block_assembled</tspan></text>
+<line class="gate" x1="33.74" y1="32.00" x2="35.74" y2="32.00" data-label-kind="condition-stub" data-edge-id="edge:G1O1S4I1" data-arrow-id="condition_stub:T4" data-transition-id="T4" data-condition-stub-id="condition_stub:T4"/>
+<text class="gate-label" x="36.14" y="32.00" data-label-kind="condition-stub" data-edge-id="edge:G1O1S4I1" data-arrow-id="condition_stub:T4" data-transition-id="T4" data-condition-stub-id="condition_stub:T4"><tspan x="36.14" dy="0">account_not_found</tspan></text>
+<line class="gate" x1="21.37" y1="32.00" x2="23.37" y2="32.00" data-label-kind="condition-stub" data-edge-id="edge:G1O2S5I1" data-arrow-id="condition_stub:T5" data-transition-id="T5" data-condition-stub-id="condition_stub:T5"/>
+<text class="gate-label-left" x="20.97" y="32.00" data-label-kind="condition-stub" data-edge-id="edge:G1O2S5I1" data-arrow-id="condition_stub:T5" data-transition-id="T5" data-condition-stub-id="condition_stub:T5"><tspan x="20.97" dy="0">account_resolved</tspan></text>
+<line class="gate" x1="33.74" y1="55.00" x2="35.74" y2="55.00" data-label-kind="condition-stub" data-edge-id="edge:S4O1G3I1" data-arrow-id="condition_stub:T6" data-transition-id="T6" data-condition-stub-id="condition_stub:T6"/>
+<text class="gate-label" x="36.14" y="55.00" data-label-kind="condition-stub" data-edge-id="edge:S4O1G3I1" data-arrow-id="condition_stub:T6" data-transition-id="T6" data-condition-stub-id="condition_stub:T6"><tspan x="36.14" dy="0">error_returned</tspan></text>
+<line class="gate" x1="21.37" y1="39.00" x2="23.37" y2="39.00" data-label-kind="condition-stub" data-edge-id="edge:S5O1S6I1" data-arrow-id="condition_stub:T7" data-transition-id="T7" data-condition-stub-id="condition_stub:T7"/>
+<text class="gate-label" x="23.77" y="39.00" data-label-kind="condition-stub" data-edge-id="edge:S5O1S6I1" data-arrow-id="condition_stub:T7" data-transition-id="T7" data-condition-stub-id="condition_stub:T7"><tspan x="23.77" dy="0">llm_turn_complete</tspan></text>
+<line class="gate" x1="9.00" y1="48.00" x2="11.00" y2="48.00" data-label-kind="condition-stub" data-edge-id="edge:G2O1S7I1" data-arrow-id="condition_stub:T8" data-transition-id="T8" data-condition-stub-id="condition_stub:T8"/>
+<text class="gate-label-left" x="5.80" y="47.66" data-label-kind="condition-stub" data-edge-id="edge:G2O1S7I1" data-arrow-id="condition_stub:T8" data-transition-id="T8" data-condition-stub-id="condition_stub:T8"><tspan x="5.80" dy="0">structured_</tspan><tspan x="5.80" dy="0.68">present</tspan></text>
+<line class="gate" x1="21.37" y1="48.00" x2="23.37" y2="48.00" data-label-kind="condition-stub" data-edge-id="edge:G2O2S8I1" data-arrow-id="condition_stub:T9" data-transition-id="T9" data-condition-stub-id="condition_stub:T9"/>
+<text class="gate-label" x="23.77" y="48.00" data-label-kind="condition-stub" data-edge-id="edge:G2O2S8I1" data-arrow-id="condition_stub:T9" data-transition-id="T9" data-condition-stub-id="condition_stub:T9"><tspan x="23.77" dy="0">structured_absent</tspan></text>
+<line class="gate" x1="9.00" y1="55.00" x2="11.00" y2="55.00" data-label-kind="condition-stub" data-edge-id="edge:S7O1G3I2" data-arrow-id="condition_stub:T10" data-transition-id="T10" data-condition-stub-id="condition_stub:T10"/>
+<text class="gate-label-left" x="5.80" y="54.66" data-label-kind="condition-stub" data-edge-id="edge:S7O1G3I2" data-arrow-id="condition_stub:T10" data-transition-id="T10" data-condition-stub-id="condition_stub:T10"><tspan x="5.80" dy="0">structured_</tspan><tspan x="5.80" dy="0.68">captured</tspan></text>
+<line class="gate" x1="21.37" y1="55.00" x2="23.37" y2="55.00" data-label-kind="condition-stub" data-edge-id="edge:S8O1G3I3" data-arrow-id="condition_stub:T11" data-transition-id="T11" data-condition-stub-id="condition_stub:T11"/>
+<text class="gate-label" x="23.77" y="55.00" data-label-kind="condition-stub" data-edge-id="edge:S8O1G3I3" data-arrow-id="condition_stub:T11" data-transition-id="T11" data-condition-stub-id="condition_stub:T11"><tspan x="23.77" dy="0">error_emitted</tspan></text>
+<line class="gate" x1="21.37" y1="64.00" x2="23.37" y2="64.00" data-label-kind="condition-stub" data-edge-id="edge:S9O1S0I1" data-arrow-id="condition_stub:T12" data-transition-id="T12" data-condition-stub-id="condition_stub:T12"/>
+<text class="gate-label" x="23.77" y="64.00" data-label-kind="condition-stub" data-edge-id="edge:S9O1S0I1" data-arrow-id="condition_stub:T12" data-transition-id="T12" data-condition-stub-id="condition_stub:T12"><tspan x="23.77" dy="0">response_sent</tspan></text>
+</svg>

@@ -1,0 +1,27 @@
+{
+  "diagram_title": "Provide Bare Chat Session",
+  "node_reference": "A0",
+  "activities": [
+    { "id": "A1", "title": "Receive Bare Session Request", "description": "經 unix socket 接收外部 app 的 create-session 與 message 請求（agent=bare / system / format / model / parts）", "decomposition": null },
+    { "id": "A2", "title": "Assemble Bare System Prompt", "description": "對 buildStaticBlock 只開 userSystem 層，清零 driver/agent/agentsMd/systemMd/identity（layer-zeroing 鏡像）", "decomposition": null },
+    { "id": "A3", "title": "Resolve Pinned Account", "description": "解析 model 三元組固定 pin 帳號（claude-cli/claude-opus-4-8/accountId），不走 rotation", "decomposition": null },
+    { "id": "A4", "title": "Execute Claude Dialogue Turn", "description": "用固定帳號 OAuth 憑證打 Claude provider，帶 format→StructuredOutput tool + toolChoice required", "decomposition": "A4" },
+    { "id": "A5", "title": "Capture Structured Output", "description": "捕獲 StructuredOutput tool 產出的 schema 受限 JSON；未產出則發 StructuredOutputError（fail-fast）", "decomposition": null }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "Bare Message Request (agent/system/format/model/parts)", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "Unix Socket Trust Boundary", "type": "control" },
+    { "id": "AR3", "source": "A1:output", "target": "A2:input", "label": "Caller System Prompt", "type": "output" },
+    { "id": "AR4", "source": "A1:output", "target": "A3:input", "label": "Model Pin Triple", "type": "output" },
+    { "id": "AR5", "source": "A1:output", "target": "A4:input", "label": "Conversation Parts", "type": "output" },
+    { "id": "AR6", "source": "EXTERNAL", "target": "A2:control", "label": "Bare Agent Layer-Zeroing Policy", "type": "control" },
+    { "id": "AR7", "source": "A2:output", "target": "A4:input", "label": "Bare System Block (userSystem only)", "type": "output" },
+    { "id": "AR8", "source": "A3:output", "target": "A4:control", "label": "Pinned Account Credentials", "type": "control" },
+    { "id": "AR9", "source": "EXTERNAL", "target": "A4:control", "label": "Output Format json_schema", "type": "control" },
+    { "id": "AR10", "source": "A4:output", "target": "A5:input", "label": "LLM Tool-Call Result", "type": "output" },
+    { "id": "AR11", "source": "A5:output", "target": "EXTERNAL", "label": "Structured JSON Response", "type": "output" },
+    { "id": "AR12", "source": "EXTERNAL", "target": "A4:mechanism", "label": "Claude Provider (OAuth subscription)", "type": "mechanism" },
+    { "id": "AR13", "source": "EXTERNAL", "target": "A3:mechanism", "label": "accounts.json claude-cli family", "type": "mechanism" },
+    { "id": "AR14", "source": "EXTERNAL", "target": "A2:mechanism", "label": "buildStaticBlock", "type": "mechanism" }
+  ]
+}
