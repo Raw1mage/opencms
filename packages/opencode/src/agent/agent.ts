@@ -210,6 +210,20 @@ export namespace Agent {
           user,
         ),
       },
+      // bare: passthrough chat session for external same-host callers (e.g. cecelearn).
+      // spec: plans/bare_chat_session — DD-1/DD-2/DD-3/DD-4.
+      // No agent prompt (empty); the ONLY system prompt is the caller's `input.system`,
+      // assembled via the bare branch in llm.ts buildStaticBlock (driver/AGENTS.md/SYSTEM.md/
+      // identity all zeroed). Deny-all tools so no opencode built-in tools are mounted;
+      // the format:json_schema StructuredOutput tool is still injected by prompt.ts.
+      bare: {
+        name: "bare",
+        mode: "primary",
+        options: {},
+        native: true,
+        hidden: true,
+        permission: PermissionNext.merge(defaults, PermissionNext.fromConfig({ "*": "deny" }), user),
+      },
     }
   }
 

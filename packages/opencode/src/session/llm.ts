@@ -836,20 +836,53 @@ export namespace LLM {
         `Current Role: ${subagentSession ? "Subagent" : "Main Agent"}\n` +
         `Session Context: ${subagentSession ? "Sub-task" : "Main-task Orchestration"}`
 
+      // bare/passthrough session (plans/bare_chat_session DD-1/DD-2): when the
+      // reserved `bare` agent is active, the ONLY system layer is the caller's
+      // userSystem. driver / agent / AGENTS.md / SYSTEM.md / identity are all
+      // zeroed so an external same-host caller (e.g. cecelearn) gets a clean
+      // conversation with no opencode persona contamination. This is the mirror
+      // of the codex driverOnlyBlock below (which keeps only `driver`).
+      // Strictly gated on agentName === "bare" so every normal session keeps the
+      // full 7-layer assembly byte-identical (R1).
+      const isBareSession = input.agent.name === "bare"
+      if (isBareSession) {
+        // DD-8 fail-fast (天條 #11): bare promises ONLY the caller's userSystem.
+        // driver / systemMd / identity are opencode-internal and zeroing them
+        // IS the feature — never an error. But `agent` (agent.prompt) and
+        // `agentsMd` (input.agentsMd) are caller/agent-influenced; for a
+        // correctly-configured bare agent both are empty. If either carries
+        // content, something is trying to inject a non-userSystem persona layer
+        // — fail loudly rather than silently dropping it.
+        if (agentText.trim() !== "" || agentsMdText.trim() !== "") {
+          throw new Error(
+            `BARE_LAYER_INJECTION_VIOLATION: bare session must inject only userSystem; ` +
+              `got non-empty agent(len=${agentText.length})/agentsMd(len=${agentsMdText.length}) layer`,
+          )
+        }
+      }
       const tuple: StaticSystemTuple = {
         family,
         accountId: currentAccountId ?? undefined,
         modelId: input.model.id,
         agentName: input.agent.name,
         role: subagentSession ? "subagent" : "main",
-        layers: {
-          driver: driverText,
-          agent: agentText,
-          agentsMd: agentsMdText,
-          userSystem: userSystemText,
-          systemMd: systemMdText,
-          identity: identityText,
-        },
+        layers: isBareSession
+          ? {
+              driver: "",
+              agent: "",
+              agentsMd: "",
+              userSystem: userSystemText,
+              systemMd: "",
+              identity: "",
+            }
+          : {
+              driver: driverText,
+              agent: agentText,
+              agentsMd: agentsMdText,
+              userSystem: userSystemText,
+              systemMd: systemMdText,
+              identity: identityText,
+            },
       }
       const staticBlock = buildStaticBlock(tuple)
 
