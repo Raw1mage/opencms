@@ -76,7 +76,26 @@ export namespace PostCompaction {
    * still has substance.
    */
   export function buildContinueText(items: FollowUp[]): string {
+    // post-compaction/continue-fallback-restore (2026-06-18, bug_20260618_
+    // compaction_continue_injection_empty_text_runloop_stall): the runtime-state
+    // resend retirement (49e171bcd, 2026-05-13) correctly stopped re-sending
+    // runtime state as duplicate-authority natural language — but it ALSO zeroed
+    // this generic fallback, which is the ONLY thing that gives
+    // injectContinueAfterAnchor's synthetic Continue message substance. With
+    // empty text the injector silently no-ops (`empty_continue_text`), so
+    // INJECT_CONTINUE[*]=true became a dead contract and EVERY auto-compaction
+    // (cache-aware / overflow / idle / empty-response) stalled the runloop at
+    // `no_user_after_compaction`. Restore a STATELESS directive only: it carries
+    // no runtime state (gather() stays [] → `items` is never read → no duplicate
+    // authority), it just keeps the agentic loop driving across the fold; the
+    // trailing "if there is no further work, stop" clause prevents busy-spin.
+    // The state-carrying path stays retired — `items` is intentionally ignored.
     void items
-    return ""
+    return (
+      "Compaction completed. Continue from where you left off and follow your existing plan. " +
+      "Do NOT re-establish work the runtime already tracks (todos, loaded skills, child sessions, " +
+      "working cache) — only call setup/establishing tools when introducing genuinely new structure. " +
+      "If there is no further work, stop with a brief summary."
+    )
   }
 }
