@@ -28,6 +28,7 @@ import { FormatError } from "./cli/error"
 import { ServeCommand } from "./cli/cmd/serve"
 import { DebugCommand } from "./cli/cmd/debug"
 import { StatsCommand } from "./cli/cmd/stats"
+import { SkillCommand } from "./cli/cmd/skill"
 import { McpCommand } from "./cli/cmd/mcp"
 import { GithubCommand } from "./cli/cmd/github"
 import { ExportCommand } from "./cli/cmd/export"
@@ -165,6 +166,7 @@ const cli = yargs(hideBin(process.argv))
   .command(FreerunPauseCommand)
   .command(FreerunResumeCommand)
   .command(StatsCommand)
+  .command(SkillCommand)
   .command(ExportCommand)
   .command(ImportCommand)
   .command(GithubCommand)

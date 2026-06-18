@@ -95,7 +95,13 @@ export namespace CapabilitySyncExec {
     const src = sourceDir.endsWith(path.sep) ? sourceDir : sourceDir + path.sep
     const dst = targetLeaf.endsWith(path.sep) ? targetLeaf : targetLeaf + path.sep
 
-    const args = ["-a"]
+    // --checksum: decide transfers by CONTENT, not size+mtime. capability-sync is a
+    // content-hash-addressed model (version IS the source hash); without this, a
+    // same-size edit within rsync's 1s mtime granularity is silently skipped while
+    // the sidecar is still rewritten to "current" — a false-current projection.
+    // Fixed in capability-sync/skill-resync (skills are tiny, so the checksum cost
+    // is negligible).
+    const args = ["-a", "--checksum"]
     if (projection.delete) args.push("--delete")
     for (const inc of projection.rsyncIncludes ?? []) args.push("--include", inc)
     const excludes = [...BASE_EXCLUDES, ...(projection.rsyncExcludes ?? [])]
@@ -388,6 +394,13 @@ export namespace CapabilitySyncExec {
     reload?: () => void | Promise<void>
     ttlMs?: number
     forceRefresh?: boolean
+    /**
+     * acceptSource (capability-sync/skill-resync DD-5): explicit operator override.
+     * On a stop caused by `xdg-drift`/`xdg-newer` (the leaf was hand-edited), treat
+     * the repo as the SSOT and re-project over the drifted leaf instead of refusing.
+     * Never weakens the default no-silent-fallback: without this flag the stop stands.
+     */
+    acceptSource?: boolean
   }): Promise<PreflightOutcome> {
     // Resolve the authoritative skill source dir. When the convention resolver
     // supplied an explicit sourceDir (DD-3), honor it; otherwise fall back to
@@ -463,7 +476,14 @@ export namespace CapabilitySyncExec {
       if (installed) await stampProbeTtl(installed, args.ttlMs)
       return { proceed: true }
     }
-    if (verdict.action === "stop") return { proceed: false, verdict }
+    if (verdict.action === "stop") {
+      // acceptSource override (skill-resync DD-5): only a hand-edited leaf
+      // (xdg-drift / xdg-newer) is reconcilable, and only on the explicit flag.
+      // invalid / sync-failed and any other stop are NEVER auto-resolved.
+      const reconcilable = verdict.state === "xdg-drift" || verdict.state === "xdg-newer"
+      if (!(args.acceptSource && reconcilable)) return { proceed: false, verdict }
+      // fall through to re-project repo -> leaf (repo is SSOT).
+    }
 
     // action === "sync-then-reload"
     const scan: CapabilityScanner.ScanResult = { manifest: repo, declaredHash: repo.hash, computedHash: repo.hash }
@@ -491,5 +511,104 @@ export namespace CapabilitySyncExec {
   async function stampProbeTtl(installed: CapabilityManifest.Installed, ttlMs?: number): Promise<void> {
     const until = new Date(Date.now() + (ttlMs ?? DEFAULT_PROBE_TTL_MS)).toISOString()
     await CapabilityInstalled.writeInstalled({ ...installed, probeCachedUntil: until })
+  }
+
+  /**
+   * SkillStatus — read-only freshness verdict for an MCP-bundled skill
+   * (capability-sync/skill-resync M1). `managed:false` = the app ships no such
+   * skill dir (scope boundary). Otherwise `state` is the resolver classification.
+   */
+  export type SkillStatus =
+    | { skillName: string; managed: false }
+    | {
+        skillName: string
+        managed: true
+        state: CapabilityResolver.State
+        action: CapabilityResolver.Action
+        repoHash: string
+        leafHash?: string
+        installedAt?: string
+        reason?: string
+      }
+
+  /**
+   * statusMcpSkill
+   * - what: classify an MCP-bundled skill's projection freshness WITHOUT acting
+   *   (no rsync, no reload, no sidecar write). Reuses CapabilityResolver.resolve so
+   *   the verdict agrees with preflightMcpSkill (skill-resync DD-6).
+   * - input: the same addressing as preflightMcpSkill (skillName / mcpAppPath /
+   *   sourceDir? / projectionPath).
+   * - output: SkillStatus — managed:false when no such skill dir, else the resolver
+   *   state (current / repo-newer / xdg-drift / xdg-newer / missing / invalid) plus
+   *   the source and on-disk leaf hashes.
+   * - NOT: it does NOT consult/refresh the TTL — TTL is a sync optimization, not a
+   *   freshness fact; status always recomputes hashes, so a within-TTL stale repo
+   *   is still reported `repo-newer` (the silent-staleness this feature closes).
+   * - done when: a SkillStatus is returned.
+   */
+  export async function statusMcpSkill(args: {
+    skillName: string
+    mcpAppPath: string
+    sourceDir?: string
+    projectionPath: string
+  }): Promise<SkillStatus> {
+    const skillDir = args.sourceDir ?? path.join(args.mcpAppPath, "skills", args.skillName)
+    try {
+      const stat = await fs.stat(skillDir)
+      if (!stat.isDirectory()) return { skillName: args.skillName, managed: false }
+    } catch {
+      return { skillName: args.skillName, managed: false }
+    }
+
+    // Mirror preflightMcpSkill's hashing exactly so status and sync never disagree.
+    const hashPolicy: CapabilityManifest.HashPolicy = {
+      algorithm: "sha256",
+      excludes: MCP_SKILL_EXCLUDES,
+      normalize: { lineEndings: "lf", sortEntries: true },
+    }
+    const computedHash = await CapabilityHash.computeSourceHash(
+      args.mcpAppPath,
+      [path.posix.join("skills", args.skillName)],
+      hashPolicy,
+    )
+    const repo = synthesizeMcpSkillManifest({
+      skillName: args.skillName,
+      mcpAppPath: args.mcpAppPath,
+      projectionPath: args.projectionPath,
+      computedHash,
+    })
+
+    let installed: CapabilityManifest.Installed | undefined
+    try {
+      installed = await CapabilityInstalled.readInstalled(args.projectionPath)
+    } catch (err: any) {
+      if (CapabilityManifest.InvalidError.isInstance(err)) {
+        const v = CapabilityResolver.invalidVerdict(repo.id, repo.kind, err.data.message)
+        return {
+          skillName: args.skillName,
+          managed: true,
+          state: v.state,
+          action: v.action,
+          repoHash: computedHash,
+          reason: v.diagnostic?.reason,
+        }
+      }
+      throw err
+    }
+
+    let leafHash: string | undefined
+    if (installed) leafHash = await CapabilityInstalled.currentProjectionHash(args.projectionPath, repo.hashPolicy)
+
+    const verdict = CapabilityResolver.resolve({ repo, installed, freshProjectionHash: leafHash })
+    return {
+      skillName: args.skillName,
+      managed: true,
+      state: verdict.state,
+      action: verdict.action,
+      repoHash: computedHash,
+      leafHash,
+      installedAt: installed?.installedAt,
+      reason: verdict.diagnostic?.reason,
+    }
   }
 }

@@ -126,7 +126,14 @@ export namespace CapabilityResolver {
     }
 
     // 3. xdg-newer: installed claims a newer version than the repo => SSOT violation.
-    if (compareVersions(installed.version, repo.version) > 0) {
+    //    SKIPPED for hash-versioned capabilities (ssotOrigin="external-mcp-repo", e.g.
+    //    MCP-bundled skills): their version IS the content hash (`0.0.0+<hash>`), which
+    //    has no recency ordering, so a lexical "installed > repo" is a FALSE POSITIVE.
+    //    A plain repo edit whose new hash sorts below the old must classify as
+    //    repo-newer and sync — not stop. (Bug fixed in capability-sync/skill-resync:
+    //    this false xdg-newer silently refused ~half of all skill edits at connect.)
+    //    Genuine leaf hand-edits are still caught above as xdg-drift (projectionHash).
+    if (repo.ssotOrigin !== "external-mcp-repo" && compareVersions(installed.version, repo.version) > 0) {
       return {
         ...base,
         state: "xdg-newer",
