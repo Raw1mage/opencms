@@ -359,6 +359,48 @@
         ]
       },
       {
+        "intent": "pptx / presentation / slide deck authoring and surgery",
+        "keywords": [
+          "pptx",
+          ".pptx",
+          "簡報",
+          "投影片",
+          "slide",
+          "slides",
+          "deck",
+          "presentation",
+          "powerpoint",
+          "母片",
+          "slide master",
+          "甘特圖",
+          "做簡報",
+          "改簡報",
+          "新增投影片"
+        ],
+        "requires_mcp": [
+          "docxmcp"
+        ],
+        "prefer": [
+          "skill:pptx",
+          "docxmcp_pptx_read",
+          "docxmcp_pptx_revise",
+          "docxmcp_pptx_edit",
+          "docxmcp_pptx_xsd_validate",
+          "docxmcp_template_vault"
+        ],
+        "fallback": [
+          "docxmcp_pptx_render from a canvas src package — ONLY for greenfield decks with no master; canvas-flatten silently drops <table>/<style> and bakes background into per-slide shapes, so never use it to edit a deck that already has a master"
+        ],
+        "notes": [
+          "TOOLCHAIN DISCIPLINE (highest priority): pptx read/inspect/surgery/validate ALWAYS go through docxmcp_pptx_* toolcalls. NEVER reflexively open bash to unzip+grep+python the OOXML — that is the #1 recurring failure. The pptx skill's own Quick Reference demos `python -m markitdown`/`unpack.py`/`unzip`, which are that skill's native idiom, NOT this environment's preferred path; here docxmcp toolcalls win.",
+          "Map bash-reflex → correct toolcall: read a slide's shapes (id/geometry/text) = docxmcp_pptx_read(action=shapes, index=N); read master/layouts = action=layouts; decompose = docxmcp_document(action=decompose, format=pptx); extract full text = read the decompose-produced content_list.json / deck.md; edit text/format/position byte-preserving = docxmcp_pptx_revise (single shape) or docxmcp_pptx_edit (doc_dir, batch action takes ops[]); duplicate a slide as template = docxmcp_pptx_revise(action=duplicate_slide, insert_after=N); add slide = docxmcp_pptx_edit(action=add_slide_from_layout|add_shape); validate = docxmcp_pptx_xsd_validate / docxmcp_pptx_canvas_lint.",
+          "bash is allowed ONLY for: uploading a tarball into a token namespace, downloading produced files back to host, and `command -v` prechecks. Structural read/write never touches bash.",
+          "Delivery contract (fail-fast): min font ≥16pt (docxmcp_pptx_canvas_lint min_font_pt=16); background defined by master/layout bgRef NOT per-slide full-bleed shapes; no decorative accent line under titles; render ok=true ≠ correct (table-drop / background-bake are silent); visual QA MUST use a fresh-eyes subagent over rendered images, ≥1 fix-and-verify loop.",
+          "Brand templates live in the Template Vault: docxmcp_template_vault(action=list) to find an existing brand, action=import to pull it, then docxmcp_pptx_revise to fill content on the real master (background/fonts/logo all inherited). bo-foundation-isms (global) = 威權統治時期被害者權利回復基金會 ISMS brand.",
+          "Editing a deck that already has a master: NEVER round-trip through canvas re-render — it re-bakes background shapes and accent lines that prior master-surgery removed. Stay in the OOXML/docxmcp_pptx_* path."
+        ]
+      },
+      {
         "intent": "plan / spec / wiki knowledge base lifecycle (plan-builder)",
         "keywords": [
           "plan",
