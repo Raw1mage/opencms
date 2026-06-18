@@ -185,26 +185,46 @@ export function renderSection(entries: ToolIndexEntry[]): string {
 }
 
 /**
+ * DD-4 (anti-perseveration): floor of most-recent entries always kept across
+ * truncation. A post-compaction model that loses its recent tool trace
+ * reflexively re-issues redundant setup calls (no-op tool_loader loops — see
+ * issues/bug_20260618_post_compaction_tool_loader_perseveration_noop_shim.md);
+ * keeping the last N tool name+status lets it know "I just did/didn't do X".
+ */
+export const RETAIN_RECENT_MIN = 10
+
+/**
  * INV-6 size ceiling: trim entries so the rendered section is below
  * approximately maxBytes. Drops oldest entries first; appends a placeholder
  * row noting the truncation. Returns the trimmed array plus a truncatedCount.
+ *
+ * DD-4 floor: never trims below the most recent `RETAIN_RECENT_MIN` entries.
+ * If even that floor exceeds the budget, the retained entries are rendered with
+ * args_brief/output_chars stripped (name+status only) to shrink them — the
+ * recent trace is more load-bearing for self-memory than its arg detail.
  */
 export function applyBudget(
   entries: ToolIndexEntry[],
   maxBytes: number,
 ): { entries: ToolIndexEntry[]; truncatedCount: number } {
   if (entries.length === 0) return { entries, truncatedCount: 0 }
+  const floor = Math.min(RETAIN_RECENT_MIN, entries.length)
   let trimmed = entries
   let truncated = 0
-  while (trimmed.length > 0) {
+  while (trimmed.length > floor) {
     const rendered = renderSection(trimmed)
     if (Buffer.byteLength(rendered, "utf8") <= maxBytes) break
     trimmed = trimmed.slice(1)
     truncated += 1
   }
+  // Floor still over budget → strip args/body on the retained recent entries so
+  // their name+status survive (DD-4: keep the trace, drop the detail).
+  if (truncated > 0 && Buffer.byteLength(renderSection(trimmed), "utf8") > maxBytes) {
+    trimmed = trimmed.map((e) => ({ ...e, args_brief: "—", output_chars: 0 }))
+  }
   if (truncated > 0) {
     const placeholder: ToolIndexEntry = {
-      tool_call_id: `(truncated ${truncated} earlier entries — recall by guessing id from narrative)`,
+      tool_call_id: `(truncated ${truncated} earlier entries — recent ${trimmed.length} kept below; older recall by narrative)`,
       tool_name: "—",
       args_brief: "—",
       status: "unknown",

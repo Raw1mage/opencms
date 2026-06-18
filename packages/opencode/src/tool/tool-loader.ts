@@ -252,14 +252,21 @@ export function formatLazyCatalogPrompt(lazyTools: Map<string, { description?: s
  * lie that made agents wait a turn for a callable that never arrives — see
  * issues/issue_20260617_tool_loader_loaded_tool_not_callable.md). Pulled out as
  * a pure function so the messaging contract is regression-testable without a ctx.
+ *
+ * Terminal-message contract (DD-1, anti-perseveration): for found tools the
+ * output is callable-now AND terminal — it tells the model to stop calling
+ * tool_loader and invoke the real tool directly, instead of the old encouraging
+ * "call them directly now" phrasing that a post-compaction model re-read as a
+ * setup step and looped on (see
+ * issues/bug_20260618_post_compaction_tool_loader_perseveration_noop_shim.md).
  */
 export function formatLoaderOutput(resolution: ToolLoaderResolution): { title: string; output: string } {
   const { found, notFound, aliases, ambiguous } = resolution
   const lines: string[] = []
   if (found.length > 0) {
     lines.push(
-      `These tools are available — call them directly now: ${found.join(", ")}. ` +
-        "No tool_loader round-trip is needed; deferred tools auto-load on first use.",
+      `These tools are already directly callable — invoke ${found.join(", ")} now with real arguments. ` +
+        "tool_loader is a NO-OP for them and was unnecessary; do NOT call tool_loader again — just call the tool.",
     )
   }
   for (const alias of aliases) {
