@@ -4,7 +4,7 @@
 - **嚴重度**：high（每次自動壓縮都中斷 agentic 工具迴圈；使用者須手動再戳一下才續跑）
 - **元件**：opencode session runtime — `compaction.injectContinueAfterAnchor` ×`PostCompaction.buildContinueText` × prompt runloop `no_user_after_compaction` 退出點
 - **回報者**：pkcs12（live，session `ses_127a8a471ffeNvACvK7B21xanG`，cms.thesmart.cc）
-- **狀態**：OPEN（RCA 完成、fix plan 待批准實作）
+- **狀態**：FIX COMMITTED（`4373fb9d4`，主修：還原 stateless Continue fallback + 回歸測試）— **待 3R 上線 + live 驗證**。縱深防護（runloop-side finishReason 區分）暫不做，等主修上線觀察一輪再評估。
 
 ## 症狀
 
