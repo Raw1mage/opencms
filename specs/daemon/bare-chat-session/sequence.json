@@ -1,0 +1,18 @@
+[
+  {
+    "id": "P1",
+    "name": "cecelearn 經 bare session 取得結構化 intent（POC 固定 Claude 帳號）",
+    "componentRef": ["A1", "A2", "A3", "A4", "A5"],
+    "messages": [
+      { "id": "MSG1", "from": "cecelearn Backend", "to": "Bare Session Handler", "label": "POST /api/v2/session/{id}/message { agent:'bare', system:<小雞老師>, format:json_schema, model:{claude-cli,claude-opus-4-8,pinned accountId}, parts }", "stepRef": 1 },
+      { "id": "MSG2", "from": "Bare Session Handler", "to": "Bare Session Handler", "label": "buildStaticBlock 只開 userSystem 層（清零 driver/agent/AGENTS.md/SYSTEM.md/identity）", "stepRef": 2 },
+      { "id": "MSG3", "from": "Bare Session Handler", "to": "Account Resolver", "label": "解析固定 pin 帳號（不走 rotation）", "stepRef": 3 },
+      { "id": "MSG4", "from": "Account Resolver", "to": "Bare Session Handler", "label": "回固定帳號 OAuth 憑證；或 account_not_found → fail-fast", "stepRef": 4 },
+      { "id": "MSG5", "from": "Bare Session Handler", "to": "Claude Provider", "label": "執行對話：bare system + StructuredOutput tool + toolChoice required", "stepRef": 5 },
+      { "id": "MSG6", "from": "Claude Provider", "to": "Claude Backend", "label": "Claude Messages API（Bearer OAuth），tool_choice→{type:any}", "stepRef": 5 },
+      { "id": "MSG7", "from": "Claude Backend", "to": "Claude Provider", "label": "SSE stream：tool_use StructuredOutput(args=schema 實例)", "stepRef": 5 },
+      { "id": "MSG8", "from": "Claude Provider", "to": "Bare Session Handler", "label": "回 tool-call 結果；檢查 structured 有無", "stepRef": 6 },
+      { "id": "MSG9", "from": "Bare Session Handler", "to": "cecelearn Backend", "label": "回 schema 受限 JSON；或 StructuredOutputError（無 silent fallback）；不觸發 continuation", "stepRef": 7 }
+    ]
+  }
+]

@@ -1,0 +1,233 @@
+[
+  {
+    "id": "TV1",
+    "name": "bare session system prompt 只含呼叫端內容（無污染）",
+    "requirementRef": "Bare session 只用呼叫端 system prompt",
+    "input": {
+      "endpoint": "POST /api/v2/session/{id}/message",
+      "body": {
+        "agent": "bare",
+        "system": "你是「小雞老師」，親切的台灣小學老師。",
+        "parts": [
+          {
+            "type": "text",
+            "text": "你好"
+          }
+        ]
+      }
+    },
+    "expected": {
+      "llm_system_prompt_contains": [
+        "你是「小雞老師」"
+      ],
+      "llm_system_prompt_excludes": [
+        "AGENTS.md",
+        "SYSTEM.md",
+        "IDENTITY REINFORCEMENT",
+        "Orchestrator",
+        "plan-builder"
+      ],
+      "verify_via": "daemon log/trace 的 system block 內容"
+    }
+  },
+  {
+    "id": "TV2",
+    "name": "一般 top-level session 七層組裝零退化（回歸）",
+    "requirementRef": "一般 session 不受影響",
+    "input": {
+      "endpoint": "POST /api/v2/session/{id}/message",
+      "body": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "hi"
+          }
+        ]
+      }
+    },
+    "expected": {
+      "llm_system_prompt_contains": [
+        "AGENTS.md 或 SYSTEM.md 來源內容",
+        "IDENTITY REINFORCEMENT"
+      ],
+      "verify_via": "對照未改前 baseline"
+    }
+  },
+  {
+    "id": "TV3",
+    "name": "bare + json_schema 在 Claude 上強制結構化（POC 端到端）",
+    "requirementRef": "帶 json_schema 在 Claude 上強制結構化",
+    "input": {
+      "endpoint": "POST /api/v2/session/{id}/message",
+      "body": {
+        "agent": "bare",
+        "system": "你是小雞老師。判斷小朋友意圖並輸出結構化結果。",
+        "format": {
+          "type": "json_schema",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "intent": {
+                "type": "string",
+                "enum": [
+                  "start_dictation",
+                  "start_idiom",
+                  "chat"
+                ]
+              },
+              "reply": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "intent",
+              "reply"
+            ]
+          }
+        },
+        "model": {
+          "providerId": "claude-cli",
+          "modelID": "claude-opus-4-8",
+          "accountId": "claude-cli-subscription-claude-cli-d5002de6"
+        },
+        "parts": [
+          {
+            "type": "text",
+            "text": "我要練習聽寫"
+          }
+        ]
+      }
+    },
+    "expected": {
+      "structured": {
+        "intent": "start_dictation",
+        "reply": "<非空引導語>"
+      },
+      "schema_valid": true,
+      "verify_via": "回應 structured 欄位符合 schema，intent=start_dictation"
+    }
+  },
+  {
+    "id": "TV4",
+    "name": "模型未產出結構化 → StructuredOutputError（非 silent）",
+    "requirementRef": "模型未產出結構化輸出時明確報錯",
+    "input": {
+      "note": "難以穩定觸發；以 mock provider 或注入 finish=stop 無 tool-call 的情境測試"
+    },
+    "expected": {
+      "error": "StructuredOutputError",
+      "no_silent_freeform": true
+    }
+  },
+  {
+    "id": "TV5",
+    "name": "固定帳號 pin 不走 rotation",
+    "requirementRef": "POC 固定帳號",
+    "input": {
+      "body": {
+        "agent": "bare",
+        "system": "...",
+        "model": {
+          "providerId": "claude-cli",
+          "modelID": "claude-opus-4-8",
+          "accountId": "claude-cli-subscription-claude-cli-d5002de6"
+        },
+        "parts": [
+          {
+            "type": "text",
+            "text": "你好"
+          }
+        ]
+      }
+    },
+    "expected": {
+      "used_account": "claude-cli-subscription-claude-cli-d5002de6",
+      "rotation_triggered": false,
+      "cross_family_fallback": false,
+      "verify_via": "daemon log 的 account 選擇紀錄"
+    }
+  },
+  {
+    "id": "TV6",
+    "name": "指定不存在帳號 → fail-fast",
+    "requirementRef": "指定帳號不存在時 fail-fast",
+    "input": {
+      "body": {
+        "agent": "bare",
+        "system": "...",
+        "model": {
+          "providerId": "claude-cli",
+          "modelID": "claude-opus-4-8",
+          "accountId": "nonexistent-account-xyz"
+        },
+        "parts": [
+          {
+            "type": "text",
+            "text": "你好"
+          }
+        ]
+      }
+    },
+    "expected": {
+      "error": "<account-not-found 類錯誤>",
+      "no_silent_fallback": true
+    }
+  },
+  {
+    "id": "TV7",
+    "name": "bare session 工具集不含內建工具",
+    "requirementRef": "不掛 opencode 內建工具",
+    "input": {
+      "body": {
+        "agent": "bare",
+        "system": "...",
+        "format": {
+          "type": "json_schema",
+          "schema": {}
+        },
+        "parts": [
+          {
+            "type": "text",
+            "text": "你好"
+          }
+        ]
+      }
+    },
+    "expected": {
+      "tools_present": [
+        "StructuredOutput"
+      ],
+      "tools_absent": [
+        "read",
+        "edit",
+        "bash",
+        "task",
+        "grep",
+        "glob"
+      ],
+      "verify_via": "daemon log 的 gatedTools 內容"
+    }
+  },
+  {
+    "id": "TV8",
+    "name": "bare session 不觸發 autorun continuation",
+    "requirementRef": "不觸發 autorun continuation",
+    "input": {
+      "body": {
+        "agent": "bare",
+        "system": "...",
+        "parts": [
+          {
+            "type": "text",
+            "text": "你好"
+          }
+        ]
+      }
+    },
+    "expected": {
+      "continuation_triggered": false,
+      "single_turn": true,
+      "verify_via": "runLoop 在 bare session 回應後 break，無自主下一輪"
+    }
+  }
+]

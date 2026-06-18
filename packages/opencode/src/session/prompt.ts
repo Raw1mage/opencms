@@ -3506,6 +3506,18 @@ export namespace SessionPrompt {
       const lazyTools = resolvedToolsOutput.lazyTools
       const lazyCatalogPrompt = resolvedToolsOutput.lazyCatalogPrompt
 
+      // bare/passthrough session (plans/bare_chat_session DD-3): strip all
+      // opencode built-in tools so an external caller's clean conversation
+      // never gets read/edit/bash/task/etc. The format:json_schema
+      // StructuredOutput tool below is still injected (it IS the response
+      // mechanism). lazyTools/catalog are likewise cleared so no deferred
+      // tool surfaces. Gated strictly on the reserved `bare` agent (R1).
+      const isBareSession = agent.name === "bare"
+      if (isBareSession) {
+        for (const k of Object.keys(tools)) delete tools[k]
+        lazyTools?.clear()
+      }
+
       // Active Loader: lazy tools are NOT injected into the tools dict.
       // They are passed separately via `lazyTools` to the processor/LLM,
       // which handles on-demand unlock via experimental_repairToolCall.
@@ -4127,6 +4139,18 @@ export namespace SessionPrompt {
             step,
             finish: processor.message.finish,
             result,
+          })
+          break
+        }
+        // bare/passthrough session (plans/bare_chat_session DD-4): a clean
+        // terminal turn ends the session. Do NOT evaluate autonomous
+        // continuation — bare sessions are strictly one-shot request/response
+        // for external callers (e.g. cecelearn). No autorun, no self-nudge.
+        if (agent.name === "bare") {
+          log.info("loop: bare session terminal finish (passthrough, no continuation)", {
+            sessionID,
+            step,
+            finish: processor.message.finish,
           })
           break
         }

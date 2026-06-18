@@ -1,0 +1,69 @@
+<svg width="1449.1" height="837.6" viewBox="-212.6 -171.8 1449.1 837.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-212.6" y="-171.8" width="1449.1" height="837.6" fill="white" />
+<rect x="130.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="230.0" y="166.7" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="230.0" y="200.9" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >RECEIVE BARE</text>
+<text x="230.0" y="236.6" text-anchor="middle" font-size="19" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >SESSION REQUEST</text>
+<rect x="454.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="554.0" y="162.3" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="554.0" y="200.9" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >ASSEMBLE BARE</text>
+<text x="554.0" y="242.1" text-anchor="middle" font-size="22" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >SYSTEM PROMPT</text>
+<rect x="774.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="874.0" y="165.2" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
+<text x="874.0" y="200.9" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >RESOLVE</text>
+<text x="874.0" y="238.4" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >PINNED ACCOUNT</text>
+<rect x="130.0" y="420.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="230.0" y="465.2" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
+<text x="230.0" y="500.9" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >EXECUTE CLAUDE</text>
+<text x="230.0" y="538.4" text-anchor="middle" font-size="20" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >DIALOGUE TURN</text>
+<rect x="454.0" y="420.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
+<text x="554.0" y="451.2" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >A5</text>
+<text x="554.0" y="484.1" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >CAPTURE</text>
+<text x="554.0" y="517.8" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >STRUCTURED</text>
+<text x="554.0" y="551.6" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >OUTPUT</text>
+<rect x="0.0" y="38.2" width="1024.0" height="617.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="384.0" y="-161.8" width="256.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="512.0" y="-135.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
+<text x="512.0" y="-105.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >PROVIDE BARE</text>
+<text x="512.0" y="-75.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >CHAT SESSION</text>
+<line x1="384.0" y1="-161.8" x2="0.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="640.0" y1="-161.8" x2="1024.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="384.0" y1="-51.8" x2="0.0" y2="655.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="640.0" y1="-51.8" x2="1024.0" y2="655.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 330.0 160.0 L 454.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="330.0,160.0 454.0,160.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 500.0 L 454.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="AR10" data-waypoints="330.0,500.0 454.0,500.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 200.0 L 382.0 200.0 Q 392.0 200.0 392.0 190.0 L 392.0 88.2 Q 392.0 78.2 402.0 78.2 L 724.0 78.2 Q 734.0 78.2 734.0 88.2 L 734.0 190.0 Q 734.0 200.0 744.0 200.0 L 774.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="330.0,200.0 392.0,200.0 392.0,78.2 734.0,78.2 734.0,200.0 774.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 654.0 200.0 L 684.0 200.0 Q 694.0 200.0 694.0 210.0 L 694.0 360.0 Q 694.0 370.0 684.0 370.0 L 100.0 370.0 Q 90.0 370.0 90.0 380.0 L 90.0 463.3 Q 90.0 473.3 100.0 473.3 L 130.0 473.3" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="654.0,200.0 694.0,200.0 694.0,370.0 90.0,370.0 90.0,473.3 130.0,473.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 240.0 L 382.0 240.0 Q 392.0 240.0 392.0 250.0 L 392.0 320.0 Q 392.0 330.0 382.0 330.0 L 60.0 330.0 Q 50.0 330.0 50.0 340.0 L 50.0 516.7 Q 50.0 526.7 60.0 526.7 L 130.0 526.7" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="330.0,240.0 392.0,240.0 392.0,330.0 50.0,330.0 50.0,526.7 130.0,526.7" marker-end="url(#arrow)" fill="none" />
+<path d="M -50.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-50.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 554.0 84.2 L 554.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="554.0,84.2 554.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 654.0 500.0 L 1074.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="AR11" data-waypoints="654.0,500.0 1074.0,500.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 615.8 L 230.0 580.0" stroke="black" stroke-width="1.2" data-arrow-id="AR12" data-waypoints="230.0,615.8 230.0,580.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 874.0 315.8 L 874.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR13" data-waypoints="874.0,315.8 874.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 554.0 315.8 L 554.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR14" data-waypoints="554.0,315.8 554.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 384.2 L 230.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A4_control" data-waypoints="230.0,384.2 230.0,420.0" marker-end="url(#arrow)" fill="none" />
+<text x="230.0" y="78.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR2">Unix Socket Trust Boundary</text>
+<text x="548.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR6">Bare Agent</text>
+<text x="560.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR6">Layer-Zeroing Policy</text>
+<text x="230.0" y="631.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR12">Claude Provider OAuth</text>
+<text x="874.0" y="331.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR13">accounts.json claude-cli family</text>
+<text x="554.0" y="331.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR14">buildStaticBlock</text>
+<text x="224.0" y="414.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR8">Pinned Account Credentials</text>
+<text x="236.0" y="414.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR8">Output Format json_schema</text>
+<text x="392.0" y="155.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR3">Caller System</text>
+<text x="392.0" y="172.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR3">Prompt</text>
+<text x="392.0" y="495.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR10">LLM Tool-Call</text>
+<text x="392.0" y="512.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR10">Result</text>
+<text x="554.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR4" >Model Pin Triple</text>
+<text x="554.0" y="388.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR7" >Bare System Block</text>
+<text x="230.0" y="348.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR5" >Conversation Parts</text>
+<text x="-54.0" y="191.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR1">Bare Message</text>
+<text x="-54.0" y="217.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR1">Request</text>
+<text x="1078.0" y="491.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR11">Structured</text>
+<text x="1078.0" y="517.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR11">JSON Response</text>
+</svg>

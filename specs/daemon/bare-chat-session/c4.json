@@ -1,0 +1,32 @@
+{
+  "diagram_title": "Bare Chat Session — Container View",
+  "diagram_level": "container",
+  "_validation_note": "drawmiat C4 SVG renderer schema 與 plan-validate 結構檢查不同；本檔同時滿足 plan-validate（頂層 systems/containers/components/relationships 陣列）。traceability 對應 idef0.json A0..A5。SVG 渲染延後（drawmiat C4 relationship schema 待對齊）。",
+  "systems": [
+    { "id": "S1", "name": "cecelearn", "description": "兒童中文學習 app，對話層消費者", "external": true, "moduleRef": "EXTERNAL" },
+    { "id": "S2", "name": "opencode daemon", "description": "提供 bare chat session 的對話層", "moduleRef": "A0" },
+    { "id": "S3", "name": "Claude Backend", "description": "Anthropic API（OAuth 訂閱憑證）", "external": true, "moduleRef": "EXTERNAL" }
+  ],
+  "containers": [
+    { "id": "C3", "name": "cecelearn Backend", "system": "S1", "description": "Node/bun 後端，持有 unix socket client + 小雞老師 driver", "moduleRef": "A1" },
+    { "id": "C5", "name": "Bare Session Handler", "system": "S2", "description": "識別 agent=bare、清零人格層、掛 StructuredOutput tool、跳過 continuation", "moduleRef": "A2" },
+    { "id": "C6", "name": "Account Resolver", "system": "S2", "description": "解析固定 pin 帳號（claude-cli），不走 rotation", "moduleRef": "A3" },
+    { "id": "C7", "name": "Claude Provider", "system": "S2", "description": "provider-claude，toolChoice required→{type:any}，OAuth 訂閱", "moduleRef": "A4" }
+  ],
+  "components": [
+    { "id": "CM1", "name": "buildStaticBlock bare branch", "container": "C5", "description": "llm.ts 鏡像 driverOnlyBlock，只開 userSystem 層", "moduleRef": "A2" },
+    { "id": "CM2", "name": "StructuredOutput tool", "container": "C5", "description": "prompt.ts createStructuredOutputTool + toolChoice required", "moduleRef": "A5" },
+    { "id": "CM3", "name": "pinned account loader", "container": "C6", "description": "model.accountId pin，無 rotation/cross-family", "moduleRef": "A3" },
+    { "id": "CM4", "name": "toolChoice mapper", "container": "C7", "description": "provider-claude:311-326 required→{type:any}", "moduleRef": "A4" }
+  ],
+  "relationships": [
+    { "source": "C3", "target": "C5", "description": "POST /api/v2/session/{id}/message 經 unix socket，agent=bare" },
+    { "source": "C5", "target": "CM1", "description": "組裝 bare system block（只留 userSystem）" },
+    { "source": "C5", "target": "C6", "description": "解析 model pin 三元組" },
+    { "source": "C5", "target": "C7", "description": "bare system + StructuredOutput tool 執行對話" },
+    { "source": "C6", "target": "C7", "description": "提供固定帳號 OAuth 憑證" },
+    { "source": "C7", "target": "S3", "description": "Messages API 帶 Bearer OAuth，tool_choice→{type:any}" },
+    { "source": "C7", "target": "C5", "description": "回結構化 JSON 或 StructuredOutputError" },
+    { "source": "C5", "target": "C3", "description": "回 schema 受限 JSON 回應，不觸發 continuation" }
+  ]
+}

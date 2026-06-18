@@ -836,22 +836,56 @@ export namespace LLM {
         `Current Role: ${subagentSession ? "Subagent" : "Main Agent"}\n` +
         `Session Context: ${subagentSession ? "Sub-task" : "Main-task Orchestration"}`
 
+      // bare/passthrough session (plans/bare_chat_session DD-1/DD-2): when the
+      // reserved `bare` agent is active, the ONLY system layer is the caller's
+      // userSystem. driver / agent / AGENTS.md / SYSTEM.md / identity are all
+      // zeroed so an external same-host caller (e.g. cecelearn) gets a clean
+      // conversation with no opencode persona contamination. This is the mirror
+      // of the codex driverOnlyBlock below (which keeps only `driver`).
+      // Strictly gated on agentName === "bare" so every normal session keeps the
+      // full 7-layer assembly byte-identical (R1).
+      const isBareSession = input.agent.name === "bare"
       const tuple: StaticSystemTuple = {
         family,
         accountId: currentAccountId ?? undefined,
         modelId: input.model.id,
         agentName: input.agent.name,
         role: subagentSession ? "subagent" : "main",
-        layers: {
-          driver: driverText,
-          agent: agentText,
-          agentsMd: agentsMdText,
-          userSystem: userSystemText,
-          systemMd: systemMdText,
-          identity: identityText,
-        },
+        layers: isBareSession
+          ? {
+              driver: "",
+              agent: "",
+              agentsMd: "",
+              userSystem: userSystemText,
+              systemMd: "",
+              identity: "",
+            }
+          : {
+              driver: driverText,
+              agent: agentText,
+              agentsMd: agentsMdText,
+              userSystem: userSystemText,
+              systemMd: systemMdText,
+              identity: identityText,
+            },
       }
       const staticBlock = buildStaticBlock(tuple)
+
+      // DD-8 fail-fast (天條 #11) — POST-condition, not pre-condition. The
+      // ambient driver/agentsMd/systemMd/identity layers are ALWAYS populated
+      // for a primary session; zeroing them in the bare tuple above IS the
+      // feature, so checking their source values false-positives on every bare
+      // turn (the repo's AGENTS.md is ~29KB). Instead verify the ASSEMBLED bare
+      // block did not leak a persona layer: the identity sentinel must be
+      // absent. This guards a future buildStaticBlock refactor silently
+      // re-introducing layers (R1/R5) without tripping on ambient inputs, and
+      // can't false-positive (a caller's userSystem won't contain the sentinel).
+      if (isBareSession && staticBlock.text.includes("[IDENTITY REINFORCEMENT]")) {
+        throw new Error(
+          `BARE_LAYER_INJECTION_VIOLATION: bare assembled system leaked a non-userSystem ` +
+            `layer (identity sentinel present) — layer-zeroing regressed`,
+        )
+      }
 
       // plans/provider_codex-prompt-realign Stage A.3-2: codex provider
       // takes the upstream-aligned wire layout — `instructions` carries
