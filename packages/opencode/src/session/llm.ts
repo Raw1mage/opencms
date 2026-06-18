@@ -845,21 +845,6 @@ export namespace LLM {
       // Strictly gated on agentName === "bare" so every normal session keeps the
       // full 7-layer assembly byte-identical (R1).
       const isBareSession = input.agent.name === "bare"
-      if (isBareSession) {
-        // DD-8 fail-fast (天條 #11): bare promises ONLY the caller's userSystem.
-        // driver / systemMd / identity are opencode-internal and zeroing them
-        // IS the feature — never an error. But `agent` (agent.prompt) and
-        // `agentsMd` (input.agentsMd) are caller/agent-influenced; for a
-        // correctly-configured bare agent both are empty. If either carries
-        // content, something is trying to inject a non-userSystem persona layer
-        // — fail loudly rather than silently dropping it.
-        if (agentText.trim() !== "" || agentsMdText.trim() !== "") {
-          throw new Error(
-            `BARE_LAYER_INJECTION_VIOLATION: bare session must inject only userSystem; ` +
-              `got non-empty agent(len=${agentText.length})/agentsMd(len=${agentsMdText.length}) layer`,
-          )
-        }
-      }
       const tuple: StaticSystemTuple = {
         family,
         accountId: currentAccountId ?? undefined,
@@ -885,6 +870,22 @@ export namespace LLM {
             },
       }
       const staticBlock = buildStaticBlock(tuple)
+
+      // DD-8 fail-fast (天條 #11) — POST-condition, not pre-condition. The
+      // ambient driver/agentsMd/systemMd/identity layers are ALWAYS populated
+      // for a primary session; zeroing them in the bare tuple above IS the
+      // feature, so checking their source values false-positives on every bare
+      // turn (the repo's AGENTS.md is ~29KB). Instead verify the ASSEMBLED bare
+      // block did not leak a persona layer: the identity sentinel must be
+      // absent. This guards a future buildStaticBlock refactor silently
+      // re-introducing layers (R1/R5) without tripping on ambient inputs, and
+      // can't false-positive (a caller's userSystem won't contain the sentinel).
+      if (isBareSession && staticBlock.text.includes("[IDENTITY REINFORCEMENT]")) {
+        throw new Error(
+          `BARE_LAYER_INJECTION_VIOLATION: bare assembled system leaked a non-userSystem ` +
+            `layer (identity sentinel present) — layer-zeroing regressed`,
+        )
+      }
 
       // plans/provider_codex-prompt-realign Stage A.3-2: codex provider
       // takes the upstream-aligned wire layout — `instructions` carries
