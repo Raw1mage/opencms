@@ -4068,6 +4068,18 @@ export namespace SessionPrompt {
           })
           break
         }
+        // bare/passthrough session (plans/bare_chat_session DD-4): a clean
+        // terminal turn ends the session. Do NOT evaluate autonomous
+        // continuation — bare sessions are strictly one-shot request/response
+        // for external callers (e.g. cecelearn). No autorun, no self-nudge.
+        if (agent.name === "bare") {
+          log.info("loop: bare session terminal finish (passthrough, no continuation)", {
+            sessionID,
+            step,
+            finish: processor.message.finish,
+          })
+          break
+        }
         // content-filter-notice: a `content-filter` terminal finish leaves an
         // EMPTY assistant turn (the model blocked its own response) → the UI shows
         // a blank turn and the loop stops silently, which reads as "spinning ~2s
