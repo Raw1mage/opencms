@@ -53,19 +53,22 @@ describe("tool-loader alias resolution", () => {
 })
 
 describe("tool-loader honest output (issue_20260617)", () => {
-  test("direct-tool load reports callable-now, never 'available on your next action'", () => {
+  test("direct-tool load reports callable-now AND terminal (do not call tool_loader again)", () => {
     const resolution = resolveToolLoaderRequest(new Set(["system-manager_rename_session", "bash"]), [
       "system-manager_rename_session",
     ])
     const { output, title } = formatLoaderOutput(resolution)
 
     expect(resolution.found).toEqual(["system-manager_rename_session"])
-    // The old lie that caused the bug must be gone.
+    // The old lie that caused issue_20260617 must be gone.
     expect(output).not.toContain("available on your next action")
     expect(output).not.toContain("Loaded tools")
     // The honest contract: deferred tools are directly callable now.
-    expect(output).toContain("call them directly now")
+    expect(output).toContain("already directly callable")
     expect(output).toContain("system-manager_rename_session")
+    // The terminal contract (DD-1, bug_20260618): stop calling the no-op shim.
+    expect(output).toContain("do NOT call tool_loader again")
+    expect(output).toContain("NO-OP")
     expect(title).toBe("1 tool(s) ready")
   })
 
@@ -78,7 +81,7 @@ describe("tool-loader honest output (issue_20260617)", () => {
     const resolution = resolveToolLoaderRequest(available, ["system-manager"])
     const { output } = formatLoaderOutput(resolution)
 
-    expect(output).toContain("call them directly now")
+    expect(output).toContain("already directly callable")
     expect(output).toContain("Resolved alias system-manager →")
     expect(output).not.toContain("available on your next action")
   })
@@ -89,7 +92,7 @@ describe("tool-loader honest output (issue_20260617)", () => {
 
     expect(title).toBe("Failed to load 1 tool(s)")
     expect(output).toContain("ERROR — tools not found: does_not_exist")
-    expect(output).not.toContain("call them directly now")
+    expect(output).not.toContain("already directly callable")
   })
 })
 

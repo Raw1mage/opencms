@@ -6,6 +6,7 @@ import {
   merge,
   parseFromBody,
   renderSection,
+  RETAIN_RECENT_MIN,
   validate,
 } from "./tool-index"
 
@@ -165,6 +166,31 @@ describe("ToolIndex.applyBudget", () => {
     expect(truncatedCount).toBeGreaterThan(0)
     expect(out[0].tool_call_id).toContain("truncated")
     expect(out.length).toBeLessThan(many.length)
+  })
+
+  it("keeps a floor of recent entries (name+status) under a tiny budget (DD-4)", () => {
+    const many = Array.from({ length: 50 }, (_, i) => ({
+      tool_call_id: `call_${i}`,
+      tool_name: i % 2 ? "edit" : "read",
+      args_brief: "y".repeat(80),
+      status: "ok" as const,
+      output_chars: 200,
+    }))
+    // Budget far too small to fit RETAIN_RECENT_MIN full rows.
+    const { entries: out, truncatedCount } = applyBudget(many, 300)
+    expect(truncatedCount).toBeGreaterThan(0)
+    expect(out[0].tool_call_id).toContain("truncated")
+    expect(out[0].tool_call_id).toContain(`recent ${RETAIN_RECENT_MIN} kept`)
+    // Floor: the most recent RETAIN_RECENT_MIN entries survive (+ placeholder).
+    const kept = out.slice(1)
+    expect(kept).toHaveLength(RETAIN_RECENT_MIN)
+    expect(kept.map((e) => e.tool_call_id)).toEqual(
+      many.slice(-RETAIN_RECENT_MIN).map((e) => e.tool_call_id),
+    )
+    // name+status preserved; args/body stripped to fit.
+    expect(kept[kept.length - 1].tool_name).toBe("edit")
+    expect(kept[kept.length - 1].status).toBe("ok")
+    expect(kept.every((e) => e.args_brief === "—")).toBe(true)
   })
 })
 
