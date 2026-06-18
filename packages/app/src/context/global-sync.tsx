@@ -392,7 +392,7 @@ function createGlobalSync() {
     return promise
   }
 
-  async function bootstrapInstance(directory: string) {
+  async function bootstrapInstance(directory: string, opts?: { silent?: boolean }) {
     if (!directory) return
     const pending = booting.get(directory)
     if (pending) return pending
@@ -414,6 +414,7 @@ function createGlobalSync() {
         loadSessions,
         // @event_20260428_bootstrap_provider_share
         providerSnapshot: globalStore.provider,
+        silent: opts?.silent,
       })
     })()
 
@@ -614,13 +615,14 @@ function createGlobalSync() {
     }
   })
 
-  async function bootstrap() {
+  async function bootstrap(opts?: { silent?: boolean }) {
     await bootstrapGlobal({
       globalSDK: globalSDK.client,
       connectErrorTitle: language.t("dialog.server.add.error"),
       connectErrorDescription: language.t("error.globalSync.connectFailed", { url: globalSDK.url }),
       requestFailedTitle: language.t("common.requestFailed"),
       setGlobalStore,
+      silent: opts?.silent,
     })
   }
 
@@ -653,14 +655,18 @@ function createGlobalSync() {
 
   const refreshVisibleState = async (reason: "resume" | "pageshow" | "online") => {
     if (reason === "online") {
-      await bootstrap().catch(() => {})
+      await bootstrap({ silent: true }).catch(() => {})
       queue.refresh()
       return
     }
 
     if (reason === "pageshow") {
       queue.refresh()
-      await Promise.all(Object.keys(children.children).map((directory) => bootstrapInstance(directory).catch(() => {})))
+      await Promise.all(
+        Object.keys(children.children).map((directory) =>
+          bootstrapInstance(directory, { silent: true }).catch(() => {}),
+        ),
+      )
       return
     }
 
@@ -670,7 +676,11 @@ function createGlobalSync() {
     }
 
     queue.refresh()
-    await Promise.all(Object.keys(children.children).map((directory) => bootstrapInstance(directory).catch(() => {})))
+    await Promise.all(
+      Object.keys(children.children).map((directory) =>
+        bootstrapInstance(directory, { silent: true }).catch(() => {}),
+      ),
+    )
   }
 
   onMount(() => {

@@ -32,6 +32,21 @@ function truncate(text: string | undefined | null): string {
   return `${trimmed.slice(0, MAX_INLINE_TEXT)}\n[truncated]`
 }
 
+// Proxies / tunnels / load balancers in front of the daemon (common on mobile,
+// where a backgrounded tab resumes onto a momentarily-down upstream) answer with
+// a full HTML error page instead of JSON. The SDK throws that body verbatim, so
+// without this guard the toast renders a raw <!DOCTYPE html>… dump. Detect it and
+// collapse to a clean one-liner.
+function looksLikeHtml(text: string): boolean {
+  const head = text.trimStart().slice(0, 256).toLowerCase()
+  return (
+    head.startsWith("<!doctype html") ||
+    head.startsWith("<html") ||
+    head.includes("<head") ||
+    head.includes("<body")
+  )
+}
+
 function isConfigInvalidErrorLike(error: unknown): error is ConfigInvalidError {
   if (typeof error !== "object" || error === null) return false
   const obj = error as Record<string, unknown>
@@ -68,7 +83,13 @@ export function formatReadableConfigJsonError(error: ConfigJsonError) {
 export function formatServerError(error: unknown) {
   if (isConfigJsonErrorLike(error)) return formatReadableConfigJsonError(error)
   if (isConfigInvalidErrorLike(error)) return formatReadableConfigInvalidError(error)
-  if (error instanceof Error && error.message) return truncate(error.message)
-  if (typeof error === "string" && error) return truncate(error)
+  if (error instanceof Error && error.message) {
+    if (looksLikeHtml(error.message)) return "Server returned an unexpected response"
+    return truncate(error.message)
+  }
+  if (typeof error === "string" && error) {
+    if (looksLikeHtml(error)) return "Server returned an unexpected response"
+    return truncate(error)
+  }
   return "Unknown error"
 }

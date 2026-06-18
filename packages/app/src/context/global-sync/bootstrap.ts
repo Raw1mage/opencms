@@ -152,6 +152,9 @@ export async function bootstrapGlobal(input: {
   connectErrorDescription: string
   requestFailedTitle: string
   setGlobalStore: SetStoreFunction<GlobalStore>
+  // See bootstrapDirectory.silent — suppress error toasts for automatic
+  // background refreshes (e.g. the window "online" event after a mobile resume).
+  silent?: boolean
 }) {
   const healthPromise = input.globalSDK.global
     .health()
@@ -174,11 +177,13 @@ export async function bootstrapGlobal(input: {
   ])
 
   if (!health?.healthy) {
-    showToast({
-      variant: "error",
-      title: input.connectErrorTitle,
-      description: input.connectErrorDescription,
-    })
+    if (!input.silent) {
+      showToast({
+        variant: "error",
+        title: input.connectErrorTitle,
+        description: input.connectErrorDescription,
+      })
+    }
     input.setGlobalStore("ready", true)
     return
   }
@@ -187,7 +192,7 @@ export async function bootstrapGlobal(input: {
     .filter((r): r is PromiseRejectedResult => r.status === "rejected")
     .map((r) => r.reason)
     .filter((e) => !isSilentAuthError(e))
-  if (errors.length) {
+  if (errors.length && !input.silent) {
     const message = formatServerError(errors[0])
     const more = errors.length > 1 ? ` (+${errors.length - 1} more)` : ""
     showToast({
@@ -223,6 +228,11 @@ export async function bootstrapDirectory(input: {
   // that opens N projects). Pass globalStore.provider; falls back to SDK fetch
   // if snapshot is empty (e.g. global bootstrap hasn't completed yet).
   providerSnapshot?: ProviderListResponse
+  // Background refreshes (mobile tab resume / pageshow / network online) fire
+  // automatically, not from a user action. A transient upstream failure there
+  // should recover quietly on the next event — surfacing a loud error toast for
+  // it is just noise. Status still drops to "partial" so the UI can react.
+  silent?: boolean
 }) {
   if (input.store.status !== "complete") input.setStore("status", "loading")
   // Clear transient runtime state that is in-memory on the daemon side.
@@ -252,12 +262,14 @@ export async function bootstrapDirectory(input: {
     await Promise.all(Object.values(blockingRequests).map((p) => retry(p)))
   } catch (err) {
     console.error("Failed to bootstrap instance", err)
-    const project = getFilename(input.directory)
-    showToast({
-      variant: "error",
-      title: `Failed to reload ${project}`,
-      description: formatServerError(err),
-    })
+    if (!input.silent) {
+      const project = getFilename(input.directory)
+      showToast({
+        variant: "error",
+        title: `Failed to reload ${project}`,
+        description: formatServerError(err),
+      })
+    }
     input.setStore("status", "partial")
     return
   }
