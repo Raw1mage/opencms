@@ -836,20 +836,38 @@ export namespace LLM {
         `Current Role: ${subagentSession ? "Subagent" : "Main Agent"}\n` +
         `Session Context: ${subagentSession ? "Sub-task" : "Main-task Orchestration"}`
 
+      // bare/passthrough session (plans/bare_chat_session DD-1/DD-2): when the
+      // reserved `bare` agent is active, the ONLY system layer is the caller's
+      // userSystem. driver / agent / AGENTS.md / SYSTEM.md / identity are all
+      // zeroed so an external same-host caller (e.g. cecelearn) gets a clean
+      // conversation with no opencode persona contamination. This is the mirror
+      // of the codex driverOnlyBlock below (which keeps only `driver`).
+      // Strictly gated on agentName === "bare" so every normal session keeps the
+      // full 7-layer assembly byte-identical (R1).
+      const isBareSession = input.agent.name === "bare"
       const tuple: StaticSystemTuple = {
         family,
         accountId: currentAccountId ?? undefined,
         modelId: input.model.id,
         agentName: input.agent.name,
         role: subagentSession ? "subagent" : "main",
-        layers: {
-          driver: driverText,
-          agent: agentText,
-          agentsMd: agentsMdText,
-          userSystem: userSystemText,
-          systemMd: systemMdText,
-          identity: identityText,
-        },
+        layers: isBareSession
+          ? {
+              driver: "",
+              agent: "",
+              agentsMd: "",
+              userSystem: userSystemText,
+              systemMd: "",
+              identity: "",
+            }
+          : {
+              driver: driverText,
+              agent: agentText,
+              agentsMd: agentsMdText,
+              userSystem: userSystemText,
+              systemMd: systemMdText,
+              identity: identityText,
+            },
       }
       const staticBlock = buildStaticBlock(tuple)
 
