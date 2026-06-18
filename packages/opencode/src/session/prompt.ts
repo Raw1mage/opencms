@@ -478,6 +478,47 @@ export function selectParalysisNudge(input: {
   return "你連續 3 輪講了非常相似的計畫但沒實際前進。停下來換一條路徑 — 檢查 state、嘗試不同 tool、或直接告訴 user 你卡在哪。"
 }
 
+// DD-3/DD-5 (anti-perseveration, session-scoped escalation state).
+//
+// recoveryCount/cleanStreak used to be runloop-local `let`s, so EVERY runloop
+// re-entry (a finish=error turn, or the user interjecting "繼續") reset them to
+// 0 — the escalation ladder never climbed, the 2nd paralysis re-nudged instead
+// of hard-halting, and the loop never terminated (the C2 bug in
+// issues/bug_20260618_post_compaction_tool_loader_perseveration_noop_shim.md).
+//
+// Keying the state by sessionID in a module-level Map makes it survive re-entry
+// so "recovery already attempted → hard-halt" is reachable. It is intentionally
+// in-memory only: a daemon restart clears it, which is an acceptable trade-off
+// (restart itself breaks the loop; cross-restart persistence isn't worth a
+// schema change — DD-5). The map is bounded by FIFO eviction so it cannot grow
+// unbounded across many sessions (DD-5 / risk R2).
+export interface ParalysisState {
+  recoveryCount: number
+  cleanStreak: number
+}
+const PARALYSIS_STATE_MAX_SESSIONS = 256
+const paralysisStateBySession = new Map<string, ParalysisState>()
+export function getParalysisState(sessionID: string): ParalysisState {
+  let state = paralysisStateBySession.get(sessionID)
+  if (!state) {
+    state = { recoveryCount: 0, cleanStreak: 0 }
+    paralysisStateBySession.set(sessionID, state)
+    if (paralysisStateBySession.size > PARALYSIS_STATE_MAX_SESSIONS) {
+      const oldest = paralysisStateBySession.keys().next().value
+      if (oldest !== undefined) paralysisStateBySession.delete(oldest)
+    }
+  }
+  return state
+}
+export function resetParalysisState(sessionID: string): void {
+  paralysisStateBySession.delete(sessionID)
+}
+// Test-only: observe the bounded map's size (verifies FIFO eviction, DD-5/R2).
+export function paralysisStateSizeForTest(): number {
+  return paralysisStateBySession.size
+}
+export { PARALYSIS_STATE_MAX_SESSIONS }
+
 /**
  * Detector D — preface perseveration with no real progress.
  *
@@ -1763,11 +1804,14 @@ export namespace SessionPrompt {
     let autonomousRounds = 0
     let lastDecisionReason: Awaited<ReturnType<typeof decideAutonomousContinuation>>["reason"] | undefined
     let emptyRoundCount = 0
-    let paralysisRecoveryCount = 0
-    // Consecutive non-paralyzed turns since the last nudge. The recovery
-    // counter only clears after this reaches PARALYSIS_CLEAN_STREAK_RESET, so a
-    // single cosmetic "changing course" turn can't reset the escalation ladder.
-    let paralysisCleanStreak = 0
+    // DD-3/DD-5: escalation state is session-scoped (survives runloop re-entry),
+    // not a runloop-local let. `recoveryCount` only clears after `cleanStreak`
+    // reaches PARALYSIS_CLEAN_STREAK_RESET, so a single cosmetic "changing
+    // course" turn can't reset the escalation ladder; and because the object is
+    // held by reference in a module Map, a finish=error turn or user
+    // interjection re-entering the runloop no longer resets it either — so
+    // "recovery already attempted → hard-halt" is finally reachable.
+    const paralysisState = getParalysisState(sessionID)
     let consecutiveCompactions = 0
     // Self-heal circuit breaker for the "polluted by many low-value rounds"
     // class (Claude Fable 5 at large context: 150+ output=2/finish=other rounds
@@ -2586,14 +2630,14 @@ export namespace SessionPrompt {
         // about deduplication etc.); it must coincide with an actual
         // signature OR narrative repetition.
         const STUCK_PHRASES = /\b(duplicate(?:d)?|need stop|stop using|repeating|loop(?:ed|ing)?|stuck|no progress)\b/i
-        if (recentAssistants.length >= 2 && paralysisRecoveryCount === 0) {
+        if (recentAssistants.length >= 2 && paralysisState.recoveryCount === 0) {
           const stuck0 = STUCK_PHRASES.test(texts[0])
           const stuck1 = STUCK_PHRASES.test(texts[1])
           const sigMatch = sigPairsMatch(0, 1)
           const narrativeMatch = narrativePairsMatch(0, 1) > 0.5
           if (stuck0 && stuck1 && (sigMatch || narrativeMatch)) {
-            paralysisRecoveryCount = 1
-            paralysisCleanStreak = 0
+            paralysisState.recoveryCount = 1
+            paralysisState.cleanStreak = 0
             log.warn("paralysis-recover: 2-turn self-stuck phrase, injecting nudge", {
               sessionID,
               step,
@@ -2698,7 +2742,7 @@ export namespace SessionPrompt {
                 similarity,
                 estimatedItemCount,
                 threshold: paralysisItemCountCompactThreshold,
-                priorRecoveryCount: paralysisRecoveryCount,
+                priorRecoveryCount: paralysisState.recoveryCount,
               })
               try {
                 await CompactionManager.requestCompact({
@@ -2709,8 +2753,8 @@ export namespace SessionPrompt {
                 // Compaction succeeded: reset recovery counter so a future
                 // post-compaction paralysis (under the new, smaller context)
                 // gets its own first-paralysis nudge before halting.
-                paralysisRecoveryCount = 0
-                paralysisCleanStreak = 0
+                paralysisState.recoveryCount = 0
+                paralysisState.cleanStreak = 0
                 continue
               } catch (err) {
                 log.warn("paralysis-recover: compaction failed, falling through to nudge/halt", {
@@ -2722,15 +2766,15 @@ export namespace SessionPrompt {
               }
             }
 
-            if (paralysisRecoveryCount === 0) {
+            if (paralysisState.recoveryCount === 0) {
               // First detection — auto-inject a synthetic nudge that
               // names the failure mode. Pure "?" (empty-response style)
               // is too cryptic for paralysis: model may interpret it as
               // "say what?" and re-emit the same plan. An explicit
               // "you repeated, try different" is concrete enough to
               // break attention pattern without prescribing the answer.
-              paralysisRecoveryCount = 1
-              paralysisCleanStreak = 0
+              paralysisState.recoveryCount = 1
+              paralysisState.cleanStreak = 0
               log.warn("paralysis-recover: 3-turn repetition, injecting nudge", {
                 sessionID,
                 step,
@@ -2774,7 +2818,7 @@ export namespace SessionPrompt {
               detector,
               similarity,
               samplePrefix,
-              recoveryAttempts: paralysisRecoveryCount,
+              recoveryAttempts: paralysisState.recoveryCount,
             })
             lastAssistant.error = new MessageV2.ParalysisDetectedError({
               message:
@@ -2801,23 +2845,23 @@ export namespace SessionPrompt {
           // the next detected triple hard-halts (issue
           // bug_20260615_paralysis_guard_evaded_by_preface_perseveration: the
           // nudge fired 3× in one session and never reached hard-halt).
-          if (paralysisRecoveryCount > 0) {
+          if (paralysisState.recoveryCount > 0) {
             if (mutatedPerTurn[0]) {
-              paralysisCleanStreak++
-              if (paralysisCleanStreak >= PARALYSIS_CLEAN_STREAK_RESET) {
+              paralysisState.cleanStreak++
+              if (paralysisState.cleanStreak >= PARALYSIS_CLEAN_STREAK_RESET) {
                 log.info("paralysis-recover: cleared after sustained progress streak", {
                   sessionID,
                   step,
-                  priorRecoveryCount: paralysisRecoveryCount,
-                  progressStreak: paralysisCleanStreak,
+                  priorRecoveryCount: paralysisState.recoveryCount,
+                  progressStreak: paralysisState.cleanStreak,
                 })
-                paralysisRecoveryCount = 0
-                paralysisCleanStreak = 0
+                paralysisState.recoveryCount = 0
+                paralysisState.cleanStreak = 0
               } else {
                 log.info("paralysis-recover: progress turn, streak building (escalation retained)", {
                   sessionID,
                   step,
-                  progressStreak: paralysisCleanStreak,
+                  progressStreak: paralysisState.cleanStreak,
                   needed: PARALYSIS_CLEAN_STREAK_RESET,
                 })
               }
