@@ -845,6 +845,21 @@ export namespace LLM {
       // Strictly gated on agentName === "bare" so every normal session keeps the
       // full 7-layer assembly byte-identical (R1).
       const isBareSession = input.agent.name === "bare"
+      if (isBareSession) {
+        // DD-8 fail-fast (天條 #11): bare promises ONLY the caller's userSystem.
+        // driver / systemMd / identity are opencode-internal and zeroing them
+        // IS the feature — never an error. But `agent` (agent.prompt) and
+        // `agentsMd` (input.agentsMd) are caller/agent-influenced; for a
+        // correctly-configured bare agent both are empty. If either carries
+        // content, something is trying to inject a non-userSystem persona layer
+        // — fail loudly rather than silently dropping it.
+        if (agentText.trim() !== "" || agentsMdText.trim() !== "") {
+          throw new Error(
+            `BARE_LAYER_INJECTION_VIOLATION: bare session must inject only userSystem; ` +
+              `got non-empty agent(len=${agentText.length})/agentsMd(len=${agentsMdText.length}) layer`,
+          )
+        }
+      }
       const tuple: StaticSystemTuple = {
         family,
         accountId: currentAccountId ?? undefined,
