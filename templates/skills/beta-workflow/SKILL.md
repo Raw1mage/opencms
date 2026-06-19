@@ -121,12 +121,13 @@ The workflow is always:
    - Restate the authority fields again before any fetch-back, checkout, merge, or finalize operation.
    - Fetch-back procedure (concrete steps):
      1. Switch to `mainRepo` (the authoritative repo path).
-     2. Create a `test/<feature-name>` branch from `baseBranch` and checkout it.
-     3. Merge `implementationBranch` into the test branch (the beta branch is reachable because both are in the same `.git` via worktree).
-     4. Run validation / tests on the test branch.
-     5. If validation passes, the test branch is ready for finalize (merge to `baseBranch`).
+     2. Always create a `test/<feature-name>` branch from `baseBranch` and checkout it.
+     3. Merge `implementationBranch` into this test branch (the beta branch is reachable because both are in the same `.git` via worktree).
+     4. Run automated validation / tests on the test branch.
+     5. Restart the runtime/service if applicable (e.g. `./webctl.sh dev-refresh`), leaving the mainRepo checked out on the `test/<feature-name>` branch.
+     6. Stop and wait for the user to manually verify runtime behavior on the test branch. The test branch is ready for finalize (merge to `baseBranch`) ONLY after the user tests it and provides explicit approval.
    - The test branch is disposable — it exists only to validate before touching `baseBranch`.
-   - Treat merge/finalize as separate approval-gated steps.
+   - Treat merge/finalize as separate approval-gated steps. NEVER merge test to baseBranch without user confirmation.
 
 5. **Cleanup + Spec Closeout**
    - Delete the disposable `beta/*` or `test/*` branch after merge/fetch-back/finalize succeeds.
@@ -193,7 +194,7 @@ Fail-fast gate:
 
 ## 7. Fetch-Back / Finalize Contract
 
-Fetch-back means the authoritative repo imports the implementation branch for validation or finalize preparation. It does **not** mean the implementation branch became authoritative.
+Fetch-back means the authoritative repo imports the implementation branch into a temporary test branch for validation, daemon/service restart, and final manual/automatic verification. It does **not** mean the implementation branch became authoritative, nor does it allow direct merge to main.
 
 ### 7.1 Fetch-back procedure
 
@@ -201,7 +202,7 @@ Fetch-back means the authoritative repo imports the implementation branch for va
 # 1. Switch working directory into the main repo path
 cd $mainRepo
 
-# 2. Create test branch from baseBranch
+# 2. Always create test branch from baseBranch
 git checkout $baseBranch
 git checkout -b test/$featureName
 
@@ -209,10 +210,15 @@ git checkout -b test/$featureName
 git merge $implementationBranch
 # On conflict: STOP and report. Do not force-resolve.
 
-# 4. Validate on test branch
+# 4. Validate automatically on test branch
 bun test   # or project-specific validation
 
-# 5. If green → ready for finalize (merge test branch to baseBranch)
+# 5. Apply changes to runtime (Checkout test branch and restart service/daemon)
+./webctl.sh dev-refresh # or project-specific refresh
+
+# 6. STOP HERE. The repo remains checked out on test/$featureName.
+# Wait for the user to manually verify the runtime behavior.
+# The test branch is ready for finalize ONLY after the user finishes testing and approves.
 ```
 
 ### 7.2 Pre-conditions
@@ -228,7 +234,7 @@ If any of those are ambiguous, stop.
 
 ### 7.3 Finalize (test → baseBranch)
 
-After fetch-back validation passes:
+After the user manually verifies the test branch, approves the changes, and explicitly directs you to merge:
 
 ```bash
 cd $mainRepo
@@ -237,7 +243,7 @@ git merge --no-ff test/$featureName
 # test branch is now merged — proceed to cleanup (§8)
 ```
 
-This is approval-gated: do not finalize without explicit user confirmation.
+This is strictly approval-gated: do not finalize or merge test to baseBranch without explicit user confirmation.
 
 ## 8. Cleanup Is Part of Completion
 

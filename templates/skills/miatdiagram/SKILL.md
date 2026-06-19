@@ -406,42 +406,14 @@ When this skill generates IDEF0 or GRAFCET JSON, you SHOULD immediately render i
 
 | Tool | Purpose |
 |------|---------|
-| `validate_diagram` | Hard-coded validator. Validate JSON structure and GRAFCET gate/edge compliance before rendering; returns diagnostics for the AI to use when editing JSON. |
+| `validate_diagram` | Validate JSON structure before rendering |
 | `generate_diagram` | Render JSON into SVG diagram(s) |
 
-### GRAFCET validation function for AI JSON repair
-
-Use this function contract whenever creating or updating GRAFCET JSON:
-
-```text
-validate_grafcet_json(json_payload):
-  call drawmiat MCP validate_diagram with:
-    diagram_type = "grafcet"
-    validation_profile = "strict_design"
-    json_payload = <candidate JSON string>
-  return:
-    ok: boolean
-    errors: hard-coded validator diagnostics
-    warnings: hard-coded validator warnings
-    repair_targets: fields/objects the AI must edit in source JSON
-```
-
-Rules for the AI using this function:
-
-- The validator is the authority for structural compliance; do not bypass it by reasoning from the SVG.
-- The validator must **not** rewrite JSON and must **not** guess OR/AND semantics.
-- If diagnostics mention missing explicit gate definitions, the AI must update the JSON by adding `Gates[]` and `Edges[]` explicitly.
-- Every gate must have a stable `GateNumber` / `GateId` (`G1`, `G2`, ...), declared `GateType`, `Inputs[]`, and `Outputs[]`.
-- Every edge must have `EdgeId = From + To`, e.g. `S1O1G1I1`, `G1O1S2I1`, `G1O2G2I1`.
-- Condition/stub ownership belongs to the edge carrying the condition, usually a gate output edge for `divergence_*`.
-- Repeat: edit JSON → call `validate_grafcet_json()` → fix diagnostics until `ok=true`; render only after validation passes.
-
 **Workflow:**
-1. Generate or update JSON following the schemas in this skill.
-2. For GRAFCET, call `validate_grafcet_json(json_payload)`; for IDEF0/C4, call `validate_diagram(diagram_type, json_payload)`.
-3. Fix reported diagnostics in the source JSON yourself; do not ask the renderer to auto-correct.
-4. Re-run validation until it passes.
-5. Call `generate_diagram(diagram_type, json_payload, output_dir)` to produce SVG.
+1. Generate JSON following the schemas in this skill
+2. Call `validate_diagram(diagram_type, json_payload)` to check for errors
+3. Fix any reported issues
+4. Call `generate_diagram(diagram_type, json_payload, output_dir)` to produce SVG
 
 ### MCP connection setup
 

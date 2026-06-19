@@ -134,8 +134,11 @@ const GRAFCET: ArtifactCheck = {
     } catch {
       return ["not valid JSON"];
     }
-    if (!Array.isArray(obj) || obj.length === 0)
-      issues.push("must be a non-empty array of steps");
+    // Legacy form: root array of steps. Canonical strict form (drawmiat
+    // format profile): root object with Steps[] (+ Gates[]/Edges[]).
+    const steps = Array.isArray(obj) ? obj : obj?.Steps;
+    if (!Array.isArray(steps) || steps.length === 0)
+      issues.push("must be a non-empty array of steps (root array or object with Steps[])");
     return issues;
   },
 };

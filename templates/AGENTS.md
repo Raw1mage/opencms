@@ -89,6 +89,7 @@ Next after reply:
 - Search first, then read
 - Read before write
 - Absolute paths only
+- Need specialized tool? Check lazy loader before declaring unavailable
 - 一次只有一個 `in_progress` todo
 - 用結構化 todo metadata，不用模糊條列
 - 執行中 narrate；最後一個 todo 完成後 silent stop
@@ -185,9 +186,46 @@ Next after reply:
 - **THEN**: `skill(name="canvas-design")` 或 `skill(name="algorithmic-art")`
 - **WHY**: 專門的繪圖生成能力。
 
+### 🟤 簡報製作 (PPTX / 投影片)
+
+- **IF**: 用戶提到 `pptx`, `簡報`, `投影片`, `slide`, `deck`, `presentation`，或要做任何 PowerPoint
+- **THEN**: **第一動作**就 `skill(name="pptx")`，不准先憑 docxmcp 臨場提示硬幹。
+- **WHY**: pptx skill 是簡報製作的 SSOT；不載入＝重複踩同樣的坑（背景變實體物件、字太小、標題橫線、表格被吞）。
+
+- **工具鏈紀律（最高優先，先於上面的交付契約）**：pptx 的**讀取、探查、手術、驗證一律走 `docxmcp_*` toolcall，禁止反射性開 bash 拆 OOXML**。pptx skill 內文示範的 `python -m markitdown`／`unpack.py`／`unzip+grep` 是該 skill 的原生寫法，**不是本環境的首選路徑**——本環境一律優先 docxmcp toolcall。對照表（左邊 bash 反射動作 → 右邊正解 toolcall）：
+  - 讀某頁 shape（id/幾何/文字）→ `docxmcp_pptx_read(action=shapes, index=N)`；讀母片/版面 → `action=layouts`
+  - 拆解 pptx → `docxmcp_document(action=decompose, format=pptx)`；抽全文 → 讀 decompose 產出的 `content_list.json`／`deck.md`
+  - 改文字/格式/位置（byte-preserving）→ `docxmcp_pptx_revise`（單 shape）或 `docxmcp_pptx_edit`（doc_dir 上多 action，`batch` action 吃 `ops` 陣列）
+  - 複製整頁當範本 → `docxmcp_pptx_revise(action=duplicate_slide, insert_after=N)`
+  - 新增頁 → `docxmcp_pptx_edit(action=add_slide_from_layout)` 或 `add_shape`
+  - 驗證 → `docxmcp_pptx_xsd_validate`（XML 良構/schema）、`docxmcp_pptx_canvas_lint`（字級/對比）
+  - **bash 僅允許用於**：上傳 tarball 進 token namespace、下載產出回 host、`command -v` 前置檢查。**結構讀寫一律不碰 bash。**
+
+- **強制交付契約（fail-fast，未過不得宣告完成）**：
+  1. **最小字級 ≥ 16pt**。交付前以 `docxmcp_pptx_canvas_lint(min_font_pt=16)` 機檢，或解壓 pptx 驗 slide XML 的 `sz`（pt×100，全部 ≥1600）。
+  2. **背景一律由母片 / layout 定義，禁止每張投影片放滿版背景 shape**。canvas-flatten render 會把 `.slide` 的 `background` 烤成每頁一塊滿版 rect → 變成可被點選的多餘實體物件。要品牌背景就走 master-surgery（`docxmcp_pptx_revise` / `pptx_edit` 在 master/layout 定 `bgRef`），不要 canvas。
+  3. **禁止標題下方的裝飾橫線（accent line）**——這是 AI 簡報的招牌破綻；用留白或底色區隔。
+  4. **render `ok=true` 不等於正確**。canvas render 會「靜默丟棄 `<table>` 與 `<style>` class 選擇器」「背景烤成 shape」而不報錯。第一次 render 幾乎一定有問題。
+  5. **視覺 QA 必用 subagent fresh-eyes**：轉圖（soffice→pdf→pdftoppm）後丟給 subagent 找重疊/溢出/對比/空隙問題，至少跑完一輪 fix-and-verify。自己盯看到的是「預期」不是「實際」。
+
+- **品牌模板（template_vault）**：跨案的官方品牌存在 vault，套模板填內容＝背景/字型/logo 全從真母片繼承，不必臨摹。
+  - `bo-foundation-isms`（global）= 威權統治時期被害者權利回復基金會 ISMS 簡報品牌（深藍標題 #0E016B／微軟正黑體／logo／封面結尾圖，母片定背景）。
+  - 用法：`docxmcp_template_vault(action=import)` 取出 → `docxmcp_pptx_revise` 在母片基礎上填內容。
+  - 其他客戶／新品牌：先 `template_vault(action=list)` 查有無既有模板；有就套用，沒有才新建並回存。
+
 ## 3. MCP 服務戰術 (MCP Tactical Integration)
 
 **除了 Skill 外，你還可以直接調用以下高效能工具：**
+
+### Lazy Loader 強制檢查（Mandatory）
+
+- **先查可載入，不准先宣稱沒有**：當任務明顯對應專門 MCP / tool（例如 `docxmcp` 處理 Office 文件、`system-manager` 查系統狀態、specbase event log），但目前工具清單未直接暴露時，Main Agent **必須先使用 `tool_loader` 嘗試載入對應 alias**，或載入 `mcp-finder` / `skill-finder` 查明能力，再判定不可用。
+- **不得把「目前未載入」說成「系統沒有」**：回覆使用者前必須區分 `not currently loaded`、`loader alias missing`、`load failed`、`tool unavailable` 四種狀態，並保留實際 tool call 證據。
+- **Office 文件優先路由**：遇到 `.docx` / `.pptx` / `.xlsx` / PDF 合併、轉換、抽取、格式保留等需求時，先嘗試 lazy load `docxmcp` 或對應 Office/文件 MCP；只有載入失敗或能力不符時，才退回 LibreOffice / Python / zip 結構處理。
+- **禁止徒手替代專門工具**：若已有專用 MCP 可載入，優先使用專用 MCP；不得因初始工具列沒顯示就直接用 bash/Python 自製流程。
+- **Office RCA 禁令：禁止手工 OOXML 合併 / 改包當成正式成果**：`.pptx` / `.docx` / `.xlsx` 是關聯圖、content types、rels、master/layout/media/theme 共同組成的封裝；除非任務明確是 OOXML repair 並且有 XSD / 原生應用 roundtrip 證據，Main Agent 不得用 Python zip/XML 腳本自行拼接正式檔案。需要合併投影片時，優先使用 `docxmcp_pptx_revise` / `docxmcp_pptx_extract` / `docxmcp_pptx_render` / LibreOffice 原生另存等能重建封裝一致性的路徑。
+- **Office 驗證門檻：可讀不等於可交付**：`python-pptx` 能讀、`docxmcp probe` 成功、或 PDF 能轉出，都只能算輔助檢查；交付 Office 檔前至少需通過「專用工具 probe/抽取」與「原生應用 headless 開啟後另存 roundtrip」兩類檢查。若使用者回報 PowerPoint / Word / Excel 修復警告，必須視為阻塞，不得宣稱完成。
+- **Office 修復輸出規則**：修復或正規化後必須輸出新檔名（例如 `_修正版` / `_normalized`），不得覆蓋原始檔； final 回覆必須明確標示可用檔與棄用檔。
 
 ### 📊 系統狀態與資源監控 (System Manager)
 
@@ -331,3 +369,17 @@ Next after reply:
 | **Instance / AsyncLocalStorage** | `packages/opencode/src/project/instance.ts`       | Daemon 模式下 per-request context 傳遞                  |
 
 Race condition 修復優先順序：**讓讀取方自清（自防禦）> 改寫事件順序 > 引入新旗標**。
+
+14. **Session 完工標記慣例（Title `[✓]` 前綴）**
+
+- 當一個 session 的工作**真正完成**時（所有 todo 收斂、驗證通過、event log 已記、需 commit 者已 commit、無待處理殘留），必須呼叫 `system-manager_rename_session` 把 session title 改成 `[✓]<事件標題>`。
+- 目的：讓 session 列表一眼分辨「已完成 vs 進行中」，不必逐一打開回顧。
+- **「真正完成」判準（與第 3 條完成宣告門檻一致，全部成立才標）**：
+  - 所有 todo `completed`（無 `in_progress` / `pending` 殘留）
+  - Validation 通過（測試 / build / E2E 視任務性質）
+  - Event log 已透過 `event_record` 寫入收尾紀錄
+  - 需 commit 的改動已 commit、工作區乾淨（gitignored draft 不算殘留）
+  - 無 approval / decision / blocker 卡住
+- **半完成不標**：只要還有 stop gate、未 commit 的 code、未驗證的改動，就**不得**加 `[✓]`；維持原標題或用進行中描述。
+- 若 session 標題已含 `[✓]` 但後續又被使用者追加新工作，標記回退（移除 `[✓]`）直到新工作再次真正完成。
+- 標題本體沿用既有「依話題命名」慣例；`[✓]` 只是前綴狀態旗標。

@@ -15,6 +15,7 @@
  *   2 — usage error
  */
 
+import { execFileSync } from "node:child_process"
 import { existsSync } from "node:fs"
 import path from "node:path"
 import { ensureNewFormat } from "./lib/ensure-new-format"

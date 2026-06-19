@@ -37,7 +37,7 @@ These three are **load-bearing** — they're what makes the spec a spec rather t
 Other principles:
 
 - **Spec is product, code is derivative.** Aim for 80% spec effort, 20% codegen.
-- **Plan and wiki are the same artifact at different maturity states.** README.md is auto-generated as an index; it reflects the source files (proposal.md / design.md / tasks.md / events/*.md / .state.json / idef0.json / grafcet.json).
+- **Plan and wiki are the same artifact at different maturity states.** README.md is auto-generated as an index; it reflects the source files (proposal.md / design.md / tasks.md / .state.json / idef0.json / grafcet.json). Events live in the native sqlite event log, not the package.
 - **Every change goes through the spec.** Including bug fixes. Sync mandatory. See §17.
 - **Stage-3 sync is conversation-native.** Don't switch into "documentation mode" — call MCP tools mid-debug as you work. See §8.
 - **History per part, not just per state machine.** Three layers: inline delta markers, section-level supersede, full snapshot. See §7.
@@ -76,10 +76,11 @@ AI calls every tool with a slash-form slug (`compaction/codex-empty-turn`); the 
 ├── idef0.*.svg       — drawmiat-rendered IDEF0 diagrams
 ├── grafcet.json      — GRAFCET runtime behaviour (designed+)
 ├── grafcet.svg       — drawmiat-rendered GRAFCET diagram
-├── events/           — events/event_<date>_<slug>.md (created during implementing)
 ├── .state.json       — Lifecycle state + history (single source of truth)
 └── README.md         — AUTO-GENERATED index (do not edit; mirrors the rest)
 ```
+
+> **Events are NOT a package layer.** There is no `events/` folder. `spec_record_event` appends to the **native sqlite event log** (the AI-only, append-only development record — `<repo>/.specbase/events.sqlite`), scoped by the spec slug. Recall past events with `event_search` / `event_query`. The package holds only the human-facing markdown above. (The event log is to the spec as git commit-history is to the working tree: the spec is the current snapshot; the log is the permanent record of how it changed.)
 
 The `verified → living` transition (`plan_graduate`) physically moves the folder from /plans/ to /specs/. This gate is **manual only — user-triggered**; AI may report readiness but must not call `plan_graduate` itself (see AGENTS.md zone contract). Once graduated, all subsequent `amend` / `revise` / `extend` / `refactor` stay in /specs/ — no return to /plans/.
 
@@ -248,7 +249,7 @@ Some specs (security-relevant, regulated) need extra evidence:
 
 - `proposal.md` includes data classification + threat model
 - `design.md` includes compliance map
-- `events/` records security review milestones
+- the event log (`spec_record_event` → sqlite) records security review milestones
 - `.state.json.profile` lists `["ssdlc"]`
 
 `plan_create(slug, profile: "ssdlc")` opts in. Validation gates the extra artifacts at each state.
@@ -342,12 +343,12 @@ Without this routing, debug agents (especially subagents with cold context) reas
 
 ## 18. Reading the README
 
-`<repo>/specs/<slug>/README.md` is **auto-generated**. It carries `auto_generated: true` in frontmatter and a "do not edit" blockquote at the top. Edit the source files (proposal.md / design.md / tasks.md / events/*.md). The next plan-builder action regenerates the README.
+`<repo>/specs/<slug>/README.md` is **auto-generated**. It carries `auto_generated: true` in frontmatter and a "do not edit" blockquote at the top. Edit the source files (proposal.md / design.md / tasks.md). The next plan-builder action regenerates the README. (Events are not package files — they live in the sqlite event log.)
 
 If you find yourself wanting to edit README directly: that's a smell. Either:
 - The change belongs in design.md (decisions / code anchors / architecture)
 - The change belongs in tasks.md (progress)
-- The change belongs in events/ (debug / hotfix records)
+- The change belongs in the event log (debug / hotfix records → `spec_record_event`, sqlite)
 - The promote.ts synthesis is missing your section — open an issue / fix promote.ts
 
 ## 19. Why this DNA matters

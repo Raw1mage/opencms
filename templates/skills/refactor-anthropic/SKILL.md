@@ -1,11 +1,11 @@
 ---
 name: refactor-anthropic
-description: 專用於維護與更新 CMS 的 Anthropic Provider，使其與 Claude CLI (claude-code) 的行為保持同步。當 refs/claude-code submodule 有更新、或需要修復 Anthropic OAuth、Session 管理、身分模擬 (Headers/Prompt) 時使用。
+description: 專用於維護與更新 CMS 的 Anthropic Provider，使其與 Claude CLI (claude-code) 的行為保持同步。當官方 claude-code (refs/claude-code-npm) 有更新、或需要修復 Anthropic OAuth、Session 管理、身分模擬 (Headers/Prompt) 時使用。
 ---
 
 # Refactor Anthropic Skill
 
-本技能旨在指導如何將 `refs/claude-code` 中的最新邏輯遷移至 CMS 的 `src/plugin/anthropic.ts` 中，確保認證流程、請求標頭與 Session 機制始終與官方官方 CLI 一致。
+本技能旨在指導如何將官方 claude-code (`refs/claude-code-npm/cli.js`) 的最新邏輯同步到 CMS 的 `packages/provider-claude/`（HTTP/OAuth/headers）與 `packages/opencode/src/plugin/claude-cli/`（plugin 接線），確保認證流程、請求標頭與 Session 機制始終與官方 CLI 一致。
 
 ## 關鍵維護領域 (v2.1.37+ Protocol Update)
 
@@ -44,15 +44,30 @@ XAL = Array.from(new Set([...WgB, ...Fb$]))  // WgB 包含 org:create_api_key
 
 - **注意**: 缺少 `user:sessions:claude_code` 會導致 Session API 404 或 Message API 400 錯誤。
 
+#### 1.4 Authorize 端點依登入型態而異 (2026-05-30 補)
+
+官方依 `loginWithClaudeAi` 旗標選擇 **authorize server**，opencode 的兩個 auth method 一一對應：
+
+| 登入型態 | Authorize URL | 常數 |
+| --- | --- | --- |
+| 訂閱 (Pro/Max/Team/Enterprise) | `https://claude.com/cai/oauth/authorize` | `CLAUDE_AI_AUTHORIZE_URL` / 本 repo `OAUTH.authorizeClaude` |
+| Console (API key) | `https://platform.claude.com/oauth/authorize` | `CONSOLE_AUTHORIZE_URL` / 本 repo `OAUTH.authorizeConsole` |
+
+- **關鍵**: `redirect_uri` 與 token 端點 (`/v1/oauth/token`) 兩種登入**共用 `platform.claude.com`**，不隨 authorize host 改變。
+- **錯誤案例**: `authorize()` 若不分模式一律用 `authorizeConsole`，訂閱登入會在 console AS 拿到 console 脈絡的 code，換 Max token 失敗（曾誤判為 rate limit）。修正：`new URL(mode === "console" ? OAUTH.authorizeConsole : OAUTH.authorizeClaude)`。
+
 ### 2. 請求標頭 (Headers) 模擬
 
 Anthropic 對於 Subscription Token 實施了嚴格的客戶端驗證。
 
-- **User-Agent**:
-  - 官方格式: `claude-code/2.1.37`
-  - **回退策略**: 若官方格式被擋，可嘗試 `claude-cli/2.1.37 (external, cli)` (Legacy format)。
-- **anthropic-version**: 必須設為 `2023-06-01`，否則會被拒絕。
-- **anthropic-beta**: 必須包含 `claude-code-20250219` 與 `oauth-2025-04-20`。
+- **User-Agent（依端點而異！2026-05-30 補，務必區分）**:
+  - **推論端點** (`api.anthropic.com`，Messages/Session API): `claude-code/<ver>`（如 `claude-code/2.1.156`）。
+  - **OAuth token 端點** (`platform.claude.com/v1/oauth/token`，即 exchange / refresh): **必須用 `axios/x`**（官方 OAuth 呼叫 `Zn8`/refresh 走 plain axios，UA 自然是 `axios/<ver>`）。
+    - 實測（2026-05-30，送無效 refresh_token 探測）：此端點**按 User-Agent 分桶節流**，`claude-code/<ver>` →429 `rate_limit_error`（憑證未驗即擋），`axios/*`／`node`／`Bun/x`／任意非 claude-code UA →400（進到正常驗證）。推測為反冒充節流：真實 CLI 不在此端點用 claude-code UA。
+    - **切勿**把推論的 `claude-code/<ver>` 套到 OAuth 呼叫 —— 會把 429 鎖死（本 repo 2026-05-30 踩過一次）。
+    - 舊「回退到 `claude-cli/2.1.37 (external, cli)`」字樣僅針對推論端點的歷史備案，與 OAuth 端點無關。
+- **anthropic-version**: 推論端點必須設為 `2023-06-01`。OAuth exchange/refresh 官方**只送 `Content-Type`**（不送 anthropic-version/beta）；profile 呼叫會帶 `anthropic-beta: oauth-2025-04-20`。
+- **anthropic-beta**: 推論端點必須包含 `claude-code-20250219` 與 `oauth-2025-04-20`。
 - **anthropic-client**: 源碼分析顯示未被使用，應移除以避免特徵不符。
 
 ### 3. Session 初始化機制 (Session API)
@@ -97,12 +112,14 @@ node -e "const fs=require('fs'); const c=fs.readFileSync('$(which claude)','utf8
 
 ## 維護工作流
 
-1. **分析 Submodule**: 檢查 `refs/claude-code` 的變更。若該目錄僅含文檔，請嘗試 `npm install @anthropic-ai/claude-code` 並分析 `cli.js`。
-2. **對比實作**: 使用 [reproduction_summary.md](references/reproduction_summary.md) 中的要點檢查現有程式碼。
-3. **更新憑證**: 若 OAuth 域名有變 (如從 console 移至 platform)，同步更新 `src/plugin/anthropic.ts`。
-4. **測試 Session**: 確保新的對話能成功觸發伺服器端的 Session 初始化。
+1. **分析官方 bundle**: protocol 真相在 npm bundle，已 vendored 於 `refs/claude-code-npm/cli.js`（`refs/claude-code` 只含文檔/issue 腳本，非 CLI 源碼）。`refs/claude-code` submodule 已移除。
+2. **自動對帳**: 跑 `bun packages/provider-claude/scripts/sync-from-cli.ts`（抓 npm binary，對 `protocol.ts`/`models.ts` 做 drift check，含 OAuth host/UA/scope 行為斷言）。
+3. **對比實作**: 對正式 wire datasheet `specs/claude-cli/cli-reversed-spec/chapters/protocol-datasheets.md` + 本 SKILL §1–3 檢查程式碼。
+4. **更新實作**: 變更落在 `packages/provider-claude/src/{auth,protocol,headers}.ts` 與 `packages/opencode/src/plugin/claude-cli/{index,auth}.ts`（舊 `src/plugin/anthropic.ts` 已移除）。
+5. **測試 Session**: 確保新的對話能成功觸發伺服器端的 Session 初始化。
 
 ## 參考資料
 
-詳細的實作細節與參數範例請見：[references/reproduction_summary.md](references/reproduction_summary.md)
-以及失敗嘗試記錄：[docs/events/faillog_claude_code_protocol.md](../../../docs/events/faillog_claude_code_protocol.md)
+- 正式 wire 協議 datasheet（SSOT）：`specs/claude-cli/cli-reversed-spec/chapters/protocol-datasheets.md`
+- OAuth 層 RCA 與決策留痕（2026-05-30 host/UA/scope）：`specs/claude-cli/cli-reversed-spec/events/`
+- 對帳工具：`packages/provider-claude/scripts/sync-from-cli.ts`（`--version` 可指定版本）

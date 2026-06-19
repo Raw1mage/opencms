@@ -85,6 +85,12 @@ export function readState(specRoot: string): StateFile {
   if (!STATES.includes(parsed.state)) {
     throw new Error(`Invalid state value "${parsed.state}" in ${p}`)
   }
+  // Normalize legacy / hand-authored state files to the schema_version:1 shape
+  // so downstream mutators (appendHistory) never crash on a missing `history`
+  // (issue_20260608_appendHistory_null_history_crash).
+  if (!Array.isArray(parsed.history)) parsed.history = []
+  if (!Array.isArray(parsed.profile)) parsed.profile = []
+  if (parsed.schema_version !== 1) parsed.schema_version = 1
   return parsed
 }
 
@@ -102,7 +108,8 @@ export function currentUser(): string {
 }
 
 export function appendHistory(data: StateFile, entry: HistoryEntry): StateFile {
-  return { ...data, history: [...data.history, entry] }
+  // Defensive: tolerate a state file whose `history` was absent/null.
+  return { ...data, history: [...(data.history ?? []), entry] }
 }
 
 /** Natural forward transitions for `promote` mode. */
