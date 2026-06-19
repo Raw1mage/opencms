@@ -134,6 +134,57 @@ const WORKER_POOL_MAX = 3 // Hard cap on concurrent worker processes
 const beacon = ActivityBeacon.scope("tool.task")
 const WORKER_ASSIGN_LOCK = "tool.task.worker.assign"
 
+// RC-3 (bug_20260619_coding_subagent_cwd_root_pathloss): parent-side backstop
+// for a worker that is "busy but making no progress". The proc-watchdog's
+// liveness check (B3) resets on any CPU/IO tick, so a worker firing glob/grep
+// every few seconds never goes silent and never gets reaped — it can burn 20+
+// minutes guessing repo paths. The worker's own runloop detector (Detector E,
+// prompt.ts detectNoProgressParalysis) is the primary guard; this is the
+// last-resort backstop for when the worker cannot self-terminate.
+//
+// How many consecutive most-recent tool OUTCOMES must be uniformly useless
+// (all error, or all the same output signature, with no file mutation) before
+// the watchdog reaps. Mirrors the runloop detector's 3-turn window but counts
+// individual tool parts, not turns, because the watchdog reads disk without
+// turn structure. Set comfortably above any legitimate "read 5 files then
+// edit" recon stretch — a real build mutates a file, which clears the streak.
+const NO_PROGRESS_TOOL_STREAK = 8
+const NO_PROGRESS_PROGRESS_TOOLS = new Set(["write", "edit", "multiedit", "apply_patch"])
+
+/**
+ * Detect a busy-but-no-progress streak from a flat, chronological list of a
+ * child session's recent tool outcomes (newest last). Pure + exported for unit
+ * testing.
+ *
+ * Taxonomy:
+ *   - input.outcomes[i]: one tool result, oldest→newest, shape
+ *     { tool: string; status: "completed" | "error" | "pending" | "running";
+ *       signature: string }. `signature` summarises the OUTCOME (error head or
+ *       output hash), NOT the input. Pending/running are ignored (in-flight).
+ *   - returns { reap: boolean }. reap=true ONLY when the last
+ *     NO_PROGRESS_TOOL_STREAK *settled* (completed|error) outcomes contain NO
+ *     file-mutating tool AND are uniformly useless: either every one errored,
+ *     or every one shares the same non-empty signature. Anything else → false.
+ *   - "reap=true" MUST NOT be read as "model is bad" — it is a stuck-worker
+ *     backstop, identical in spirit to the runloop's Detector E.
+ */
+export function detectWorkerNoProgress(input: {
+  outcomes: Array<{ tool: string; status: string; signature: string }>
+}): { reap: boolean } {
+  // Consider only settled outcomes; in-flight ones carry no progress signal.
+  const settled = input.outcomes.filter((o) => o.status === "completed" || o.status === "error")
+  if (settled.length < NO_PROGRESS_TOOL_STREAK) return { reap: false }
+  const window = settled.slice(-NO_PROGRESS_TOOL_STREAK)
+  // Any real file mutation in the window → genuine progress, veto.
+  if (window.some((o) => NO_PROGRESS_PROGRESS_TOOLS.has(o.tool))) return { reap: false }
+  // Uniformly-errored window → stuck.
+  if (window.every((o) => o.status === "error")) return { reap: true }
+  // Uniformly-identical non-empty outcome signature → repeating useless result.
+  const sig0 = window[0].signature
+  if (sig0 && sig0.length > 0 && window.every((o) => o.signature === sig0)) return { reap: true }
+  return { reap: false }
+}
+
 type SubagentResultAttachmentWriter = Pick<typeof StorageRouter, "upsertAttachmentBlob">
 let subagentResultAttachmentWriter: SubagentResultAttachmentWriter = StorageRouter
 
@@ -440,8 +491,14 @@ export async function recoverOrphanTasks() {
       // notice pipeline could deliver it. Honor that window: a child that
       // actually finished should be reported success/error — not as a
       // dead worker — so the parent gets its real result back.
-      let childStatus: "success" | "error" | "canceled" | "rate_limited" | "quota_low" | "worker_dead" | "content_filter" =
-        "worker_dead"
+      let childStatus:
+        | "success"
+        | "error"
+        | "canceled"
+        | "rate_limited"
+        | "quota_low"
+        | "worker_dead"
+        | "content_filter" = "worker_dead"
       let childFinish = "worker_exited"
       let inlineResult: string | undefined
       try {
@@ -838,8 +895,22 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
   // retains the correct project directory for Bus.publish() even after the
   // originating HTTP request's Instance.provide() scope has ended.
   const capturedDirectory = Instance.directory
+  // RC-1 (bug_20260619_coding_subagent_cwd_root_pathloss): the worker MUST be
+  // spawned with the project root as its cwd. Without this it inherits the
+  // daemon's launch dir (systemd → `/`), so every workspace-relative path the
+  // worker resolves becomes `/<path>` and all read/glob/grep miss — the worker
+  // then burns minutes guessing the repo root. capturedDirectory is the
+  // Instance.directory captured above; fail loud rather than silently inherit
+  // `/` (AGENTS.md rule 11 — no silent fallback).
+  if (!capturedDirectory) {
+    throw new Error(
+      "spawnWorker: Instance.directory is undefined at spawn time — cannot launch subagent worker without a project root cwd. " +
+        "This indicates the spawn path lost its Instance context; fix the caller to run inside Instance.provide({ directory }).",
+    )
+  }
   const workerID = `task-worker-${++workerSeq}`
   const proc = Bun.spawn(buildWorkerCmd(), {
+    cwd: capturedDirectory,
     env: {
       ...process.env,
       OPENCODE_NON_INTERACTIVE: "1",
@@ -2306,6 +2377,50 @@ export const TaskTool = Tool.define("task", async (ctx) => {
                       return
                     }
                   }
+                }
+              } catch {
+                // disk read failed — keep going, try again next tick
+              }
+
+              // A2. No-progress backstop (RC-3, bug_20260619). A worker that
+              //     keeps firing tools but makes no real progress (all errors,
+              //     or the same useless output, no file mutation) never trips
+              //     the B3 silence check because CPU/IO keep ticking. Read its
+              //     settled tool outcomes from disk and reap if the last
+              //     NO_PROGRESS_TOOL_STREAK are uniformly useless. Primary
+              //     guard is the worker's own runloop Detector E; this is the
+              //     parent-side backstop for when it cannot self-terminate.
+              try {
+                const { messages: childMsgs } = await MessageV2.filterCompacted(MessageV2.stream(session.id))
+                const outcomes: Array<{ tool: string; status: string; signature: string }> = []
+                for (const m of childMsgs) {
+                  if (m.info.role !== "assistant") continue
+                  for (const p of m.parts) {
+                    if (p.type !== "tool") continue
+                    const tp = p as MessageV2.ToolPart
+                    const st = tp.state as { status?: string; error?: string; output?: string }
+                    if (st?.status === "error") {
+                      outcomes.push({
+                        tool: tp.tool,
+                        status: "error",
+                        signature: `err:${(st.error ?? "").slice(0, 80)}`,
+                      })
+                    } else if (st?.status === "completed") {
+                      const out = st.output ?? ""
+                      const hash = out ? Bun.hash.xxHash64(out).toString(16) : "empty"
+                      outcomes.push({ tool: tp.tool, status: "completed", signature: `ok:${hash}` })
+                    }
+                  }
+                }
+                if (detectWorkerNoProgress({ outcomes }).reap) {
+                  Log.create({ service: "task" }).warn("proc-watchdog: worker busy-but-no-progress — killing", {
+                    childSessionID: session.id,
+                    workerID: assignedWorkerID,
+                    streak: NO_PROGRESS_TOOL_STREAK,
+                    lastTool: outcomes[outcomes.length - 1]?.tool,
+                  })
+                  resolveWD({ resolution: "silent_kill", ok: false, finish: "no_progress_timeout" })
+                  return
                 }
               } catch {
                 // disk read failed — keep going, try again next tick

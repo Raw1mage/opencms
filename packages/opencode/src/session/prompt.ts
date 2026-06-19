@@ -465,7 +465,7 @@ export const PARALYSIS_NOOP_META_TOOLS = new Set(["tool_loader"])
  * loop (bug_20260618_post_compaction_tool_loader_perseveration_noop_shim).
  */
 export function selectParalysisNudge(input: {
-  detector: "signature" | "narrative" | "preface"
+  detector: "signature" | "narrative" | "preface" | "no-progress"
   repeatedToolName?: string
 }): string {
   const { detector, repeatedToolName } = input
@@ -474,6 +474,9 @@ export function selectParalysisNudge(input: {
   }
   if (detector === "signature") {
     return "你連續 3 輪呼叫了同一個 tool 加同樣參數。停下來想想：是不是該檢查當前實際狀態，而不是重複 plan？換一個動作。"
+  }
+  if (detector === "no-progress") {
+    return "你連續 3 輪都在呼叫工具但毫無進展 — 每輪不是報錯就是得到完全相同的無用輸出，而且沒有實際修改任何檔案。停下來：先確認你的工作目錄與目標路徑是否正確（context preface 的 <cwd_listing> 標明了 workspace root），不要再用不同參數盲試同一類動作。如果無法定位資源，直接告訴 user 你卡在哪。"
   }
   return "你連續 3 輪講了非常相似的計畫但沒實際前進。停下來換一條路徑 — 檢查 state、嘗試不同 tool、或直接告訴 user 你卡在哪。"
 }
@@ -559,6 +562,74 @@ export function detectPrefaceParalysis(input: {
   const j12 = jaccard(bigrams(prefaces[1]), bigrams(prefaces[2]))
   const similarity = Math.min(j01, j12)
   return { paralyzed: similarity > PARALYSIS_PREFACE_SIM_THRESHOLD, similarity }
+}
+
+/**
+ * Detector E — tool-active-but-no-progress perseveration (preface-independent).
+ *
+ * Catches the failure mode in
+ * issues/bug_20260619_coding_subagent_cwd_root_pathloss_unproductive_hang.md:
+ * a worker (or orchestrator) keeps firing tools every turn — so it looks
+ * "alive" — but makes zero real progress: no file mutation, and each turn's
+ * tool calls either all error or return the same output signature as the prior
+ * turns (e.g. a coding subagent stuck guessing repo paths: glob → error, find
+ * → timeout, pwd → `/`, repeat). Detectors A–D miss it:
+ *   - A (signature) needs the SAME tool+input across turns; the path-guesser
+ *     varies its input each turn (different glob path, different find root).
+ *   - B (narrative) / D (preface) key on text similarity; the worker narrates
+ *     a DIFFERENT excuse each turn ("偵查方向修正" / "偵查超時" / "重新定位"),
+ *     diluting similarity below threshold.
+ * This detector ignores text entirely. It keys on the structural fact:
+ * tool activity present, file mutation absent, and the per-turn outcome
+ * signature (error-set + completed-output-hash multiset) repeats.
+ *
+ * mutatedPerTurn vetoes exactly like Detector D — any real file mutation in the
+ * window means genuine progress, so it never fires on legitimate work (even a
+ * long read-heavy recon stretch that ends in an edit clears it the moment the
+ * edit lands).
+ *
+ * Pure + exported for unit testing; the runloop wires real message parts in.
+ *
+ * Taxonomy:
+ *   - input.toolActivePerTurn[i]: did turn i issue ANY tool call? (bool)
+ *   - input.mutatedPerTurn[i]: did turn i issue a PARALYSIS_PROGRESS_TOOLS
+ *     call (write/edit/multiedit/apply_patch)? (bool) — real progress signal.
+ *   - input.erroredPerTurn[i]: did EVERY settled tool in turn i error? (bool)
+ *     The path-guessing case errors every turn with DIFFERENT messages, so
+ *     the signatures differ — "uniformly errored" must trip independently.
+ *   - input.outcomeSignaturePerTurn[i]: a stable string summarising turn i's
+ *     tool OUTCOMES — error messages + completed-output hashes — NOT inputs.
+ *     Two turns with the same signature did structurally the same (useless)
+ *     thing. Empty string is allowed (no completed/errored tools).
+ *   Returns paralyzed=true only when, across the first 3 windowed turns:
+ *     (1) every turn had tool activity, AND
+ *     (2) no turn mutated a file, AND
+ *     (3) EITHER every turn uniformly errored (path-guessing fingerprint),
+ *         OR all three outcome signatures are equal and non-empty (repeated
+ *         identical useless outcome). Either is "busy but no progress".
+ *   "paralyzed=true" MUST NOT be read as "the model is bad" — it is a guard
+ *   blind-spot closure: structural no-progress, regardless of narration.
+ */
+export function detectNoProgressParalysis(input: {
+  toolActivePerTurn: boolean[]
+  mutatedPerTurn: boolean[]
+  erroredPerTurn: boolean[]
+  outcomeSignaturePerTurn: string[]
+}): { paralyzed: boolean } {
+  const { toolActivePerTurn, mutatedPerTurn, erroredPerTurn, outcomeSignaturePerTurn } = input
+  if (toolActivePerTurn.length < 3) return { paralyzed: false }
+  // Every windowed turn must have issued a tool — this is the "busy" half.
+  if (!toolActivePerTurn.slice(0, 3).every(Boolean)) return { paralyzed: false }
+  // Any real file mutation → genuine progress, veto (mirrors Detector D).
+  if (mutatedPerTurn.slice(0, 3).some(Boolean)) return { paralyzed: false }
+  // "No progress" half — either branch fires:
+  // (a) every windowed turn uniformly errored (path-guessing fingerprint).
+  if (erroredPerTurn.slice(0, 3).every(Boolean)) return { paralyzed: true }
+  // (b) identical non-empty outcome signature 3× running.
+  const s = outcomeSignaturePerTurn.slice(0, 3)
+  if (s.some((x) => !x || x.length === 0)) return { paralyzed: false }
+  const allEqual = s[0] === s[1] && s[1] === s[2]
+  return { paralyzed: allEqual }
 }
 
 function findContextBudgetSource(messages: MessageV2.WithParts[]): MessageV2.Assistant | undefined {
@@ -2700,8 +2771,61 @@ export namespace SessionPrompt {
           })
           const prefaceTriple = prefaceResult.paralyzed
 
-          if (sigTriple || narrativeTriple || prefaceTriple) {
-            const detector = sigTriple ? "signature" : narrativeTriple ? "narrative" : "preface"
+          // Detector E — tool-active-but-no-progress (preface-independent).
+          // Catches the busy-but-useless spin that A–D miss: tools fire every
+          // turn (so the proc-watchdog sees "alive") but no file mutates and the
+          // per-turn OUTCOME signature (error set + completed-output hashes)
+          // repeats — e.g. a coding subagent stuck guessing repo paths after a
+          // cwd=`/` mis-spawn (bug_20260619_coding_subagent_cwd_root_pathloss).
+          // Independent of narration similarity, so it fires even when the model
+          // varies its excuse each turn.
+          const toolActivePerTurn = recentAssistants.map((m) => m.parts.some((p) => p.type === "tool"))
+          // A turn is "uniformly errored" when it had ≥1 settled tool and EVERY
+          // settled (completed|error) tool errored. The path-guessing worker
+          // errors every turn with DIFFERENT messages, so signatures won't
+          // match — this branch catches it where signature-equality cannot.
+          const erroredPerTurn = recentAssistants.map((m) => {
+            const settled = (m.parts.filter((p) => p.type === "tool") as MessageV2.ToolPart[]).filter((tp) => {
+              const s = (tp.state as { status?: string }).status
+              return s === "completed" || s === "error"
+            })
+            return settled.length > 0 && settled.every((tp) => (tp.state as { status?: string }).status === "error")
+          })
+          const outcomeSignaturePerTurn = recentAssistants.map((m) => {
+            const tools = m.parts.filter((p) => p.type === "tool") as MessageV2.ToolPart[]
+            return tools
+              .map((tp) => {
+                const st = tp.state as { status?: string; error?: string; output?: string }
+                if (st?.status === "error") {
+                  // Normalise volatile tails (paths/timestamps collapse to a
+                  // stable head) so "File not found: /a" and "/b" still match.
+                  return `${tp.tool}#err:${(st.error ?? "").slice(0, 80)}`
+                }
+                if (st?.status === "completed") {
+                  const out = st.output ?? ""
+                  const hash = out ? Bun.hash.xxHash64(out).toString(16) : "empty"
+                  return `${tp.tool}#ok:${hash}`
+                }
+                return `${tp.tool}#${st?.status ?? "?"}`
+              })
+              .join("|")
+          })
+          const noProgressResult = detectNoProgressParalysis({
+            toolActivePerTurn,
+            mutatedPerTurn,
+            erroredPerTurn,
+            outcomeSignaturePerTurn,
+          })
+          const noProgressTriple = noProgressResult.paralyzed
+
+          if (sigTriple || narrativeTriple || prefaceTriple || noProgressTriple) {
+            const detector = sigTriple
+              ? "signature"
+              : narrativeTriple
+                ? "narrative"
+                : prefaceTriple
+                  ? "preface"
+                  : "no-progress"
             const similarity = narrativeTriple
               ? Math.min(j01, j12)
               : prefaceTriple

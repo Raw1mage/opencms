@@ -203,7 +203,7 @@ export namespace MessageV2 {
     "ParalysisDetectedError",
     z.object({
       message: z.string(),
-      detector: z.enum(["signature", "narrative", "preface"]),
+      detector: z.enum(["signature", "narrative", "preface", "no-progress"]),
       consecutiveRounds: z.number(),
       similarity: z.number().optional(),
       samplePrefix: z.string().optional(),

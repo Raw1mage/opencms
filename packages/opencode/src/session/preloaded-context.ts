@@ -12,14 +12,28 @@ import type { PreloadParts } from "./context-preface-types"
  */
 export async function getPreloadParts(_sessionID?: string): Promise<PreloadParts> {
   const root = Instance.worktree
+  // RC-2 (bug_20260619_coding_subagent_cwd_root_pathloss): the absolute repo
+  // root must lead the cwd listing. The `<env>` block (system.ts) carries
+  // `Working directory:` only into the MAIN agent prompt — for subagents it
+  // rides inside `agentsMd`, which prompt.ts gates to "" (session.parentID).
+  // Preload, by contrast, reaches BOTH main and subagent prefaces ungated, so
+  // anchoring the workspace root here is the single load-bearing fact a
+  // file-editing worker needs to resolve relative paths instead of guessing.
+  const workingDirectory = Instance.directory
   let cwdListing = ""
   try {
     const files = await fs.readdir(root)
-    cwdListing = files.slice(0, 50).join("\n")
-    if (files.length > 50) cwdListing += "\n... (truncated)"
+    const listing = files.slice(0, 50).join("\n")
+    cwdListing = files.length > 50 ? `${listing}\n... (truncated)` : listing
   } catch (e) {
     cwdListing = String(e)
   }
+  // Prepend the absolute workspace root + a one-line directive so the listing
+  // is interpreted as repo-relative, not as bare names under some inherited cwd.
+  cwdListing =
+    `Working directory (workspace root): ${workingDirectory}\n` +
+    `All relative file paths resolve against this root. Use absolute paths or paths relative to it.\n\n` +
+    cwdListing
 
   let readmeSummary = ""
   try {
