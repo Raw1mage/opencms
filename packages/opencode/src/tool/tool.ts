@@ -230,28 +230,31 @@ export namespace Tool {
   /**
    * Whether a tool's identical-call dedup short-circuit is safe.
    *
-   * - Native modify-kind tools (edit / write / multiedit / ...) → false: a
-   *   re-issued mutation is meant to re-run, so silently reusing a stale
-   *   result is wrong. EXCEPTION: DEDUP_KEPT_MODIFY_TOOLS (apply_patch) keep
-   *   dedup for retry-protection. This is the native half of the D1 relaxation
-   *   (issues/bug_20260619_dispatcher_dedup_eats_side_effecting_toolcall.md):
-   *   the perseveration risk that motivated blanket native dedup has dropped,
-   *   so mutating calls now fail-safe to re-running instead of stale reuse.
-   * - Other native / unregistered tools → true (read/query/exploration; safe
-   *   to dedup).
-   * - MCP tools → true ONLY when explicitly readOnlyHint OR idempotentHint.
-   *   destructiveHint, or no usable hint, → false (fail-safe: re-run rather
-   *   than silently reuse a stale side-effecting result). This is an explicit
-   *   no-dedup decision, NOT a silent fallback.
+   * WHITELIST MODEL (plans/dispatcher_kill-silent-dedup-cache, 2026-06-19):
+   * default is RE-RUN; only an explicitly proven-load-bearing tool dedups.
+   *
+   * Rationale (user-directed, evidence-driven):
+   * - A read/query toolcall costs the model the SAME tokens whether it reads a
+   *   fresh result or a cached one, so deduping reads buys nothing and only
+   *   risks staleness. The original "saves user tokens" motivation was a
+   *   mislabel (it saved compute/IO, not tokens).
+   * - The ONE tool with current production evidence of load-bearing dedup is
+   *   apply_patch: a 30-day session scan showed 90 dedup hits, mostly the
+   *   model RE-SENDING an already-SUCCEEDED patch. Removing its dedup would
+   *   turn those into real re-runs (mostly noisy oldString-not-found + rotation
+   *   churn). So apply_patch (DEDUP_KEPT_MODIFY_TOOLS) stays the sole member.
+   * - Everything else (native read/grep/glob/bash, all MCP readOnly/idempotent
+   *   tools, edit/write) → re-run. This kills the silent short-circuit that
+   *   "pretended a side-effecting call ran" — notably MCP idempotentHint tools
+   *   like docxmcp_pptx_bootstrap(overwrite=true)
+   *   (issues/bug_20260619_dispatcher_dedup_eats_side_effecting_toolcall.md).
+   *
+   * dedupHintsRegistry / registerDedupHints are retained (mcp/index.ts still
+   * populates them) but no longer consulted here — kept for observability and
+   * possible future per-tool policy, not as a dedup gate.
    */
   export function isDedupEligible(toolID: string): boolean {
-    const hints = dedupHintsRegistry.get(toolID)
-    if (!hints) {
-      // Native / unregistered tool: gate on Working-Cache kind.
-      if (kind(toolID) === "modify" && !DEDUP_KEPT_MODIFY_TOOLS.has(toolID)) return false
-      return true
-    }
-    return hints.readOnlyHint === true || hints.idempotentHint === true
+    return DEDUP_KEPT_MODIFY_TOOLS.has(toolID)
   }
 
   // Test-only: clear the dedup-hints registry between cases.
