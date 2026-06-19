@@ -85,6 +85,14 @@ export namespace Completion {
   // does not pin an account across turns; a small N is sufficient.
   const MAX_RATE_LIMIT_RETRIES = 2
 
+  // Hard wall-clock ceiling for a single LLM.stream consumption. The stateless
+  // path has NO session-level abort wiring (no SessionProcessor cancel button,
+  // no client SSE disconnect signal) — so a provider that opens the stream but
+  // never emits a finish event would otherwise hang this request, and (because
+  // the daemon awaits it) the daemon, forever. This timer force-aborts the
+  // controller so the await unwinds into the catch block as a PROVIDER_ERROR.
+  const STREAM_TIMEOUT_MS = 120_000
+
   /**
    * Select a healthy, non-rate-limited account from the same provider's pool,
    * excluding any IDs already tried this call. Returns undefined when the pool
@@ -184,6 +192,15 @@ export namespace Completion {
       const abort = new AbortController()
       const textParts: string[] = []
       structuredOutput = undefined
+      // Wall-clock guard: if the stream never finishes, force-abort so the
+      // await below unwinds instead of hanging the daemon. timedOut lets the
+      // catch block reclassify the AbortError as a cascade-eligible PROVIDER_ERROR
+      // (timeout == upstream availability problem) rather than a client error.
+      let timedOut = false
+      const timer = setTimeout(() => {
+        timedOut = true
+        abort.abort()
+      }, STREAM_TIMEOUT_MS)
       try {
         const stream = await LLM.stream({
           user,
@@ -225,6 +242,16 @@ export namespace Completion {
 
         return buildResponse(structuredOutput, textParts.join(""))
       } catch (e) {
+        // Wall-clock timeout: the timer fired and aborted the stream. Treat as a
+        // cascade-eligible upstream availability failure (PROVIDER_ERROR), not a
+        // client error — the request was well-formed, the provider just stalled.
+        if (timedOut) {
+          throw new CompletionError(
+            "PROVIDER_ERROR",
+            `completion stream exceeded ${STREAM_TIMEOUT_MS}ms wall-clock limit`,
+          )
+        }
+
         const rateLimited = isRateLimitError(e)
         // isModelTemporaryError is NOT exported from processor.ts (and the天條
         // forbids modifying that file). Use the exported isTransientCapacityError
@@ -250,6 +277,9 @@ export namespace Completion {
           throw new CompletionError("PROVIDER_ERROR", e instanceof Error ? e.message : String(e))
         }
         throw new CompletionError("DAEMON_ERROR", e instanceof Error ? e.message : String(e))
+      } finally {
+        // Always reclaim the wall-clock timer — covers return / continue / throw.
+        clearTimeout(timer)
       }
     }
   }

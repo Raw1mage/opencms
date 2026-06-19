@@ -449,13 +449,18 @@ export namespace LLM {
 
   async function isSubagentSession(sessionID: string): Promise<boolean> {
     const { Session: SessionMod } = await import("@/session")
-    const info = await SessionMod.get(sessionID)
+    // Graceful-degrade for non-persisted (ephemeral) sessions: the stateless
+    // completion path (Completion.run) mints a synthetic sessionID that has no
+    // storage row, so Session.get throws Storage.NotFoundError. Mirror the
+    // .catch(() => undefined) used at the other Session.get callsites in this
+    // file (e.g. line ~1379) — a missing session is simply "not a subagent".
+    const info = await SessionMod.get(sessionID).catch(() => undefined)
     return !!info?.parentID
   }
 
   async function resolveParentSessionID(sessionID: string): Promise<string | undefined> {
     const { Session: SessionMod } = await import("@/session")
-    const info = await SessionMod.get(sessionID)
+    const info = await SessionMod.get(sessionID).catch(() => undefined)
     return info?.parentID
   }
 
@@ -2292,10 +2297,7 @@ export namespace LLM {
             // pass-through so the value matches what the tool's zod parse
             // demands; conservative — only re-types fields whose schema names a
             // concrete non-string type and whose parsed value matches.
-            const rawInput = CoerceArgs.coerceToolCallInput(
-              failed.toolCall.input,
-              CoerceArgs.jsonSchemaOf(lazyTool),
-            )
+            const rawInput = CoerceArgs.coerceToolCallInput(failed.toolCall.input, CoerceArgs.jsonSchemaOf(lazyTool))
             const inputParseable =
               typeof rawInput !== "string" ||
               rawInput.trim() === "" ||
@@ -2711,11 +2713,8 @@ export namespace LLM {
         // RATE_LIMIT_EXCEEDED. The old binary label mislabeled Anthropic
         // overloaded_error (capacity) rotations as rate limits.
         const rotationReason =
-          getRateLimitTracker().getReason(
-            currentVector.accountId,
-            currentVector.providerId,
-            currentVector.modelID,
-          ) ?? (fallbackReason === "rate-limit" ? "RATE_LIMIT_EXCEEDED" : "UNKNOWN")
+          getRateLimitTracker().getReason(currentVector.accountId, currentVector.providerId, currentVector.modelID) ??
+          (fallbackReason === "rate-limit" ? "RATE_LIMIT_EXCEEDED" : "UNKNOWN")
         const purposeValue = (fallback as unknown as Record<string, unknown>).purpose
         const purpose = typeof purposeValue === "string" ? purposeValue : fallbackReason
         const reasonLabel = PURPOSE_LABELS[purpose] || fallback.reason
