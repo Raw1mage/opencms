@@ -220,9 +220,25 @@ export namespace Tool {
   }
 
   /**
+   * Native mutating tools whose identical-call dedup is INTENTIONALLY kept,
+   * overriding the modify-kind no-dedup rule below. apply_patch dedup guards
+   * against rotation/retry re-applying the same patch twice (see
+   * issues/closed/bug_20260529_toolcall_duplicate_apply_patch_retry.md).
+   */
+  const DEDUP_KEPT_MODIFY_TOOLS = new Set<string>(["apply_patch"])
+
+  /**
    * Whether a tool's identical-call dedup short-circuit is safe.
    *
-   * - Native / unregistered tools → true (preserve existing dedup behaviour).
+   * - Native modify-kind tools (edit / write / multiedit / ...) → false: a
+   *   re-issued mutation is meant to re-run, so silently reusing a stale
+   *   result is wrong. EXCEPTION: DEDUP_KEPT_MODIFY_TOOLS (apply_patch) keep
+   *   dedup for retry-protection. This is the native half of the D1 relaxation
+   *   (issues/bug_20260619_dispatcher_dedup_eats_side_effecting_toolcall.md):
+   *   the perseveration risk that motivated blanket native dedup has dropped,
+   *   so mutating calls now fail-safe to re-running instead of stale reuse.
+   * - Other native / unregistered tools → true (read/query/exploration; safe
+   *   to dedup).
    * - MCP tools → true ONLY when explicitly readOnlyHint OR idempotentHint.
    *   destructiveHint, or no usable hint, → false (fail-safe: re-run rather
    *   than silently reuse a stale side-effecting result). This is an explicit
@@ -230,7 +246,11 @@ export namespace Tool {
    */
   export function isDedupEligible(toolID: string): boolean {
     const hints = dedupHintsRegistry.get(toolID)
-    if (!hints) return true
+    if (!hints) {
+      // Native / unregistered tool: gate on Working-Cache kind.
+      if (kind(toolID) === "modify" && !DEDUP_KEPT_MODIFY_TOOLS.has(toolID)) return false
+      return true
+    }
     return hints.readOnlyHint === true || hints.idempotentHint === true
   }
 
