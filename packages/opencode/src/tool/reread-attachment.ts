@@ -159,8 +159,9 @@ export const RereadAttachmentTool = Tool.define("reread_attachment", {
       title: resolvedFilename,
       metadata: { activeSetSize: next.length, resolvedFilename },
       output:
-        `Image '${resolvedFilename}' is queued and will appear inline in the preface of your NEXT response. ` +
-        `It will PERSIST across subsequent turns of the current task — do NOT re-call this tool every turn. ` +
+        `Image '${resolvedFilename}' is queued and will appear inline in the preface of your NEXT response for that ONE turn, ` +
+        `then drop back to a link in the <attached_images> inventory — your written analysis of it persists in the conversation. ` +
+        `Don't re-call this tool to keep an image you've already described in view; only call it again when a later turn genuinely needs to RE-EXAMINE the actual pixels. ` +
         `Active set: ${next.length} image(s).`,
     }
   },

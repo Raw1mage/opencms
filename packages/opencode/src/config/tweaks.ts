@@ -384,6 +384,16 @@ export namespace Tweaks {
   export interface AttachmentInlineConfig {
     enabled: boolean
     activeSetMax: number
+    // attachment-lifecycle v8: re-enable auto-inline on upload, but ONLY for
+    // "small" uploads. When the combined est_tokens of the images freshly
+    // attached to a user message is <= this budget, they are auto-queued into
+    // activeImageRefs so the very next assistant turn sees the pixels with zero
+    // reread_attachment round-trip (the common "one screenshot + a question"
+    // case). Larger / many-image uploads exceed the budget and stay on the v5
+    // opt-in path (inventory text only), preserving DD-22's bounded-cost
+    // property for big image dumps. Set to 0 to fully disable auto-inline
+    // (pure v5 opt-in).
+    autoInlineUploadBudgetTokens: number
   }
 
   export interface Effective {
@@ -544,6 +554,9 @@ export namespace Tweaks {
     // a buggy AI calling reread for 100 different filenames in one
     // turn). Range 1-50 (was 1-20).
     activeSetMax: 8,
+    // v8: ~one large screenshot (the reference BR image was ~11.5k tokens) or
+    // two small ones auto-inline; a 3+ image dump exceeds it and stays opt-in.
+    autoInlineUploadBudgetTokens: 20000,
   }
 
   const PART_PERSISTENCE_DEFAULTS: PartPersistenceConfig = {
@@ -715,6 +728,7 @@ export namespace Tweaks {
     "boundary_subagent_result_max_bytes",
     "attachment_inline_enabled",
     "attachment_active_set_max",
+    "attachment_auto_inline_budget_tokens",
     "debug_log_enabled",
   ])
 
@@ -1337,6 +1351,11 @@ export namespace Tweaks {
     if (attActiveSetMaxRaw !== undefined) {
       const v = parseIntRange(attActiveSetMaxRaw, "attachment_active_set_max", 1, 50)
       if (v !== undefined) attachmentInline.activeSetMax = v
+    }
+    const attAutoInlineBudgetRaw = parsed.get("attachment_auto_inline_budget_tokens")
+    if (attAutoInlineBudgetRaw !== undefined) {
+      const v = parseIntRange(attAutoInlineBudgetRaw, "attachment_auto_inline_budget_tokens", 0, 2_000_000)
+      if (v !== undefined) attachmentInline.autoInlineUploadBudgetTokens = v
     }
 
     let debugLogEnabled = false

@@ -6,6 +6,7 @@ import { Log } from "../util/log"
 import { debugCheckpoint } from "@/util/debug"
 import { SessionRevert } from "./revert"
 import { Session } from "."
+import { addOnUploadGated, type AttachmentRefLike } from "./active-image-refs"
 import { Agent } from "../agent/agent"
 import { Provider } from "../provider/provider"
 import { classifyProvider } from "../provider/chain-semantics"
@@ -4432,14 +4433,33 @@ export namespace SessionPrompt {
       variant: input.variant,
     })
 
-    // attachment-lifecycle v5 (DD-22): upload no longer auto-queues images
-    // into activeImageRefs. The preface inventory text (built by
-    // buildAttachedImagesInventory in context-preface assembly) advertises
-    // every uploaded image; AI explicitly calls reread_attachment to bring
-    // specific filenames into the next turn's preface trailing tier.
-    //
-    // The v4 addOnUpload helper is intentionally retained (unused here) so
-    // future re-enablement is a one-line revert.
+    // attachment-lifecycle v8: budget-gated auto-inline on upload. A SMALL
+    // upload (combined est_tokens within the configured budget — the common
+    // "one screenshot + a question" case) is auto-queued into activeImageRefs
+    // so the very next assistant turn sees the pixels with zero
+    // reread_attachment round-trip. A large/many-image dump exceeds the budget
+    // and stays on the v5/DD-22 opt-in path (inventory text only), preserving
+    // bounded cost regardless of image count. consume-on-use (llm.ts post-emit
+    // drain) still drops the pixels after that one turn, so they never enter
+    // the cached prefix.
+    const inlineCfg = Tweaks.attachmentInlineSync()
+    if (inlineCfg.enabled && inlineCfg.autoInlineUploadBudgetTokens > 0) {
+      try {
+        const prior = session.execution?.activeImageRefs ?? []
+        const next = addOnUploadGated(prior, parts as unknown as AttachmentRefLike[], {
+          max: inlineCfg.activeSetMax,
+          budgetTokens: inlineCfg.autoInlineUploadBudgetTokens,
+        })
+        if (next !== prior) {
+          await Session.setActiveImageRefs(input.sessionID, next).catch(() => {})
+        }
+      } catch (err) {
+        log.warn("upload auto-inline gate failed; falling back to opt-in", {
+          sessionID: input.sessionID,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+    }
 
     return {
       info,

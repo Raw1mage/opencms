@@ -16,14 +16,21 @@ export interface AttachmentRefLike {
   mime?: string
   filename?: string
   repo_path?: string
+  // v4 hotfix: new image uploads carry the bytes under session_path, NOT
+  // repo_path (see message-v2 AttachmentRefPart). Inline-eligibility must
+  // accept either — gating on repo_path alone silently rejects every modern
+  // upload (the latent trap that made v5's "one-line re-enable" a no-op).
+  session_path?: string
+  // est_tokens of this attachment, used by the upload auto-inline budget gate.
+  est_tokens?: number
 }
 
 export const ACTIVE_IMAGE_REFS_DEFAULT_MAX = 3
 
-function isInlineableImage(part: AttachmentRefLike): part is Required<Pick<AttachmentRefLike, "filename" | "repo_path">> & AttachmentRefLike {
+function isInlineableImage(part: AttachmentRefLike): part is Required<Pick<AttachmentRefLike, "filename">> & AttachmentRefLike {
   if (part.type !== "attachment_ref") return false
   if (!part.mime?.startsWith("image/")) return false
-  if (!part.repo_path) return false
+  if (!part.repo_path && !part.session_path) return false
   if (!part.filename) return false
   return true
 }
@@ -54,6 +61,45 @@ export function addOnUpload(
     next.push(part.filename)
   }
   return applyFifoCap(next, max)
+}
+
+/**
+ * attachment-lifecycle v8: budget-gated auto-inline on upload. Re-enables the
+ * v4 "see it immediately" behavior for the common single-/small-upload case,
+ * while preserving v5/DD-22's bounded-cost property for large image dumps.
+ *
+ * Collects the inline-eligible images freshly attached to this user message
+ * that aren't already active, sums their est_tokens, and:
+ *   - if the sum is within `budgetTokens` → queues them all (FIFO-capped),
+ *     so the next assistant turn sees the pixels with no reread round-trip;
+ *   - if the sum exceeds `budgetTokens` (a big/many-image dump) → returns the
+ *     prior set unchanged, leaving those images on the opt-in inventory path.
+ *
+ * `budgetTokens <= 0` disables auto-inline entirely (pure v5 opt-in). The
+ * all-or-nothing decision (rather than partial fill) keeps the rule legible:
+ * a user either gets their small upload shown automatically, or — for a heavy
+ * dump — the AI deliberately picks which images to fetch.
+ */
+export function addOnUploadGated(
+  prior: string[] | undefined,
+  parts: AttachmentRefLike[],
+  options: { max?: number; budgetTokens: number },
+): string[] {
+  const priorSet = prior ?? []
+  if (options.budgetTokens <= 0) return priorSet
+  const max = options.max ?? ACTIVE_IMAGE_REFS_DEFAULT_MAX
+  const seen = new Set(priorSet)
+  const fresh: { filename: string; est: number }[] = []
+  for (const part of parts) {
+    if (!isInlineableImage(part)) continue
+    if (seen.has(part.filename)) continue
+    seen.add(part.filename)
+    fresh.push({ filename: part.filename, est: part.est_tokens ?? 0 })
+  }
+  if (fresh.length === 0) return priorSet
+  const total = fresh.reduce((sum, f) => sum + f.est, 0)
+  if (total > options.budgetTokens) return priorSet
+  return applyFifoCap([...priorSet, ...fresh.map((f) => f.filename)], max)
 }
 
 /**
