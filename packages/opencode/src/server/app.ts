@@ -51,6 +51,7 @@ import { GoogleBindingRoutes } from "./routes/google-binding"
 import { WebRouteRoutes } from "./routes/web-route"
 import { WorkingCacheRoutes } from "./routes/working-cache"
 import { SkillRoutes } from "./routes/skill"
+import { CompletionRoutes } from "./routes/completion"
 import { Env } from "@/env"
 import { ActivityBeacon } from "@/util/activity-beacon"
 import { WebAuth } from "./web-auth"
@@ -429,6 +430,7 @@ export function createApp(app: Hono): Hono {
   api.route("/web-route", WebRouteRoutes())
   api.route("/working-cache", WorkingCacheRoutes())
   api.route("/skill", SkillRoutes())
+  api.route("/completion", CompletionRoutes())
   api.route("/", FileRoutes())
 
   api.post(
