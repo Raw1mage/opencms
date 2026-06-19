@@ -181,6 +181,64 @@ export namespace Tool {
     return TOOL_KIND_REGISTRY[toolID] ?? "other"
   }
 
+  /**
+   * Dedup-eligibility hints for MCP tools.
+   * See issues/bug_20260619_dispatcher_dedup_short_circuits_forced_rebuild.md.
+   *
+   * The tool dispatcher (session/tool-invoker.ts) short-circuits byte-identical
+   * (toolID, args) calls within one user turn. That is correct for pure
+   * read/query tools, but WRONG for tools whose contract is "force a destructive
+   * rebuild" (e.g. docxmcp_pptx_bootstrap(overwrite=true)): the second call is
+   * meant to re-run the side effect, yet dedup silently reuses the stale result.
+   *
+   * MCP servers advertise this via tool annotations (readOnlyHint /
+   * destructiveHint / idempotentHint). convertMcpTool() captures them here so
+   * the dispatcher can decide.
+   *
+   * Native tools (read/edit/apply_patch/...) are NOT registered here, so they
+   * fall through isDedupEligible() as eligible=true — preserving the existing
+   * native dedup behaviour (notably apply_patch dedup from
+   * issues/closed/bug_20260529_toolcall_duplicate_apply_patch_retry.md).
+   */
+  interface DedupHints {
+    readOnlyHint?: boolean
+    destructiveHint?: boolean
+    idempotentHint?: boolean
+  }
+  const dedupHintsRegistry = new Map<string, DedupHints>()
+
+  /**
+   * Register MCP annotation hints for a tool id. Called by convertMcpTool().
+   * Idempotent: latest registration wins (mirrors the tools-cache refresh).
+   */
+  export function registerDedupHints(toolID: string, hints: DedupHints): void {
+    dedupHintsRegistry.set(toolID, {
+      readOnlyHint: hints.readOnlyHint,
+      destructiveHint: hints.destructiveHint,
+      idempotentHint: hints.idempotentHint,
+    })
+  }
+
+  /**
+   * Whether a tool's identical-call dedup short-circuit is safe.
+   *
+   * - Native / unregistered tools → true (preserve existing dedup behaviour).
+   * - MCP tools → true ONLY when explicitly readOnlyHint OR idempotentHint.
+   *   destructiveHint, or no usable hint, → false (fail-safe: re-run rather
+   *   than silently reuse a stale side-effecting result). This is an explicit
+   *   no-dedup decision, NOT a silent fallback.
+   */
+  export function isDedupEligible(toolID: string): boolean {
+    const hints = dedupHintsRegistry.get(toolID)
+    if (!hints) return true
+    return hints.readOnlyHint === true || hints.idempotentHint === true
+  }
+
+  // Test-only: clear the dedup-hints registry between cases.
+  export function _clearDedupHintsForTest(): void {
+    dedupHintsRegistry.clear()
+  }
+
   export function define<Parameters extends z.ZodType, Result extends Metadata>(
     id: string,
     init: Info<Parameters, Result>["init"] | Awaited<ReturnType<Info<Parameters, Result>["init"]>>,

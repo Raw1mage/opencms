@@ -3,8 +3,8 @@
 - **Date**: 2026-06-19
 - **Reporter**: TheSmartAI (orchestrator)
 - **Component**: opencode tool dispatcher — duplicate-tool-call dedup / short-circuit (`[already executed — reusing result]`)
-- **Severity**: medium — no corrupt output, but a *silent* stale-result reuse misleads the caller into debugging the wrong layer; wasted a full debug round in a live downstream task.
-- **Status**: OPEN
+- **Severity**: medium — no corrupt output, but a _silent_ stale-result reuse misleads the caller into debugging the wrong layer; wasted a full debug round in a live downstream task.
+- **Status**: RESOLVED (2026-06-19) — fixed via MCP-annotation-aware dedup gate. dedup now skips destructive/force-rebuild MCP tools (isDedupEligible); native tools + readOnly/idempotent MCP tools still dedup. See packages/opencode/src/tool/tool.ts (registerDedupHints/isDedupEligible), mcp/index.ts (annotation capture), session/tool-invoker.ts (L1+L2 gate). Tests: tool.dedup-eligible.test.ts. Event: specbase dispatcher-dedup scope.
 - **Origin**: re-scoped out of docxmcp BR `docxmcp/issues/issue_20260619_pptx_addshape_native_shape_friction.md` (F3/R3). docxmcp side proven correct; defect is in the harness dispatcher.
 
 ## Symptom (observed downstream)
@@ -14,7 +14,7 @@ While building a pptx from scratch with docxmcp:
 1. Caller ran `docxmcp_pptx_bootstrap(out_dir=X, overwrite=true)`.
 2. Caller later ran the **same** `docxmcp_pptx_bootstrap(out_dir=X, overwrite=true)` again, intending a forced clean reset of the slide package.
 3. The dispatcher returned `[already executed — reusing result]` — the second call **never reached docxmcp**, so the package was NOT reset.
-4. New ops were applied on top of the stale package (90 → 180 shapes); `layout_lint` then reported "out-of-bounds shapes" from the *previous* batch, and the caller mis-diagnosed their new ops.
+4. New ops were applied on top of the stale package (90 → 180 shapes); `layout_lint` then reported "out-of-bounds shapes" from the _previous_ batch, and the caller mis-diagnosed their new ops.
 5. Workaround: switch to a brand-new `out_dir` each time to dodge the dedup.
 
 ## Root cause (hypothesis)

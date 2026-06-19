@@ -36,6 +36,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js"
 import { Config } from "../config/config"
 import { CoerceArgs } from "../tool/coerce-args"
+import { Tool as OpencodeTool } from "../tool/tool"
 import { Log } from "../util/log"
 import { NamedError } from "@opencode-ai/util/error"
 import z from "zod/v4"
@@ -1746,7 +1747,18 @@ export namespace MCP {
       const entry = isMcpConfigured(mcpConfig) ? mcpConfig : undefined
       const timeout = entry?.timeout ?? defaultTimeout
       for (const mcpTool of toolsResult.tools) {
-        result[toolID(clientName, mcpTool.name)] = await convertMcpTool(mcpTool, client, timeout, clientName)
+        const id = toolID(clientName, mcpTool.name)
+        result[id] = await convertMcpTool(mcpTool, client, timeout, clientName)
+        // issues/bug_20260619_dispatcher_dedup_short_circuits_forced_rebuild.md:
+        // capture MCP annotation hints so the dispatcher can decide whether an
+        // identical-call short-circuit is safe (destructive/force-rebuild tools
+        // must re-run; only readOnly/idempotent tools may dedup).
+        const ann = mcpTool.annotations
+        OpencodeTool.registerDedupHints(id, {
+          readOnlyHint: typeof ann?.readOnlyHint === "boolean" ? ann.readOnlyHint : undefined,
+          destructiveHint: typeof ann?.destructiveHint === "boolean" ? ann.destructiveHint : undefined,
+          idempotentHint: typeof ann?.idempotentHint === "boolean" ? ann.idempotentHint : undefined,
+        })
       }
     }
 

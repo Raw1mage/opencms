@@ -208,8 +208,15 @@ export namespace ToolInvoker {
     // can't help because neither part has reached "completed" yet. This
     // layer uses an in-memory promise map: the first call registers its
     // execution promise; the second call finds the key and awaits it.
+    // issues/bug_20260619_dispatcher_dedup_short_circuits_forced_rebuild.md:
+    // skip BOTH dedup layers for tools whose identical-call short-circuit is
+    // unsafe (destructive / force-rebuild MCP tools, e.g. pptx_bootstrap with
+    // overwrite=true). Native tools and readOnly/idempotent MCP tools stay
+    // dedup-eligible. fail-safe: re-run rather than silently reuse a stale
+    // side-effecting result.
+    const dedupEligible = Tool.isDedupEligible(toolID)
     const iflKey = inflightKey(sessionID, toolID, args)
-    const inflight = inflightDedup.get(iflKey)
+    const inflight = dedupEligible ? inflightDedup.get(iflKey) : undefined
     if (inflight) {
       try {
         const result = await inflight
@@ -245,7 +252,7 @@ export namespace ToolInvoker {
     // Catches identical calls across consecutive assistant messages
     // within the same user turn (the first already completed in DB).
     try {
-      const dup = await findDuplicateSibling(sessionID, toolID, args, callID)
+      const dup = dedupEligible ? await findDuplicateSibling(sessionID, toolID, args, callID) : undefined
       if (dup) {
         const dupOutput = (dup.state as { output?: string }).output ?? ""
         debugCheckpoint("tool.invoke", "dedup-shortcircuit", {
