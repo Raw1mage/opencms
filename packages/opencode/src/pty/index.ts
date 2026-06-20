@@ -296,6 +296,18 @@ export namespace Pty {
           session.subscribers.delete(ws)
           continue
         }
+        // Identity guard (restored): the connection token is captured at connect()
+        // from the wrapper socket (token(identity ?? ws)). If the raw socket object
+        // is reused by Bun for a different connection before its onOpen runs, the
+        // socket.id check above can still pass (same WeakMap-tagged object) while the
+        // live identity no longer matches — output would leak to the new owner. Re-
+        // derive the token from the loop's socket and drop the subscriber on mismatch.
+        // Real usage is unaffected: token() delegates a data-less wrapper to its .raw,
+        // so wrapper-derived sub.token === raw-derived token(ws) for genuine clients.
+        if (token(ws) !== sub.token) {
+          session.subscribers.delete(ws)
+          continue
+        }
         try {
           ws.send(data)
         } catch {
