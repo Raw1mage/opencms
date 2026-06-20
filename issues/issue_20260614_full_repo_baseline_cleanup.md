@@ -19,12 +19,14 @@ Status: OPEN (re-measured 2026-06-20) — baseline 大幅收斂 **38 → 13 fail
 - `src/mcp/enablement-tool-keys.test.ts` — 測試正確抓到 enablement.json 的 docxmcp pptx `prefer` 清單（`docxmcp_pptx_read` 等,enablement.json:383-396）廣告了 **default unified profile 不 register** 的工具（server 只暴露 `docxmcp_document`+`docxmcp_stage`,pptx 工具走 `DOCXMCP_TOOL_PROFILE=legacy`）。**決策點**:default profile 該不該廣告 legacy-profile 工具?要嘛改 enablement.json 資料、要嘛測試 model 要納入 profile 概念。非單純 drift。
 - `test/server/session-resume.test.ts` — DD-5 busy-skip。runtime（session.ts:884-892）**仍正確**回 `busy_skipped`,測試也**仍期望** `busy_skipped`,但實得 `ok`。root cause:測試 `SessionStatus.set(busy)` 寫的 Instance state 與 route handler `SessionStatus.get` 讀的 AsyncLocalStorage scope **不一致**（harness instance-context wiring）。**需修 harness**讓 set/get 同 instance,非改斷言。
 
-### real-bug-suspect (4) — 斷言 security/contract invariant 失敗,**絕不可為求綠改斷言**,需 git-blame runtime intent
+### real-bug-suspect (4) — git-blame + runtime 偵查後重新定性 (2026-06-20)
 
-- `test/pty/pty-output-isolation.test.ts` — pty session A 輸出 `"AAA"` 洩漏到 session B 的 websocket（`expect(outB).not.toContain("AAA")` 失敗）。疑 **cross-session output leak**,安全相關。
-- `test/session/working-cache.test.ts` — post-compaction manifest `summaryBody` 非 string（應 `toContain("Working Cache: L2=0")`）→ manifest 沒產出 awareness 內容,疑 compaction provider regression。
-- `test/session/structured-output.test.ts` — 3 fail。plain-text 回應應寫 `StructuredOutputError` 實得 `error.name=undefined`;compaction 後 `structured` 應留 `{answer}` 實得 `undefined`。錯誤路徑 + compaction 後遺失,疑真 bug。
-- `test/server/session-autonomous.test.ts` — 3 fail。原應 block 的 `wait_subagent` 現被判 `resumable:true` 並真的 resume（`applied:true`）;`blockedReasons` 應 `["waiting_user_non_resumable:wait_subagent"]` 實得 `[]`。**autonomous resume-gate 放行翻轉**,疑 regression（部分 received 新欄位是合約擴張,但 resumable/applied 語意翻轉是核心嫌疑）。
+逐檔追了 runtime intent,4 個只有 1 個是真 gap,1 個確認非 bug,2 個偏合約演進:
+
+- 🔴 `test/pty/pty-output-isolation.test.ts` — **真 gap,需決策**。git blame（`packages/opencode/src/pty/index.ts` send loop @284-304）證明此處曾有 `if (token(ws) !== sub.token) { delete; continue }` 守衛,現已被改成只剩 `sockets.get(ws) !== sub.id`（commit `5f4778250` refactor + 後續）。失敗 case「identity token only on wrapper, Bun reuses raw socket before next onOpen」會穿透 socket.id 相等但 token 不同的縫。屬 **cross-session pty output leak** 的縮窄情境。**決策點**:socket.id 是否被刻意視為足夠身份?若否,需把 token 比對補回 send loop（屬 security/architecture change，需 maintainer 批准）。
+- 🟢 `test/session/working-cache.test.ts` — **非 bug = test-drift**。`PostCompaction.gather()`（post-compaction.ts:58-61）被**故意** stub 成 `return []`，配合 `49e171bcd fix(compaction): retire post-compaction runtime-state resend`。測試斷言的是**已退役**的 awareness-manifest 契約（`summaryBody` 應含 L2/L1 counts）。runtime 是對的,測試該改/skip。
+- 🟠 `test/session/structured-output.test.ts` — **疑 drift,需小確認**。enforce 守衛仍在（prompt.ts:3010 寫 `StructuredOutputError`）,但 `484772a09` 把 `"other"` 加進 finish 排除清單,且失敗走 `[PHASE2] no-anchor`（anchor-prefix-expand）路徑。fail 源於 mock stream 的 finishReason / anchor 假設與近期 compaction/anchor 改動不符,偏測試落後而非 runtime 漏寫。需確認 plainText mock 的 finishReason 是否該更新。
+- 🟠 `test/server/session-autonomous.test.ts` — **合約擴張 + 疑翻轉混合**。`toMatchObject` 失敗主因 received 多出大量新欄位（health / supervisor / anomalies）→ autonomous 子系統近日大改,測試 schema 落後。其中 `resumable`/`applied` 對 `wait_subagent` 的語意翻轉需**單獨**確認是否真 gate regression,不可連同 schema drift 一起盲改。
 
 ### needs-rewrite (5) — 共同根因 freerun-bridge 架構遷移,test harness 未餵新架構所需（baseURL/family）→ 整案重寫,非逐 assertion patch
 
