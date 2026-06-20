@@ -103,7 +103,14 @@ describe("WorkingCache", () => {
     expect(selected.entries[0].derivedFrom).toEqual(["wc_read"])
   })
 
-  test("post-compaction provider emits manifest-form awareness", async () => {
+  // RETIRED 2026-06-20: asserts the post-compaction awareness-manifest contract
+  // that `PostCompaction.gather()` used to emit. That provider was deliberately
+  // stubbed to `return []` by 49e171bcd (fix(compaction): retire post-compaction
+  // runtime-state resend) — gather() is still called live (compaction.ts:752,2833)
+  // but intentionally yields no follow-ups. The manifest is no longer produced, so
+  // this case checks a dead contract. Kept (skipped) for history; revive only if a
+  // manifest provider is reintroduced.
+  test.skip("post-compaction provider emits manifest-form awareness", async () => {
     const { store } = createStore()
     WorkingCache.setStoreForTesting(store)
 
@@ -201,9 +208,7 @@ describe("WorkingCache", () => {
 
   test("selectLedger filters by kind / path / turn range", () => {
     const messages = [
-      syntheticToolMessage("msg_1", [
-        { tool: "read", callID: "tc_1", input: { filePath: "src/a.ts" }, output: "a" },
-      ]),
+      syntheticToolMessage("msg_1", [{ tool: "read", callID: "tc_1", input: { filePath: "src/a.ts" }, output: "a" }]),
       syntheticToolMessage("msg_2", [
         { tool: "read", callID: "tc_2", input: { filePath: "src/b.ts" }, output: "b" },
         { tool: "edit", callID: "tc_3", input: { filePath: "src/a.ts" }, output: "edited" },
