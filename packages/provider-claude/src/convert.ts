@@ -191,7 +191,7 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
         const blocks: AnthropicContentBlock[] = []
         for (const part of msg.content) {
           if (part.type === "tool-result") {
-            const resultContent = formatToolResultOutput(part.output)
+            const resultContent = formatToolResultContent(part.output)
             blocks.push({
               type: "tool_result",
               tool_use_id: part.toolCallId,
@@ -506,4 +506,44 @@ function formatToolResultOutput(output: unknown): string {
     default:
       return JSON.stringify(output)
   }
+}
+
+/**
+ * Anthropic tool_result content accepts `string | (text|image)[]`. A `content`
+ * output (e.g. the Read tool reading an image) carries `media` parts whose
+ * bytes MUST survive to the wire, otherwise the model only ever sees a
+ * `[media:...]` text stub and cannot inspect the image. When an image media
+ * part is present we emit a content-block array (text + base64 image blocks);
+ * non-image media (PDFs etc.) and all other output types fall back to the
+ * string form, which Anthropic does not accept as inline tool_result blocks.
+ */
+function formatToolResultContent(output: unknown): string | AnthropicContentBlock[] {
+  if (output && typeof output === "object" && (output as { type?: string }).type === "content") {
+    const parts = (output as { value?: unknown }).value as Array<{
+      type: string
+      text?: string
+      data?: string
+      mediaType?: string
+    }>
+    const hasImage = parts.some((p) => p.type === "media" && (p.mediaType ?? "").startsWith("image/"))
+    if (hasImage) {
+      const blocks: AnthropicContentBlock[] = []
+      for (const p of parts) {
+        if (p.type === "text") {
+          if (p.text) blocks.push({ type: "text", text: p.text })
+        } else if (p.type === "media" && (p.mediaType ?? "").startsWith("image/") && p.data) {
+          blocks.push({
+            type: "image",
+            source: { type: "base64", media_type: p.mediaType!, data: p.data },
+          })
+        } else {
+          // Non-image media inside a content result — keep a textual marker so
+          // the model knows something non-renderable was attached.
+          blocks.push({ type: "text", text: `[media:${p.data?.slice(0, 20)}...]` })
+        }
+      }
+      if (blocks.length > 0) return blocks
+    }
+  }
+  return formatToolResultOutput(output)
 }
