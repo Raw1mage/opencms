@@ -19,7 +19,12 @@ import { Mark } from "@opencode-ai/ui/logo"
 import { DragDropProvider, DragDropSensors, DragOverlay, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd"
 import type { DragEvent } from "@thisbeyond/solid-dnd"
 import { useSync } from "@/context/sync"
-import { setViewingSession, clearViewingSession } from "@/context/global-sync/event-reducer"
+import {
+  setViewingSession,
+  clearViewingSession,
+  beginCompactionWindow,
+  endCompactionWindow,
+} from "@/context/global-sync/event-reducer"
 import { workspaceKey as normalizeWorkspaceKey } from "./layout/helpers"
 import { useTerminal, type LocalPTY } from "@/context/terminal"
 import { useLayout } from "@/context/layout"
@@ -912,9 +917,29 @@ export default function Page() {
   // user-facing notification. Backend publishes session.compaction.started
   // immediately and session.compacted on finish.
   let compactionFooterTimeout: ReturnType<typeof setTimeout> | undefined
+  // compaction-reflow coalesce: close the coalesce window + atomic reconcile.
+  // Single path for both the normal session.compacted close and the 60s
+  // timeout fail-safe. forceReload pulls the tail and merges to truth, then we
+  // clear the per-session coalesce flag so deferred churn stops being suppressed.
+  const closeCompactionWindow = (sessionID: string, reason: "compacted" | "timeout") => {
+    const wasOpen = endCompactionWindow(sessionID)
+    if (compactionFooterTimeout) clearTimeout(compactionFooterTimeout)
+    compactionFooterTimeout = undefined
+    setUi("statusFooter", undefined)
+    if (!wasOpen) return
+    if (reason === "timeout") {
+      console.warn("[compaction] window close via TIMEOUT — forcing reconcile", { sessionID })
+    }
+    // Atomic reconcile to truth after the deferred structural churn. Explicit
+    // failure log — no silent fallback per design constraint.
+    sync.session.forceReload(sessionID).catch((err) => {
+      console.error("[compaction] forceReload after window close FAILED", { sessionID, reason, err })
+    })
+  }
   const stopCompactionListener = sdk.event.listen((e) => {
     const event = e.details as { type: string; properties?: { sessionID?: string; mode?: string } }
     if (!event.properties?.sessionID || event.properties.sessionID !== params.id) return
+    const sessionID = event.properties.sessionID
     if (event.type === "session.compaction.started") {
       if (restartStatus()) return
       const isBackground = event.properties.mode === "hybrid_llm_background"
@@ -922,17 +947,25 @@ export default function Page() {
         ? language.t("toast.session.compact.background.loading")
         : language.t("toast.session.compact.loading")
       setUi("statusFooter", (prev) => prev ?? { label, startedAt: Date.now() })
+      // Open the per-session coalesce window so the reducer defers folded-history
+      // structural churn (message.removed / identity-rewrite message.updated)
+      // while keeping live streaming flowing.
+      beginCompactionWindow(sessionID)
       // Auto-clear after 60s — background enrichment may hang or complete
-      // without publishing session.compacted.
+      // without publishing session.compacted. Doubles as the fail-safe that
+      // closes the coalesce window + reconciles when no session.compacted arrives.
       if (compactionFooterTimeout) clearTimeout(compactionFooterTimeout)
-      compactionFooterTimeout = setTimeout(() => setUi("statusFooter", undefined), 60_000)
+      compactionFooterTimeout = setTimeout(() => closeCompactionWindow(sessionID, "timeout"), 60_000)
     } else if (event.type === "session.compacted") {
-      if (compactionFooterTimeout) clearTimeout(compactionFooterTimeout)
-      setUi("statusFooter", undefined)
+      closeCompactionWindow(sessionID, "compacted")
     }
   })
   onCleanup(() => {
     setUi("statusFooter", undefined)
+    // Closing the window without a forceReload here: endCompactionWindow clears
+    // the per-session flag so a leftover window never leaks across remounts.
+    if (params.id) endCompactionWindow(params.id)
+    if (compactionFooterTimeout) clearTimeout(compactionFooterTimeout)
     stopCompactionListener()
   })
 

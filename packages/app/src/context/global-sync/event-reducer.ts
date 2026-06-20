@@ -63,6 +63,43 @@ export function clearViewingSession(sessionID: string) {
 const _messageTombstones = new Map<string, number>()
 const TOMBSTONE_TTL_MS = 120_000
 
+// --- compaction-reflow coalesce (per-session) ------------------------------
+// Auto-compaction mid agentic-loop emits a burst of message-level structural
+// churn inside the session.compaction.started → session.compacted window:
+//   - message.removed (folded rounds spliced out of the transcript array)
+//   - message.updated that REWRITES the identity of an existing folded message
+//     (compaction restamps message IDs with fresh timestamps)
+// Live-mutating the transcript array per-event makes the reply the user is
+// actively reading reflow/retract ("text disappears then regenerates").
+//
+// While a window is open for a sessionID we DEFER (do not apply) those two
+// kinds of structural churn for NON-live messages, freezing the transcript at
+// its pre-compaction visual state. live-streaming messages (in _liveStreamingIds)
+// are ALWAYS applied immediately — hybrid_llm_background keeps the conversation
+// running during compaction and freezing live delta would stall it.
+//
+// The window is closed by session.tsx's compaction listener, which then calls
+// sync.session.forceReload(sessionID) for a single atomic reconcile to truth.
+// Key is sessionID so concurrent sessions never cross-contaminate.
+const _compactionWindows = new Set<string>()
+
+export function beginCompactionWindow(sessionID: string) {
+  if (!sessionID) return
+  _compactionWindows.add(sessionID)
+  console.info("[compaction] coalesce window OPEN", { sessionID })
+}
+
+export function endCompactionWindow(sessionID: string): boolean {
+  if (!sessionID) return false
+  const wasOpen = _compactionWindows.delete(sessionID)
+  if (wasOpen) console.info("[compaction] coalesce window CLOSE", { sessionID })
+  return wasOpen
+}
+
+export function isCompactionWindowOpen(sessionID: string): boolean {
+  return _compactionWindows.has(sessionID)
+}
+
 function pruneExpiredTombstones() {
   if (_messageTombstones.size === 0) return
   const cutoff = Date.now() - TOMBSTONE_TTL_MS
@@ -479,6 +516,19 @@ export function applyDirectoryEvent(input: {
       // Linear scan — Binary.search assumes ID lex order = chronological,
       // which breaks after compaction rewrites IDs with fresh timestamps.
       const existingIdx = messages.findIndex((m) => m.id === info.id)
+      // compaction-reflow coalesce: inside an open window, defer reconcile of an
+      // EXISTING (already-rendered) message that is NOT live-streaming. This is
+      // the folded-history identity rewrite (compaction restamps IDs/timestamps)
+      // that retracts the transcript. live messages (_liveStreamingIds) and new
+      // appends (existingIdx < 0, e.g. the anchor message) ALWAYS pass through —
+      // hybrid_llm_background keeps streaming during compaction and must not stall.
+      if (existingIdx >= 0 && isCompactionWindowOpen(info.sessionID) && !_liveStreamingIds.has(info.id)) {
+        console.info("[compaction] deferred message.updated (folded reconcile)", {
+          sessionID: info.sessionID,
+          messageID: info.id,
+        })
+        break
+      }
       if (existingIdx >= 0) {
         input.setStore("message", info.sessionID, existingIdx, reconcile(info))
         // Update-in-place doesn't grow the store, but completing a streaming
@@ -519,14 +569,29 @@ export function applyDirectoryEvent(input: {
       console.warn("[message.removed] SSE", {
         messageID: props.messageID,
         sessionID: props.sessionID,
-        hadParts: !!(input.store.part[props.messageID]?.length),
+        hadParts: !!input.store.part[props.messageID]?.length,
       })
       _knownMessageIds.delete(props.messageID)
       _liveStreamingIds.delete(props.messageID)
       // Tombstone: prevent mergeSnapshot from resurrecting this message
       // via a stale active-poll response that was in-flight during deletion.
+      // Set the tombstone EVEN when we defer the visual splice below, so an
+      // in-flight active-poll can never resurrect the folded message inside
+      // the compaction window.
       _messageTombstones.set(props.messageID, Date.now())
       pruneExpiredTombstones()
+      // compaction-reflow coalesce: inside an open window, defer the structural
+      // splice that folds this message out of the transcript. The window-close
+      // forceReload reconciles to truth; tombstone above still suppresses poll
+      // resurrection in the meantime. Freezes the transcript visually so the
+      // reply the user is reading does not retract.
+      if (isCompactionWindowOpen(props.sessionID)) {
+        console.info("[compaction] deferred message.removed", {
+          sessionID: props.sessionID,
+          messageID: props.messageID,
+        })
+        break
+      }
       input.setStore(
         produce((draft) => {
           const messages = draft.message[props.sessionID]

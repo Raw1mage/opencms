@@ -2,7 +2,13 @@ import { afterEach, describe, expect, test } from "bun:test"
 import type { Message, Part, PermissionRequest, Project, QuestionRequest, Session } from "@opencode-ai/sdk/v2/client"
 import { createStore } from "solid-js/store"
 import type { State } from "./types"
-import { applyDirectoryEvent, applyGlobalEvent } from "./event-reducer"
+import {
+  applyDirectoryEvent,
+  applyGlobalEvent,
+  beginCompactionWindow,
+  endCompactionWindow,
+  isCompactionWindowOpen,
+} from "./event-reducer"
 import { resetFrontendTweaksForTesting, setFrontendTweaksForTesting } from "../frontend-tweaks"
 
 const rootSession = (input: { id: string; parentID?: string; archived?: number }) =>
@@ -990,5 +996,138 @@ describe("session-ui-freshness: client receivedAt stamping (Phase 1)", () => {
     expect(entry.receivedAt).toBeGreaterThanOrEqual(Tc - 10)
     expect(entry.receivedAt).toBeLessThanOrEqual(Date.now() + 10)
     expect(entry.receivedAt).not.toBe(entry.updatedAt)
+  })
+})
+
+describe("compaction-reflow coalesce window", () => {
+  const dispatch = (event: { type: string; properties?: unknown }, store: State, setStore: any) =>
+    applyDirectoryEvent({
+      event,
+      store,
+      setStore,
+      push() {},
+      directory: "/tmp",
+      loadLsp() {},
+      loadMcp() {},
+    })
+
+  // assistant message that is still streaming (no time.completed) → tracked live.
+  const liveAssistant = (id: string, sessionID: string) =>
+    ({
+      id,
+      sessionID,
+      role: "assistant",
+      time: { created: 1 },
+      agent: "assistant",
+      model: { providerId: "openai", modelID: "gpt" },
+    }) as unknown as Message
+
+  // assistant message marked completed → NOT live; eligible for coalesce defer.
+  const doneAssistant = (id: string, sessionID: string) =>
+    ({
+      id,
+      sessionID,
+      role: "assistant",
+      time: { created: 1, completed: 2 },
+      agent: "assistant",
+      model: { providerId: "openai", modelID: "gpt" },
+    }) as unknown as Message
+
+  test("defers folded message.removed + non-live message.updated inside window, but lets live streaming through", () => {
+    const sessionID = "ses_compaction_1"
+    endCompactionWindow(sessionID) // clean slate (module-level state)
+    const [store, setStore] = createStore(
+      baseState({
+        message: {
+          [sessionID]: [
+            userMessage("msg_old", sessionID),
+            doneAssistant("msg_folded", sessionID),
+            liveAssistant("msg_live", sessionID),
+          ],
+        },
+        part: { msg_folded: [textPart("prt_f", sessionID, "msg_folded")] },
+      }),
+    )
+
+    // Seed the live tracker: a streaming update for the live assistant message.
+    dispatch({ type: "message.updated", properties: { info: liveAssistant("msg_live", sessionID) } }, store, setStore)
+    expect(isCompactionWindowOpen(sessionID)).toBe(false)
+
+    // --- window OPEN ---
+    beginCompactionWindow(sessionID)
+    expect(isCompactionWindowOpen(sessionID)).toBe(true)
+
+    // Folded round removed → DEFERRED: transcript array must NOT lose msg_folded.
+    dispatch({ type: "message.removed", properties: { sessionID, messageID: "msg_folded" } }, store, setStore)
+    expect(store.message[sessionID]?.map((x) => x.id)).toEqual(["msg_old", "msg_folded", "msg_live"])
+    expect(store.part.msg_folded).toBeDefined()
+
+    // Identity rewrite of an EXISTING non-live message → DEFERRED (no reconcile).
+    dispatch(
+      {
+        type: "message.updated",
+        properties: { info: { ...doneAssistant("msg_folded", sessionID), agent: "rewritten" } as Message },
+      },
+      store,
+      setStore,
+    )
+    expect(store.message[sessionID]?.find((x) => x.id === "msg_folded")?.agent).toBe("assistant")
+
+    // Live streaming delta for msg_live → MUST pass through immediately.
+    dispatch(
+      {
+        type: "message.updated",
+        properties: { info: { ...liveAssistant("msg_live", sessionID), agent: "still-streaming" } as Message },
+      },
+      store,
+      setStore,
+    )
+    expect(store.message[sessionID]?.find((x) => x.id === "msg_live")?.agent).toBe("still-streaming")
+
+    // New append (anchor message) → MUST pass through even inside the window.
+    dispatch({ type: "message.updated", properties: { info: userMessage("msg_anchor", sessionID) } }, store, setStore)
+    expect(store.message[sessionID]?.map((x) => x.id)).toEqual(["msg_old", "msg_folded", "msg_live", "msg_anchor"])
+
+    // --- window CLOSE ---
+    const wasOpen = endCompactionWindow(sessionID)
+    expect(wasOpen).toBe(true)
+    expect(isCompactionWindowOpen(sessionID)).toBe(false)
+
+    // After close, deferred churn applies again (proving the flag was the gate):
+    // the same message.removed now splices the folded message out.
+    dispatch({ type: "message.removed", properties: { sessionID, messageID: "msg_folded" } }, store, setStore)
+    expect(store.message[sessionID]?.map((x) => x.id)).toEqual(["msg_old", "msg_live", "msg_anchor"])
+
+    endCompactionWindow(sessionID)
+  })
+
+  test("window state is per-session — a window on one session never coalesces another", () => {
+    const a = "ses_compaction_a"
+    const b = "ses_compaction_b"
+    endCompactionWindow(a)
+    endCompactionWindow(b)
+    const [store, setStore] = createStore(
+      baseState({
+        message: {
+          [a]: [userMessage("a1", a), doneAssistant("a2", a)],
+          [b]: [userMessage("b1", b), doneAssistant("b2", b)],
+        },
+      }),
+    )
+
+    beginCompactionWindow(a)
+    expect(isCompactionWindowOpen(a)).toBe(true)
+    expect(isCompactionWindowOpen(b)).toBe(false)
+
+    // Removal on session A is deferred...
+    dispatch({ type: "message.removed", properties: { sessionID: a, messageID: "a2" } }, store, setStore)
+    expect(store.message[a]?.map((x) => x.id)).toEqual(["a1", "a2"])
+
+    // ...but session B (no window) applies removal live.
+    dispatch({ type: "message.removed", properties: { sessionID: b, messageID: "b2" } }, store, setStore)
+    expect(store.message[b]?.map((x) => x.id)).toEqual(["b1"])
+
+    endCompactionWindow(a)
+    endCompactionWindow(b)
   })
 })
