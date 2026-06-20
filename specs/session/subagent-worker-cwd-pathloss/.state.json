@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-06-19T11:14:10.597Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-06-19T14:35:48.386Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "補齊 spec.md / idef0 / grafcet / sequence(array) / data-schema，design.md headings 補全。"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-06-19T14:38:19.382Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "test-vectors array 化、handoff/errors headings 補全、tasks.md 加 Phase G 未勾項。"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-06-19T14:38:25.911Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "程式碼修復已完成（commit 0c636aa3f），tasks Phase A-V 已勾。"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-06-19T14:38:40.699Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks.md 全勾，三 RC 修復 runtime 驗證全綠（live subagent ses_11fc0f348ffe4PRdQRgMR2d7Sp）+ 單元測試 + typecheck pass。code commit 0c636aa3f。"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-06-19T14:38:48.006Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "使用者明確指示畢業進 spec wiki。三 RC 修復完成並 runtime 驗證全綠（live subagent ses_11fc0f348ffe4PRdQRgMR2d7Sp），13 artifact 全套齊備並通過 verified gate，code commit 0c636aa3f。"
+    }
+  ]
+}

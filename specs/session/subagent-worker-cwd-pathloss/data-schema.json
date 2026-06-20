@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "subagent_cwd_pathloss_hang data contracts",
+  "definitions": {
+    "WorkerSpawnOptions": {
+      "type": "object",
+      "description": "Bun.spawn options for spawnWorker (DD-1)",
+      "required": ["cwd"],
+      "properties": {
+        "cwd": {
+          "type": "string",
+          "description": "Absolute project root, captured from Instance.directory at spawn time. MUST NOT be undefined — fail loud if so (AGENTS rule 11).",
+          "pattern": "^/"
+        }
+      },
+      "additionalProperties": true
+    },
+    "PreloadWorkingDirectoryAnchor": {
+      "type": "object",
+      "description": "Working-directory anchor injected into preload preface (DD-3), reaching both main agent and subagent.",
+      "required": ["label", "absolutePath"],
+      "properties": {
+        "label": { "type": "string", "const": "Working directory (workspace root)" },
+        "absolutePath": { "type": "string", "pattern": "^/", "description": "= Instance.directory" }
+      }
+    },
+    "NoProgressWatchdogState": {
+      "type": "object",
+      "description": "proc-watchdog no-progress accumulator (DD-4)",
+      "required": ["consecutiveErrorOrIdentical", "thresholdM", "finishReason"],
+      "properties": {
+        "consecutiveErrorOrIdentical": { "type": "integer", "minimum": 0, "description": "連續 tool-error 或 identical-signature output 次數" },
+        "thresholdM": { "type": "integer", "minimum": 5, "description": "reap 閾值，建議 5" },
+        "finishReason": { "type": "string", "enum": ["no_progress_timeout"], "description": "reap 時的合成 finish 值" }
+      }
+    },
+    "ParalysisNoProgressSignal": {
+      "type": "object",
+      "description": "paralysis detector tool-active-but-no-mutation 判定輸入 (DD-5)",
+      "required": ["recentTurns", "thresholdN"],
+      "properties": {
+        "recentTurns": {
+          "type": "array",
+          "description": "近 N 輪的 per-turn 訊號",
+          "items": {
+            "type": "object",
+            "required": ["toolActive", "mutatedThisTurn", "resultSignature"],
+            "properties": {
+              "toolActive": { "type": "boolean" },
+              "mutatedThisTurn": { "type": "boolean", "description": "是否有 PARALYSIS_PROGRESS_TOOLS 的成功 mutation" },
+              "resultSignature": { "type": "string", "description": "tool-result 簽章 (jaccard/bigram 比對用)" },
+              "isError": { "type": "boolean" }
+            }
+          }
+        },
+        "thresholdN": { "type": "integer", "minimum": 6, "description": "觸發輪數，建議 ≥6，避免誤殺多檔 read" }
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+[
+  {
+    "id": "P1",
+    "name": "Healthy subagent dispatch under daemon cwd=/",
+    "moduleRef": "A1",
+    "participants": ["Orchestrator", "spawnWorker", "WorkerProcess", "getPreloadParts", "Runloop"],
+    "messages": [
+      { "id": "MSG1", "from": "Orchestrator", "to": "spawnWorker", "label": "task dispatch (agent, prompt)", "note": "capturedDirectory = Instance.directory" },
+      { "id": "MSG2", "from": "spawnWorker", "to": "WorkerProcess", "label": "Bun.spawn(cmd, { cwd: capturedDirectory })", "note": "DD-1: cwd 顯式傳入；undefined → throw" },
+      { "id": "MSG3", "from": "WorkerProcess", "to": "WorkerProcess", "label": "bootstrap(process.cwd()) → Instance.directory = repo root", "note": "DD-2: process.cwd() 已為 root" },
+      { "id": "MSG4", "from": "getPreloadParts", "to": "WorkerProcess", "label": "preload preface: 'Working directory (workspace root): <abs>'", "note": "DD-3: 注入錨點，main+subagent 共用" },
+      { "id": "MSG5", "from": "WorkerProcess", "to": "Runloop", "label": "workspace-relative read/glob/grep → 正確 resolve", "note": "path-loss 消除" },
+      { "id": "MSG6", "from": "Runloop", "to": "Orchestrator", "label": "task result", "note": "finish=normal" }
+    ]
+  },
+  {
+    "id": "P2",
+    "name": "Busy-but-no-progress worker reaped",
+    "moduleRef": "A3",
+    "participants": ["WorkerProcess", "Runloop", "ParalysisDetector", "ProcWatchdog", "Orchestrator"],
+    "messages": [
+      { "id": "MSG7", "from": "Runloop", "to": "ParalysisDetector", "label": "per-turn signal: mutatedPerTurn=false, tool-error/identical-result", "note": "DD-5: tool-active 但零 mutation" },
+      { "id": "MSG8", "from": "ParalysisDetector", "to": "Runloop", "label": "≥N 輪成立 → no-progress paralysis nudge", "note": "與 preface 相似度無關" },
+      { "id": "MSG9", "from": "WorkerProcess", "to": "ProcWatchdog", "label": "stdout bridge: 連續 M 次 error/identical-signature", "note": "DD-4: parent 端最後防線" },
+      { "id": "MSG10", "from": "ProcWatchdog", "to": "WorkerProcess", "label": "reap (SIGTERM)", "note": "finish=no_progress_timeout" },
+      { "id": "MSG11", "from": "ProcWatchdog", "to": "Orchestrator", "label": "completion notice status=no_progress_timeout", "note": "DD-6: 先觸發者勝" }
+    ]
+  }
+]

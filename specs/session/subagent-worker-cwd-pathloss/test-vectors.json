@@ -1,0 +1,46 @@
+[
+  {
+    "id": "TV1",
+    "requirement": "Worker 以 project root 為 cwd 啟動 (RC-1, Fix A)",
+    "given": { "daemonCwd": "/", "instanceDirectory": "/home/pkcs12/projects/opencode" },
+    "when": "spawnWorker() 呼叫 Bun.spawn",
+    "then": { "spawnOptions.cwd": "/home/pkcs12/projects/opencode", "workerProcessCwd": "/home/pkcs12/projects/opencode" },
+    "runtimeEvidence": "ses_11fc0f348ffe4PRdQRgMR2d7Sp: pwd=/home/pkcs12/projects/opencode"
+  },
+  {
+    "id": "TV2",
+    "requirement": "Instance.directory undefined 時 fail loud (RC-1)",
+    "given": { "capturedDirectory": null },
+    "when": "spawnWorker() 呼叫 Bun.spawn",
+    "then": { "throws": true, "silentFallback": false }
+  },
+  {
+    "id": "TV3",
+    "requirement": "Subagent prompt 帶絕對 working-directory 錨點 (RC-2, Fix B)",
+    "given": { "instanceDirectory": "/home/pkcs12/projects/opencode", "isSubagent": true },
+    "when": "getPreloadParts() 產生 preload",
+    "then": { "containsLabel": "Working directory (workspace root)", "value": "/home/pkcs12/projects/opencode" },
+    "runtimeEvidence": "ses_11fc0f348ffe4PRdQRgMR2d7Sp: context 含 Working directory (workspace root): /home/pkcs12/projects/opencode"
+  },
+  {
+    "id": "TV4",
+    "requirement": "Busy-but-no-progress reap — watchdog 層 (RC-3, Fix C, DD-4)",
+    "given": { "consecutiveErrorOrIdentical": 5, "thresholdM": 5 },
+    "when": "proc-watchdog 掃描",
+    "then": { "reaped": true, "finishReason": "no_progress_timeout" }
+  },
+  {
+    "id": "TV5",
+    "requirement": "Busy-but-no-progress detect — detector 層 (RC-3, Fix C, DD-5)",
+    "given": { "recentTurns": 6, "allMutatedThisTurn": false, "repeatedErrorOrIdentical": true, "thresholdN": 6 },
+    "when": "paralysis detector 評估",
+    "then": { "triggered": true, "prefaceSimilarityIndependent": true }
+  },
+  {
+    "id": "TV6",
+    "requirement": "合法多檔 read 不誤殺 (RC-3, R3)",
+    "given": { "recentTurns": 6, "allMutatedThisTurn": false, "diverseReadSignatures": true, "repeatedErrorOrIdentical": false },
+    "when": "paralysis detector 評估",
+    "then": { "triggered": false }
+  }
+]

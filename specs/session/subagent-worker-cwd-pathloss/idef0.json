@@ -1,0 +1,22 @@
+{
+  "diagram_title": "Govern Subagent Worker Lifecycle",
+  "node_reference": "A0",
+  "activities": [
+    { "id": "A1", "title": "Spawn Worker At Project Root", "description": "spawnWorker 以捕獲自 Instance.directory 的 project root 為 cwd 啟動 worker 進程；directory 缺失時 fail loud (task.ts:835-842, DD-1/DD-2)", "decomposition": null },
+    { "id": "A2", "title": "Inject Working Directory Anchor", "description": "在 getPreloadParts 注入絕對 working-directory 區塊，使 main agent 與 subagent preface 同時帶 repo root 錨點 (preloaded-context.ts, DD-3)", "decomposition": null },
+    { "id": "A3", "title": "Monitor Worker Progress", "description": "proc-watchdog 偵測連續 tool-error/identical-signature；paralysis detector 偵測 tool-active 但零 file-mutation (task.ts:2158+, prompt.ts, DD-4/DD-5)", "decomposition": null },
+    { "id": "A4", "title": "Terminate Stalled Worker", "description": "no-progress 成立時 reap worker，finish reason 為 no_progress_timeout，或 detector 注入 nudge 促脫離 (DD-4/DD-5/DD-6)", "decomposition": null }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "task dispatch 請求", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "Instance.directory (project root)", "type": "control" },
+    { "id": "AR3", "source": "EXTERNAL", "target": "A1:mechanism", "label": "Bun.spawn / ProcessSupervisor", "type": "mechanism" },
+    { "id": "AR4", "source": "A1:output", "target": "A2:input", "label": "已啟動 worker (cwd=root)", "type": "output" },
+    { "id": "AR5", "source": "EXTERNAL", "target": "A2:control", "label": "preload context policy", "type": "control" },
+    { "id": "AR6", "source": "A2:output", "target": "A3:input", "label": "worker prompt (帶 wd 錨點)", "type": "output" },
+    { "id": "AR7", "source": "EXTERNAL", "target": "A3:mechanism", "label": "stdout event bridge / runloop", "type": "mechanism" },
+    { "id": "AR8", "source": "A3:output", "target": "A4:input", "label": "no-progress 訊號", "type": "output" },
+    { "id": "AR9", "source": "EXTERNAL", "target": "A3:control", "label": "M/N 閾值 (>=5 / >=6)", "type": "control" },
+    { "id": "AR10", "source": "A4:output", "target": "EXTERNAL", "label": "reap / nudge (finish=no_progress_timeout)", "type": "output" }
+  ]
+}
