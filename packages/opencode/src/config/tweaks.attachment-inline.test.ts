@@ -35,8 +35,12 @@ describe("Tweaks.attachmentInline (v4 DD-19/DD-20)", () => {
     Tweaks.resetForTesting()
     const cfg = await Tweaks.attachmentInline()
     // v5 DD-22.2: default raised 3 → 8 (cap now bounds AI-driven reread, not upload).
-    expect(cfg).toEqual({ enabled: true, activeSetMax: 8 })
-    expect(Tweaks.attachmentInlineSync()).toEqual({ enabled: true, activeSetMax: 8 })
+    expect(cfg).toEqual({ enabled: true, activeSetMax: 8, autoInlineUploadBudgetTokens: 20000 })
+    expect(Tweaks.attachmentInlineSync()).toEqual({
+      enabled: true,
+      activeSetMax: 8,
+      autoInlineUploadBudgetTokens: 20000,
+    })
   })
 
   it("respects attachment_inline_enabled=false", async () => {
@@ -62,6 +66,6 @@ describe("Tweaks.attachmentInline (v4 DD-19/DD-20)", () => {
   it("attachmentInlineSync mirrors attachmentInline once loaded", async () => {
     await loadFromCfg("attachment_inline_enabled=false\nattachment_active_set_max=2\n")
     const sync = Tweaks.attachmentInlineSync()
-    expect(sync).toEqual({ enabled: false, activeSetMax: 2 })
+    expect(sync).toEqual({ enabled: false, activeSetMax: 2, autoInlineUploadBudgetTokens: 20000 })
   })
 })
