@@ -21,6 +21,19 @@ Status: OPEN (re-measured 2026-06-20) — baseline **38 → 10 failing / 339 fil
 
 **最終結論**：原標的 4 個「real-bug-suspect」git-blame 後只有 **pty 1 個是真 gap（已修）**，working-cache=退役、structured-output=mock 落後、session-autonomous=schema 擴張，**無一傷害產品正確性**。baseline 的核心價值（挖出唯一 security gap）已兌現。
 
+### ✅ 收尾結論（2026-06-20）— 核心價值已兌現，餘 9 檔排 backlog
+
+本次 cleanup 把 baseline 從 **38 → 9 failing**，並完成最重要的一件事：**逐檔 git-blame 把「疑似 4 個 real bug」收斂成「1 個真 security gap（pty 跨 session 輸出洩漏）並修掉」**。
+
+剩餘 9 個 failing 經評估**邊際效益遞減**，全屬以下三類、**無一傷害產品正確性**，排入 backlog：
+
+- **needs-rewrite (5)** — freerun-bridge 架構遷移技術債，建議有人動 bridge harness 時一次性重寫；
+- **needs-decision (2)** — enablement profile 廣告語意 / session-resume harness instance-context，屬設計選擇非 bug；
+- **env (1)** — 缺 `sst` 套件，裝套件或永久 skip；
+- （structured-output / session-autonomous 兩個 drift 已併入上述評估，確認非真 bug，待順手修測。）
+
+**此 issue 的核心任務（找出並修掉真正會傷害產品的 bug）已完成**。剩餘為健康度投資，不阻塞，待排期。
+
 ### env (1) — 非 code bug
 
 - `packages/console/app/test/rateLimiter.test.ts` — `Cannot find package 'sst'`（缺依賴,環境 blocker,與舊清單同）。
