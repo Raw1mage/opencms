@@ -1,10 +1,11 @@
 # 子 agent 工作記憶治理盲區：熱 + 大 prompt 無 compaction 觸發
 
-Status: OPEN (reported 2026-06-15；診斷完成，修法待設計——屬 compaction 核心，先不改)
+Status: CLOSED (WONTFIX 2026-06-20；診斷完成，判定為已知架構 gap——屬 compaction 核心，刻意不改。診斷與關聯事件保留供日後若決定治理時參考；現有唯一防線 paralysis-halt 足以兜底，不另開修法。)
 Type: Bug Report / Architecture Gap
 Severity: Medium-High（長命子 agent 工作記憶單調成長、全程無 compaction；唯一防線是 paralysis-halt 這個「撞牆才殺」鈍器）
 
 關聯：
+
 - `issues/bug_20260615_paralysis_guard_evaded_by_preface_perseveration.md`（同次事件的父 session 跳針）
 - event `event_2026-06-15_rca-loop-paralysis-guard-counter-detector_fc5ke5`
 
