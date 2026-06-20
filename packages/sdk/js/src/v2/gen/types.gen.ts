@@ -341,7 +341,7 @@ export type ParalysisDetectedError = {
   name: "ParalysisDetectedError"
   data: {
     message: string
-    detector: "signature" | "narrative" | "preface"
+    detector: "signature" | "narrative" | "preface" | "no-progress"
     consecutiveRounds: number
     similarity?: number
     samplePrefix?: string
@@ -4087,6 +4087,38 @@ export type McpStatus =
   | McpStatusFailed
   | McpStatusNeedsAuth
   | McpStatusNeedsClientRegistration
+
+export type CompletionResponse = {
+  parts: Array<
+    | {
+        type: "tool"
+        tool: "StructuredOutput"
+        state: {
+          status: "completed"
+          output: unknown
+        }
+      }
+    | {
+        type: "text"
+        text: string
+      }
+  >
+}
+
+export type CompletionRequest = {
+  agent?: string
+  system?: string
+  parts: Array<{
+    type: "text"
+    text: string
+  }>
+  model: {
+    providerId: string
+    modelID: string
+    accountId?: string
+  }
+  format?: OutputFormat
+}
 
 export type Symbol = {
   name: string
@@ -11879,6 +11911,33 @@ export type SkillUnloadResponses = {
 }
 
 export type SkillUnloadResponse = SkillUnloadResponses[keyof SkillUnloadResponses]
+
+export type CompletionRunData = {
+  body: CompletionRequest
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/completion"
+}
+
+export type CompletionRunErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type CompletionRunError = CompletionRunErrors[keyof CompletionRunErrors]
+
+export type CompletionRunResponses = {
+  /**
+   * Completion result parts
+   */
+  200: CompletionResponse
+}
+
+export type CompletionRunResponse = CompletionRunResponses[keyof CompletionRunResponses]
 
 export type FindTextData = {
   body?: never
@@ -20089,6 +20148,33 @@ export type SkillUnload2Responses = {
 }
 
 export type SkillUnload2Response = SkillUnload2Responses[keyof SkillUnload2Responses]
+
+export type CompletionRun2Data = {
+  body: CompletionRequest
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/completion"
+}
+
+export type CompletionRun2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type CompletionRun2Error = CompletionRun2Errors[keyof CompletionRun2Errors]
+
+export type CompletionRun2Responses = {
+  /**
+   * Completion result parts
+   */
+  200: CompletionResponse
+}
+
+export type CompletionRun2Response = CompletionRun2Responses[keyof CompletionRun2Responses]
 
 export type FindText2Data = {
   body?: never

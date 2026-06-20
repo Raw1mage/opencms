@@ -77,6 +77,11 @@ import type {
   AuthSetResponses,
   CommandList2Responses,
   CommandListResponses,
+  CompletionRequest,
+  CompletionRun2Errors,
+  CompletionRun2Responses,
+  CompletionRunErrors,
+  CompletionRunResponses,
   Config as Config3,
   ConfigGet2Responses,
   ConfigGetResponses,
@@ -13087,6 +13092,78 @@ export class Skill extends HeyApiClient {
   }
 }
 
+export class Completion extends HeyApiClient {
+  /**
+   * Stateless one-shot completion
+   *
+   * Run a single stateless LLM completion. Persists nothing — no session, message, or part storage and no session-level Bus events.
+   */
+  public run<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      completionRequest: CompletionRequest
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { key: "completionRequest", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<CompletionRunResponses, CompletionRunErrors, ThrowOnError>({
+      url: "/api/v2/completion",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Stateless one-shot completion
+   *
+   * Run a single stateless LLM completion. Persists nothing — no session, message, or part storage and no session-level Bus events.
+   */
+  public run2<ThrowOnError extends boolean = false>(
+    parameters: {
+      directory?: string
+      completionRequest: CompletionRequest
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { key: "completionRequest", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<CompletionRun2Responses, CompletionRun2Errors, ThrowOnError>({
+      url: "/completion",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Find extends HeyApiClient {
   /**
    * Find text
@@ -14662,6 +14739,11 @@ export class OpencodeClient extends HeyApiClient {
   private _skill?: Skill
   get skill(): Skill {
     return (this._skill ??= new Skill({ client: this.client }))
+  }
+
+  private _completion?: Completion
+  get completion(): Completion {
+    return (this._completion ??= new Completion({ client: this.client }))
   }
 
   private _find?: Find
