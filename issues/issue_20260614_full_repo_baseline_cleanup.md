@@ -1,6 +1,42 @@
 # Full Repo Baseline Cleanup PR Scope
 
-Status: OPEN (in progress 2026-06-15) — runner-isolation structural fix landed + 5 real clusters fixed; backlog worked down to **1 WIP-blocked file** (2 cases). See "Closeout 2026-06-15 (session)" immediately below, then the historical "Re-run 2026-06-15 (later)" and "Progress 2026-06-15".
+Status: OPEN (re-measured 2026-06-20) — baseline 大幅收斂 **38 → 13 failing / 339 files**。舊清單的 security 主嫌（killswitch-gate / path-traversal / storage-hardening / rate-limit-judge）+ skill-SSOT 群 + session/server 多檔**全數自綠**。本次清掉 1 個確認的 test-drift（tweaks.attachment-inline，commit 見下），其餘 12 檔分三類,各有 stop gate。詳見「Re-measure 2026-06-20」段。
+
+## Re-measure 2026-06-20 — 13 failing / 339, 分類 + reclassify
+
+完整 baseline log:`/tmp/baseline-run.log`。逐檔核實（**未盲信 subagent 分類**,2 檔被我重新定性）：
+
+### ✅ Fixed this session (1)
+
+- `src/config/tweaks.attachment-inline.test.ts` — **test-drift,已修綠**。runtime `AttachmentInlineConfig` 新增 `autoInlineUploadBudgetTokens:20000`（tweaks.ts:559）,`toEqual` 缺欄位。純測試落後,已補欄位 commit。
+
+### env (1) — 非 code bug
+
+- `packages/console/app/test/rateLimiter.test.ts` — `Cannot find package 'sst'`（缺依賴,環境 blocker,與舊清單同）。
+
+### needs-decision (2) — 被我從「test-drift」重新定性,需 maintainer 決策,不盲改
+
+- `src/mcp/enablement-tool-keys.test.ts` — 測試正確抓到 enablement.json 的 docxmcp pptx `prefer` 清單（`docxmcp_pptx_read` 等,enablement.json:383-396）廣告了 **default unified profile 不 register** 的工具（server 只暴露 `docxmcp_document`+`docxmcp_stage`,pptx 工具走 `DOCXMCP_TOOL_PROFILE=legacy`）。**決策點**:default profile 該不該廣告 legacy-profile 工具?要嘛改 enablement.json 資料、要嘛測試 model 要納入 profile 概念。非單純 drift。
+- `test/server/session-resume.test.ts` — DD-5 busy-skip。runtime（session.ts:884-892）**仍正確**回 `busy_skipped`,測試也**仍期望** `busy_skipped`,但實得 `ok`。root cause:測試 `SessionStatus.set(busy)` 寫的 Instance state 與 route handler `SessionStatus.get` 讀的 AsyncLocalStorage scope **不一致**（harness instance-context wiring）。**需修 harness**讓 set/get 同 instance,非改斷言。
+
+### real-bug-suspect (4) — 斷言 security/contract invariant 失敗,**絕不可為求綠改斷言**,需 git-blame runtime intent
+
+- `test/pty/pty-output-isolation.test.ts` — pty session A 輸出 `"AAA"` 洩漏到 session B 的 websocket（`expect(outB).not.toContain("AAA")` 失敗）。疑 **cross-session output leak**,安全相關。
+- `test/session/working-cache.test.ts` — post-compaction manifest `summaryBody` 非 string（應 `toContain("Working Cache: L2=0")`）→ manifest 沒產出 awareness 內容,疑 compaction provider regression。
+- `test/session/structured-output.test.ts` — 3 fail。plain-text 回應應寫 `StructuredOutputError` 實得 `error.name=undefined`;compaction 後 `structured` 應留 `{answer}` 實得 `undefined`。錯誤路徑 + compaction 後遺失,疑真 bug。
+- `test/server/session-autonomous.test.ts` — 3 fail。原應 block 的 `wait_subagent` 現被判 `resumable:true` 並真的 resume（`applied:true`）;`blockedReasons` 應 `["waiting_user_non_resumable:wait_subagent"]` 實得 `[]`。**autonomous resume-gate 放行翻轉**,疑 regression（部分 received 新欄位是合約擴張,但 resumable/applied 語意翻轉是核心嫌疑）。
+
+### needs-rewrite (5) — 共同根因 freerun-bridge 架構遷移,test harness 未餵新架構所需（baseURL/family）→ 整案重寫,非逐 assertion patch
+
+- `test/session/llm.test.ts` — `UnknownFamilyError: family="openai-gated"`（舊 gated family 已不在 knownFamilies）。
+- `test/session/llm-cms-stream.test.ts` — stream 契約 15s timeout（freerun stateless rewrite 路徑與測試假設不符）。
+- `test/session/attachment-ownership.test.ts` — `provider openai has no options.baseURL — cannot build LlmClient`（freerun-bridge.ts:233）+ timeout。
+- `test/session/prompt-account-routing.test.ts` — `context_budget` / `latestUser.content` 結構已變;self-heal 未走 compaction。
+- `test/mcp/oauth-browser.test.ts` — `BrowserOpenFailed` 永久 timeout（隔離 5s / baseline 30s 皆掛）,event 等待邏輯與現行 OAuth flow 不符。
+
+---
+
+## (歷史) Closeout 2026-06-15 (session) — 21/22 affected files green, 1 WIP-blocked
 
 ## Closeout 2026-06-15 (session) — 21/22 affected files green, 1 WIP-blocked
 
