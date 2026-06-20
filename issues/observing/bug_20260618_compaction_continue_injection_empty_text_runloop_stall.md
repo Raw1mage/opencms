@@ -4,7 +4,7 @@
 - **嚴重度**：high（每次自動壓縮都中斷 agentic 工具迴圈；使用者須手動再戳一下才續跑）
 - **元件**：opencode session runtime — `compaction.injectContinueAfterAnchor` ×`PostCompaction.buildContinueText` × prompt runloop `no_user_after_compaction` 退出點
 - **回報者**：pkcs12（live，session `ses_127a8a471ffeNvACvK7B21xanG`，cms.thesmart.cc）
-- **狀態**：FIX DEPLOYED（主修 `4373fb9d4` 已隨 3R 上線，現役 build `9fdd26049`，daemon 重啟於 2026-06-18 13:15）— **待下一次真實 auto-compaction 實證**：應見 `compaction.continue.injected decision=true`（不再 `empty_continue_text`）且其後**無** `loop:no_user_after_compaction`、同一 runloop 續跑。部署至今觀察的 session 多為 warm（cacheReadFraction~0.9，未觸發壓縮），故尚未走到該路徑。縱深防護（runloop-side finishReason 區分）暫不做，等主修實證後再評估。
+- **狀態**：OBSERVING（主修 `4373fb9d4` 已隨 3R 上線，現役 build `9fdd26049`，daemon 重啟於 2026-06-18 13:15）— **待下一次真實 auto-compaction 實證**：應見 `compaction.continue.injected decision=true`（不再 `empty_continue_text`）且其後**無** `loop:no_user_after_compaction`、同一 runloop 續跑。部署至今觀察的 session 多為 warm（cacheReadFraction~0.9，未觸發壓縮），故尚未走到該路徑。縱深防護（runloop-side finishReason 區分）暫不做，等主修實證後再評估。soak 無復發即轉 closed。
 
 ## 症狀
 
@@ -18,6 +18,7 @@
 ## 證據（debug.log，兩次真實觸發）
 
 ### 觸發 A — 10:53:39（舊 build，雙靈魂尚在）
+
 ```
 10:53:39.091  claude_cold_compaction_gate  promptTotal=200182 cacheReadFraction=0.18 → "cache-aware"
 10:53:39.289  compaction.continue.gate     decision=true  reason="no_post_anchor_user_static_intent"
@@ -27,6 +28,7 @@
 ```
 
 ### 觸發 B — 11:31:48（新 build `9c7e19a35`，雙靈魂已修，問題二仍復現）
+
 ```
 11:31:48.252  predicate step=3 outcome=fire ("cache-aware", promptTotal=211594)
               compaction.continue.gate     decision=true  reason="no_post_anchor_user_static_intent"
@@ -87,6 +89,7 @@ anchor 後本來就**沒有待答 user 訊息可 replay**，只能靠 synthetic 
 ## Fix Plan
 
 ### 主修（最小、低風險）— 還原 stateless Continue fallback
+
 `PostCompaction.buildContinueText` 在空 hints 時，回到一段**不帶 runtime state** 的極簡指令，例如：
 
 > "Compaction completed. Continue from where you left off and follow your existing plan. Do NOT
@@ -98,21 +101,25 @@ anchor 後本來就**沒有待答 user 訊息可 replay**，只能靠 synthetic 
 - 末句「If there is no further work, stop」防 busy-spin：真的沒事做時模型會自行收尾。
 
 ### Cascade / 無限迴圈安全性
+
 還原的是**原本就設計成 true** 的行為，且既有防護仍在：30s cooldown（DD-13）、post-compaction-echo skip
 （F2/DD-5）、size-based B-gate 折疊後縮到門檻下（cascade-immune）。`rebind`/`provider-switched` 仍是
 false-gated（守 2026-04-27 infinite-loop bug）。故安全。
 
 ### 縱深防護（次要、可選，較動 runloop 敏感區）
+
 在 [prompt.ts:2242](packages/opencode/src/session/prompt.ts#L2242) `!lastUser` 退出前，區分最近一個 finished
 assistant turn 是「**真正完成**（finishReason=stop / 無待跑工具）」還是「**工具迴圈中途被壓縮打斷**
 （finishReason=tool-calls）」：前者 exit-clean 正確；後者即使 synthetic Continue 因故缺席也應續跑（或就地補一個
 Continue），不可靜默轉 idle。作為主修失效時的 belt-and-suspenders；因觸及退出 invariant，獨立評估。
 
 ### 回歸測試
+
 1. `cache-aware`（及 `overflow`）壓縮、anchor 後無 user → 斷言 `buildContinueText` 非空 → injector 實際寫入
    synthetic user 訊息 → `filterCompacted` 視圖含該 user → runloop **不**命中 `no_user_after_compaction`。
 2. 反向：finishReason=stop 的真正完成回合壓縮 → 仍應 exit-clean（不可因主修而變成永不停）。
 
 ## 驗證方式（fix 上線後）
+
 同類 session 再觸發 auto-compaction 時，log 應見 `compaction.continue.injected decision=true`、其後
 **沒有** `loop:no_user_after_compaction`，且同一 runloop（step 不重置）直接續跑下一拍工具呼叫。

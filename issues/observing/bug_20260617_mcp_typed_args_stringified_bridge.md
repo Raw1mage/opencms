@@ -2,7 +2,7 @@
 
 - **Date**: 2026-06-17
 - **Severity**: high（讓任何「需要 typed args 的 MCP 工具」從 AI 端不可用，只能繞 raw JSON-RPC）
-- **Status**: COMMITTED（2026-06-17）— 已 commit `3c4b26bcb`（universal CoerceArgs seam）。root cause 在 `provider-claude/src/antml-salvage.ts:57-65`（值被當字串搶救）；最終修復不只 MCP execute chokepoint，而是抽成共用 `tool/coerce-args.ts` 並在 `session/llm.ts` 兩個 seam（lazy-unlock + activeHit re-run）套用，涵蓋所有 off-wire deferred 工具。測試 25 cases 全綠（tool 10 + mcp 15）、typecheck 對 touched 檔乾淨。**已部署 2026-06-17**（`./webctl.sh restart --force`，health buildId `3c4b26bcb-dirty.1781708992` 三證綠）。**待端到端即時驗證**：需真實 opencode AI session 驅動一個帶 object/number/array 參數的 deferred 工具（如 bodesign `c02_generate_openscad`、`system-manager_restart_self` 的 `targets`）確認不再被 stringify reject；外部 Claude Code session 無法重現 provider-claude 的 ANTML-salvage 路徑，故由下次真實使用驗收。驗證無復發後轉 `observing/`。see `docs/events/fix_20260617_typed_args_coercion_universal_seam.md`。
+- **Status**: OBSERVING（2026-06-17）— 已 commit `3c4b26bcb`（universal CoerceArgs seam）、已部署。**待端到端即時驗證**（真實 session 驅動帶 typed args 的 deferred 工具）無復發後轉 closed。root cause 在 `provider-claude/src/antml-salvage.ts:57-65`（值被當字串搶救）；最終修復不只 MCP execute chokepoint，而是抽成共用 `tool/coerce-args.ts` 並在 `session/llm.ts` 兩個 seam（lazy-unlock + activeHit re-run）套用，涵蓋所有 off-wire deferred 工具。測試 25 cases 全綠（tool 10 + mcp 15）、typecheck 對 touched 檔乾淨。**已部署 2026-06-17**（`./webctl.sh restart --force`，health buildId `3c4b26bcb-dirty.1781708992` 三證綠）。**待端到端即時驗證**：需真實 opencode AI session 驅動一個帶 object/number/array 參數的 deferred 工具（如 bodesign `c02_generate_openscad`、`system-manager_restart_self` 的 `targets`）確認不再被 stringify reject；外部 Claude Code session 無法重現 provider-claude 的 ANTML-salvage 路徑，故由下次真實使用驗收。驗證無復發後轉 `observing/`。see `docs/events/fix_20260617_typed_args_coercion_universal_seam.md`。
 - **Component**: provider-claude runtime — Claude 原生 ANTML 文字格式 tool-call 的 salvage 還原層（非 MCP relay 層）
 - **Reporter**: pkcs12（live，session `ses_12cb50dd1ffeeWzWo2OIesXEsf`，aiguard C02 機構設計任務驅動 `bodesign_*` 生成工具時撞到）
 
@@ -106,10 +106,11 @@ raw JSON-RPC 直連 MCP server，自控 `arguments` 型別：
 The initial fix (`795f35178`) bolted `coerceArgsToSchema` to the MCP execute
 chokepoint ONLY, so built-in deferred tools (`system-manager_restart_self`'s
 `targets: array`, etc.) — which never pass through `convertMcpTool` — kept
-failing. Under the Active Loader (DD-21) those off-wire tools are the *majority*
+failing. Under the Active Loader (DD-21) those off-wire tools are the _majority_
 of calls, hence the high observed failure rate.
 
 Cured by lifting coercion to a universal seam:
+
 - shared `tool/coerce-args.ts` (`CoerceArgs`); `mcp/index.ts` re-exports it.
 - `session/llm.ts experimental_repairToolCall` coerces against the unlocked
   tool's schema at the lazy-unlock seam (all deferred tools) and re-runs coerced

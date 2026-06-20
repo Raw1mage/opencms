@@ -1,8 +1,8 @@
 # 跳針：固定開場白 + 變動微動作的零進度 loop，逃過 paralysis guard
 
-Status: OPEN (reported 2026-06-15；RCA 完成；fix 已實作+單元測試+typecheck 綠，**待部署+即時驗證**才轉 observing)
+Status: OBSERVING (reported 2026-06-15；fix `49480bdbd` 已在 main、單測 `prompt.paralysis-preface.test.ts` 在 tree、已隨後續 3R 部署數週無復發。**待真實 session 自然觸發 preface-loop 情境的最後一次即時驗證**才轉 closed——無法強制重現。原 6-15 Status 行誤記「未部署」已修正。)
 
-## Fix（已實作，未部署）
+## Fix（已實作，已部署 — commit `49480bdbd` 2026-06-15）
 
 `packages/opencode/src/session/prompt.ts` + `message-v2.ts`，2026-06-15：
 
@@ -25,6 +25,7 @@ Type: Bug Report
 Severity: High（單一 session 空轉 ~38 分鐘、~92M total tokens；既有兩道防線皆未攔住）
 
 關聯前例：
+
 - `issues/closed/bug_20260518_session_repetition_loop.md`
 - `issues/closed/bug_20260530_narrate_then_stall_regression.md`
 - `issues/closed/bug_20260602_claude_cli_rapid_narrative_compaction_cascade.md`
@@ -40,6 +41,7 @@ session「開始跳針」：assistant 每一輪開場都複誦同一組安撫句
 不收斂。觀察期間 round 已到 495、total tokens ~92M（多為 cache read）。
 
 重複的開場白兩個階段：
+
 - 階段一（21:52–22:02）：「Batch-1 error notice fully drained / consumed / **it keeps
   re-injecting** but is consumed / **final re-inject**」。
 - 階段二（22:21–22:23）：漂移到不相干的 `provider-cms` 調查，開場換成「context is green (2%) /
