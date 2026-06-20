@@ -1,14 +1,20 @@
 # Full Repo Baseline Cleanup PR Scope
 
-Status: OPEN (re-measured 2026-06-20) — baseline 大幅收斂 **38 → 13 failing / 339 files**。舊清單的 security 主嫌（killswitch-gate / path-traversal / storage-hardening / rate-limit-judge）+ skill-SSOT 群 + session/server 多檔**全數自綠**。本次清掉 1 個確認的 test-drift（tweaks.attachment-inline，commit 見下），其餘 12 檔分三類,各有 stop gate。詳見「Re-measure 2026-06-20」段。
+Status: OPEN (re-measured 2026-06-20) — baseline **38 → 10 failing / 339 files**。舊清單 security 主嫌（killswitch-gate / path-traversal / storage-hardening / rate-limit-judge）+ skill-SSOT 群全數自綠。本輪修 3 檔（tweaks drift + **pty 真 security gap** + working-cache 退役 skip），餘 10 檔卡 stop gate（env 1 / needs-decision 2 / 行為契約 suspect 2 / needs-rewrite 5）。詳見「Re-measure 2026-06-20」段。
 
 ## Re-measure 2026-06-20 — 13 failing / 339, 分類 + reclassify
 
 完整 baseline log:`/tmp/baseline-run.log`。逐檔核實（**未盲信 subagent 分類**,2 檔被我重新定性）：
 
-### ✅ Fixed this session (1)
+### ✅ Fixed this session (3, baseline 13 → 10)
 
 - `src/config/tweaks.attachment-inline.test.ts` — **test-drift,已修綠**。runtime `AttachmentInlineConfig` 新增 `autoInlineUploadBudgetTokens:20000`（tweaks.ts:559）,`toEqual` 缺欄位。純測試落後,已補欄位 commit。
+- `test/pty/pty-output-isolation.test.ts` — **真 security gap,已修**。補回 send loop 的 `token(ws) !== sub.token` 守衛（`b6c2ddd5a` 當初為修終端機行為連同移除,只剩 socket.id 檢查）。`sub.token` 早已在 connect() 捕獲,僅補回 hot-path 比對。真實 client 不受影響（token() 對 data-less wrapper 委派 .raw,故 wrapper-token === loop-token）。2 pass / 0 fail,tsgo 乾淨。commit 見下。
+- `test/session/working-cache.test.ts` — **退役契約,已 test.skip**。`PostCompaction.gather()` 被 `49e171bcd` 故意 stub 成 `[]`（退役 runtime-state resend）,該 case 斷言已不存在的 awareness-manifest。skip + 註明 provenance,非 runtime bug。14 pass / 1 skip。
+
+### ⏸ 維持 suspect,不盲改（2）— 行為契約類,actual=undefined 正是其守護的 invariant
+
+- `test/session/structured-output.test.ts`（2 fail）+ `test/server/session-autonomous.test.ts`（3 fail）— 兩者失敗值皆為 `undefined`（structured 未捕獲 / error 未寫 / resumable 翻轉）,而「有沒有正確攔截 / gate」正是這兩個測試存在的理由。在未由 maintainer git-blame 確認 runtime intent 前改斷言會**掩蓋潛在 gap**,違反 cleanup 原則（§Remaining real-failure backlog「do NOT blanket-edit」）。保留 red,待決策。
 
 ### env (1) — 非 code bug
 
