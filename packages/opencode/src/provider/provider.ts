@@ -2635,35 +2635,54 @@ export namespace Provider {
   export async function getLanguage(model: Model, accountId?: string): Promise<LanguageModelV2> {
     const s = await state()
     const family = model.providerId
-    const cacheKey = `${family}/${accountId ?? "_active_"}/${model.id}`
-    if (s.models.has(cacheKey)) return s.models.get(cacheKey)!
-
     const provider = s.providers[family]
+
+    // @event_2026-06-20:codex_stale_account_pin
+    // Auto-fallback for a stale account pin. A session pins the accountId it
+    // last ran on into its execution record; that account can disappear between
+    // runs (removed, or re-logged-in under a different identity). If the pinned
+    // accountId is no longer present in this family, dispatching with the dead
+    // pin used to fall through to getSDK() for the native @opencode-ai/provider-*
+    // package → BunInstallFailedError → an opaque ProviderInitError (codex
+    // "gpt-5.5" pinned to a deleted codex-subscription-*-thesmart-cc). Instead
+    // fall back to the family's active account (accountId=undefined path), which
+    // is what the user already sees enabled in the UI.
+    let effectiveAccountId = accountId
+    if (accountId !== undefined && provider && !provider.accounts?.[accountId]) {
+      log.warn("getLanguage: pinned accountId not found in family, falling back to active account", {
+        family,
+        requestedAccountId: accountId,
+        available: Object.keys(provider.accounts ?? {}),
+      })
+      effectiveAccountId = undefined
+    }
+
+    const cacheKey = `${family}/${effectiveAccountId ?? "_active_"}/${model.id}`
+    if (s.models.has(cacheKey)) return s.models.get(cacheKey)!
 
     // Model loader lookup is by family — registry now holds family-only keys
     // so the legacy parseProvider canonicalisation step is gone.
     const loader: CustomModelLoader | undefined = s.modelLoaders[family]
 
-    // Skip SDK loading when the model loader doesn't need it (e.g. native LMv2 providers).
-    // This prevents InitError from getSDK() trying to install a non-existent npm package.
-    //
     // @opencode-ai/provider-* packages (provider-claude, provider-codex) are
     // workspace-internal natives bundled INTO the binary; they are never
     // npm-installable. Their loaders (claude-cli, codex) take `_sdk` and ignore
     // it, returning a self-constructed LanguageModelV2. Calling getSDK for them
-    // always hits BunProc.install("@opencode-ai/provider-…") → BunInstallFailedError,
-    // which the `.catch(() => null)` below already swallows — but not before
-    // logging a misleading "getSDK failed" ERROR on every cold start. Skip the
-    // doomed call outright for these. Other loader families (openai, etc.) whose
-    // loaders genuinely use the SDK still go through getSDK normally.
+    // always hits BunProc.install("@opencode-ai/provider-…") → BunInstallFailedError.
+    // Skip getSDK UNCONDITIONALLY for these — not just on the `loader !== undefined`
+    // branch. Previously the skip only applied when a loader was registered, so a
+    // family whose loader hadn't been built (mid-startup, or no usable account
+    // resolved) fell through to the `else` and tried to install the package →
+    // opaque ProviderInitError. Other families (openai, etc.) whose loaders
+    // genuinely use the SDK still go through getSDK normally.
+    // @event_2026-06-20:codex_stale_account_pin
     const npm = model.api.npm
-    const loaderNeedsSdk = !npm || !npm.startsWith("@opencode-ai/provider-")
-    const sdk =
-      loader !== undefined
-        ? loaderNeedsSdk
-          ? await getSDK(family, accountId, model).catch(() => null)
-          : null
-        : await getSDK(family, accountId, model)
+    const isNativeBundled = !!npm && npm.startsWith("@opencode-ai/provider-")
+    const sdk = isNativeBundled
+      ? null
+      : loader !== undefined
+        ? await getSDK(family, effectiveAccountId, model).catch(() => null)
+        : await getSDK(family, effectiveAccountId, model)
 
     // @spec specs/provider-account-decoupling DD-3 follow-up (2026-05-04)
     // CRITICAL FALSE-POSITIVE 429 ROOT CAUSE: previously this call passed
@@ -2677,10 +2696,27 @@ export namespace Provider {
     // Mirror the same merge that getSDK does (provider.ts:2131-2136): account
     // state options on top of family options, so the loader sees the correct
     // per-account credentials.
-    const accountState = accountId ? provider.accounts?.[accountId] : undefined
+    const accountState = effectiveAccountId ? provider.accounts?.[effectiveAccountId] : undefined
     const loaderOptions = accountState
       ? (mergeDeep({ ...provider.options }, accountState.options) as Info["options"])
       : provider.options
+
+    // Clear, actionable failure instead of a null-SDK dereference. Reaching here
+    // with no loader AND no sdk means a native provider whose model loader never
+    // got registered — almost always because no usable account/auth resolved for
+    // this family (e.g. the pinned account is gone and there is no active account
+    // to fall back to). @event_2026-06-20:codex_stale_account_pin
+    if (loader === undefined && sdk === null) {
+      const detail =
+        accountId !== undefined
+          ? `requested account "${accountId}" not found in family "${family}"` +
+            (effectiveAccountId === undefined ? " and no active account to fall back to" : "")
+          : `no usable account/auth resolved for family "${family}"`
+      throw new InitError(
+        { providerId: family },
+        { cause: new Error(`${detail}. Re-login this provider or select a valid account.`) },
+      )
+    }
 
     try {
       const language =
