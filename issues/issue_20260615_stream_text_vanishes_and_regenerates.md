@@ -1,8 +1,13 @@
 # Stream 文字在 runloop 中整段消失後重新生成
 
-Status: OPEN (reported 2026-06-15)
-Type: Bug Report
-Severity: TBD（影響可觀測性與使用者信任，需先定性是純前端渲染問題還是後端 stream 真的被回退）
+Status: OBSERVING (2026-06-20 兩半修復完成、待 live 即時驗證) — 後端 + 前端兩半皆已落地。
+
+- **後端半已修**：`9f2935be0`（merge `337dc18bc`，2026-06-16）。compaction summary-anchor 的大 part（70K `prior_context` body）+ compaction parts 不再廣播給 live SSE（`Session.updatePart { broadcast:false }`）。log 證實阻止了 70K part 串流。**對應 issue 假設 #1/#2 的後端那一段。**
+- **前端半已修（本次）**：`<本 commit>` — 壓縮窗（`session.compaction.started → session.compacted`/60s timeout）內前端**延遲套用**對「非 live 訊息」的結構性 churn（`message.removed` 折疊 splice、`message.updated` 既有身份改寫），凍結使用者正在看的 transcript 視覺狀態；窗關閉做一次 atomic `forceReload` 對齊真值。`_liveStreamingIds` 內的 live 串流一律即時放行（`hybrid_llm_background` 續跑不被卡）。被延遲的 remove 仍先設 tombstone（防 active-poll 在窗內 resurrect）。per-session 窗隔離、onCleanup 清旗標防 remount 洩漏、forceReload 失敗顯式 log（no silent fallback）。
+  - 檔案：`event-reducer.ts`（`_compactionWindows` + begin/end/isOpen + 兩個 case 延遲分支）、`session.tsx`（compaction listener 開關窗 + `closeCompactionWindow` 統一路徑）、`event-reducer.test.ts`（+2 測試：窗內延遲/放行/窗關恢復、per-session 隔離）。
+  - 驗證：`bun test event-reducer.test.ts` 22 pass / 3 fail（3 fail 為**既有** tail-window module-state 污染，`git stash` 後 baseline 同為 20 pass / 3 fail，零回歸；新增 2 測試全綠）。typecheck touched 檔零新增 error。
+    Type: Bug Report
+    Severity: Medium（影響可觀測性與使用者信任；兩半皆已止血，待 live 觀察壓縮當下文字不再 reflow → 轉 closed）
 
 ## Symptom（使用者回報）
 
