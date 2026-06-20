@@ -62,10 +62,24 @@ export const SkillTool = Tool.define("skill", async (ctx) => {
     description,
     parameters,
     async execute(params: z.infer<typeof parameters>, ctx) {
-      const skill = await Skill.get(params.name)
+      let skill = await Skill.get(params.name)
+
+      // Self-heal stale index: the skill scan is cached per Instance.directory in
+      // this process's memory. A skill installed after the daemon last scanned
+      // (e.g. an MCP-bundled skill projected into <data>/skills) is invisible until
+      // the cache is dropped. On a miss, reset + rescan once before giving up —
+      // the on-disk SKILL.md is authoritative, so a fresh scan resolves it without
+      // needing an out-of-band skill_loader reload from another process.
+      if (!skill) {
+        Skill.reset()
+        skill = await Skill.get(params.name)
+      }
 
       if (!skill) {
-        const available = await Skill.all().then((x) => Object.keys(x).join(", "))
+        // List actual skill NAMES (Skill.all() returns an array; Object.keys would
+        // yield numeric indices "0,1,2,…" and mislead the caller into thinking the
+        // index is broken).
+        const available = await Skill.all().then((all) => all.map((s) => s.name).join(", "))
         throw new Error(`Skill "${params.name}" not found. Available skills: ${available || "none"}`)
       }
 

@@ -94,6 +94,13 @@ export namespace Skill {
         onlyFiles: true,
         followSymlinks: true,
       })) {
+        // Skip archived/retired skills: a `_archive/` segment marks a skill that
+        // has been superseded (e.g. doc-coauthoring → doc-workflow). The recursive
+        // **/SKILL.md glob would otherwise pull them back into the active pool,
+        // producing same-purpose duplicates and stale guidance. Leading-underscore
+        // dirs are a deliberate "not a live skill" convention.
+        const rel = path.relative(skillRoot, match)
+        if (rel.split(path.sep).some((seg) => seg.startsWith("_"))) continue
         await addSkill(match)
       }
     } else {
