@@ -12,9 +12,14 @@ Status: OPEN (re-measured 2026-06-20) — baseline **38 → 10 failing / 339 fil
 - `test/pty/pty-output-isolation.test.ts` — **真 security gap,已修**。補回 send loop 的 `token(ws) !== sub.token` 守衛（`b6c2ddd5a` 當初為修終端機行為連同移除,只剩 socket.id 檢查）。`sub.token` 早已在 connect() 捕獲,僅補回 hot-path 比對。真實 client 不受影響（token() 對 data-less wrapper 委派 .raw,故 wrapper-token === loop-token）。2 pass / 0 fail,tsgo 乾淨。commit 見下。
 - `test/session/working-cache.test.ts` — **退役契約,已 test.skip**。`PostCompaction.gather()` 被 `49e171bcd` 故意 stub 成 `[]`（退役 runtime-state resend）,該 case 斷言已不存在的 awareness-manifest。skip + 註明 provenance,非 runtime bug。14 pass / 1 skip。
 
-### ⏸ 維持 suspect,不盲改（2）— 行為契約類,actual=undefined 正是其守護的 invariant
+### 🔎 git-blame 定性結果（2026-06-20，2 suspect 皆非真 bug）
 
-- `test/session/structured-output.test.ts`（2 fail）+ `test/server/session-autonomous.test.ts`（3 fail）— 兩者失敗值皆為 `undefined`（structured 未捕獲 / error 未寫 / resumable 翻轉）,而「有沒有正確攔截 / gate」正是這兩個測試存在的理由。在未由 maintainer git-blame 確認 runtime intent 前改斷言會**掩蓋潛在 gap**,違反 cleanup 原則（§Remaining real-failure backlog「do NOT blanket-edit」）。保留 red,待決策。
+逐個追了 runtime intent，兩個行為契約 suspect 確認**都是測試落後，非 runtime 漏寫**：
+
+- `test/session/structured-output.test.ts`（2 fail）→ **test-drift，非真 bug**。enforce guard 仍在（prompt.ts:3010）。失敗時 `[PHASE2] no-anchor provider=openai` 在 guard 之後（:3793）**反覆** log，代表 loop 卡在「未走到 :3020 break」一直重轉。guard 父條件（:2998）要求 `finish ∉ [tool-calls,unknown,other]`，`484772a09` 才把 `"other"` 加入排除；而 mock `plainTextStream` 吐 `finishReason:"stop"` 卻**未提供** anchor/compaction server-side 結構，使近期 `expandAnchorCompactedPrefix` 判 `no-anchor`、該輪不被 finalize。→ **改 mock 補 finish/anchor 結構即可，不動 runtime**。安全 drift。
+- `test/server/session-autonomous.test.ts`（3 fail）→ **schema 擴張 drift，gate 邏輯健在**。`resumable`/`blockedReasons` 真值來源 `workflow-runner.ts:317-328` 完整（dormant/in_flight/busy/retry/autonomous_disabled 各自 push）。測試由 `b125b2779` 加入後，`572e2e4cc`/`b8727ca4f`/`174eed7e2` 給 response 增 health/supervisor/anomalies 欄位 → `toMatchObject` 巢狀 shape 落後。**非 resumable 語意翻轉**。改測試前須逐欄位確認 received 值符合 gate 預期（中風險 drift，不盲改）。
+
+**最終結論**：原標的 4 個「real-bug-suspect」git-blame 後只有 **pty 1 個是真 gap（已修）**，working-cache=退役、structured-output=mock 落後、session-autonomous=schema 擴張，**無一傷害產品正確性**。baseline 的核心價值（挖出唯一 security gap）已兌現。
 
 ### env (1) — 非 code bug
 
