@@ -1,0 +1,22 @@
+{
+  "diagram_title": "Fit PPTX Text To Shape (A0 Context)",
+  "node_reference": "A0",
+  "activities": [
+    { "id": "A1", "title": "Resolve Shape Geometry", "description": "從 slide/layout/master 鏈解析框 w/h 與 insets（共用 lint geometry 解析）", "decomposition": null },
+    { "id": "A2", "title": "Solve Maximum Font Size", "description": "對字級二分/下掃，呼叫 lint 的 _estimate_text_height_in 求撐滿框且不溢出的最大 title/desc 字級", "decomposition": "A2" },
+    { "id": "A3", "title": "Write Back Font Size", "description": "把求出的 title_pt/desc_pt 寫進對應 role 段落的 rPr sz（沿用 set_text 寫入路徑）", "decomposition": null },
+    { "id": "A4", "title": "Report Limiting Constraint", "description": "回報採用值 + limited_by(height|width|cap) + overflow，fail-fast 不 silent fallback", "decomposition": null }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "doc_dir + index + shape_id", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:mechanism", "label": "_pptx_layout_lint geometry resolver", "type": "mechanism" },
+    { "id": "AR3", "source": "A1:output", "target": "A2:input", "label": "box_w/box_h/insets + paragraphs(title,desc)", "type": "output" },
+    { "id": "AR4", "source": "EXTERNAL", "target": "A2:control", "label": "title_cap/desc_cap/floor/ratio/overflow_tol/line_factor", "type": "control" },
+    { "id": "AR5", "source": "EXTERNAL", "target": "A2:mechanism", "label": "_estimate_text_height_in (shared with lint)", "type": "mechanism" },
+    { "id": "AR6", "source": "A2:output", "target": "A3:input", "label": "FitResult(title_pt,desc_pt)", "type": "output" },
+    { "id": "AR7", "source": "A2:output", "target": "A4:input", "label": "FitResult(limited_by,overflow,needed_in)", "type": "output" },
+    { "id": "AR8", "source": "EXTERNAL", "target": "A3:mechanism", "label": "set_text rPr sz writer", "type": "mechanism" },
+    { "id": "AR9", "source": "A3:output", "target": "EXTERNAL", "label": "updated shape XML (byte-preserving elsewhere)", "type": "output" },
+    { "id": "AR10", "source": "A4:output", "target": "EXTERNAL", "label": "result envelope {title_pt,desc_pt,limited_by,overflow}", "type": "output" }
+  ]
+}

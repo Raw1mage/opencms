@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-06-21T07:53:47.423Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-06-21T08:00:29.162Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "proposal/spec/design/data-schema/test-vectors/idef0/grafcet/sequence 完成；求解器確定共用 _estimate_text_height_in，零來回"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-06-21T08:04:23.395Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks.md（5 階段）+ handoff.md + errors.md + observability.md 補齊確切標題；test-vectors 陣列化；切片可執行"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-06-21T08:04:35.730Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "進入 Phase 1 求解器核心實作；先做純函式 + 單測（風險最低）"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-06-21T08:24:52.553Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "全 5 phase 25 tasks 完成；全 pptx 套件 317 passed（新增 14 測試無回歸）；MCP 註冊驗證；architecture.md 已 sync；issue 已歸檔"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-06-21T10:41:14.701Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "User-instructed graduation. Feature complete + verified: full suite 554 passed (317 pptx), tool-description lint 67/67 PASS after fixing a Phase 4 R3 over-length regression on docxmcp_pptx_fit_text. MCP tool registered, architecture.md synced, issue archived."
+    }
+  ]
+}
