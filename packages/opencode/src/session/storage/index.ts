@@ -27,8 +27,8 @@ export namespace SessionStorage {
   export interface AttachmentBlobMetadata extends Omit<AttachmentBlob, "content"> {}
 
   /**
-   * Storage backend contract. Both LegacyStore (filesystem walk) and
-   * SqliteStore (SQL queries) implement this. Router dispatches per call.
+   * Storage backend contract. SqliteStore (SQL queries) implements this;
+   * Router is a thin pass-through to it.
    *
    * Signatures intentionally mirror the existing call surface in
    * message-v2.ts (stream/parts/get) and session/index.ts (updateMessage/
