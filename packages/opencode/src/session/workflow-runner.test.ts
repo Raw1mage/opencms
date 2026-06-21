@@ -7,6 +7,7 @@ import {
   computeResumeRetryAt,
   describeAutonomousNextAction,
   evaluateAutonomousContinuation,
+  isAutonomousApprovalGated,
   inspectPendingContinuationResumability,
   shouldResumePendingContinuation,
   planAutonomousNextAction,
@@ -61,6 +62,70 @@ function armedSession(overrides?: Partial<Session.Info>): Session.Info {
   }
   return session
 }
+
+describe("autonomous approval gate (harness/autonomous-gate-enforcement DD-1/DD-2)", () => {
+  const gatedTodo = (overrides?: Partial<Todo.Info>): Todo.Info => ({
+    id: "g",
+    content: "delete old snapshots",
+    status: "pending",
+    priority: "high",
+    action: { kind: "destructive", risk: "high", needsApproval: true },
+    ...overrides,
+  })
+
+  it("TV-1: suspends (approval_required) before entering a requireApprovalFor step", () => {
+    const action = planAutonomousNextAction({ session: armedSession(), todos: [gatedTodo()] })
+    expect(action).toEqual({ type: "stop", reason: "approval_required" })
+  })
+
+  it("TV-3: empty requireApprovalFor is genuinely live — no suspend, continues", () => {
+    const session = armedSession()
+    session.workflow!.autonomous.requireApprovalFor = []
+    const action = planAutonomousNextAction({ session, todos: [gatedTodo()] })
+    expect(action.type).toBe("continue")
+  })
+
+  it("TV-4: an explicit awaiting_approval handback suspends even with no other actionable todo", () => {
+    const action = planAutonomousNextAction({
+      session: armedSession(),
+      todos: [{ id: "h", content: "ship it", status: "awaiting_approval", priority: "high" }],
+    })
+    expect(action).toEqual({ type: "stop", reason: "approval_required" })
+  })
+
+  it("does NOT gate an ordinary implement step (no false suspend)", () => {
+    const action = planAutonomousNextAction({
+      session: armedSession(),
+      todos: [
+        { id: "a", content: "implement the parser", status: "in_progress", priority: "high", action: { kind: "implement" } },
+      ],
+    })
+    expect(action.type).toBe("continue")
+  })
+
+  it("isAutonomousApprovalGated: handback status > policy match > ungated", () => {
+    const workflow = armedSession().workflow!
+    expect(isAutonomousApprovalGated({ todos: [gatedTodo()], current: gatedTodo(), workflow })).toBe(true)
+    expect(
+      isAutonomousApprovalGated({
+        todos: [{ id: "x", content: "ok", status: "awaiting_approval", priority: "high" }],
+        current: undefined,
+        workflow,
+      }),
+    ).toBe(true)
+    expect(
+      isAutonomousApprovalGated({
+        todos: [{ id: "y", content: "do", status: "pending", priority: "high", action: { kind: "implement" } }],
+        current: { id: "y", content: "do", status: "pending", priority: "high", action: { kind: "implement" } },
+        workflow,
+      }),
+    ).toBe(false)
+  })
+
+  it("describeAutonomousNextAction narrates approval_required as a pause", () => {
+    expect(describeAutonomousNextAction({ type: "stop", reason: "approval_required" }).kind).toBe("pause")
+  })
+})
 
 describe("planAutonomousNextAction", () => {
   it("stops immediately when autorun is not armed", () => {
