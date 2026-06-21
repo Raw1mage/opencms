@@ -11,7 +11,11 @@ import { Todo } from "../session/todo"
 // `Todo.enrichAll`, so the LLM only needs to send the four primitives.
 const LLMTodoShape = z.object({
   content: z.string().describe("Brief description of the task"),
-  status: z.string().describe("pending | in_progress | completed | cancelled"),
+  status: z
+    .string()
+    .describe(
+      "pending | in_progress | completed | cancelled | awaiting_approval. Set awaiting_approval to PAUSE autonomous execution and hand back to the user for sign-off before a sensitive step — the runtime suspends the loop until the user responds (you do not need a separate request mechanism).",
+    ),
   priority: z.string().optional().default("medium").describe("high | medium | low (defaults to medium)"),
   // CACHE FIX 2026-05-11: `.default(() => ...)` is evaluated by zod-to-
   // json-schema at serialization time, producing a NEW timestamp+random

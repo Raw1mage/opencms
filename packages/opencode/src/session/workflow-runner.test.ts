@@ -8,6 +8,7 @@ import {
   describeAutonomousNextAction,
   evaluateAutonomousContinuation,
   isAutonomousApprovalGated,
+  isGateSuspended,
   inspectPendingContinuationResumability,
   shouldResumePendingContinuation,
   planAutonomousNextAction,
@@ -124,6 +125,37 @@ describe("autonomous approval gate (harness/autonomous-gate-enforcement DD-1/DD-
 
   it("describeAutonomousNextAction narrates approval_required as a pause", () => {
     expect(describeAutonomousNextAction({ type: "stop", reason: "approval_required" }).kind).toBe("pause")
+  })
+
+  it("TV-7: isGateSuspended is true for gate-induced state, false otherwise (DD-4)", () => {
+    const waiting = armedSession().workflow!
+    waiting.state = "waiting_user"
+    waiting.stopReason = "approval_needed"
+    // workflow parked on the approval gate
+    expect(isGateSuspended({ workflow: waiting, todos: [] })).toBe(true)
+    // an explicit awaiting_approval todo, regardless of workflow state
+    expect(
+      isGateSuspended({
+        workflow: armedSession().workflow!,
+        todos: [{ id: "h", content: "ship", status: "awaiting_approval", priority: "high" }],
+      }),
+    ).toBe(true)
+    // a genuine no-gate spin: running, no awaiting_approval → NOT gate-suspended
+    // (so the paralysis ladder still applies — backstop preserved, TV-8)
+    const running = armedSession().workflow!
+    running.state = "running"
+    running.stopReason = undefined
+    expect(
+      isGateSuspended({
+        workflow: running,
+        todos: [{ id: "a", content: "loop", status: "in_progress", priority: "high" }],
+      }),
+    ).toBe(false)
+    // waiting_user but a DIFFERENT stopReason (e.g. plan_drained) is not the gate
+    const other = armedSession().workflow!
+    other.state = "waiting_user"
+    other.stopReason = "plan_drained"
+    expect(isGateSuspended({ workflow: other, todos: [] })).toBe(false)
   })
 })
 

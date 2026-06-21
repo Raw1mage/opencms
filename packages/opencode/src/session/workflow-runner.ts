@@ -678,6 +678,24 @@ export function isAutonomousApprovalGated(input: {
   return policy.includes(action.kind)
 }
 
+/**
+ * True when the session is currently suspended on the approval gate: either a
+ * todo is explicitly `awaiting_approval`, or the workflow is parked in
+ * `waiting_user` with the non-resumable `approval_needed` stopReason.
+ *
+ * DD-4 (harness/autonomous-gate-enforcement): the paralysis detector consults
+ * this so it defers to a legitimate gate instead of treating gate-induced
+ * non-progress as paralysis to nudge-then-halt — the exact mis-classification
+ * that killed session ses_115cfbcf…. Largely defensive once DD-1/DD-2 suspend at
+ * the continuation decision (the model is normally never resumed into the
+ * dither), but it permanently closes the class.
+ */
+export function isGateSuspended(input: { workflow?: Session.WorkflowInfo; todos: Todo.Info[] }): boolean {
+  if (input.todos.some((todo) => todo.status === "awaiting_approval")) return true
+  const wf = input.workflow
+  return wf?.state === "waiting_user" && wf?.stopReason === "approval_needed"
+}
+
 export function describeAutonomousNextAction(action: AutonomousNextAction): AutonomousNarration {
   if (action.type === "continue") {
     if (action.reason === "freerun_active") {
@@ -800,14 +818,24 @@ export async function decideAutonomousContinuation(input: {
     decision.reason === "approval_required" &&
     session.workflow?.autonomous.enabled === true
   ) {
-    await Session.setWorkflowState({
-      sessionID: input.sessionID,
-      state: "waiting_user",
-      stopReason: "approval_needed",
-    }).catch(() => undefined)
-    log.info("autorun paused: approval gate", {
-      sessionID: input.sessionID,
-    })
+    // DD-1 task 2.4 — idempotency: do not overwrite an already-suspended state.
+    // If a tool-permission gate already moved the session to `blocked`, or it is
+    // already parked in a non-resumable `waiting_user`, leave it as-is so the
+    // approval gate never double-suspends or downgrades a stronger block.
+    const alreadySuspended =
+      session.workflow.state === "blocked" ||
+      (session.workflow.state === "waiting_user" &&
+        NON_RESUMABLE_WAITING_REASONS.has(session.workflow.stopReason ?? ""))
+    if (!alreadySuspended) {
+      await Session.setWorkflowState({
+        sessionID: input.sessionID,
+        state: "waiting_user",
+        stopReason: "approval_needed",
+      }).catch(() => undefined)
+      log.info("autorun paused: approval gate", {
+        sessionID: input.sessionID,
+      })
+    }
   }
 
   debugCheckpoint("workflow", "continuation_decision", {

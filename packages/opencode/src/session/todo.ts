@@ -32,7 +32,11 @@ export namespace Todo {
   export const Info = z
     .object({
       content: z.string().describe("Brief description of the task"),
-      status: z.string().describe("Current status of the task: pending, in_progress, completed, cancelled"),
+      status: z
+        .string()
+        .describe(
+          "Current status of the task: pending, in_progress, completed, cancelled, awaiting_approval (pauses autonomous execution to hand back to the user for sign-off)",
+        ),
       priority: z
         .string()
         .optional()
