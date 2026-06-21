@@ -7,13 +7,17 @@ import { Tool } from "../../src/tool/tool"
 import { GDriveSetupTool } from "../../src/tool/gdrive-setup"
 import { GDriveMountTool } from "../../src/tool/gdrive-mount"
 import {
+  buildGDriveAuthUrl,
   decodeMountInfoPath,
+  exchangeGDriveAuthCode,
   listRemotes,
   normalizeRemote,
   planRcloneConfigCreate,
   planRcloneListRemotes,
+  rcloneConfigPath,
   resolveHomeBoundMountPoint,
   runFixedArgv,
+  writeRcloneDriveRemote,
 } from "../../src/gdrive/setup-cli"
 
 const ctx = {
@@ -56,6 +60,66 @@ describe("gdrive setup cli helpers", () => {
 
   test("decodes mountinfo escaped paths", () => {
     expect(decodeMountInfoPath("/home/user/Google\\040Drive")).toBe("/home/user/Google Drive")
+  })
+
+  test("builds Google OAuth approval URL", () => {
+    const url = new URL(
+      buildGDriveAuthUrl({
+        clientId: "client-id",
+        redirectUri: "https://opencode.test/api/v2/gdrive/setup/callback",
+        state: "state-token",
+      }),
+    )
+    expect(url.hostname).toBe("accounts.google.com")
+    expect(url.searchParams.get("client_id")).toBe("client-id")
+    expect(url.searchParams.get("redirect_uri")).toBe("https://opencode.test/api/v2/gdrive/setup/callback")
+    expect(url.searchParams.get("scope")).toBe("https://www.googleapis.com/auth/drive")
+    expect(url.searchParams.get("access_type")).toBe("offline")
+    expect(url.searchParams.get("state")).toBe("state-token")
+  })
+
+  test("exchanges OAuth code without exposing tokens in output", async () => {
+    const fetcher = (async (_url, init) => {
+      expect(String(init?.body)).toContain("code=oauth-code")
+      return new Response(
+        JSON.stringify({ access_token: "access-token", refresh_token: "refresh-token", expires_in: 3600 }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      )
+    }) as typeof fetch
+    const token = await exchangeGDriveAuthCode({
+      client: { clientId: "client-id", clientSecret: "client-secret", tokenUri: "https://oauth.test/token" },
+      code: "oauth-code",
+      redirectUri: "https://opencode.test/api/v2/gdrive/setup/callback",
+      fetcher,
+    })
+    expect(token.access_token).toBe("access-token")
+    expect(token.refresh_token).toBe("refresh-token")
+    expect(token.expiry).toBeTruthy()
+  })
+
+  test("writes Google Drive rclone remote under the current user config", async () => {
+    await using tmp = await tmpdir({})
+    const result = await writeRcloneDriveRemote({
+      home: tmp.path,
+      remote: "gdrive",
+      client: { clientId: "client-id", clientSecret: "client-secret" },
+      token: { access_token: "access-token", refresh_token: "refresh-token" },
+    })
+    const configPath = rcloneConfigPath(tmp.path)
+    expect(result).toEqual({ configPath, remote: "gdrive:" })
+    const config = await fs.readFile(configPath, "utf8")
+    expect(config).toContain("[gdrive]")
+    expect(config).toContain("type = drive")
+    expect(config).toContain("client_id = client-id")
+    expect(config).toContain('"refresh_token":"refresh-token"')
+    await expect(
+      writeRcloneDriveRemote({
+        home: tmp.path,
+        remote: "gdrive",
+        client: { clientId: "client-id", clientSecret: "client-secret" },
+        token: { access_token: "next-token" },
+      }),
+    ).rejects.toThrow("explicit overwrite is required")
   })
 })
 

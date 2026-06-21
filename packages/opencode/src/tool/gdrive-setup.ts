@@ -1,9 +1,9 @@
 import z from "zod"
 import { Tool } from "./tool"
 import {
+  gdriveOAuthClientFromEnv,
   getSetupStatus,
   normalizeRemote,
-  planRcloneConfigCreate,
   planRcloneConfigDelete,
   runFixedArgv,
 } from "../gdrive/setup-cli"
@@ -12,7 +12,7 @@ type GDriveSetupMetadata = {
   action: string
   remote: string
   status?: unknown
-  commandPlan?: { command: string; args: string[] }
+  approvalUrl?: string
   requiresBrowserApproval?: boolean
   code?: string
 }
@@ -68,19 +68,29 @@ Use this before gdrive_mount when the Google Drive remote is missing or unhealth
           metadata: { action: params.action, remote, status, code: "RCLONE_MISSING" },
         }
       }
-      const commandPlan = planRcloneConfigCreate(remote)
+      const client = gdriveOAuthClientFromEnv()
+      if (!client) {
+        return {
+          title: "Google Drive OAuth client is required",
+          output:
+            "Google Drive OAuth is not configured for this daemon. Configure OPENCODE_GDRIVE_CLIENT_ID and OPENCODE_GDRIVE_CLIENT_SECRET, then run gdrive_setup start again.",
+          metadata: { action: params.action, remote, status, code: "OAUTH_CLIENT_MISSING" },
+        }
+      }
+      const approvalUrl = `/api/v2/gdrive/setup/connect?remote=${encodeURIComponent(remote)}`
       return {
         title: "Google Drive setup requires browser approval",
         output: [
           `Prepared a bounded setup transaction for ${remote}.`,
-          `The daemon will run a fixed rclone setup operation and hand Google OAuth approval to the Web/browser flow when available.`,
+          `Open the Web approval handoff in the current OpenCode browser session: ${approvalUrl}`,
+          `After Google approval, the callback writes ${remote} into the current user's rclone config.`,
           `No terminal action is required from the user.`,
         ].join("\n"),
         metadata: {
           action: params.action,
           remote,
           status,
-          commandPlan,
+          approvalUrl,
           requiresBrowserApproval: true,
           code: "WEB_APPROVAL_REQUIRED",
         },
@@ -89,14 +99,14 @@ Use this before gdrive_mount when the Google Drive remote is missing or unhealth
 
     if (params.action === "complete") {
       return {
-        title: "Google Drive setup completion pending Web callback",
+        title: "Google Drive setup completes through Web callback",
         output:
-          "OAuth completion must arrive through the Web callback or authCode handoff. This slice exposes the bounded tool surface but does not claim a completed token exchange.",
+          "Google Drive OAuth completion is handled by /api/v2/gdrive/setup/callback, which exchanges the authorization code and writes the current user's rclone remote. Run gdrive_setup status after approval to confirm the remote is configured.",
         metadata: {
           action: params.action,
           remote,
           requiresBrowserApproval: true,
-          code: params.authCode ? "TOKEN_EXCHANGE_NOT_IMPLEMENTED" : "AUTH_CODE_REQUIRED",
+          code: "WEB_CALLBACK_REQUIRED",
         },
       }
     }
