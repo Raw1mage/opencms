@@ -7,6 +7,7 @@ import { MDNS } from "./mdns"
 import { createApp } from "./app"
 import { Daemon as RuntimeDaemon } from "../daemon"
 import { Daemon as DiscoveryDaemon } from "./daemon"
+import { MetricsExporter } from "../system/metrics-exporter"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
 
@@ -84,6 +85,52 @@ export namespace Server {
     }
 
     return server
+  }
+
+  /**
+   * Start a local-only Prometheus metrics listener on 127.0.0.1:<port>.
+   *
+   * This is intentionally separate from the main daemon (which listens on a
+   * per-user unix socket behind the gateway's JWT layer): a Dockerized
+   * Prometheus can only scrape a host TCP port, and /metrics must be reachable
+   * without the gateway/web-auth. Bind is loopback-only so it is never exposed
+   * beyond the host. Disabled unless OPENCODE_METRICS_PORT is set.
+   *
+   * @spec specs/warroom_opencms_observability DD-11
+   */
+  export function listenMetrics(): ReturnType<typeof Bun.serve> | undefined {
+    const raw = process.env.OPENCODE_METRICS_PORT
+    if (!raw) return undefined
+    const port = Number(raw)
+    if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+      log.warn("invalid OPENCODE_METRICS_PORT, metrics listener disabled", { raw })
+      return undefined
+    }
+    MetricsExporter.register()
+    try {
+      const server = Bun.serve({
+        hostname: "127.0.0.1",
+        port,
+        idleTimeout: 30,
+        fetch(req) {
+          const url = new URL(req.url)
+          if (url.pathname === "/metrics") {
+            return new Response(MetricsExporter.render(), {
+              headers: { "Content-Type": "text/plain; version=0.0.4; charset=utf-8" },
+            })
+          }
+          if (url.pathname === "/" || url.pathname === "/health") {
+            return new Response("ok\n", { headers: { "Content-Type": "text/plain" } })
+          }
+          return new Response("not found\n", { status: 404 })
+        },
+      })
+      log.info("metrics listener started", { port })
+      return server
+    } catch (e) {
+      log.warn("failed to start metrics listener", { port, error: e })
+      return undefined
+    }
   }
 
   /**

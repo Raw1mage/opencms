@@ -39,6 +39,7 @@ import { produce } from "solid-js/store"
 import { agentColor } from "@/utils/agent"
 import { hasProjectPermissions } from "./helpers"
 import { sessionPermissionRequest } from "../session/session-request-tree"
+import "./sidebar-items.css"
 
 const OPENCODE_PROJECT_ID = "4b0ea68d7af9a6031a7ffda7ad66e0cb83315750"
 const sidebarDirtyInflight = new Map<string, Promise<void>>()
@@ -63,6 +64,17 @@ export const ProjectIcon = (props: {
       return hasProjectPermissions(store.permission, (item) => !permission.autoResponds(item, directory))
     }),
   )
+  // Ongoing runloop = any session in the project (across worktree + sandboxes)
+  // currently processing. Same signal as the per-session sidebar spinner
+  // (session_status.type ∈ busy | retry). SSE session.status events keep this
+  // fresh for background projects too, so the halo lights up even when the
+  // project is not the one being viewed.
+  const isRunning = createMemo(() =>
+    dirs().some((directory) => {
+      const [store] = globalSync.child(directory, { bootstrap: false })
+      return Object.values(store.session_status).some((status) => status?.type === "busy" || status?.type === "retry")
+    }),
+  )
   const notify = createMemo(() => props.notify && (hasPermissions() || unseenCount() > 0))
   const name = createMemo(() => props.project.name || getFilename(props.project.worktree))
   return (
@@ -78,10 +90,13 @@ export const ProjectIcon = (props: {
           classList={{ "badge-mask": notify() }}
         />
       </div>
+      <Show when={isRunning()}>
+        <div class="runloop-halo pointer-events-none absolute inset-0 z-20" aria-hidden="true" />
+      </Show>
       <Show when={notify()}>
         <div
           classList={{
-            "absolute top-px right-px size-1.5 rounded-full z-10": true,
+            "absolute top-px right-px size-1.5 rounded-full z-30": true,
             "bg-surface-warning-strong": hasPermissions(),
             "bg-icon-critical-base": !hasPermissions() && hasError(),
             "bg-text-interactive-base": !hasPermissions() && !hasError(),

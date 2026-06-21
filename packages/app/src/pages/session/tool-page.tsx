@@ -15,17 +15,14 @@ import { buildMonitorEntries, buildProcessCards, type EnrichedMonitorEntry } fro
 // session-ui-freshness Phase 3.3: classify card fidelity from receivedAt.
 import { classifyFidelity, createRateLimitedWarn, type Fidelity } from "@/utils/freshness"
 import { useFreshnessClock } from "@/hooks/use-freshness-clock"
-import {
-  uiFreshnessEnabled,
-  uiFreshnessHardTimeoutSec,
-  uiFreshnessThresholdSec,
-} from "@/context/frontend-tweaks"
+import { uiFreshnessEnabled, uiFreshnessHardTimeoutSec, uiFreshnessThresholdSec } from "@/context/frontend-tweaks"
 import { SessionStatusSections } from "./session-status-sections"
 import { StatusTodoList } from "./status-todo-list"
 import { useStatusMonitor } from "./use-status-monitor"
 import { useStatusTodoSync } from "./use-status-todo-sync"
 import { useAutonomousHealthSync } from "./use-autonomous-health-sync"
 import { decode64 } from "@/utils/base64"
+import { getFilename } from "@opencode-ai/util/path"
 import { SessionTelemetryCards } from "./session-telemetry-cards"
 import { useGlobalSync } from "@/context/global-sync"
 import { resolveTelemetryAccountLabel, useSessionTelemetryHydration } from "./session-telemetry-ui"
@@ -233,7 +230,9 @@ export default function SessionToolPageRoute() {
             fallback={
               <div class="h-full flex flex-col min-h-0">
                 <div class="shrink-0 px-3 py-2 border-b border-border-weak-base">
-                  <div class="text-11-regular text-text-weak truncate">{fileListDirectory()}</div>
+                  <div class="text-12-medium text-text-strong truncate" title={fileListDirectory()}>
+                    {getFilename(fileListDirectory())}
+                  </div>
                 </div>
                 <div class="px-3 py-2 h-full overflow-auto" ref={fileTreeScrollEl}>
                   <FileTree path="" modified={[]} kinds={new Map()} onFileClick={(node) => openFileViewer(node.path)} />
@@ -261,21 +260,30 @@ export default function SessionToolPageRoute() {
                       <div class="text-12-regular text-text-danger break-words">{selectedFileState()?.error}</div>
                     }
                   >
-                    <Show when={selectedFileImageUrl()} fallback={
-                      <Show
-                        when={selectedFileState()?.content?.type !== "binary"}
-                        fallback={
-                          <div class="text-12-regular text-text-weak">{language.t("session.files.binaryContent")}</div>
-                        }
-                      >
-                        <pre class="whitespace-pre-wrap break-words rounded-md border border-border-weak-base bg-surface-panel px-3 py-3 text-12-regular text-text-base overflow-x-auto">
-                          {selectedFileContent() ?? ""}
-                        </pre>
-                      </Show>
-                    }>
+                    <Show
+                      when={selectedFileImageUrl()}
+                      fallback={
+                        <Show
+                          when={selectedFileState()?.content?.type !== "binary"}
+                          fallback={
+                            <div class="text-12-regular text-text-weak">
+                              {language.t("session.files.binaryContent")}
+                            </div>
+                          }
+                        >
+                          <pre class="whitespace-pre-wrap break-words rounded-md border border-border-weak-base bg-surface-panel px-3 py-3 text-12-regular text-text-base overflow-x-auto">
+                            {selectedFileContent() ?? ""}
+                          </pre>
+                        </Show>
+                      }
+                    >
                       {(url) => (
                         <div class="rounded-md border border-border-weak-base bg-surface-panel p-3">
-                          <img src={url()} alt={path()} class="max-h-[70vh] max-w-full rounded bg-white object-contain" />
+                          <img
+                            src={url()}
+                            alt={path()}
+                            class="max-h-[70vh] max-w-full rounded bg-white object-contain"
+                          />
                         </div>
                       )}
                     </Show>
@@ -397,8 +405,7 @@ export default function SessionToolPageRoute() {
                                 )
                                 const secondsSinceReceived = createMemo(() => {
                                   const rxAt = card.receivedAt
-                                  if (typeof rxAt !== "number" || !Number.isFinite(rxAt) || rxAt <= 0)
-                                    return undefined
+                                  if (typeof rxAt !== "number" || !Number.isFinite(rxAt) || rxAt <= 0) return undefined
                                   return Math.max(0, Math.floor((toolPageFreshnessNow() - rxAt) / 1000))
                                 })
                                 const elapsed = () => {
@@ -442,7 +449,8 @@ export default function SessionToolPageRoute() {
                                                 navigate(`/${params.dir}/session/${card.sessionID}`)
                                               }}
                                             >
-                                              {" "}@{card.agent}
+                                              {" "}
+                                              @{card.agent}
                                             </a>
                                           </Show>
                                         </div>
@@ -468,9 +476,7 @@ export default function SessionToolPageRoute() {
                                     </div>
                                     <Show when={staleHint()}>
                                       {(hint) => (
-                                        <div class="text-11-regular text-text-weak break-words italic">
-                                          {hint()}
-                                        </div>
+                                        <div class="text-11-regular text-text-weak break-words italic">{hint()}</div>
                                       )}
                                     </Show>
                                   </div>
@@ -592,7 +598,9 @@ export default function SessionToolPageRoute() {
                                 <span>{layer.desiredState}</span>
                                 <span class="truncate max-w-[100px]">{layer.lastReason}</span>
                               </div>
-                              <div class="text-11-regular text-text-weak">last used {formatTimestamp(layer.lastUsedAt)}</div>
+                              <div class="text-11-regular text-text-weak">
+                                last used {formatTimestamp(layer.lastUsedAt)}
+                              </div>
                             </div>
                           )}
                         </For>

@@ -1,0 +1,28 @@
+@keyframes runloop-breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Breathing halo for project tiles that have an ongoing runloop (any session
+   busy/retry). Inset ring + inset glow stay visible inside the tile's
+   overflow-clip; the outer glow softens the edge where not clipped. */
+.runloop-halo {
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 2px var(--text-interactive-base),
+    inset 0 0 7px 0 var(--text-interactive-base),
+    0 0 7px 0 var(--text-interactive-base);
+  animation: runloop-breathe 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .runloop-halo {
+    animation: none;
+    opacity: 0.85;
+  }
+}

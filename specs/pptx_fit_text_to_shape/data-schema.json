@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "pptx_fit_text_to_shape data contracts",
+  "definitions": {
+    "FitParams": {
+      "type": "object",
+      "description": "Inputs to the fit-to-shape solver.",
+      "properties": {
+        "title_cap": { "type": "integer", "default": 18, "description": "Max title font pt." },
+        "desc_cap": { "type": "integer", "default": 13, "description": "Max desc font pt." },
+        "floor": { "type": "integer", "default": 9, "description": "Min font pt; never go below." },
+        "ratio": { "type": "number", "default": 1.30, "description": "title_pt / desc_pt target ratio." },
+        "overflow_tol": { "type": "number", "default": 0.2, "description": "Shared with layout_lint Thresholds." },
+        "line_factor": { "type": "number", "default": 1.2, "description": "Shared with layout_lint Thresholds." }
+      },
+      "additionalProperties": false
+    },
+    "FitResult": {
+      "type": "object",
+      "description": "Solver output. limited_by is fail-fast honest; overflow=true means box genuinely too small.",
+      "required": ["title_pt", "desc_pt", "limited_by", "overflow", "needed_in", "box_h_in", "est_lines"],
+      "properties": {
+        "title_pt": { "type": "integer", "description": "Adopted title font pt." },
+        "desc_pt": { "type": "integer", "description": "Adopted desc font pt." },
+        "limited_by": {
+          "type": "string",
+          "enum": ["height", "width", "cap"],
+          "description": "What capped the adopted size: framebox height, frame width (wrap), or the cap argument."
+        },
+        "overflow": {
+          "type": "boolean",
+          "description": "true when even floor pt overflows the box — box too small; not a silent success."
+        },
+        "needed_in": { "type": "number", "description": "Estimated needed height (in) at adopted size, from _estimate_text_height_in." },
+        "box_h_in": { "type": "number", "description": "Resolved box height (in)." },
+        "est_lines": { "type": "integer", "description": "Estimated wrapped line count at adopted size." }
+      },
+      "additionalProperties": false
+    },
+    "FitTextRequest": {
+      "type": "object",
+      "description": "pptx_fit_text MCP action request.",
+      "required": ["doc_dir", "index", "shape_id"],
+      "properties": {
+        "doc_dir": { "type": "string" },
+        "index": { "type": "integer", "description": "1-based slide index." },
+        "shape_id": { "type": "integer" },
+        "title_cap": { "type": "integer", "default": 18 },
+        "desc_cap": { "type": "integer", "default": 13 },
+        "floor": { "type": "integer", "default": 9 },
+        "ratio": { "type": "number", "default": 1.30 }
+      }
+    },
+    "SetTextFitArg": {
+      "type": "object",
+      "description": "set_text / batch set_text fit extension.",
+      "properties": {
+        "fit": {
+          "type": ["string", "null"],
+          "enum": ["shape", null],
+          "default": null,
+          "description": "null=byte-compatible explicit-size path; 'shape'=auto-solve, ignore passed size."
+        }
+      }
+    }
+  }
+}

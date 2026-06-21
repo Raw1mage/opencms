@@ -1,0 +1,111 @@
+[
+  {
+    "id": "TV1-big-box-small-text",
+    "requirement": "求解最大安全字級 / FR §5.1",
+    "kind": "solver-unit",
+    "given": {
+      "box_w_in": 3.0,
+      "box_h_in": 0.92,
+      "title_paras": ["Processor"],
+      "desc_paras": ["STM32H7 480MHz"],
+      "params": { "title_cap": 18, "desc_cap": 13, "floor": 9, "ratio": 1.30 }
+    },
+    "expect": {
+      "desc_pt_gt": 9,
+      "title_pt_eq": "min(round(desc_pt*1.30),18)",
+      "overflow": false,
+      "limited_by_in": ["height", "cap"]
+    },
+    "then_lint": "套回 shape 後 pptx_layout_lint 該 shape 無 PPTX_LAYOUT_OVERFLOW (ready)"
+  },
+  {
+    "id": "TV2-narrow-box-long-text",
+    "requirement": "寬度受限 / FR §5.2",
+    "kind": "solver-unit",
+    "given": {
+      "box_w_in": 1.1,
+      "box_h_in": 1.5,
+      "title_paras": [],
+      "desc_paras": ["Wi-Fi / BLE combo SoC with integrated PA and antenna switch"],
+      "params": { "title_cap": 18, "desc_cap": 13, "floor": 9, "ratio": 1.30 }
+    },
+    "expect": {
+      "limited_by_eq": "width",
+      "overflow": false,
+      "note": "字級被窄框 wrap 卡住，不超過寬度容許值，套回後不溢出"
+    }
+  },
+  {
+    "id": "TV3-dual-entry-consistency",
+    "requirement": "雙入口求解一致 / FR §5.3",
+    "kind": "e2e",
+    "given": {
+      "shape": "同一 deck 同一 shape_id",
+      "entry_a": "pptx_fit_text(doc_dir,index,shape_id)",
+      "entry_b": "set_text(doc_dir,index,shape_id,fit='shape')"
+    },
+    "expect": {
+      "title_pt_equal": true,
+      "desc_pt_equal": true,
+      "note": "兩入口共用同一 solve_fit，字級必一致"
+    }
+  },
+  {
+    "id": "TV4-no-fit-byte-compat",
+    "requirement": "不帶 fit byte 相容 / FR §5.4",
+    "kind": "e2e",
+    "given": {
+      "call": "set_text(doc_dir,index,shape_id, text=..., size=12)  # 無 fit 參數"
+    },
+    "expect": {
+      "byte_identical_to_pre_change": true,
+      "note": "fit=None 完全走現行明確-size 路徑；對同一輸入輸出 byte 一致"
+    }
+  },
+  {
+    "id": "TV5-metric-consistency",
+    "requirement": "求解器與 lint 共用度量 / FR §5.5",
+    "kind": "solver-unit",
+    "given": {
+      "box_w_in": 2.5,
+      "box_h_in": 1.0,
+      "title_paras": ["Title"],
+      "desc_paras": ["some description text that wraps"],
+      "font_pt": 12
+    },
+    "expect": {
+      "solver_needed_in_eq_lint_needed_in": true,
+      "note": "對同一 shape/text/font_pt，solver 內呼叫的 _estimate_text_height_in 回傳值 == lint 路徑回傳值（同一函式，定義上相等）"
+    }
+  },
+  {
+    "id": "TV6-box-too-small-honest-overflow",
+    "requirement": "框太小誠實 overflow / DD-5",
+    "kind": "solver-unit",
+    "given": {
+      "box_w_in": 0.5,
+      "box_h_in": 0.3,
+      "title_paras": [],
+      "desc_paras": ["this text is far too long to ever fit in such a tiny box at floor pt"],
+      "params": { "floor": 9 }
+    },
+    "expect": {
+      "desc_pt_eq_floor": true,
+      "overflow": true,
+      "note": "floor 仍溢出 → 採 floor + overflow=true，不 silent 假裝成功"
+    }
+  },
+  {
+    "id": "TV7-no-geometry-fail-fast",
+    "requirement": "無法解析框幾何 fail-fast / R-3",
+    "kind": "e2e",
+    "given": {
+      "shape": "placeholder 在 slide/layout/master 鏈都無可解析 geometry"
+    },
+    "expect": {
+      "raises_error": true,
+      "error_contains": "geometry",
+      "note": "不亂猜框大小"
+    }
+  }
+]

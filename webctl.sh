@@ -1973,7 +1973,20 @@ do_build_frontend() {
         "${BUN_BIN}" install
     fi
 
-    "${BUN_BIN}" run build 2>&1 | tail -1
+    # Invoke vite's real entrypoint directly under bun. Do NOT use
+    # `bun run build` (→ `vite`): on hosts without node, the bare `vite`
+    # command resolves to the installed opencode binary via PATH shadowing,
+    # which silently prints CLI help and exits 1 while this function would
+    # still report success. Fail-fast on a missing entrypoint or non-zero exit.
+    local VITE_ENTRY="${PROJECT_ROOT}/packages/app/node_modules/vite/bin/vite.js"
+    if [ ! -f "${VITE_ENTRY}" ]; then
+        log_error "vite entrypoint not found at ${VITE_ENTRY}; run 'bun install' in packages/app."
+        return 1
+    fi
+    if ! "${BUN_BIN}" "${VITE_ENTRY}" build; then
+        log_error "Frontend build failed (vite build exited non-zero)."
+        return 1
+    fi
 
     _write_frontend_build_stamp
     log_success "Frontend built: ${FRONTEND_DIST}"

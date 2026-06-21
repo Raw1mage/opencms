@@ -1,0 +1,25 @@
+[
+  {
+    "id": "P1",
+    "name": "pptx_fit_text action (主修 A)",
+    "messages": [
+      { "id": "MSG1", "from": "MCP caller", "to": "pptx_fit_text CLI", "componentRef": "A1", "label": "fit_text(doc_dir,index,shape_id,caps)" },
+      { "id": "MSG2", "from": "pptx_fit_text CLI", "to": "_pptx_layout_lint geometry resolver", "componentRef": "A1", "label": "resolve box w/h + insets + paragraphs(title,desc)" },
+      { "id": "MSG3", "from": "_pptx_layout_lint geometry resolver", "to": "pptx_fit_text CLI", "componentRef": "A1", "label": "box geom OR no_resolvable_geometry (fail-fast)" },
+      { "id": "MSG4", "from": "pptx_fit_text CLI", "to": "_pptx_fit_solver.solve_fit", "componentRef": "A2", "label": "solve_fit(box, title_paras, desc_paras, caps)" },
+      { "id": "MSG5", "from": "_pptx_fit_solver.solve_fit", "to": "_estimate_text_height_in (shared)", "componentRef": "A2", "label": "per-pt down-scan: needed_in,lines" },
+      { "id": "MSG6", "from": "_pptx_fit_solver.solve_fit", "to": "pptx_fit_text CLI", "componentRef": "A2", "label": "FitResult{title_pt,desc_pt,limited_by,overflow}" },
+      { "id": "MSG7", "from": "pptx_fit_text CLI", "to": "set_text rPr sz writer", "componentRef": "A3", "label": "write title_pt/desc_pt to role rPr sz" },
+      { "id": "MSG8", "from": "pptx_fit_text CLI", "to": "MCP caller", "componentRef": "A4", "label": "envelope {title_pt,desc_pt,limited_by,overflow,needed_in}" }
+    ]
+  },
+  {
+    "id": "P2",
+    "name": "set_text fit=shape (主修 B)",
+    "messages": [
+      { "id": "MSG9", "from": "MCP caller", "to": "set_text CLI", "componentRef": "A1", "label": "set_text(...,fit='shape')  # ignores passed size" },
+      { "id": "MSG10", "from": "set_text CLI", "to": "_pptx_fit_solver.solve_fit", "componentRef": "A2", "label": "same solver as P1 (dual-entry consistency)" },
+      { "id": "MSG11", "from": "set_text CLI", "to": "MCP caller", "componentRef": "A4", "label": "text written at solved size; envelope reports adopted pt" }
+    ]
+  }
+]
