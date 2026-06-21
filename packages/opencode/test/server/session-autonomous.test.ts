@@ -7,12 +7,42 @@ import { RuntimeEventService } from "../../src/system/runtime-event-service"
 import { Log } from "../../src/util/log"
 import { Flag } from "../../src/flag/flag"
 import { Identifier } from "../../src/id/id"
-import { enqueuePendingContinuation } from "../../src/session/workflow-runner"
+import { Todo } from "../../src/session/todo"
+import { decideAutonomousContinuation, enqueuePendingContinuation } from "../../src/session/workflow-runner"
 
 const projectRoot = path.join(__dirname, "../..")
 Log.init({ print: false })
 
 describe("session.autonomous", () => {
+  // harness/autonomous-gate-enforcement task 2.7 — integration: the async
+  // decision path actually suspends an armed session into waiting_user with the
+  // non-resumable approval_needed stopReason, and keeps autonomous armed.
+  test("approval gate suspends an armed session into waiting_user:approval_needed (DD-1)", async () => {
+    await Instance.provide({
+      directory: projectRoot,
+      fn: async () => {
+        const session = await Session.create({})
+        await Session.updateAutonomous({ sessionID: session.id, policy: { enabled: true } })
+        // "delete old data" → inferActionFromContent ⇒ destructive/needsApproval,
+        // which is in the default requireApprovalFor (['push','destructive']).
+        await Todo.update({
+          sessionID: session.id,
+          todos: [{ id: "g", content: "delete old data", status: "pending", priority: "high" }],
+        })
+
+        const decision = await decideAutonomousContinuation({ sessionID: session.id })
+        expect(decision.continue).toBe(false)
+        expect(decision.reason).toBe("approval_required")
+
+        const after = await Session.get(session.id)
+        expect(after.workflow?.state).toBe("waiting_user")
+        expect(after.workflow?.stopReason).toBe("approval_needed")
+        // gate hands back to the user but stays armed (unlike todo_complete)
+        expect(after.workflow?.autonomous.enabled).toBe(true)
+      },
+    })
+  })
+
   test("enables autonomous workflow policy for a session", async () => {
     await Instance.provide({
       directory: projectRoot,

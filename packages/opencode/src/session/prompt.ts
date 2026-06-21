@@ -82,6 +82,7 @@ import {
   collectCompletedSubagents,
   enqueueAutonomousContinue,
   getPendingContinuation,
+  isGateSuspended,
   shouldInterruptAutonomousRun,
 } from "./workflow-runner"
 import { detectAutorunIntent, extractUserText } from "./autorun/detector"
@@ -2833,6 +2834,29 @@ export namespace SessionPrompt {
                 ? prefaceResult.similarity
                 : undefined
             const samplePrefix = sigTriple ? sigs[0].slice(0, 120) : texts[0].slice(0, 120)
+
+            // DD-4 (harness/autonomous-gate-enforcement): defer to legitimate
+            // gates BEFORE any recovery action. If the non-progress is
+            // gate-induced — a todo is awaiting_approval, or the workflow is
+            // parked in waiting_user:approval_needed — this is NOT paralysis: the
+            // correct state is the clean suspend DD-1/DD-2 produce, and the right
+            // move is to hand back to the user, not nudge or halt. This is the
+            // exact mis-classification that killed session ses_115cfbcf… (a flag
+            // the model couldn't act on, nudged-then-killed). Mostly defensive
+            // now that the gate suspends at the continuation decision, but it
+            // permanently closes the class.
+            {
+              const gateTodos = await Todo.get(sessionID).catch(() => [])
+              const freshWorkflow = (await Session.get(sessionID).catch(() => undefined))?.workflow
+              if (isGateSuspended({ workflow: freshWorkflow, todos: gateTodos })) {
+                log.info("paralysis-defer: gate-induced non-progress, skipping nudge/halt ladder", {
+                  sessionID,
+                  step,
+                  detector,
+                })
+                continue
+              }
+            }
 
             // Bloated-input compaction comes BEFORE the recoveryCount gate.
             // A nudge can't drain a 500-item conversation — only compaction

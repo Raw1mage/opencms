@@ -56,6 +56,7 @@ export type ContinuationDecisionReason =
   | "freerun_blocked"
   | "freerun_settled"
   | "dormant_scheduled"
+  | "approval_required"
 
 export type AutonomousNextAction =
   | {
@@ -624,6 +625,19 @@ export function planAutonomousNextAction(input: {
   }
 
   const current = Todo.nextActionableTodo(input.todos)
+
+  // harness/autonomous-gate-enforcement (implements autonomous-opt-in R5):
+  // the runtime OWNS the approval gate — it does not delegate it to the model's
+  // self-judgment (the prior "No pre-emptive gates" stance let the model dither
+  // against an advisory flag it had no key for, until the paralysis detector
+  // halted the session). Check the gate BEFORE the drained/continue branches so
+  // an explicit `awaiting_approval` handback (which makes nextActionableTodo
+  // return undefined) suspends rather than reading as todo_complete. The caller
+  // maps reason="approval_required" to waiting_user + a non-resumable stopReason.
+  if (isAutonomousApprovalGated({ todos: input.todos, current, workflow })) {
+    return { type: "stop", reason: "approval_required" }
+  }
+
   const trigger = buildContinuationTrigger({
     todo: current,
     textForPending: AUTONOMOUS_RESUME_TEXT,
@@ -634,16 +648,52 @@ export function planAutonomousNextAction(input: {
     return { type: "stop", reason: "todo_complete" }
   }
 
-  // Trigger exists → continue. No pre-emptive gates.
-  // AI decides on blockers / approvals / questions itself and signals stop
-  // by ending the turn without updating the todolist. The runloop only
-  // stimulates the AI to update its todolist; it never silently gates work.
   return {
     type: "continue",
     reason: trigger.source,
     text: trigger.payload.text,
     todo: trigger.payload.todo,
   }
+}
+
+/**
+ * True when the autonomous loop must suspend for user approval before entering
+ * the next step. Two triggers (harness/autonomous-gate-enforcement):
+ *  - DD-2 (the key): the model explicitly set any todo to status
+ *    `awaiting_approval` — a deliberate handback request.
+ *  - DD-1 (runtime-owned policy gate): the next actionable todo carries a
+ *    needsApproval action whose kind is in `requireApprovalFor`.
+ * `requireApprovalFor` is now LIVE config (was dead). architecture_change is no
+ * longer inferred (DD-3), so in practice the policy gate fires on push/destructive.
+ */
+export function isAutonomousApprovalGated(input: {
+  todos: Todo.Info[]
+  current?: Todo.Info
+  workflow: Session.WorkflowInfo
+}): boolean {
+  if (input.todos.some((todo) => todo.status === "awaiting_approval")) return true
+  const action = input.current?.action
+  if (!action?.needsApproval || !action.kind) return false
+  const policy = input.workflow.autonomous.requireApprovalFor ?? []
+  return policy.includes(action.kind)
+}
+
+/**
+ * True when the session is currently suspended on the approval gate: either a
+ * todo is explicitly `awaiting_approval`, or the workflow is parked in
+ * `waiting_user` with the non-resumable `approval_needed` stopReason.
+ *
+ * DD-4 (harness/autonomous-gate-enforcement): the paralysis detector consults
+ * this so it defers to a legitimate gate instead of treating gate-induced
+ * non-progress as paralysis to nudge-then-halt — the exact mis-classification
+ * that killed session ses_115cfbcf…. Largely defensive once DD-1/DD-2 suspend at
+ * the continuation decision (the model is normally never resumed into the
+ * dither), but it permanently closes the class.
+ */
+export function isGateSuspended(input: { workflow?: Session.WorkflowInfo; todos: Todo.Info[] }): boolean {
+  if (input.todos.some((todo) => todo.status === "awaiting_approval")) return true
+  const wf = input.workflow
+  return wf?.state === "waiting_user" && wf?.stopReason === "approval_needed"
 }
 
 export function describeAutonomousNextAction(action: AutonomousNextAction): AutonomousNarration {
@@ -680,6 +730,11 @@ export function describeAutonomousNextAction(action: AutonomousNextAction): Auto
       return { kind: "pause", text: "Freerun engine is blocked." }
     case "freerun_settled":
       return { kind: "complete", text: "Freerun engine has no remaining actionable nodes." }
+    case "approval_required":
+      return {
+        kind: "pause",
+        text: "Paused for approval: the next step needs user sign-off before autonomous execution continues.",
+      }
   }
 }
 
@@ -749,6 +804,38 @@ export async function decideAutonomousContinuation(input: {
     log.info("autorun completed: todos drained", {
       sessionID: input.sessionID,
     })
+  }
+
+  // harness/autonomous-gate-enforcement (DD-1/DD-2): the runtime hit the approval
+  // gate. Suspend deterministically into waiting_user with a non-resumable
+  // stopReason ("approval_needed" ∈ NON_RESUMABLE_WAITING_REASONS) so the
+  // supervisor will NOT auto-resume — the loop hands back to the user instead of
+  // re-stimulating the model into a step it must not enter unattended. Autonomous
+  // stays ARMED (unlike todo_complete): clearing the gate (user approval, which
+  // disarms via R5, or the model dropping awaiting_approval) lets work proceed.
+  if (
+    !decision.continue &&
+    decision.reason === "approval_required" &&
+    session.workflow?.autonomous.enabled === true
+  ) {
+    // DD-1 task 2.4 — idempotency: do not overwrite an already-suspended state.
+    // If a tool-permission gate already moved the session to `blocked`, or it is
+    // already parked in a non-resumable `waiting_user`, leave it as-is so the
+    // approval gate never double-suspends or downgrades a stronger block.
+    const alreadySuspended =
+      session.workflow.state === "blocked" ||
+      (session.workflow.state === "waiting_user" &&
+        NON_RESUMABLE_WAITING_REASONS.has(session.workflow.stopReason ?? ""))
+    if (!alreadySuspended) {
+      await Session.setWorkflowState({
+        sessionID: input.sessionID,
+        state: "waiting_user",
+        stopReason: "approval_needed",
+      }).catch(() => undefined)
+      log.info("autorun paused: approval gate", {
+        sessionID: input.sessionID,
+      })
+    }
   }
 
   debugCheckpoint("workflow", "continuation_decision", {

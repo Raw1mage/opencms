@@ -424,7 +424,12 @@ export namespace Session {
       autonomous: {
         enabled: false,
         stopOnTestsFail: true,
-        requireApprovalFor: ["push", "destructive", "architecture_change"],
+        // harness/autonomous-gate-enforcement: this list is now ENFORCED at
+        // planAutonomousNextAction (was dead config). architecture_change dropped
+        // (DD-3) — it was keyword-inferred from todo text and false-gated doc work;
+        // it is no longer produced, so listing it here is dead. push/destructive
+        // map to real tool-gated actions.
+        requireApprovalFor: ["push", "destructive"],
       },
       state: "waiting_user",
       updatedAt: now,
