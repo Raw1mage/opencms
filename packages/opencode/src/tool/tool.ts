@@ -141,8 +141,6 @@ export namespace Tool {
     edit: "modify",
     write: "modify",
     apply_patch: "modify",
-    gdrive_setup: "modify",
-    gdrive_mount: "modify",
     multiedit: "modify",
     notebookedit: "modify",
     scratchpad_write: "modify",

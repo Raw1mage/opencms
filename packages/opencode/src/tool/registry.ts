@@ -35,8 +35,6 @@ import { AttachmentTool } from "./attachment"
 import { RereadAttachmentTool } from "./reread-attachment"
 import { SessionRecallTool } from "./session_recall"
 import { SystemManagerTools } from "./system-manager"
-import { GDriveSetupTool } from "./gdrive-setup"
-import { GDriveMountTool } from "./gdrive-mount"
 import { pathToFileURL } from "url"
 
 export namespace ToolRegistry {
@@ -166,8 +164,6 @@ export namespace ToolRegistry {
       CronCancelTool,
       CronStatusTool,
       RefreshCapabilityLayerTool,
-      GDriveSetupTool,
-      GDriveMountTool,
       ...SystemManagerTools,
       ...(Flag.OPENCODE_EXPERIMENTAL_LSP_TOOL ? [LspTool] : []),
       ...(config.experimental?.batch_tool === true ? [BatchTool] : []),
