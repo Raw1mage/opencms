@@ -63,25 +63,23 @@ export namespace Share {
       // catching prevents an unhandled rejection storm (see
       // message-v2.ts parts() helper for the same pattern).
       let partData = evt.properties.part
-      if (evt.properties.delta && "type" in partData && (partData.type === "text" || partData.type === "reasoning") && !("text" in partData && (partData as any).text)) {
+      if (
+        evt.properties.delta &&
+        "type" in partData &&
+        (partData.type === "text" || partData.type === "reasoning") &&
+        !("text" in partData && (partData as any).text)
+      ) {
         try {
-          const { readPartFile } = await import("../session/storage/legacy")
-          const full = await readPartFile(partData.messageID, partData.id)
+          const { Router: StorageRouter } = await import("../session/storage/router")
+          const all = await StorageRouter.parts(partData.messageID, partData.sessionID)
+          const full = all.find((p) => p.id === partData.id)
           if (full) partData = full as typeof partData
         } catch (e) {
           if (!(e instanceof Storage.NotFoundError)) throw e
           // Part vanished mid-flight — proceed with the delta we have
         }
       }
-      await sync(
-        "session/part/" +
-          partData.sessionID +
-          "/" +
-          partData.messageID +
-          "/" +
-          partData.id,
-        partData,
-      )
+      await sync("session/part/" + partData.sessionID + "/" + partData.messageID + "/" + partData.id, partData)
     })
   }
 

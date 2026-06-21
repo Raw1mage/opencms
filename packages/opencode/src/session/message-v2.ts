@@ -1211,9 +1211,15 @@ export namespace MessageV2 {
     yield* StorageRouter.stream(sessionID)
   })
 
-  export const parts = fn(Identifier.schema("message"), async (messageID) => {
-    return StorageRouter.parts(messageID)
-  })
+  export const parts = fn(
+    z.object({
+      sessionID: Identifier.schema("session"),
+      messageID: Identifier.schema("message"),
+    }),
+    async ({ sessionID, messageID }) => {
+      return StorageRouter.parts(messageID, sessionID)
+    },
+  )
 
   export const get = fn(
     z.object({

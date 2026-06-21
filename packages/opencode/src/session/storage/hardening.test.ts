@@ -7,13 +7,11 @@ import { Bus } from "@/bus"
 import { Storage } from "../../storage/storage"
 import type { MessageV2 } from "../message-v2"
 import { SessionInspect } from "../../cli/cmd/session-inspect"
-import { DreamingWorker } from "./dreaming"
 import { SessionStorageEvent } from "./events"
 import { runIntegrityCheckUncached, StorageCorruptionError } from "./integrity"
-import { LegacyStore } from "./legacy"
 import { ensureSchema, rollbackTo, TARGET_VERSION } from "./migration-runner"
 import { ConnectionPool } from "./pool"
-import { detectFormat, Router } from "./router"
+import { Router } from "./router"
 import { SqliteStore } from "./sqlite"
 
 const SIDS = [
@@ -25,7 +23,6 @@ const SIDS = [
   "ses_test_hardening_rsync",
   "ses_test_hardening_rsync_snapshot",
   "ses_test_hardening_perf_sqlite",
-  "ses_test_hardening_perf_legacy",
 ]
 
 function dbPath(sessionID: string): string {
@@ -84,13 +81,13 @@ async function collect(sessionID: string): Promise<MessageV2.WithParts[]> {
   return rows
 }
 
-async function seedLegacy(sessionID: string): Promise<void> {
+async function seedSqlite(sessionID: string): Promise<void> {
   const u = user(sessionID, `msg_${sessionID}_u`)
   const a = assistant(sessionID, `msg_${sessionID}_a`, u.id)
   await Storage.write(["session", sessionID], { id: sessionID, projectID: "proj_test" })
-  await LegacyStore.upsertMessage(u)
-  await LegacyStore.upsertMessage(a)
-  await LegacyStore.upsertPart(part(sessionID, a.id, `prt_${sessionID}_a`))
+  await SqliteStore.upsertMessage(u)
+  await SqliteStore.upsertMessage(a)
+  await SqliteStore.upsertPart(part(sessionID, a.id, `prt_${sessionID}_a`))
 }
 
 async function corruptDb(sessionID: string): Promise<void> {
@@ -163,36 +160,9 @@ describe("session storage hardening", () => {
       expect(checked.stdout.trim()).not.toBe("ok")
       expect(events.at(-1)?.sessionID).toBe(sid)
       expect(events.at(-1)?.integrityCheckOutput.length).toBeGreaterThan(0)
-      expect(detectFormat(sid).format).toBe("sqlite")
     } finally {
       unsubscribe()
     }
-  })
-
-  it("DR-4 cleanup preserves legacy authority after a migration interruption", async () => {
-    const sid = "ses_test_hardening_migrate"
-    await seedLegacy(sid)
-
-    await expect(
-      DreamingWorker.migrateSession(sid, {
-        hooks: {
-          beforeRename: () => {
-            throw new Error("simulated pre-rename crash")
-          },
-        },
-      }),
-    ).rejects.toThrow(/pre-rename/)
-
-    expect(
-      await fs
-        .stat(dbPath(sid) + ".tmp")
-        .then(() => true)
-        .catch(() => false),
-    ).toBe(true)
-    const cleanup = await DreamingWorker.cleanupStartup()
-    expect(cleanup.deletedTmp).toContain(sid)
-    expect(detectFormat(sid).format).toBe("legacy")
-    expect((await collect(sid)).length).toBe(2)
   })
 
   it("DR-5 validates schema forward, failed forward rollback, and test rollback helper", async () => {
@@ -258,26 +228,18 @@ describe("session storage hardening", () => {
 
   it("8.7 runs a synthetic 2253-message read benchmark fixture", async () => {
     const sqliteSid = "ses_test_hardening_perf_sqlite"
-    const legacySid = "ses_test_hardening_perf_legacy"
     const count = 2253
-    await Storage.write(["session", legacySid], { id: legacySid, projectID: "proj_test" })
     for (let i = 0; i < count; i++) {
       const id = `msg_perf_${String(i).padStart(4, "0")}`
       await SqliteStore.upsertMessage(user(sqliteSid, id, 1700000000000 + i))
-      await LegacyStore.upsertMessage(user(legacySid, id, 1700000000000 + i))
     }
     ConnectionPool.closeAll()
 
     const sqliteStart = performance.now()
     const sqliteRows = await collect(sqliteSid)
     const sqliteMs = performance.now() - sqliteStart
-    const legacyStart = performance.now()
-    const legacyRows = await collect(legacySid)
-    const legacyMs = performance.now() - legacyStart
 
     expect(sqliteRows.length).toBe(count)
-    expect(legacyRows.length).toBe(count)
     expect(Number.isFinite(sqliteMs)).toBe(true)
-    expect(Number.isFinite(legacyMs)).toBe(true)
   })
 })

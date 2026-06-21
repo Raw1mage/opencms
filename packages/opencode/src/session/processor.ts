@@ -438,8 +438,7 @@ export namespace SessionProcessor {
             // disk-terminal quota_low finish + rotateHint metadata, persist,
             // and break — parent's watchdog A delivers the notice.
             input.assistantMessage.finish = "quota_low"
-            const accountIdForHint =
-              quotaLowSnapshot?.accountId ?? streamInput.accountId ?? input.accountId
+            const accountIdForHint = quotaLowSnapshot?.accountId ?? streamInput.accountId ?? input.accountId
             ;(input.assistantMessage as any).rotateHint = {
               exhaustedAccountId: `${streamInput.model.providerId}:${accountIdForHint ?? "unknown"}`,
               exhaustedAt: new Date().toISOString(),
@@ -869,7 +868,10 @@ export namespace SessionProcessor {
                       })
                     }
 
-                    const parts = await MessageV2.parts(input.assistantMessage.id)
+                    const parts = await MessageV2.parts({
+                      sessionID: input.sessionID,
+                      messageID: input.assistantMessage.id,
+                    })
                     const lastThree = parts.slice(-DOOM_LOOP_THRESHOLD)
 
                     if (
@@ -895,7 +897,6 @@ export namespace SessionProcessor {
                         ruleset: agent.permission,
                       })
                     }
-
                   }
                   break
                 }
@@ -979,10 +980,13 @@ export namespace SessionProcessor {
                           },
                         })
                       } else {
-                        log.info("Suppressed premature subagent session 'complete' narration (dispatched flag detected)", {
-                          sessionID: input.sessionID,
-                          toolCallId: value.toolCallId,
-                        })
+                        log.info(
+                          "Suppressed premature subagent session 'complete' narration (dispatched flag detected)",
+                          {
+                            sessionID: input.sessionID,
+                            toolCallId: value.toolCallId,
+                          },
+                        )
                       }
                     }
 
@@ -1019,8 +1023,7 @@ export namespace SessionProcessor {
                       // identical failing input multiple times (spec
                       // session/tool-retry-and-dedup, DD-6). Use an explicit
                       // no-modification + re-read imperative instead.
-                      const isMutationRetryable =
-                        !isSchemaMiss && isMutationToolCall(match)
+                      const isMutationRetryable = !isSchemaMiss && isMutationToolCall(match)
                       let output: string
                       let mutationHint = false
                       if (isSchemaMiss) {
@@ -1382,10 +1385,7 @@ export namespace SessionProcessor {
                       const { quotaLowRedLinePercent } = await Tweaks.subagent()
                       if (quotaLowRedLinePercent > 0) {
                         const accountId = streamInput.accountId ?? input.accountId
-                        if (
-                          accountId &&
-                          (input.model.providerId === "codex" || input.model.providerId === "openai")
-                        ) {
+                        if (accountId && (input.model.providerId === "codex" || input.model.providerId === "openai")) {
                           try {
                             const { getOpenAIQuota } = await import("@/account/quota/openai")
                             const quota = await getOpenAIQuota(accountId, { waitFresh: false })
@@ -2008,7 +2008,7 @@ export namespace SessionProcessor {
             }
             snapshot = undefined
           }
-          const p = await MessageV2.parts(input.assistantMessage.id)
+          const p = await MessageV2.parts({ sessionID: input.sessionID, messageID: input.assistantMessage.id })
           for (const part of p) {
             if (part.type === "tool" && part.state.status !== "completed" && part.state.status !== "error") {
               await Session.updatePart({
