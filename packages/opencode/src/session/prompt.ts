@@ -451,13 +451,19 @@ export const PARALYSIS_PREFACE_SIM_THRESHOLD = 0.6
 // progress, which vetoes Detector D (so genuine batch-edit work, whose turns
 // share a preface but actually mutate files, never trips it).
 export const PARALYSIS_PROGRESS_TOOLS = new Set(["write", "edit", "multiedit", "apply_patch"])
-// No-op meta-tools: calling them has no side effect (e.g. tool_loader is a
-// compatibility shim — the deferred tools it "loads" are already directly
-// callable). When perseveration repeats one of these, the generic "try a
-// different action" nudge is too vague to break the loop; the model needs the
-// concrete escape ("stop calling the shim, call the real tool"). DD-2, see
-// issues/bug_20260618_post_compaction_tool_loader_perseveration_noop_shim.md.
-export const PARALYSIS_NOOP_META_TOOLS = new Set(["tool_loader"])
+// No-op meta-tools: calling them has no side effect and cannot make progress.
+//  - tool_loader is a compatibility shim — the deferred tools it "loads" are
+//    already directly callable.
+//  - invalid is the universal sink: every unresolvable/malformed tool call is
+//    redirected here, and it always "succeeds" with a generic message, so a
+//    model that hallucinated a non-existent tool name can loop on it forever
+//    (observed warroom ses_115c28b4: specbase_event_record dropped from the
+//    catalog post-compaction → every retry landed on invalid → 6-turn loop).
+// When perseveration repeats one of these, the generic "try a different action"
+// nudge is too vague to break the loop; the model needs the concrete escape.
+// DD-2, see issues/bug_20260618_post_compaction_tool_loader_perseveration_noop_shim.md
+// and issues/bug_20260622_invalid_sink_perseveration.md.
+export const PARALYSIS_NOOP_META_TOOLS = new Set(["tool_loader", "invalid"])
 
 /**
  * Pick the 3-turn paralysis nudge text. Pure so the messaging contract is
@@ -471,6 +477,18 @@ export function selectParalysisNudge(input: {
   repeatedToolName?: string
 }): string {
   const { detector, repeatedToolName } = input
+  // invalid is the universal sink and its `error` arg varies every call, so the
+  // signature hash differs turn-to-turn → an invalid loop trips the NARRATIVE
+  // (or no-progress) detector far more often than signature. Fire its escape
+  // under ANY detector that flagged invalid as the repeated tool, otherwise the
+  // warroom-style loop (varying error strings) never gets the directional hint.
+  // bug_20260622_invalid_sink_perseveration.
+  if (repeatedToolName === "invalid") {
+    return "你連續打到 invalid — 所有無法解析的工具呼叫都會被導到這個萬用 sink，它一定「成功」但毫無效果。這代表你用的工具名在這個 session 不存在，或參數結構不對，不是「再試一次就會好」。停止用同一個名字重試：改用 context 裡 <deferred-tools> / 可用工具清單列出的正確名稱直接呼叫；如果你要的工具真的不存在，停下來告訴 user 你缺什麼能力。"
+  }
+  // tool_loader: stable args → caught by the signature detector; keep it gated
+  // there so an incidental narrative repeat that happens to include tool_loader
+  // still gets the narrative nudge (DD-2).
   if (detector === "signature" && repeatedToolName && PARALYSIS_NOOP_META_TOOLS.has(repeatedToolName)) {
     return `${repeatedToolName} 是 no-op 相容 shim，呼叫它不會有任何效果。停止呼叫 ${repeatedToolName}，直接呼叫你要用的目標工具（它已可直接呼叫）。`
   }

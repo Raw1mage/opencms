@@ -2388,6 +2388,10 @@ export namespace LLM {
           input: JSON.stringify({
             tool: toolName,
             error: failed.error.message,
+            // bug_20260622: mark non-existent-tool redirects so the invalid sink
+            // tells the model to STOP retrying the phantom name rather than
+            // phrasing it as a fixable args error (→ perseveration loop).
+            kind: "unknown",
           }),
           toolName: "invalid",
         }

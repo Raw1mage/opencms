@@ -16,6 +16,30 @@ describe("selectParalysisNudge", () => {
     expect(nudge).not.toContain("換一個動作")
   })
 
+  it("gives a sink-specific escape when invalid is repeated (signature)", () => {
+    // bug_20260622_invalid_sink_perseveration: a non-existent tool name keeps
+    // getting redirected to the invalid sink; the model must be told the name
+    // does not exist and to stop retrying it, not the tool_loader shim message.
+    const nudge = selectParalysisNudge({ detector: "signature", repeatedToolName: "invalid" })
+    expect(nudge).toContain("invalid")
+    expect(nudge).toContain("不存在")
+    expect(nudge).not.toContain("no-op 相容 shim")
+    expect(nudge).not.toContain("換一個動作")
+  })
+
+  it("fires the invalid escape under the narrative detector too (varying args)", () => {
+    // The warroom loop varied invalid's `error` arg each turn, so it tripped the
+    // narrative detector, not signature. The sink escape must still win over the
+    // generic narrative nudge — otherwise the fix never fires for the real case.
+    const nudge = selectParalysisNudge({ detector: "narrative", repeatedToolName: "invalid" })
+    expect(nudge).toContain("不存在")
+    expect(nudge).not.toContain("非常相似的計畫")
+  })
+
+  it("invalid is in the no-op meta-tool set", () => {
+    expect(PARALYSIS_NOOP_META_TOOLS.has("invalid")).toBe(true)
+  })
+
   it("keeps the generic signature nudge for a normal repeated tool", () => {
     const nudge = selectParalysisNudge({ detector: "signature", repeatedToolName: "bash" })
     expect(nudge).toContain("同一個 tool 加同樣參數")
