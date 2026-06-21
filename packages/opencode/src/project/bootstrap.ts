@@ -50,9 +50,7 @@ export async function InstanceBootstrap() {
     ),
     debugSpan("bootstrap", "Snapshot.init", {}, () => Snapshot.init()),
     debugSpan("bootstrap", "Truncate.init", {}, () => Truncate.init()),
-    debugSpan("bootstrap", "SessionIncomingPaths.init", {}, () =>
-      Promise.resolve(SessionIncomingPaths.init()),
-    ),
+    debugSpan("bootstrap", "SessionIncomingPaths.init", {}, () => Promise.resolve(SessionIncomingPaths.init())),
 
     // Group B: FileWatcher → Vcs chain (Vcs subscribes to FileWatcher events)
     debugSpan("bootstrap", "FileWatcher.init", {}, () => FileWatcher.init()).then(() =>
@@ -76,6 +74,22 @@ export async function InstanceBootstrap() {
       await recoverOrphanTasks()
     } catch (err) {
       Log.Default.warn("orphan task recovery failed", {
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  // Per-user Google Drive auto-mount (opt-in via ~/.config/opencode/gdrive.json).
+  // Runs in the per-user daemon process so the FUSE mount lands in this daemon's
+  // own mount namespace — the same namespace the file explorer reads. Best-effort:
+  // never blocks bootstrap, never throws. Skip in subagent workers (they share the
+  // parent daemon's namespace and would double-mount).
+  if (!process.env.OPENCODE_TASK_EVENT_BRIDGE) {
+    try {
+      const { autoMountGDriveOnStartup } = await import("../gdrive/automount")
+      void autoMountGDriveOnStartup()
+    } catch (err) {
+      Log.Default.warn("gdrive auto-mount dispatch failed", {
         error: err instanceof Error ? err.message : String(err),
       })
     }

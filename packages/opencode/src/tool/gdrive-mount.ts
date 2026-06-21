@@ -8,8 +8,11 @@ import {
   getSetupStatus,
   isMounted,
   normalizeRemote,
+  rcloneConfigPath,
   resolveHomeBoundMountPoint,
   runFixedArgv,
+  spawnRcloneMount,
+  writeGDrivePreference,
 } from "../gdrive/setup-cli"
 
 type GDriveMountMetadata = {
@@ -50,14 +53,6 @@ async function unmountFixed(mountPoint: string): Promise<{ ok: boolean; error?: 
     errors.push(`${candidate.command}: ${result.stderr || result.stdout || result.code || "failed"}`)
   }
   return { ok: false, error: errors.join("; ") }
-}
-
-async function startMount(remote: string, mountPoint: string): Promise<void> {
-  const child = spawn("rclone", ["mount", remote, mountPoint, "--vfs-cache-mode", "writes"], {
-    detached: true,
-    stdio: "ignore",
-  })
-  child.unref()
 }
 
 function formatStatus(
@@ -150,8 +145,11 @@ Use this after gdrive_setup has configured the remote. Mount points must stay in
     }
 
     await ensureEmptyOrMount(mountPoint)
-    await startMount(remote, mountPoint)
-    mounted = await isMounted(mountPoint)
+    mounted = await spawnRcloneMount({ remote, mountPoint, configPath: rcloneConfigPath() })
+    if (mounted) {
+      // First successful mount opts the user into daemon-startup auto-mount.
+      await writeGDrivePreference({ autoMount: true, mountPoint, remote }).catch(() => {})
+    }
     return {
       title: mounted ? "Google Drive mounted" : "Google Drive mount started",
       output: formatStatus(params.action, mountPoint, mounted, status),

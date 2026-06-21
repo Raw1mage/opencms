@@ -246,6 +246,63 @@ export async function materializeRcloneDriveRemoteFromGoogleAuth(input: {
   })
 }
 
+export type GDrivePreference = {
+  autoMount: boolean
+  mountPoint?: string
+  remote?: string
+}
+
+export function gdrivePreferencePath(home = os.homedir()): string {
+  if (!home) throw new Error("Cannot resolve current user home directory for Google Drive preference.")
+  const configHome = process.env.XDG_CONFIG_HOME || path.join(home, ".config")
+  return path.join(configHome, "opencode", "gdrive.json")
+}
+
+export async function readGDrivePreference(home = os.homedir()): Promise<GDrivePreference | undefined> {
+  try {
+    const content = await fs.readFile(gdrivePreferencePath(home), "utf8")
+    const parsed = JSON.parse(content) as Partial<GDrivePreference>
+    return { autoMount: parsed.autoMount === true, mountPoint: parsed.mountPoint, remote: parsed.remote }
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException
+    if (err.code === "ENOENT") return undefined
+    throw error
+  }
+}
+
+export async function writeGDrivePreference(pref: GDrivePreference, home = os.homedir()): Promise<void> {
+  const prefPath = gdrivePreferencePath(home)
+  await fs.mkdir(path.dirname(prefPath), { recursive: true, mode: 0o700 })
+  await fs.writeFile(prefPath, JSON.stringify(pref, null, 2) + "\n", { mode: 0o600 })
+  await fs.chmod(prefPath, 0o600).catch(() => {})
+}
+
+/**
+ * Spawn rclone FUSE mount detached, then poll until mountpoint appears.
+ * Shared by the gdrive_mount tool and daemon bootstrap auto-mount so both land
+ * the mount in the CURRENT process's mount namespace (the per-user daemon's),
+ * which is the namespace the file explorer reads. Returns whether the mount is
+ * live within the timeout.
+ */
+export async function spawnRcloneMount(input: {
+  remote: string
+  mountPoint: string
+  configPath?: string
+  pollTimeoutMs?: number
+}): Promise<boolean> {
+  const { spawn } = await import("child_process")
+  const args = ["mount", input.remote, input.mountPoint, "--vfs-cache-mode", "writes", "--dir-cache-time", "1000h"]
+  if (input.configPath) args.push("--config", input.configPath)
+  const child = spawn("rclone", args, { detached: true, stdio: "ignore" })
+  child.unref()
+  const deadline = Date.now() + (input.pollTimeoutMs ?? 8_000)
+  while (Date.now() < deadline) {
+    if (await isMounted(input.mountPoint)) return true
+    await new Promise((resolve) => setTimeout(resolve, 400))
+  }
+  return await isMounted(input.mountPoint)
+}
+
 export function planRcloneVersion(): FixedArgv {
   return { command: "rclone", args: ["version"] }
 }
