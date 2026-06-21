@@ -1223,6 +1223,76 @@ static void send_login_success_ex(int fd, const char *username,
     }
 }
 
+/* ─── Write gauth.json for a Google-authenticated user (Drive mount) ──────
+ * The gateway (root) is the session manager for OAuth users that have no PAM
+ * session, so it writes ~<user>/.config/opencode/gauth.json on their behalf and
+ * chowns it to the owning uid (same root-delegation pattern as
+ * resolve_runtime_dir). Tokens come from the login OAuth exchange, letting
+ * gdrive_setup reuse the login token instead of a second OAuth flow.
+ * Skips the write when no refresh_token is present (e.g. a re-auth where Google
+ * does not re-issue one) so an existing good gauth is never clobbered. */
+static void write_gauth_for_user(const struct passwd *pw,
+                                 const char *access_token,
+                                 const char *refresh_token,
+                                 long expires_in) {
+    if (!pw || !access_token || !access_token[0]) return;
+    if (!refresh_token || !refresh_token[0]) {
+        LOGW("gauth: no refresh_token for '%s', preserving existing gauth.json", pw->pw_name);
+        return;
+    }
+
+    char cfgdir[512], cfgsub[640], path[768];
+    snprintf(cfgdir, sizeof(cfgdir), "%s/.config", pw->pw_dir);
+    snprintf(cfgsub, sizeof(cfgsub), "%s/.config/opencode", pw->pw_dir);
+    snprintf(path, sizeof(path), "%s/.config/opencode/gauth.json", pw->pw_dir);
+
+    if (mkdir(cfgdir, 0700) == 0) {
+        if (chown(cfgdir, pw->pw_uid, pw->pw_gid) != 0)
+            LOGW("gauth: chown %s failed: %s", cfgdir, strerror(errno));
+    } else if (errno != EEXIST) {
+        LOGW("gauth: mkdir %s failed: %s", cfgdir, strerror(errno));
+    }
+    if (mkdir(cfgsub, 0700) == 0) {
+        if (chown(cfgsub, pw->pw_uid, pw->pw_gid) != 0)
+            LOGW("gauth: chown %s failed: %s", cfgsub, strerror(errno));
+    } else if (errno != EEXIST) {
+        LOGW("gauth: mkdir %s failed: %s", cfgsub, strerror(errno));
+    }
+
+    long long now_ms = (long long)time(NULL) * 1000;
+    long long expires_at = now_ms + (long long)(expires_in > 0 ? expires_in : 3600) * 1000;
+
+    char body[6144];
+    int n = snprintf(body, sizeof(body),
+        "{\n"
+        "  \"access_token\": \"%s\",\n"
+        "  \"refresh_token\": \"%s\",\n"
+        "  \"expires_at\": %lld,\n"
+        "  \"token_type\": \"Bearer\",\n"
+        "  \"updated_at\": %lld\n"
+        "}\n",
+        access_token, refresh_token, expires_at, now_ms);
+    if (n < 0 || n >= (int)sizeof(body)) {
+        LOGE("gauth: token JSON too large for '%s'", pw->pw_name);
+        return;
+    }
+
+    int gfd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    if (gfd < 0) {
+        LOGE("gauth: open %s failed: %s", path, strerror(errno));
+        return;
+    }
+    ssize_t wrote = write(gfd, body, (size_t)n);
+    close(gfd);
+    if (wrote != n) {
+        LOGE("gauth: short write to %s", path);
+        return;
+    }
+    if (chown(path, pw->pw_uid, pw->pw_gid) != 0)
+        LOGW("gauth: chown %s failed: %s", path, strerror(errno));
+    LOGI("gauth: wrote Drive-capable token for '%s' -> %s", pw->pw_name, path);
+}
+
 /* ─── JWT secret persistence (DD-5) ─────────────────────────────── */
 static int jwt_load_or_create_secret(void) {
     const char *key_path = getenv("OPENCODE_JWT_KEY_PATH");
@@ -2561,12 +2631,20 @@ static void route_complete_request(PendingRequest *pr) {
         char redir_enc[600];
         url_encode(ost->redirect_uri, redir_enc, sizeof(redir_enc));
 
+        /* Drive scope + offline so the login token doubles as the gdrive mount
+         * credential (gdrive_setup reuses gauth.json — no second OAuth flow).
+         * include_granted_scopes makes consent incremental: users who already
+         * granted Drive are not re-prompted; first-timers consent once. */
+        const char *drive_scope = getenv("OPENCODE_GDRIVE_SCOPE");
+        if (!drive_scope || !drive_scope[0]) drive_scope = "https://www.googleapis.com/auth/drive";
+        char drive_enc[256];
+        url_encode(drive_scope, drive_enc, sizeof(drive_enc));
         char location[2048];
         snprintf(location, sizeof(location),
                  "%s?client_id=%s&redirect_uri=%s&response_type=code"
-                 "&scope=openid%%20email%%20profile&access_type=online"
-                 "&prompt=select_account&state=%s",
-                 auth_uri, client_id, redir_enc, ost->state_token);
+                 "&scope=openid%%20email%%20profile%%20%s&access_type=offline"
+                 "&include_granted_scopes=true&prompt=select_account&state=%s",
+                 auth_uri, client_id, redir_enc, drive_enc, ost->state_token);
 
         char hdr[2200];
         snprintf(hdr, sizeof(hdr), "Location: %s\r\nCache-Control: no-store\r\n", location);
@@ -2675,6 +2753,14 @@ static void route_complete_request(PendingRequest *pr) {
             return;
         }
 
+        /* Extract refresh_token + expires_in (offline access) for gauth.json so
+         * the login token doubles as the gdrive mount credential. Optional —
+         * Google omits refresh_token on re-auth that reuses prior consent. */
+        char refresh_token[2048] = {};
+        json_extract_string(token_buf, "refresh_token", refresh_token, sizeof(refresh_token));
+        long expires_in = 0;
+        json_extract_long(token_buf, "expires_in", &expires_in);
+
         /* Fetch userinfo to get verified email */
         char userinfo_buf[4096] = {};
         CurlBuf ubuf = { .data = userinfo_buf, .len = 0, .cap = sizeof(userinfo_buf)-1 };
@@ -2745,6 +2831,9 @@ static void route_complete_request(PendingRequest *pr) {
         }
 
         LOGI("google oauth login accepted: '%s' -> '%s'", google_email, bound_username);
+        /* Persist the Drive-capable login token so gdrive_setup can reuse it
+         * (no second OAuth flow). Best-effort: never blocks login on failure. */
+        write_gauth_for_user(pw, access_token, refresh_token, expires_in);
         send_login_success(fd, pw->pw_name, req.is_secure);
         close(fd);
         return;
