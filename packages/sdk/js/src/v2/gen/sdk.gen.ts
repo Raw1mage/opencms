@@ -182,6 +182,10 @@ import type {
   FindTextResponses,
   FormatterStatus2Responses,
   FormatterStatusResponses,
+  GdriveSetupStatus2Errors,
+  GdriveSetupStatus2Responses,
+  GdriveSetupStatusErrors,
+  GdriveSetupStatusResponses,
   GlobalAuthLogin2Responses,
   GlobalAuthLoginResponses,
   GlobalAuthSession2Responses,
@@ -4989,7 +4993,6 @@ export class Session2 extends HeyApiClient {
       format?: OutputFormat
       system?: string
       variant?: string
-      autonomous?: boolean
       parts?: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
     },
     options?: Options<never, ThrowOnError>,
@@ -5009,7 +5012,6 @@ export class Session2 extends HeyApiClient {
             { in: "body", key: "format" },
             { in: "body", key: "system" },
             { in: "body", key: "variant" },
-            { in: "body", key: "autonomous" },
             { in: "body", key: "parts" },
           ],
         },
@@ -5118,7 +5120,6 @@ export class Session2 extends HeyApiClient {
       format?: OutputFormat
       system?: string
       variant?: string
-      autonomous?: boolean
       parts?: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
     },
     options?: Options<never, ThrowOnError>,
@@ -5138,7 +5139,6 @@ export class Session2 extends HeyApiClient {
             { in: "body", key: "format" },
             { in: "body", key: "system" },
             { in: "body", key: "variant" },
-            { in: "body", key: "autonomous" },
             { in: "body", key: "parts" },
           ],
         },
@@ -6224,7 +6224,6 @@ export class Session2 extends HeyApiClient {
       format?: OutputFormat
       system?: string
       variant?: string
-      autonomous?: boolean
       parts?: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
     },
     options?: Options<never, ThrowOnError>,
@@ -6244,7 +6243,6 @@ export class Session2 extends HeyApiClient {
             { in: "body", key: "format" },
             { in: "body", key: "system" },
             { in: "body", key: "variant" },
-            { in: "body", key: "autonomous" },
             { in: "body", key: "parts" },
           ],
         },
@@ -6353,7 +6351,6 @@ export class Session2 extends HeyApiClient {
       format?: OutputFormat
       system?: string
       variant?: string
-      autonomous?: boolean
       parts?: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
     },
     options?: Options<never, ThrowOnError>,
@@ -6373,7 +6370,6 @@ export class Session2 extends HeyApiClient {
             { in: "body", key: "format" },
             { in: "body", key: "system" },
             { in: "body", key: "variant" },
-            { in: "body", key: "autonomous" },
             { in: "body", key: "parts" },
           ],
         },
@@ -13164,6 +13160,53 @@ export class Completion extends HeyApiClient {
   }
 }
 
+export class Setup extends HeyApiClient {
+  /**
+   * Get Google Drive setup status
+   *
+   * Returns bounded rclone/FUSE readiness for the current Linux user without exposing tokens.
+   */
+  public status<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<GdriveSetupStatusResponses, GdriveSetupStatusErrors, ThrowOnError>({
+      url: "/api/v2/gdrive/setup/status",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get Google Drive setup status
+   *
+   * Returns bounded rclone/FUSE readiness for the current Linux user without exposing tokens.
+   */
+  public status2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<GdriveSetupStatus2Responses, GdriveSetupStatus2Errors, ThrowOnError>({
+      url: "/gdrive/setup/status",
+      ...options,
+      ...params,
+    })
+  }
+}
+
+export class Gdrive extends HeyApiClient {
+  private _setup?: Setup
+  get setup(): Setup {
+    return (this._setup ??= new Setup({ client: this.client }))
+  }
+}
+
 export class Find extends HeyApiClient {
   /**
    * Find text
@@ -14744,6 +14787,11 @@ export class OpencodeClient extends HeyApiClient {
   private _completion?: Completion
   get completion(): Completion {
     return (this._completion ??= new Completion({ client: this.client }))
+  }
+
+  private _gdrive?: Gdrive
+  get gdrive(): Gdrive {
+    return (this._gdrive ??= new Gdrive({ client: this.client }))
   }
 
   private _find?: Find

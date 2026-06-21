@@ -1359,7 +1359,7 @@ export type Todo = {
    */
   content: string
   /**
-   * Current status of the task: pending, in_progress, completed, cancelled
+   * Current status of the task: pending, in_progress, completed, cancelled, awaiting_approval (pauses autonomous execution to hand back to the user for sign-off)
    */
   status: string
   /**
@@ -7174,7 +7174,6 @@ export type SessionPromptData = {
     format?: OutputFormat
     system?: string
     variant?: string
-    autonomous?: boolean
     parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
   }
   path: {
@@ -7450,7 +7449,6 @@ export type SessionPromptAsyncData = {
     format?: OutputFormat
     system?: string
     variant?: string
-    autonomous?: boolean
     parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
   }
   path: {
@@ -11908,6 +11906,43 @@ export type CompletionRunResponses = {
 
 export type CompletionRunResponse = CompletionRunResponses[keyof CompletionRunResponses]
 
+export type GdriveSetupStatusData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/gdrive/setup/status"
+}
+
+export type GdriveSetupStatusErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type GdriveSetupStatusError = GdriveSetupStatusErrors[keyof GdriveSetupStatusErrors]
+
+export type GdriveSetupStatusResponses = {
+  /**
+   * Google Drive setup status
+   */
+  200: {
+    home: string
+    configPath: string
+    remote: string
+    rcloneAvailable: boolean
+    remoteConfigured: boolean
+    fuseAvailable: boolean
+    mounted?: boolean
+    mountPoint?: string
+    remediation?: string
+  }
+}
+
+export type GdriveSetupStatusResponse = GdriveSetupStatusResponses[keyof GdriveSetupStatusResponses]
+
 export type FindTextData = {
   body?: never
   path?: never
@@ -15411,7 +15446,6 @@ export type SessionPrompt2Data = {
     format?: OutputFormat
     system?: string
     variant?: string
-    autonomous?: boolean
     parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
   }
   path: {
@@ -15687,7 +15721,6 @@ export type SessionPromptAsync2Data = {
     format?: OutputFormat
     system?: string
     variant?: string
-    autonomous?: boolean
     parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
   }
   path: {
@@ -20144,6 +20177,43 @@ export type CompletionRun2Responses = {
 }
 
 export type CompletionRun2Response = CompletionRun2Responses[keyof CompletionRun2Responses]
+
+export type GdriveSetupStatus2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/gdrive/setup/status"
+}
+
+export type GdriveSetupStatus2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type GdriveSetupStatus2Error = GdriveSetupStatus2Errors[keyof GdriveSetupStatus2Errors]
+
+export type GdriveSetupStatus2Responses = {
+  /**
+   * Google Drive setup status
+   */
+  200: {
+    home: string
+    configPath: string
+    remote: string
+    rcloneAvailable: boolean
+    remoteConfigured: boolean
+    fuseAvailable: boolean
+    mounted?: boolean
+    mountPoint?: string
+    remediation?: string
+  }
+}
+
+export type GdriveSetupStatus2Response = GdriveSetupStatus2Responses[keyof GdriveSetupStatus2Responses]
 
 export type FindText2Data = {
   body?: never

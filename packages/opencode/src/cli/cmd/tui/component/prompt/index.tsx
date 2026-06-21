@@ -912,7 +912,6 @@ export function Prompt(props: PromptProps) {
     // Capture mode before it gets reset
     const currentMode = store.mode
     const variant = local.model.variant.current(props.sessionID)
-    const autonomous = true // always-on
 
     if (store.mode === "shell") {
       sdk.client.session.shell({
@@ -969,7 +968,6 @@ export function Prompt(props: PromptProps) {
           agent: local.agent.current()?.name || "agent",
           model: selectedModel,
           variant,
-          autonomous,
           parts: [
             {
               id: Identifier.ascending("part"),

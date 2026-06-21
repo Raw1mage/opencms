@@ -7269,9 +7269,6 @@
                   "variant": {
                     "type": "string"
                   },
-                  "autonomous": {
-                    "type": "boolean"
-                  },
                   "parts": {
                     "type": "array",
                     "items": {
@@ -7784,9 +7781,6 @@
                   },
                   "variant": {
                     "type": "string"
-                  },
-                  "autonomous": {
-                    "type": "boolean"
                   },
                   "parts": {
                     "type": "array",
@@ -20307,6 +20301,81 @@
         }
       }
     },
+    "/api/v2/gdrive/setup/status": {
+      "get": {
+        "operationId": "gdrive.setup.status",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Get Google Drive setup status",
+        "description": "Returns bounded rclone/FUSE readiness for the current Linux user without exposing tokens.",
+        "responses": {
+          "200": {
+            "description": "Google Drive setup status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "home": {
+                      "type": "string"
+                    },
+                    "configPath": {
+                      "type": "string"
+                    },
+                    "remote": {
+                      "type": "string"
+                    },
+                    "rcloneAvailable": {
+                      "type": "boolean"
+                    },
+                    "remoteConfigured": {
+                      "type": "boolean"
+                    },
+                    "fuseAvailable": {
+                      "type": "boolean"
+                    },
+                    "mounted": {
+                      "type": "boolean"
+                    },
+                    "mountPoint": {
+                      "type": "string"
+                    },
+                    "remediation": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "home",
+                    "configPath",
+                    "remote",
+                    "rcloneAvailable",
+                    "remoteConfigured",
+                    "fuseAvailable"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/find": {
       "get": {
         "operationId": "find.text",
@@ -28778,9 +28847,6 @@
                   "variant": {
                     "type": "string"
                   },
-                  "autonomous": {
-                    "type": "boolean"
-                  },
                   "parts": {
                     "type": "array",
                     "items": {
@@ -29293,9 +29359,6 @@
                   },
                   "variant": {
                     "type": "string"
-                  },
-                  "autonomous": {
-                    "type": "boolean"
                   },
                   "parts": {
                     "type": "array",
@@ -41816,6 +41879,81 @@
         }
       }
     },
+    "/gdrive/setup/status": {
+      "get": {
+        "operationId": "gdrive.setup.status",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Get Google Drive setup status",
+        "description": "Returns bounded rclone/FUSE readiness for the current Linux user without exposing tokens.",
+        "responses": {
+          "200": {
+            "description": "Google Drive setup status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "home": {
+                      "type": "string"
+                    },
+                    "configPath": {
+                      "type": "string"
+                    },
+                    "remote": {
+                      "type": "string"
+                    },
+                    "rcloneAvailable": {
+                      "type": "boolean"
+                    },
+                    "remoteConfigured": {
+                      "type": "boolean"
+                    },
+                    "fuseAvailable": {
+                      "type": "boolean"
+                    },
+                    "mounted": {
+                      "type": "boolean"
+                    },
+                    "mountPoint": {
+                      "type": "string"
+                    },
+                    "remediation": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "home",
+                    "configPath",
+                    "remote",
+                    "rcloneAvailable",
+                    "remoteConfigured",
+                    "fuseAvailable"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/find": {
       "get": {
         "operationId": "find.text",
@@ -47767,7 +47905,7 @@
             "type": "string"
           },
           "status": {
-            "description": "Current status of the task: pending, in_progress, completed, cancelled",
+            "description": "Current status of the task: pending, in_progress, completed, cancelled, awaiting_approval (pauses autonomous execution to hand back to the user for sign-off)",
             "type": "string"
           },
           "priority": {
@@ -47777,7 +47915,7 @@
           },
           "id": {
             "description": "Unique identifier for the todo item (auto-generated if omitted)",
-            "default": "todo_mqmovk8p_3u547x",
+            "default": "todo_mqo27zjl_ozl3dn",
             "type": "string"
           },
           "action": {
