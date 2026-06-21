@@ -107,8 +107,26 @@ export const GoogleBindingRoutes = lazy(() =>
           state,
         })
 
+        const googleUrl = `${authUri}?${params.toString()}`
         log.info("Starting Google binding OAuth", { username, redirectUri })
-        return c.redirect(`${authUri}?${params.toString()}`)
+        // Break out of any same-origin iframe/webview: Google's consent page sets
+        // X-Frame-Options: DENY, so a raw 302 inside the OpenCMS frame renders blank.
+        // Force the TOP browser context to navigate to Google instead.
+        return c.html(
+          `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
+            `<meta name="viewport" content="width=device-width, initial-scale=1">` +
+            `<title>Redirecting to Google…</title></head>` +
+            `<body style="font-family:system-ui;text-align:center;padding:60px;background:#0b1220;color:#e8eef7">` +
+            `<h2 style="font-weight:600">Redirecting to Google sign-in…</h2>` +
+            `<p style="color:#9fb0c8">If nothing happens, tap the button below.</p>` +
+            `<p style="margin-top:28px"><a id="go" href="${escapeHtml(googleUrl)}" target="_top" rel="noopener" ` +
+            `style="display:inline-block;padding:14px 26px;border-radius:12px;background:#4285f4;color:#fff;` +
+            `text-decoration:none;font-weight:600">Continue to Google</a></p>` +
+            `<script>(function(){var u=${JSON.stringify(googleUrl)};try{` +
+            `if(window.top&&window.top!==window.self){window.top.location.href=u;}else{window.location.href=u;}` +
+            `}catch(e){window.location.href=u;}})();</script>` +
+            `</body></html>`,
+        )
       },
     )
 
