@@ -482,6 +482,20 @@ export async function recoverOrphanTasks() {
   scanLog.info("orphan recovery starting", { count: keys.length })
   let recovered = 0
 
+  // Clear the registry UP-FRONT (claim-and-delete). Every entry is already
+  // held in `entries`, so deleting the file now — before the per-entry
+  // reconcile that re-fires task.completed — guarantees a hung or slow
+  // auto-resume can never leave a stale entry that re-wedges every subsequent
+  // boot. Worst case we lose one notice reconcile on a mid-recovery crash,
+  // which is strictly better than an unrecoverable daemon.
+  // RCA 2026-06-21: the trailing unlink (below) was never reached because the
+  // awaited auto-resume deadlocked recovery, so the orphan recurred on every
+  // restart and bricked the request pipeline each time.
+  try {
+    const fs = await import("fs/promises")
+    await fs.unlink(registryPath())
+  } catch {}
+
   for (const [toolCallID, entry] of Object.entries(entries)) {
     try {
       // ── Read the child session's disk truth ──────────────────────
@@ -585,7 +599,17 @@ export async function recoverOrphanTasks() {
       // truth that lets the new daemon re-fire it. Idempotent by jobId
       // (the appender replaces latest-wins); a notice already delivered
       // before the crash would have removed this registry entry.
-      await Bus.publish(TaskCompletedEvent, {
+      // Fire-and-forget. The pending-notice-appender subscriber both appends
+      // the PendingSubagentNotice AND auto-resumes the parent runloop — a full
+      // agent turn. Awaiting it here put that turn on the bootstrap critical
+      // path (bootstrap → recoverOrphanTasks → publish → subscriber → parent
+      // resume); during bootstrap the resume blocked on instance context that
+      // bootstrap had not finished providing — a re-entrant deadlock that hung
+      // every HTTP request and never reached the registry cleanup. Detaching it
+      // lets recovery + bootstrap complete; the resume then drains once the
+      // instance is ready. Auto-resume is idempotent per jobId
+      // (resumedSubagentJobIds ledger), so detaching is safe. RCA 2026-06-21.
+      void Bus.publish(TaskCompletedEvent, {
         jobId: toolCallID,
         parentSessionID: entry.parentSessionID,
         childSessionID: entry.sessionID,
@@ -593,7 +617,12 @@ export async function recoverOrphanTasks() {
         finish: childFinish,
         elapsedMs: Math.max(0, Date.now() - (entry.registeredAt ?? Date.now())),
         result: inlineResult ? { type: "inline", text: inlineResult } : undefined,
-      })
+      }).catch((err) =>
+        scanLog.warn("orphan task.completed publish failed (detached)", {
+          toolCallID,
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      )
 
       scanLog.info("orphan reconciled via task.completed notice", {
         parentSessionID: entry.parentSessionID,
@@ -612,11 +641,7 @@ export async function recoverOrphanTasks() {
     }
   }
 
-  // Clear the registry — all entries have been processed
-  try {
-    const fs = await import("fs/promises")
-    await fs.unlink(registryPath())
-  } catch {}
+  // Registry was already cleared up-front (claim-and-delete); nothing to do here.
 
   scanLog.info("orphan recovery complete", { recovered, total: keys.length })
   debugCheckpoint("task.orphan-recovery", "complete", { recovered, total: keys.length })
