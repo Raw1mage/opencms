@@ -235,8 +235,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     return paths
   })
   const info = createMemo(() => (params.id ? sync.session.get(params.id) : undefined))
-  // Autonomous is always-on
-  const autonomousEnabled = () => true
   const status = createMemo(
     () =>
       sync.data.session_status[params.id ?? ""] ?? {
@@ -1363,7 +1361,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     newSessionWorktree: () => props.newSessionWorktree,
     onNewSessionWorktreeReset: props.onNewSessionWorktreeReset,
     onSubmit: props.onSubmit,
-    autonomous: autonomousEnabled,
   })
 
   const handleKeyDown = (event: KeyboardEvent) => {

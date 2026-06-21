@@ -50,7 +50,6 @@ type PromptSubmitInput = {
   newSessionWorktree?: Accessor<string | undefined>
   onNewSessionWorktreeReset?: () => void
   onSubmit?: () => void
-  autonomous?: Accessor<boolean>
 }
 
 type CommentItem = {
@@ -528,7 +527,6 @@ export function createPromptSubmit(input: PromptSubmitInput) {
         messageID,
         parts: requestParts,
         variant,
-        autonomous: true, // always-on
       })
       console.info("[submit] send ok", { ...telemetryCtx, elapsedMs: Date.now() - sendStartedAt })
 

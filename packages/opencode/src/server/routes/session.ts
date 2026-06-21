@@ -2498,7 +2498,6 @@ export const SessionRoutes = lazy(() =>
           agent: body.agent ?? null,
           variant: body.variant ?? null,
           partCount: Array.isArray(body.parts) ? body.parts.length : 0,
-          autonomous: body.autonomous ?? null,
         })
         if (username && UserDaemonManager.routeSessionMutationEnabled()) {
           const response = await UserDaemonManager.callSessionPromptAsync<boolean>(username, sessionID, body)

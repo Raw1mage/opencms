@@ -1480,7 +1480,6 @@ export namespace SessionPrompt {
     format: MessageV2.Format.optional(),
     system: z.string().optional(),
     variant: z.string().optional(),
-    autonomous: z.boolean().optional(),
     parts: z.array(
       z.discriminatedUnion("type", [
         MessageV2.TextPart.omit({
