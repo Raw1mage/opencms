@@ -9,11 +9,13 @@ Sibling tools `write` and `edit` underwent the identical removal on 2026-04-23 (
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Eliminate ~58× per-patch disk waste for new `apply_patch` invocations.
 - Align `apply_patch` shape with `write` / `edit` (already hunk-only).
 - Remove dead UI code referencing `edit`-tool fields that have not existed since 2026-04-23.
 
 **Non-Goals:**
+
 - No retroactive vacuum of existing session DBs (DD-4).
 - No change to LLM context construction — this is invisible to the model.
 - No token-burn fix; that's a separate concern (gross context ~170k/turn × N turns is a different problem).
@@ -68,6 +70,7 @@ The 2026-04-23 mobile-session-restructure migration shipped a one-shot vacuum CL
 That CLI targets a different field (`summary.diffs[]` on user messages, used by mobile session restructure) — it does NOT touch our `state.metadata.files[]` on assistant tool parts. So existing sessions keep their apply_patch bloat.
 
 If retroactive cleanup becomes desirable (e.g. NAS backup volume concern, session DB growth concern), fork the migrate-strip-diffs walker:
+
 - Target: `parts.payload_json` rows where `type='tool'` AND `json_extract($.tool)='apply_patch'`
 - Mutation: delete `state.metadata.files[].before` and `state.metadata.files[].after`
 - Atomicity: per-session marker file like `.apply-patch-strip-v1.done`; backup precondition; temp+rename per row.
@@ -101,3 +104,13 @@ Dream-pruning                                           packages/opencode/src/se
   └─ pruneToolMetadata() unchanged. For new sessions it has nothing to prune
      (no before/after fields). For old sessions it continues to strip them.
 ```
+
+> **[SUPERSEDED 2026-06-20 — `dreaming-legacy-teardown`]** `dreaming.ts` (and
+> with it `pruneToolMetadata()`) was deleted when the DreamingWorker + legacy
+> dual-track storage was fully removed. The pruner was only ever hot during
+> legacy→SQLite migration, which is complete (0 legacy dirs on the reference
+> install). New `apply_patch` payloads already omit `before`/`after`, so there
+> is nothing left to prune. The pruner-backwards-compat test fixture in
+> `dreaming.test.ts` was removed with the file. This does not affect the
+> apply-patch-metadata-strip change itself (write-path narrowing is independent
+> and remains live).

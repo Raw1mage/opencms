@@ -19,7 +19,7 @@ Before writing any patch, the implementer MUST read:
 - `packages/opencode/src/tool/apply_patch.ts` (entire file — ~430 lines; focus on `ApplyPatchFileMetadata` type at L27-37 and return statement at L406-415).
 - `packages/ui/src/components/message-part.tsx` — the apply_patch rendering blocks around L1769-1810 and the edit-tool block around L1620-1635; observe how `edit`/`write` parts already feed the diff component without before/after, and replicate that shape.
 - `packages/opencode/src/snapshot/index.ts:191-196` — the 2026-04-23 precedent comment explaining why `write`/`edit` removed these fields; same rationale applies here.
-- `packages/opencode/src/session/storage/dreaming.ts:223-233` — the `pruneToolMetadata()` function; understand that it remains in place for legacy-session support and is NOT touched by this plan.
+- ~~`packages/opencode/src/session/storage/dreaming.ts:223-233` — the `pruneToolMetadata()` function; understand that it remains in place for legacy-session support and is NOT touched by this plan.~~ **[SUPERSEDED 2026-06-20 — `dreaming-legacy-teardown`]** `dreaming.ts` was deleted with the DreamingWorker + legacy dual-track teardown; the pruner no longer exists (legacy migration complete, new payloads omit before/after).
 - `packages/opencode/src/session/message-v2.ts:1062-1069` — the `toModelMessages` serialization site; confirms metadata never reaches LLM. This is an invariant the change preserves.
 - This package's `spec.md` Requirements + Acceptance Checks, `design.md` DD-1..DD-5, and `tasks.md` M1..M5.
 

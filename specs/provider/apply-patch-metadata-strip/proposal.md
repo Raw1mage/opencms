@@ -5,7 +5,7 @@
 - `apply_patch` tool stores **full file content twice** (`metadata.files[].before` + `metadata.files[].after`) for every patch. In a single heavy-coding session against `drawmiat/webapp/grafcet_renderer.py` (~388KB file), 110 patches accumulated **43 MB** of duplicate file bodies on disk — 99.3% of the apply_patch storage footprint.
 - Measured on session `ses_1e738d1c8ffeen3y8zPoXjsQ02` (2026-05-12): single patch payload = 818 KB, of which `before` 387.5 KB + `after` 389 KB. Actual `state.input` (the diff itself) was only 7 KB; `state.output` was 78 bytes.
 - These fields are confirmed NOT serialized into the LLM prompt — they live in `state.metadata`, and `message-v2.ts:1062-1069` `toModelMessages` only emits `state.output` + `state.attachments`. The waste is **pure on-disk inflation** (session DB size, load latency, NAS backup volume).
-- Precedent exists: `write.ts` and `edit.ts` underwent the **identical removal** in commit `mobile-session-restructure` (2026-04-23). See [packages/opencode/src/snapshot/index.ts:191-196](packages/opencode/src/snapshot/index.ts#L191-L196): *"before/after removed. The git snapshot repo is the authoritative source of file content history; duplicating bodies here was pure waste (~90% of session storage)."* `apply_patch` was skipped at the time and never followed up.
+- Precedent exists: `write.ts` and `edit.ts` underwent the **identical removal** in commit `mobile-session-restructure` (2026-04-23). See [packages/opencode/src/snapshot/index.ts:191-196](packages/opencode/src/snapshot/index.ts#L191-L196): _"before/after removed. The git snapshot repo is the authoritative source of file content history; duplicating bodies here was pure waste (~90% of session storage)."_ `apply_patch` was skipped at the time and never followed up.
 - The system itself already treats these fields as waste: `dreaming.ts:223-233` `pruneToolMetadata()` actively strips them with a `[dream-pruned: dropped N bytes of file before snapshot]` stub during dream-pruning passes. We are completing what dreaming.ts already does opportunistically.
 
 ## Original Requirement Wording (Baseline)
@@ -31,12 +31,14 @@
 ## Scope
 
 ### IN
+
 - `packages/opencode/src/tool/apply_patch.ts` — drop `before` / `after` from `ApplyPatchFileMetadata` type and from the return value.
 - `packages/ui/src/components/message-part.tsx` — three consumer sites (lines 1769-1770, 1808-1809) replaced with hunk-based diff renderer; dead code at 1625, 1629 removed.
 - `packages/opencode/src/session/storage/dreaming.test.ts:309` — fixture updated.
 - Verification: replay an existing session in UI to confirm diff display still works for legacy patches that still carry before/after, AND for new patches that don't.
 
 ### OUT
+
 - **No retroactive vacuum** of existing session DBs. They stay as-is.
 - **No change to LLM prompt construction.** This change is invisible to model context.
 - **No change to write.ts / edit.ts.** Already done in 2026-04-23.
@@ -64,9 +66,11 @@
 ## Capabilities
 
 ### New Capabilities
-- *None.* This is removal of redundancy.
+
+- _None._ This is removal of redundancy.
 
 ### Modified Capabilities
+
 - `apply_patch` tool: smaller `state.metadata` payload; semantic of `state.output` and `state.input` unchanged.
 - UI diff rendering for apply_patch: now driven by `diff` hunks (matching how `edit` and `write` already render), with snapshot fallback for full-content views.
 
@@ -85,4 +89,4 @@
   - [packages/ui/src/components/message-part.tsx:1625,1629](packages/ui/src/components/message-part.tsx#L1625) — dead code from edit-tool migration
   - [packages/opencode/src/session/storage/dreaming.test.ts:309](packages/opencode/src/session/storage/dreaming.test.ts#L309) — fixture
   - [packages/opencode/src/snapshot/index.ts:191-196](packages/opencode/src/snapshot/index.ts#L191-L196) — precedent comment
-  - [packages/opencode/src/session/storage/dreaming.ts:223-233](packages/opencode/src/session/storage/dreaming.ts#L223-L233) — existing pruning logic
+  - ~~[packages/opencode/src/session/storage/dreaming.ts:223-233](packages/opencode/src/session/storage/dreaming.ts#L223-L233) — existing pruning logic~~ **[SUPERSEDED 2026-06-20 — `dreaming-legacy-teardown`]** dreaming.ts deleted; pruner gone.
