@@ -54,9 +54,11 @@ export const ServeCommand = cmd({
       const socketPath = args["unix-socket"]
       console.log(`opencode daemon starting on unix:${socketPath}`)
       const server = await Server.listenUnix(socketPath)
+      const metricsServer = Server.listenMetrics()
       await DaemonStartupLog.record({ socketPath })
       console.log(`opencode daemon ready (pid ${process.pid})`)
       await waitForShutdownSignal()
+      await metricsServer?.stop(true)
       await server.stop(true)
       return
     }
