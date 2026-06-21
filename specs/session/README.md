@@ -28,10 +28,12 @@ shipped (live as of 2026-05-04), with two open lanes.
 - `mobile-tail-first-simplification` → `living` 2026-04-23
   (merge `c7f0ddb8b`); −550 LOC net continuity removal; deletes the
   R8/R9 protocols above and replaces them with one tail-first path.
-- `session-storage-db` → `implementing`. Storage subsystem skeleton,
-  router, dreaming worker, and `session-inspect` CLI are merged;
-  full migration of legacy directories is staged as the dreaming
-  worker drains them at idle.
+- `session-storage-db` → `living`. Storage subsystem skeleton,
+  router, and `session-inspect` CLI are merged. Legacy-directory
+  migration completed on the reference install (0 legacy dirs); the
+  `dreaming-legacy-teardown` plan then removed the DreamingWorker +
+  LegacyStore dual track entirely — storage is now single-track SQLite
+  with `Router` as a thin pass-through seam.
 - `session-poll-cache` → `implementing`. R-1 cache + R-2 ETag/304 +
   R-4 health endpoint + R-5 tweaks loader are live; R-3 rate limiter
   middleware is mounted in `app.ts`.
@@ -46,23 +48,23 @@ shipped (live as of 2026-05-04), with two open lanes.
 
 ## Current behavior
 
-### Storage: SQLite per session, dual-track router
+### Storage: SQLite per session (single-track)
 
 `packages/opencode/src/session/storage/` owns persistence. The
-`Backend` interface (`storage/index.ts`) is implemented twice:
+`Backend` interface (`storage/index.ts`) has a single implementation:
 
-- `LegacyStore` (`storage/legacy.ts`) — the original
-  `session/<sid>/messages/<mid>/{info.json, parts/<pid>.json}` walk.
 - `SqliteStore` (`storage/sqlite.ts`) — one `<sid>.db` file per
   session, WAL + `synchronous=NORMAL`, single-message atomic
   commits, attachment blobs in their own table.
 
-`Router.detectFormat` (`storage/router.ts`) inspects the filesystem
-on each call and dispatches accordingly. Both formats present with
-no `.tmp` debris → SQLite wins (post-rename). Both present with
-`.tmp` → LegacyStore is authoritative until startup cleanup deletes
-the temp file (DR-4). Per **DD-13 / INV-4**, a SqliteStore error is
-never silently re-routed to legacy; it propagates.
+`Router` (`storage/router.ts`) is a thin pass-through seam: every
+`Backend` method delegates straight to `SqliteStore` (no format
+detection, no dual-track dispatch). It is retained as the seam
+(DD-1) so a future backend could plug in without touching call
+sites. Per **DD-13 / INV-4**, a SqliteStore error propagates; there
+is no second backend to fall back to. `parts(messageID, sessionID)`
+requires `sessionID` — `SqliteStore` needs it to locate the `.db`
+and throws if it is missing (no legacy messageID-only fall-through).
 
 `ConnectionPool` (`storage/pool.ts`) caches DB handles. Schema
 migrations live under `storage/migrations/` and run inside a single
@@ -70,11 +72,17 @@ transaction; failure rolls back and opens the DB read-only with a
 `session.storage.corrupted` Bus event. `PRAGMA integrity_check` runs
 on first open via `storage/integrity.ts`.
 
-`DreamingWorker` (`storage/dreaming.ts`) sweeps legacy directories
-when the daemon has been idle for `IDLE_THRESHOLD_MS` (default 5000),
-migrates one session per tick (oldest-touched first), and aborts
-mid-flight if a write arrives. Atomic rename to `<sid>.db` is the
-commit point.
+> **Legacy + dreaming teardown (2026-06-20, `dreaming-legacy-teardown`).**
+> The `LegacyStore` directory-of-small-files backend and the
+> `DreamingWorker` idle-time migration worker were removed once the
+> reference install reached 0 legacy directories. The `/dream_on`,
+> `/dream_off`, `/dream_status` commands and the
+> `session.storage.migration_started` / `migrated` /
+> `legacy_debris_resolved` Bus events are gone.
+> `session.storage.migration_failed` is **kept** — it is shared by the
+> SQLite schema migration runner. This is a breaking change for any
+> install that still had unmigrated legacy-format sessions: they are
+> no longer readable.
 
 ### Storage: session-inspect CLI
 
@@ -322,12 +330,10 @@ Storage:
 
 - `packages/opencode/src/session/storage/index.ts` — Backend
   contract + namespace seam (L13).
-- `packages/opencode/src/session/storage/router.ts` — `detectFormat`
-  (L75), per-call dispatch, debris cleanup scheduling.
-- `packages/opencode/src/session/storage/sqlite.ts` — SqliteStore.
-- `packages/opencode/src/session/storage/legacy.ts` — LegacyStore.
-- `packages/opencode/src/session/storage/dreaming.ts` —
-  background migration (DreamingWorker).
+- `packages/opencode/src/session/storage/router.ts` — thin
+  pass-through seam delegating every method to SqliteStore (DD-1).
+- `packages/opencode/src/session/storage/sqlite.ts` — SqliteStore
+  (sole backend).
 - `packages/opencode/src/session/storage/migration-runner.ts` — schema
   migrations.
 - `packages/opencode/src/session/storage/integrity.ts` —
@@ -401,7 +407,7 @@ Tests (representative):
 - `session/rebind-epoch.test.ts`,
   `session/capability-layer.test.ts`,
   `session/capability-layer.cross-account.test.ts`.
-- `session/storage/{router,sqlite,legacy,hardening,dreaming}.test.ts`.
+- `session/storage/{router,sqlite,hardening}.test.ts`.
 - `server/session-cache.test.ts`, `server/rate-limit.test.ts`,
   `server/cache-health.test.ts`.
 - `app/utils/freshness.test.ts`,
@@ -414,13 +420,14 @@ Tests (representative):
 
 ### Open / partial work
 
-- `session-storage-db` is `implementing`. The storage layer + router
-  - dreaming worker + inspect CLI are merged, and the runloop reads
-    through the new `Backend` API. Legacy directories on disk drain
-    asynchronously as DreamingWorker reaches them; the dual-track path
-    is the steady state until that backlog is empty. The 70 % runloop
-    speed-up acceptance check has not been re-verified end-to-end on
-    the 2253-message reference session.
+- `session-storage-db` is `living`. The storage layer + router +
+  inspect CLI are merged, and the runloop reads through the `Backend`
+  API. Legacy migration completed (0 legacy dirs on the reference
+  install); the `dreaming-legacy-teardown` plan then removed the
+  DreamingWorker + LegacyStore dual track, leaving single-track SQLite
+  with `Router` as a thin pass-through. The 70 % runloop speed-up
+  acceptance check has not been re-verified end-to-end on the
+  2253-message reference session.
 - `session-poll-cache` is `implementing`. R-1 cache + R-2 ETag +
   R-4 health + R-5 tweaks loader + R-3 rate-limit middleware are
   all live, but the original AC-1 (CPU drop) and AC-2 (304 ratio)
@@ -459,8 +466,7 @@ Tests (representative):
   Bus event delivery during account state transitions, SSE
   reconnection after admin dialog open/close, and stale
   `session_status` / `sync.data` blocking the UI update.
-- Dreaming worker is per-tick single-session; if the legacy backlog
-  is very large the queue drains slowly. No batched-tick mode yet.
+
 - Submit path has no server-side `messageID` dedupe. If the
   event-loop-starvation regression returns, a duplicate POST will
   re-run the runloop. Acceptable today because the upstream cause is

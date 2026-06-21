@@ -595,8 +595,10 @@ specs/\_archive/compaction-improvements): oversized boundary payloads are routed
 session-scoped reference instead of being injected raw into the next model
 context. `MessageV2.AttachmentRefPart` (`type: "attachment_ref"`) is the
 message-stream pointer, while raw bytes live behind `SessionStorage.Router`
-attachment blob APIs implemented by both LegacyStore and SQLiteStore (SQLite
-schema v2 `attachments` table). `user-message-parts.ts` stores oversized
+attachment blob APIs implemented by SQLiteStore (SQLite schema v2
+`attachments` table). (As of `dreaming-legacy-teardown` 2026-06-20 the
+LegacyStore dual track and the DreamingWorker were removed; `Router` is now a
+thin pass-through to the sole SQLite backend.) `user-message-parts.ts` stores oversized
 file/data uploads as attachment refs; `tool/task.ts` stores oversized child
 session returns in the parent session namespace before emitting pending
 subagent notices; `tool/attachment.ts` is the bounded drilldown surface for

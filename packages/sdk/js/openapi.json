@@ -43558,78 +43558,6 @@
           "properties"
         ]
       },
-      "Event.session.storage.migration_started": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "session.storage.migration_started"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string"
-              },
-              "legacyMessageCount": {
-                "type": "number"
-              },
-              "timestamp": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "sessionID",
-              "legacyMessageCount",
-              "timestamp"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.session.storage.migrated": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "session.storage.migrated"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string"
-              },
-              "legacyMessageCount": {
-                "type": "number"
-              },
-              "sqliteRowCount": {
-                "type": "number"
-              },
-              "durationMs": {
-                "type": "number"
-              },
-              "timestamp": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "sessionID",
-              "legacyMessageCount",
-              "sqliteRowCount",
-              "durationMs",
-              "timestamp"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
       "Event.session.storage.migration_failed": {
         "type": "object",
         "properties": {
@@ -43666,34 +43594,6 @@
               "stage",
               "error",
               "timestamp"
-            ]
-          }
-        },
-        "required": [
-          "type",
-          "properties"
-        ]
-      },
-      "Event.session.storage.legacy_debris_resolved": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "session.storage.legacy_debris_resolved"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string"
-              },
-              "deletedAt": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "sessionID",
-              "deletedAt"
             ]
           }
         },
@@ -47877,7 +47777,7 @@
           },
           "id": {
             "description": "Unique identifier for the todo item (auto-generated if omitted)",
-            "default": "todo_mqm52o6y_n1sugw",
+            "default": "todo_mqmovk8p_3u547x",
             "type": "string"
           },
           "action": {
@@ -52322,16 +52222,7 @@
             "$ref": "#/components/schemas/Event.session.storage.corrupted"
           },
           {
-            "$ref": "#/components/schemas/Event.session.storage.migration_started"
-          },
-          {
-            "$ref": "#/components/schemas/Event.session.storage.migrated"
-          },
-          {
             "$ref": "#/components/schemas/Event.session.storage.migration_failed"
-          },
-          {
-            "$ref": "#/components/schemas/Event.session.storage.legacy_debris_resolved"
           },
           {
             "$ref": "#/components/schemas/Event.session.storage.read_failed"

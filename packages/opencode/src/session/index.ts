@@ -15,8 +15,6 @@ import { Log } from "../util/log"
 import { debugCheckpoint } from "../util/debug"
 import { MessageV2 } from "./message-v2"
 import { shouldResumeDrainImages } from "./active-image-refs"
-import { readMessageInfo, removeMessageInfo, removePartFile } from "./storage/legacy"
-import { DreamingWorker } from "./storage/dreaming"
 import { Router as StorageRouter } from "./storage/router"
 import { Instance } from "../project/instance"
 import { Project } from "../project/project"
@@ -34,7 +32,6 @@ import { iife } from "@/util/iife"
 
 export namespace Session {
   const log = Log.create({ service: "session" })
-  const defaultDreamingWorker = new DreamingWorker()
 
   /**
    * Sessions for which a version-drift WARN has already been emitted in this
@@ -45,36 +42,6 @@ export namespace Session {
    * Cleared implicitly on daemon restart (fresh module instance).
    */
   const versionDriftWarned = new Set<string>()
-
-  /**
-   * Start the per-process DreamingWorker tick timer. Called at daemon
-   * boot; idempotent (the worker's start() guards re-entry). Tests do
-   * NOT call this — the worker stays dormant unless explicitly started,
-   * so test imports never spawn a real interval that would drift across
-   * the suite.
-   */
-  export function startDreamingWorker() {
-    defaultDreamingWorker.start()
-    log.info("dreaming.worker.started")
-  }
-
-  export function stopDreamingWorker() {
-    defaultDreamingWorker.stop()
-    log.info("dreaming.worker.stopped")
-  }
-
-  export async function dreamingStatus() {
-    const candidates = await DreamingWorker.scanLegacySessions().catch(() => [] as Array<{ sessionID: string }>)
-    const migrated = await DreamingWorker.countMigrated().catch(() => 0)
-    const inner = defaultDreamingWorker.getStatus()
-    return {
-      ...inner,
-      pending: candidates.length,
-      migrated,
-      // First few pending session IDs for quick eyeballing.
-      pendingPreview: candidates.slice(0, 5).map((c) => c.sessionID),
-    }
-  }
 
   export const Stats = z.object({
     requestsTotal: z.number(),
@@ -1177,9 +1144,10 @@ export namespace Session {
   })
 
   export const updateMessage = fn(MessageV2.Info, async (msg) => {
-    const previous = await readMessageInfo(msg.sessionID, msg.id)
+    const previous = await StorageRouter.get({ sessionID: msg.sessionID, messageID: msg.id })
+      .then((m) => m.info)
+      .catch(() => undefined)
     await StorageRouter.upsertMessage(msg)
-    DreamingWorker.noteMessageWrite(defaultDreamingWorker)
     if (hasMessageUsageDelta(previous, msg)) {
       await update(
         msg.sessionID,
@@ -1231,8 +1199,9 @@ export namespace Session {
       messageID: Identifier.schema("message"),
     }),
     async (input) => {
-      const previous = await readMessageInfo(input.sessionID, input.messageID)
-      const { Router: StorageRouter } = await import("./storage/router")
+      const previous = await StorageRouter.get({ sessionID: input.sessionID, messageID: input.messageID })
+        .then((m) => m.info)
+        .catch(() => undefined)
       await StorageRouter.removeMessage({ sessionID: input.sessionID, messageID: input.messageID })
       if (hasMessageUsageDelta(previous, undefined)) {
         await update(
@@ -1258,7 +1227,11 @@ export namespace Session {
       partID: Identifier.schema("part"),
     }),
     async (input) => {
-      await removePartFile(input.messageID, input.partID)
+      await StorageRouter.removePart({
+        sessionID: input.sessionID,
+        messageID: input.messageID,
+        partID: input.partID,
+      })
       Bus.publish(MessageV2.Event.PartRemoved, {
         sessionID: input.sessionID,
         messageID: input.messageID,
