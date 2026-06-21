@@ -49,11 +49,11 @@ export type GDriveOAuthToken = {
   scope?: string
 }
 
-export type GDriveSetupState = {
-  remote: string
-  username?: string
-  nonce: string
-  ts: number
+export type GoogleAuthTokens = {
+  access_token?: string
+  refresh_token?: string
+  expires_at?: number
+  token_type?: string
 }
 
 export function normalizeRemote(remote?: string): string {
@@ -132,86 +132,6 @@ export function gdriveOAuthClientFromEnv(env: NodeJS.ProcessEnv = process.env): 
   }
 }
 
-export function encodeSetupState(input: { remote: string; username?: string; now?: number; nonce?: string }): string {
-  const payload: GDriveSetupState = {
-    remote: normalizeRemote(input.remote),
-    username: input.username,
-    nonce: input.nonce ?? crypto.randomUUID(),
-    ts: input.now ?? Date.now(),
-  }
-  return Buffer.from(JSON.stringify(payload)).toString("base64url")
-}
-
-export function decodeSetupState(state: string, now = Date.now()): GDriveSetupState {
-  const payload = JSON.parse(Buffer.from(state, "base64url").toString("utf8")) as Partial<GDriveSetupState>
-  if (!payload.remote || !payload.nonce || typeof payload.ts !== "number")
-    throw new Error("Invalid Google Drive setup state.")
-  if (now - payload.ts > 10 * 60 * 1000) throw new Error("Google Drive setup state expired.")
-  return {
-    remote: normalizeRemote(payload.remote),
-    username: payload.username,
-    nonce: payload.nonce,
-    ts: payload.ts,
-  }
-}
-
-export function buildGDriveAuthUrl(input: {
-  clientId: string
-  redirectUri: string
-  state: string
-  authUri?: string
-  scope?: string
-}): string {
-  const params = new URLSearchParams({
-    client_id: input.clientId,
-    redirect_uri: input.redirectUri,
-    response_type: "code",
-    scope: input.scope ?? "https://www.googleapis.com/auth/drive",
-    access_type: "offline",
-    prompt: "consent select_account",
-    state: input.state,
-  })
-  return `${input.authUri ?? "https://accounts.google.com/o/oauth2/auth"}?${params.toString()}`
-}
-
-export async function exchangeGDriveAuthCode(input: {
-  client: GDriveOAuthClient
-  code: string
-  redirectUri: string
-  fetcher?: typeof fetch
-}): Promise<GDriveOAuthToken> {
-  const fetcher = input.fetcher ?? fetch
-  const body = new URLSearchParams({
-    code: input.code,
-    client_id: input.client.clientId,
-    client_secret: input.client.clientSecret,
-    redirect_uri: input.redirectUri,
-    grant_type: "authorization_code",
-  })
-  const response = await fetcher(input.client.tokenUri ?? "https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body,
-  })
-  const data = (await response.json()) as Record<string, unknown>
-  if (!response.ok) {
-    const message =
-      typeof data.error_description === "string" ? data.error_description : (data.error ?? response.statusText)
-    throw new Error(`Google Drive token exchange failed: ${String(message)}`)
-  }
-  if (typeof data.access_token !== "string")
-    throw new Error("Google Drive token exchange did not return an access token.")
-  const expiresIn = typeof data.expires_in === "number" ? data.expires_in : undefined
-  return {
-    access_token: data.access_token,
-    token_type: typeof data.token_type === "string" ? data.token_type : "Bearer",
-    refresh_token: typeof data.refresh_token === "string" ? data.refresh_token : undefined,
-    expiry: expiresIn ? new Date(Date.now() + expiresIn * 1000).toISOString() : undefined,
-    expires_in: expiresIn,
-    scope: typeof data.scope === "string" ? data.scope : undefined,
-  }
-}
-
 function sectionHeader(remote: string): string {
   return `[${normalizeRemote(remote).slice(0, -1)}]`
 }
@@ -271,6 +191,59 @@ export async function writeRcloneDriveRemote(input: {
   await fs.writeFile(configPath, next, { mode: 0o600 })
   await fs.chmod(configPath, 0o600).catch(() => {})
   return { configPath, remote: normalizeRemote(input.remote) }
+}
+
+export function googleAuthPath(home = os.homedir()): string {
+  if (!home) throw new Error("Cannot resolve current user home directory for Google auth.")
+  const configHome = process.env.XDG_CONFIG_HOME || path.join(home, ".config")
+  return path.join(configHome, "opencode", "gauth.json")
+}
+
+export async function readGoogleAuthTokens(
+  input: { gauthPath?: string; home?: string } = {},
+): Promise<GoogleAuthTokens> {
+  const content = await fs.readFile(input.gauthPath ?? googleAuthPath(input.home), "utf8")
+  return JSON.parse(content) as GoogleAuthTokens
+}
+
+export async function materializeRcloneDriveRemoteFromGoogleAuth(input: {
+  remote?: string
+  client?: GDriveOAuthClient
+  gauthPath?: string
+  home?: string
+  overwrite?: boolean
+}) {
+  const client = input.client ?? gdriveOAuthClientFromEnv()
+  if (!client) throw new Error("Google OAuth client is not configured for this daemon.")
+  const tokens = await readGoogleAuthTokens({ gauthPath: input.gauthPath, home: input.home }).catch((error) => {
+    const err = error as NodeJS.ErrnoException
+    if (err.code === "ENOENT") {
+      throw new Error(
+        "Google login token is missing. Sign in to OpenCMS with Google, then run gdrive_setup start again.",
+      )
+    }
+    throw error
+  })
+  if (!tokens.refresh_token) {
+    throw new Error(
+      "Google login token does not include a refresh token. Re-authenticate OpenCMS Google login with offline access, then run gdrive_setup start again.",
+    )
+  }
+  if (!tokens.access_token) {
+    throw new Error("Google login token does not include an access token. Re-authenticate OpenCMS Google login.")
+  }
+  return writeRcloneDriveRemote({
+    remote: input.remote ?? DEFAULT_GDRIVE_REMOTE,
+    client,
+    token: {
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      token_type: tokens.token_type ?? "Bearer",
+      expiry: tokens.expires_at ? new Date(tokens.expires_at).toISOString() : undefined,
+    },
+    home: input.home,
+    overwrite: input.overwrite,
+  })
 }
 
 export function planRcloneVersion(): FixedArgv {

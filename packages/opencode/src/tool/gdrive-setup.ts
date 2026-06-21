@@ -1,8 +1,8 @@
 import z from "zod"
 import { Tool } from "./tool"
 import {
-  gdriveOAuthClientFromEnv,
   getSetupStatus,
+  materializeRcloneDriveRemoteFromGoogleAuth,
   normalizeRemote,
   planRcloneConfigDelete,
   runFixedArgv,
@@ -12,7 +12,6 @@ type GDriveSetupMetadata = {
   action: string
   remote: string
   status?: unknown
-  approvalUrl?: string
   requiresBrowserApproval?: boolean
   code?: string
 }
@@ -20,7 +19,6 @@ type GDriveSetupMetadata = {
 const Params = z.object({
   action: z.enum(["status", "start", "complete", "remove"]),
   remote: z.string().optional().describe("Optional rclone remote name. Defaults to gdrive."),
-  authCode: z.string().optional().describe("Authorization code captured by the Web callback fallback."),
   overwrite: z.boolean().optional().describe("Allow replacing an existing rclone remote when explicitly requested."),
 })
 
@@ -39,7 +37,7 @@ function formatStatus(status: Awaited<ReturnType<typeof getSetupStatus>>): strin
 export const GDriveSetupTool = Tool.define<typeof Params, GDriveSetupMetadata>("gdrive_setup", {
   description: `Set up the current Linux user's Google Drive rclone remote through an agent-executable, CLI-first flow.
 
-Use this before gdrive_mount when the Google Drive remote is missing or unhealthy. The tool performs bounded non-interactive setup checks and fixed-argv rclone operations. It never asks the user to open a terminal. If Google approval is required, return a browser/Web approval handoff instead. Never print OAuth tokens.`,
+Use this before gdrive_mount when the Google Drive remote is missing or unhealthy. The tool reuses the current OpenCMS Google login token from gauth.json and materializes it into rclone config. It never asks the user to open a terminal and never prints OAuth tokens.`,
   parameters: Params,
   async execute(params) {
     const remote = normalizeRemote(params.remote)
@@ -68,45 +66,43 @@ Use this before gdrive_mount when the Google Drive remote is missing or unhealth
           metadata: { action: params.action, remote, status, code: "RCLONE_MISSING" },
         }
       }
-      const client = gdriveOAuthClientFromEnv()
-      if (!client) {
+      try {
+        await materializeRcloneDriveRemoteFromGoogleAuth({ remote, overwrite: params.overwrite })
+      } catch (error) {
         return {
-          title: "Google Drive OAuth client is required",
-          output:
-            "Google Drive OAuth is not configured for this daemon. Configure OPENCODE_GDRIVE_CLIENT_ID and OPENCODE_GDRIVE_CLIENT_SECRET, then run gdrive_setup start again.",
-          metadata: { action: params.action, remote, status, code: "OAUTH_CLIENT_MISSING" },
+          title: "Google Drive login token is required",
+          output: error instanceof Error ? error.message : String(error),
+          metadata: { action: params.action, remote, status, code: "GOOGLE_LOGIN_TOKEN_REQUIRED" },
         }
       }
-      const approvalUrl = `/api/v2/gdrive/setup/connect?remote=${encodeURIComponent(remote)}`
+      const nextStatus = await getSetupStatus({ remote })
       return {
-        title: "Google Drive setup requires browser approval",
+        title: "Google Drive remote configured",
         output: [
-          `Prepared a bounded setup transaction for ${remote}.`,
-          `Open the Web approval handoff in the current OpenCode browser session: ${approvalUrl}`,
-          `After Google approval, the callback writes ${remote} into the current user's rclone config.`,
-          `No terminal action is required from the user.`,
+          `${remote} was configured from the current OpenCMS Google login token.`,
+          `No additional Google OAuth approval was requested.`,
+          formatStatus(nextStatus),
         ].join("\n"),
         metadata: {
           action: params.action,
           remote,
-          status,
-          approvalUrl,
-          requiresBrowserApproval: true,
-          code: "WEB_APPROVAL_REQUIRED",
+          status: nextStatus,
+          requiresBrowserApproval: false,
+          code: "REMOTE_MATERIALIZED_FROM_LOGIN",
         },
       }
     }
 
     if (params.action === "complete") {
       return {
-        title: "Google Drive setup completes through Web callback",
+        title: "Google Drive setup uses OpenCMS login",
         output:
-          "Google Drive OAuth completion is handled by /api/v2/gdrive/setup/callback, which exchanges the authorization code and writes the current user's rclone remote. Run gdrive_setup status after approval to confirm the remote is configured.",
+          "No separate Google Drive OAuth completion step is required. Run gdrive_setup start to materialize the current OpenCMS Google login token into rclone config, then run gdrive_mount mount.",
         metadata: {
           action: params.action,
           remote,
-          requiresBrowserApproval: true,
-          code: "WEB_CALLBACK_REQUIRED",
+          requiresBrowserApproval: false,
+          code: "NO_SEPARATE_COMPLETION_REQUIRED",
         },
       }
     }

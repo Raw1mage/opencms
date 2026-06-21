@@ -26,8 +26,7 @@ export const GoogleBindingRoutes = lazy(() =>
       "/status",
       describeRoute({
         summary: "Get Google binding status for current user",
-        description:
-          "Returns whether the current PAM-authenticated user has a Google identity bound.",
+        description: "Returns whether the current PAM-authenticated user has a Google identity bound.",
         operationId: "googleBinding.status",
         responses: {
           200: {
@@ -81,13 +80,11 @@ export const GoogleBindingRoutes = lazy(() =>
           return c.json({ error: "GOOGLE_CALENDAR_CLIENT_ID not configured" }, 400)
         }
 
-        const authUri =
-          process.env.GOOGLE_CALENDAR_AUTH_URI || "https://accounts.google.com/o/oauth2/auth"
+        const authUri = process.env.GOOGLE_CALENDAR_AUTH_URI || "https://accounts.google.com/o/oauth2/auth"
 
         // Build redirect URI from forwarded headers (proxy-safe)
         const proto = c.req.header("x-forwarded-proto") || "https"
-        const host =
-          c.req.header("x-forwarded-host") || c.req.header("host") || new URL(c.req.url).host
+        const host = c.req.header("x-forwarded-host") || c.req.header("host") || new URL(c.req.url).host
         const origin = `${proto}://${host}`
         const redirectUri = `${origin}/api/v2/google-binding/callback`
 
@@ -99,13 +96,14 @@ export const GoogleBindingRoutes = lazy(() =>
         })
         const state = Buffer.from(statePayload).toString("base64url")
 
+        const driveScope = process.env.OPENCODE_GDRIVE_SCOPE || "https://www.googleapis.com/auth/drive"
         const params = new URLSearchParams({
           client_id: clientId,
           redirect_uri: redirectUri,
           response_type: "code",
-          scope: "openid email profile",
-          access_type: "online",
-          prompt: "select_account",
+          scope: `openid email profile ${driveScope}`,
+          access_type: "offline",
+          prompt: "consent select_account",
           state,
         })
 
@@ -176,8 +174,7 @@ export const GoogleBindingRoutes = lazy(() =>
 
         // Build redirect URI (must match the one used in /connect)
         const proto = c.req.header("x-forwarded-proto") || "https"
-        const host =
-          c.req.header("x-forwarded-host") || c.req.header("host") || new URL(c.req.url).host
+        const host = c.req.header("x-forwarded-host") || c.req.header("host") || new URL(c.req.url).host
         const origin = `${proto}://${host}`
         const redirectUri = `${origin}/api/v2/google-binding/callback`
 
@@ -205,7 +202,23 @@ export const GoogleBindingRoutes = lazy(() =>
 
         const tokens = (await tokenResponse.json()) as {
           access_token: string
+          refresh_token?: string
+          expires_in?: number
           token_type: string
+        }
+
+        if (tokens.refresh_token) {
+          const gauthPath = path.join(Global.Path.config, "gauth.json")
+          const gauthData = {
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+            expires_at: Date.now() + (tokens.expires_in ?? 3600) * 1000,
+            token_type: tokens.token_type,
+            updated_at: Date.now(),
+          }
+          await Bun.write(gauthPath, JSON.stringify(gauthData, null, 2))
+          await fs.chmod(gauthPath, 0o600)
+          log.info("Google binding token stored for managed Google capabilities", { path: gauthPath })
         }
 
         // Get verified email from Google userinfo
@@ -279,9 +292,5 @@ export const GoogleBindingRoutes = lazy(() =>
 )
 
 function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
 }
