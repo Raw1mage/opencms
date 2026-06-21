@@ -15,10 +15,25 @@ describe("Session todo action metadata", () => {
       needsApproval: true,
     })
 
+  })
+
+  // DD-3 (harness/autonomous-gate-enforcement): the architecture_change keyword
+  // rule was removed — it falsely gated documentation/bookkeeping work. Todo
+  // text mentioning architecture/refactor/schema/migration is NO LONGER gated;
+  // only push/destructive (real tool-gated actions) and the model's explicit
+  // awaiting_approval status (DD-2) gate. Regression-lock for the stuck session.
+  it("does NOT gate documentation work that merely mentions architecture/refactor (DD-3)", () => {
     expect(Todo.inferActionFromContent({ content: "schema migration refactor", status: "pending" })).toEqual({
-      kind: "architecture_change",
-      risk: "high",
-      needsApproval: true,
+      kind: "implement",
+      canDelegate: true,
+    })
+
+    // the exact content that trapped session ses_115cfbcf… (pure doc bookkeeping)
+    expect(
+      Todo.inferActionFromContent({ content: "驗證合併 + architecture 同步 + 結 issue + event 收尾", status: "in_progress" }),
+    ).toEqual({
+      kind: "implement",
+      canDelegate: undefined,
     })
   })
 

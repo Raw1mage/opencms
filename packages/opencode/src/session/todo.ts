@@ -72,15 +72,16 @@ export namespace Todo {
     ) {
       return { kind: "destructive", risk: "high", needsApproval: true }
     }
-    if (
-      text.includes("architecture") ||
-      text.includes("refactor") ||
-      text.includes("schema") ||
-      text.includes("migration") ||
-      text.includes("breaking change")
-    ) {
-      return { kind: "architecture_change", risk: "high", needsApproval: true }
-    }
+    // DD-3 (harness/autonomous-gate-enforcement): the `architecture_change`
+    // keyword rule was REMOVED. It keyword-matched "architecture"/"refactor"/
+    // "schema"/"migration" in todo TEXT and stamped needsApproval=true — a
+    // false-positive generator (a documentation chore "architecture 同步" was
+    // gated, then the model dithered against a lock it had no key for and the
+    // paralysis detector halted the session). "Architecture change" is not a
+    // single gated tool call, so it cannot be enforced precisely from prose;
+    // genuinely dangerous actions (push/destructive above) are gated at
+    // tool-permission time, and deliberate sign-off is the model's explicit
+    // `awaiting_approval` status (DD-2). See plans/harness_autonomous-gate-enforcement/.
     if (text.includes("wait for") || text.includes("blocked by") || text.includes("waiting on")) {
       if (text.includes("subagent") || text.includes("worker")) return { kind: "wait", waitingOn: "subagent" }
       if (text.includes("approval")) return { kind: "approval", waitingOn: "approval", needsApproval: true }
