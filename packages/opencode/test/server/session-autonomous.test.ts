@@ -117,11 +117,11 @@ describe("session.autonomous", () => {
           .find(
             (message) =>
               message.info.role === "user" &&
-              message.info.parts.some(
+              message.parts.some(
                 (part) =>
                   part.type === "text" &&
                   part.synthetic === true &&
-                  part.text.includes("Continue with the next planned step"),
+                  part.text.includes("Continue with the current work"),
               ),
           )
 
@@ -229,7 +229,7 @@ describe("session.autonomous", () => {
         await Session.setWorkflowState({
           sessionID: session.id,
           state: "waiting_user",
-          stopReason: "wait_subagent",
+          stopReason: "approval_needed",
         })
         await enqueuePendingContinuation({
           sessionID: session.id,
@@ -260,14 +260,14 @@ describe("session.autonomous", () => {
           hasPendingContinuation: true,
           status: "idle",
           resumable: false,
-          blockedReasons: ["waiting_user_non_resumable:wait_subagent"],
+          blockedReasons: ["waiting_user_non_resumable:approval_needed"],
           pending: {
             sessionID: session.id,
             roundCount: 3,
             reason: "todo_pending",
           },
           health: {
-            stopReason: "wait_subagent",
+            stopReason: "approval_needed",
             queue: { hasPendingContinuation: true },
           },
         })
@@ -340,7 +340,7 @@ describe("session.autonomous", () => {
         await Session.setWorkflowState({
           sessionID: session.id,
           state: "waiting_user",
-          stopReason: "wait_subagent",
+          stopReason: "approval_needed",
         })
         await enqueuePendingContinuation({
           sessionID: session.id,
@@ -374,11 +374,11 @@ describe("session.autonomous", () => {
           action: "resume_once",
           applied: false,
           reason: "not_resumable",
-          blockedReasons: ["waiting_user_non_resumable:wait_subagent"],
+          blockedReasons: ["waiting_user_non_resumable:approval_needed"],
           inspection: {
             hasPendingContinuation: true,
             resumable: false,
-            blockedReasons: ["waiting_user_non_resumable:wait_subagent"],
+            blockedReasons: ["waiting_user_non_resumable:approval_needed"],
           },
         })
       },
