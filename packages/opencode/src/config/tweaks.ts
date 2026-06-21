@@ -463,7 +463,11 @@ export namespace Tweaks {
   }
 
   const AUTORUN_DEFAULTS: AutorunConfig = {
-    triggerPhrases: ["接著跑", "自動跑", "開 autonomous", "autorun", "keep going", "continue autonomously"],
+    // Verbal autorun arming retired by default — empty triggerPhrases disables
+    // the conversational arm path so normal sessions replicate native behaviour
+    // (no synthetic-user continuation pump). See plans/harness_autorun-retirement.
+    // Operators may re-enable by setting autorun_trigger_phrases in tweaks.cfg.
+    triggerPhrases: [],
     disarmPhrases: ["停", "暫停", "stop", "halt"],
   }
 

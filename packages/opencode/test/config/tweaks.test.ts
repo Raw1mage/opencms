@@ -297,8 +297,10 @@ describe("Tweaks.loadEffective", () => {
   test("autorun defaults when tweaks.cfg missing", async () => {
     pointToMissing()
     const a = await Tweaks.autorun()
-    expect(a.triggerPhrases).toContain("autorun")
-    expect(a.triggerPhrases).toContain("接著跑")
+    // Verbal autorun arming retired: trigger defaults are empty (feature off by
+    // default). Disarm defaults remain so an operator-armed session can still be
+    // stopped verbally. See plans/harness_autorun-retirement.
+    expect(a.triggerPhrases).toEqual([])
     expect(a.disarmPhrases).toContain("stop")
     expect(a.disarmPhrases).toContain("停")
   })
@@ -327,7 +329,7 @@ describe("Tweaks.loadEffective", () => {
   test("autorunSync returns defaults before loadEffective, real values after", async () => {
     pointToFile("autorun_trigger_phrases=onlyme\n")
     const beforeLoad = Tweaks.autorunSync()
-    expect(beforeLoad.triggerPhrases).toContain("autorun") // defaults
+    expect(beforeLoad.triggerPhrases).toEqual([]) // defaults (verbal arm retired → empty)
     await Tweaks.loadEffective()
     const afterLoad = Tweaks.autorunSync()
     expect(afterLoad.triggerPhrases).toEqual(["onlyme"])
