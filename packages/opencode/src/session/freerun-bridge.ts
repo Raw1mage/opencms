@@ -86,8 +86,8 @@ export namespace FreerunBridge {
     return {
       providerId,
       modelId,
-      baseUrl: providerCfg.options?.baseURL ?? "",
-      apiKey: providerCfg.options?.apiKey,
+      baseUrl: providerCfg?.options?.baseURL ?? "",
+      apiKey: providerCfg?.options?.apiKey,
     }
   }
 
