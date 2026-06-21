@@ -4,7 +4,6 @@ import path from "path"
 
 import type { MessageV2 } from "../../session/message-v2"
 import { Storage } from "../../storage/storage"
-import { LegacyStore } from "../../session/storage/legacy"
 import { Router } from "../../session/storage/router"
 import { ConnectionPool } from "../../session/storage/pool"
 import { SessionInspect } from "./session-inspect"
@@ -116,24 +115,27 @@ describe("session-inspect", () => {
     expect(result).toEqual({ stdout: "ok\n", exitCode: 0 })
   })
 
-  it("falls through to legacy sessions without migrating them", async () => {
-    await Storage.write(["session", SID_LEGACY], { id: SID_LEGACY, projectID: "proj_test" })
-    await LegacyStore.upsertMessage(user(SID_LEGACY))
-    await LegacyStore.upsertMessage(assistant(SID_LEGACY))
-    await LegacyStore.upsertPart(textPart(SID_LEGACY))
+  it("inspects a sqlite session end-to-end (list, show, check)", async () => {
+    // Post-teardown there is no legacy format: every session is sqlite.
+    // session-inspect operates uniformly through the Router/SqliteStore.
+    await Storage.write(["session", SID_SQLITE], { id: SID_SQLITE, projectID: "proj_test" })
+    await Router.upsertMessage(user(SID_SQLITE))
+    await Router.upsertMessage(assistant(SID_SQLITE))
+    await Router.upsertPart(textPart(SID_SQLITE))
+    ConnectionPool.closeAll()
 
-    const listed = await SessionInspect.list(SID_LEGACY)
-    const shown = await SessionInspect.show(SID_LEGACY, MID_ASSISTANT)
-    const checked = await SessionInspect.check(SID_LEGACY)
+    const listed = await SessionInspect.list(SID_SQLITE)
+    const shown = await SessionInspect.show(SID_SQLITE, MID_ASSISTANT)
+    const checked = await SessionInspect.check(SID_SQLITE)
 
     expect(listed.stdout).toContain("msg_inspect_bbb  assistant  1700000001000  stop    42")
     expect(JSON.parse(shown.stdout).parts[0].id).toBe(PID_TEXT)
-    expect(checked).toEqual({ stdout: "legacy ok (2 messages)\n", exitCode: 0 })
+    expect(checked).toEqual({ stdout: "ok\n", exitCode: 0 })
     expect(
       await fs
-        .stat(ConnectionPool.resolveDbPath(SID_LEGACY))
+        .stat(ConnectionPool.resolveDbPath(SID_SQLITE))
         .then(() => true)
         .catch(() => false),
-    ).toBe(false)
+    ).toBe(true)
   })
 })

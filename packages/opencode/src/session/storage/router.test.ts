@@ -1,22 +1,20 @@
 import { describe, expect, it, beforeEach, afterEach } from "bun:test"
 import fs from "fs/promises"
-import path from "path"
 
-// Spec: /specs/session-storage-db, task 3.4.
-// Tests the Router's per-call format detection matrix, debris queue,
-// debris drain, and no-silent-fallback contract (DD-13 / INV-4).
+// Spec: /specs/session-storage-db, DD-1.
+// Post-teardown the Router is a thin pass-through to SqliteStore (Phase 4
+// removed legacy format detection, dual-track dispatch, and debris
+// scheduling). These tests verify the retained Backend surface still
+// delegates correctly and that errors propagate (DD-13 / INV-4).
 // Real disk under per-pid tmpdir per Global.ts NODE_ENV=test guard.
 
-import { Router, detectFormat, drainLegacyDebris, pendingDebris } from "./router"
+import { Router } from "./router"
 import { SqliteStore } from "./sqlite"
 import { ConnectionPool } from "./pool"
 import type { MessageV2 } from "../message-v2"
 
 const SID_FRESH = "ses_test_router_fresh"
 const SID_SQLITE = "ses_test_router_sqlite"
-const SID_LEGACY = "ses_test_router_legacy"
-const SID_DEBRIS = "ses_test_router_debris"
-const SID_TMP_INFLIGHT = "ses_test_router_tmp"
 const REF_A = "att_ref_router_001"
 
 function user(sessionID: string, id: string): MessageV2.User {
@@ -45,79 +43,18 @@ function attachmentBlob(sessionID: string) {
   }
 }
 
-function legacySessionDir(sessionID: string): string {
-  const dbPath = ConnectionPool.resolveDbPath(sessionID)
-  return path.join(path.dirname(dbPath), sessionID)
-}
-
-async function makeLegacyDir(sessionID: string): Promise<void> {
-  const dir = legacySessionDir(sessionID)
-  await fs.mkdir(path.join(dir, "messages"), { recursive: true })
-}
-
-async function makeTmpFile(sessionID: string): Promise<void> {
-  const dbPath = ConnectionPool.resolveDbPath(sessionID)
-  const dir = path.dirname(dbPath)
-  await fs.mkdir(dir, { recursive: true })
-  await fs.writeFile(dbPath + ".tmp", "fake migration in flight")
-}
-
 beforeEach(() => {
   ConnectionPool.closeAll()
 })
 
 afterEach(async () => {
   ConnectionPool.closeAll()
-  for (const sid of [SID_FRESH, SID_SQLITE, SID_LEGACY, SID_DEBRIS, SID_TMP_INFLIGHT]) {
+  for (const sid of [SID_FRESH, SID_SQLITE]) {
     const dbPath = ConnectionPool.resolveDbPath(sid)
     for (const p of [dbPath, dbPath + "-wal", dbPath + "-shm", dbPath + ".tmp"]) {
       await fs.rm(p, { force: true }).catch(() => {})
     }
-    await fs.rm(legacySessionDir(sid), { recursive: true, force: true }).catch(() => {})
   }
-  // Drain debris queue between tests.
-  await drainLegacyDebris()
-})
-
-describe("Router format detection", () => {
-  it("fresh session (neither format) → sqlite", () => {
-    const v = detectFormat(SID_FRESH)
-    expect(v.format).toBe("sqlite")
-    expect(v.hasLegacyDebris).toBe(false)
-    expect(v.hasMigrationTmp).toBe(false)
-  })
-
-  it("only .db present → sqlite", async () => {
-    await SqliteStore.upsertMessage(user(SID_SQLITE, "msg_a"))
-    ConnectionPool.closeAll()
-    const v = detectFormat(SID_SQLITE)
-    expect(v.format).toBe("sqlite")
-    expect(v.hasLegacyDebris).toBe(false)
-  })
-
-  it("only legacy directory present → legacy", async () => {
-    await makeLegacyDir(SID_LEGACY)
-    const v = detectFormat(SID_LEGACY)
-    expect(v.format).toBe("legacy")
-    expect(v.hasLegacyDebris).toBe(false)
-  })
-
-  it("both .db AND legacy dir present without tmp → sqlite + debris flag", async () => {
-    await SqliteStore.upsertMessage(user(SID_DEBRIS, "msg_a"))
-    ConnectionPool.closeAll()
-    await makeLegacyDir(SID_DEBRIS)
-    const v = detectFormat(SID_DEBRIS)
-    expect(v.format).toBe("sqlite")
-    expect(v.hasLegacyDebris).toBe(true)
-  })
-
-  it("legacy dir + tmp present (mid-migration crash) → legacy authoritative", async () => {
-    await makeLegacyDir(SID_TMP_INFLIGHT)
-    await makeTmpFile(SID_TMP_INFLIGHT)
-    const v = detectFormat(SID_TMP_INFLIGHT)
-    expect(v.format).toBe("legacy")
-    expect(v.hasMigrationTmp).toBe(true)
-  })
 })
 
 describe("Router dispatch", () => {
@@ -133,7 +70,25 @@ describe("Router dispatch", () => {
     expect(await fs.stat(dbPath).then(() => true).catch(() => false)).toBe(true)
   })
 
-  it("forwards attachment blob methods to the selected backend", async () => {
+  it("streams messages back through SqliteStore", async () => {
+    await Router.upsertMessage(user(SID_SQLITE, "msg_a"))
+    const collected: MessageV2.WithParts[] = []
+    for await (const m of Router.stream(SID_SQLITE)) collected.push(m)
+    expect(collected.map((m) => m.info.id)).toEqual(["msg_a"])
+  })
+
+  it("deleteSession clears the session's rows via SqliteStore", async () => {
+    // SqliteStore.deleteSession clears rows and closes the pool but leaves
+    // the .db file on disk by design (file-level removal is the caller's
+    // policy, not a storage primitive). Verify the rows are gone.
+    await Router.upsertMessage(user(SID_SQLITE, "msg_a"))
+    await Router.deleteSession(SID_SQLITE)
+    const collected: MessageV2.WithParts[] = []
+    for await (const m of Router.stream(SID_SQLITE)) collected.push(m)
+    expect(collected).toEqual([])
+  })
+
+  it("forwards attachment blob methods to SqliteStore", async () => {
     await Router.upsertMessage(user(SID_FRESH, "msg_a"))
     await Router.upsertAttachmentBlob(attachmentBlob(SID_FRESH))
 
@@ -147,12 +102,10 @@ describe("Router dispatch", () => {
     expect(await Router.listAttachmentBlobs(SID_FRESH)).toEqual([])
   })
 
-  it("does not silently fall back from SqliteStore on read error (DD-13 / INV-4)", async () => {
-    // Build a healthy SQLite session, then corrupt it. Router should
-    // still dispatch to SqliteStore (because the .db file is there) and
-    // the resulting integrity_check throw must propagate — NOT switch
-    // to LegacyStore even if a legacy dir happens to exist (it doesn't
-    // here, but the contract is the same).
+  it("does not silently swallow SqliteStore read errors (DD-13 / INV-4)", async () => {
+    // Build a healthy SQLite session, then corrupt it. The Router must let
+    // the resulting integrity_check throw propagate — there is no second
+    // backend to fall back to post-teardown.
     await Router.upsertMessage(user(SID_SQLITE, "msg_a"))
     ConnectionPool.closeAll()
     const dbPath = ConnectionPool.resolveDbPath(SID_SQLITE)
@@ -163,61 +116,18 @@ describe("Router dispatch", () => {
     await expect(Router.get({ sessionID: SID_SQLITE, messageID: "msg_a" })).rejects.toThrow()
     expect(ConnectionPool.stats().size).toBe(0)
   })
-
-  it("dispatches reads to LegacyStore for legacy-format sessions", async () => {
-    // Set up a minimal legacy session that LegacyStore can read.
-    // We don't write a real info.json here — just verify the dispatch
-    // side: stream() against a legacy session goes through LegacyStore,
-    // which yields nothing because no messages exist.
-    await makeLegacyDir(SID_LEGACY)
-    const collected = []
-    for await (const m of Router.stream(SID_LEGACY)) collected.push(m)
-    expect(collected.length).toBe(0) // empty legacy dir → empty stream
-  })
 })
 
-describe("Router debris queue", () => {
-  it("schedules legacy directory delete when both formats present", async () => {
-    await SqliteStore.upsertMessage(user(SID_DEBRIS, "msg_a"))
-    ConnectionPool.closeAll()
-    await makeLegacyDir(SID_DEBRIS)
-    // Trigger format detection by issuing a read through Router.
-    await Router.get({ sessionID: SID_DEBRIS, messageID: "msg_a" })
-    expect(pendingDebris()).toContain(SID_DEBRIS)
+describe("Router parts(messageID) requires sessionID post-teardown", () => {
+  it("throws when sessionID omitted (no legacy fall-through)", async () => {
+    // The legacy messageID-only fall-through is gone. SqliteStore needs to
+    // know which DB to open, so the Router surfaces its throw (DD-13).
+    await expect(Router.parts("msg_unknown_router_test")).rejects.toThrow(/requires sessionID/)
   })
 
-  it("drainLegacyDebris removes the legacy directory and clears the queue", async () => {
-    await SqliteStore.upsertMessage(user(SID_DEBRIS, "msg_a"))
-    ConnectionPool.closeAll()
-    await makeLegacyDir(SID_DEBRIS)
-    await Router.get({ sessionID: SID_DEBRIS, messageID: "msg_a" }) // schedules
-    expect(pendingDebris()).toContain(SID_DEBRIS)
-
-    const result = await drainLegacyDebris()
-    expect(result.deleted).toContain(SID_DEBRIS)
-    expect(pendingDebris()).not.toContain(SID_DEBRIS)
-    expect(await fs.stat(legacySessionDir(SID_DEBRIS)).then(() => true).catch(() => false)).toBe(false)
-  })
-
-  it("drainLegacyDebris is a no-op for sessions whose state changed since scheduling", async () => {
-    // Schedule debris, then manually delete legacy before drain.
-    await SqliteStore.upsertMessage(user(SID_DEBRIS, "msg_a"))
-    ConnectionPool.closeAll()
-    await makeLegacyDir(SID_DEBRIS)
-    await Router.get({ sessionID: SID_DEBRIS, messageID: "msg_a" })
-    await fs.rm(legacySessionDir(SID_DEBRIS), { recursive: true, force: true })
-    const result = await drainLegacyDebris()
-    expect(result.deleted).not.toContain(SID_DEBRIS)
-    expect(pendingDebris()).not.toContain(SID_DEBRIS)
-  })
-})
-
-describe("Router parts(messageID) without sessionID falls through to LegacyStore", () => {
-  it("returns whatever LegacyStore yields when sessionID omitted", async () => {
-    // No legacy data exists, but the call should NOT touch SqliteStore.
-    // Router has no way to map messageID → sessionID without help, so
-    // legacy is the only honest answer. We just verify it doesn't throw.
-    const parts = await Router.parts("msg_unknown_router_test")
+  it("returns parts when sessionID is threaded through", async () => {
+    await Router.upsertMessage(user(SID_SQLITE, "msg_a"))
+    const parts = await Router.parts("msg_a", SID_SQLITE)
     expect(parts).toEqual([])
   })
 })

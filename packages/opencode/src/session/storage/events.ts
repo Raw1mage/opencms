@@ -20,26 +20,6 @@ export namespace SessionStorageEvent {
     }),
   )
 
-  export const MigrationStarted = BusEvent.define(
-    "session.storage.migration_started",
-    z.object({
-      sessionID: z.string(),
-      legacyMessageCount: z.number(),
-      timestamp: z.number(),
-    }),
-  )
-
-  export const Migrated = BusEvent.define(
-    "session.storage.migrated",
-    z.object({
-      sessionID: z.string(),
-      legacyMessageCount: z.number(),
-      sqliteRowCount: z.number(),
-      durationMs: z.number(),
-      timestamp: z.number(),
-    }),
-  )
-
   export const MigrationFailed = BusEvent.define(
     "session.storage.migration_failed",
     z.object({
@@ -47,14 +27,6 @@ export namespace SessionStorageEvent {
       stage: z.enum(["read", "tmp_write", "integrity_check", "row_count", "rename", "legacy_delete"]),
       error: z.string(),
       timestamp: z.number(),
-    }),
-  )
-
-  export const LegacyDebrisResolved = BusEvent.define(
-    "session.storage.legacy_debris_resolved",
-    z.object({
-      sessionID: z.string(),
-      deletedAt: z.number(),
     }),
   )
 

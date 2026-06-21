@@ -53,10 +53,16 @@ export namespace ShareNext {
       // TOCTOU: part can be deleted between event-fire and read.
       // ENOENT is benign — keep the delta we already have.
       let partData = evt.properties.part
-      if (evt.properties.delta && "type" in partData && (partData.type === "text" || partData.type === "reasoning") && !("text" in partData && (partData as any).text)) {
+      if (
+        evt.properties.delta &&
+        "type" in partData &&
+        (partData.type === "text" || partData.type === "reasoning") &&
+        !("text" in partData && (partData as any).text)
+      ) {
         try {
-          const { readPartFile } = await import("../session/storage/legacy")
-          const full = await readPartFile(partData.messageID, partData.id)
+          const { Router: StorageRouter } = await import("../session/storage/router")
+          const all = await StorageRouter.parts(partData.messageID, partData.sessionID)
+          const full = all.find((p) => p.id === partData.id)
           if (full) partData = full as typeof partData
         } catch (e) {
           if (!(e instanceof Storage.NotFoundError)) throw e

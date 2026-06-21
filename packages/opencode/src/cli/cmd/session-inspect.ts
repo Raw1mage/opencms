@@ -3,7 +3,7 @@ import type { Argv } from "yargs"
 
 import { bootstrap } from "../bootstrap"
 import { cmd } from "./cmd"
-import { Router, detectFormat } from "../../session/storage/router"
+import { Router } from "../../session/storage/router"
 import { ConnectionPool } from "../../session/storage/pool"
 import { runIntegrityCheckUncached } from "../../session/storage/integrity"
 import type { MessageV2 } from "../../session/message-v2"
@@ -59,13 +59,6 @@ export namespace SessionInspect {
   }
 
   export async function check(sessionID: string): Promise<InspectResult> {
-    const format = detectFormat(sessionID)
-    if (format.format === "legacy") {
-      const rows: MessageV2.WithParts[] = []
-      for await (const message of Router.stream(sessionID)) rows.push(message)
-      return { stdout: `legacy ok (${rows.length} messages)\n`, exitCode: 0 }
-    }
-
     const dbPath = ConnectionPool.resolveDbPath(sessionID)
     const db = new Database(dbPath, { readonly: true, create: false })
     try {

@@ -163,26 +163,6 @@ export type EventSessionStorageCorrupted = {
   }
 }
 
-export type EventSessionStorageMigrationStarted = {
-  type: "session.storage.migration_started"
-  properties: {
-    sessionID: string
-    legacyMessageCount: number
-    timestamp: number
-  }
-}
-
-export type EventSessionStorageMigrated = {
-  type: "session.storage.migrated"
-  properties: {
-    sessionID: string
-    legacyMessageCount: number
-    sqliteRowCount: number
-    durationMs: number
-    timestamp: number
-  }
-}
-
 export type EventSessionStorageMigrationFailed = {
   type: "session.storage.migration_failed"
   properties: {
@@ -190,14 +170,6 @@ export type EventSessionStorageMigrationFailed = {
     stage: "read" | "tmp_write" | "integrity_check" | "row_count" | "rename" | "legacy_delete"
     error: string
     timestamp: number
-  }
-}
-
-export type EventSessionStorageLegacyDebrisResolved = {
-  type: "session.storage.legacy_debris_resolved"
-  properties: {
-    sessionID: string
-    deletedAt: number
   }
 }
 
@@ -2456,10 +2428,7 @@ export type Event =
   | EventLspClientDiagnostics
   | EventLspUpdated
   | EventSessionStorageCorrupted
-  | EventSessionStorageMigrationStarted
-  | EventSessionStorageMigrated
   | EventSessionStorageMigrationFailed
-  | EventSessionStorageLegacyDebrisResolved
   | EventSessionStorageReadFailed
   | EventSessionStorageWriteFailed
   | EventMessageUpdated
