@@ -2716,6 +2716,18 @@ export namespace SessionPrompt {
       // SL ever sets pendingSteer, so codex detection timing is unchanged (INV-0).
       if (paralysisState.pendingSteer) {
         // detection suppressed this round; the steer is injected + consumed pre-generation.
+      } else if (resolvePolicy(resolvedModel.providerId).kind === "claude") {
+        // harness/paralysis-steer-provider-split (amended 2026-06-23, DD-8): claude returns to
+        // factory-compatible control mode. The ENTIRE paralysis detection→nudge→halt ladder is
+        // skipped for claude — zero control intervention — so the loop falls through to
+        // generation exactly like official Claude Code. Rationale: the autonomous runner is
+        // retired (config/tweaks.ts triggerPhrases:[]), so there is no unattended loop left to
+        // defend; and any injected correction (persisted OR ephemeral) poisons claude's apology
+        // reflex and iatrogenically manufactures the stuck state it tries to prevent
+        // (issue_20260622_paralysis_nudge_persisted_user_poisons_claude). It MUST skip the whole
+        // block rather than no-op the nudge and `continue`: without pendingSteer suppression a
+        // continue would re-detect on the unchanged window and never reach generation — a tight
+        // loop (DD-7). Codex (SS) is unaffected; its detection branch is below (INV-0).
       } else if (lastAssistant?.finish === "tool-calls" && lastAssistant.id > lastUser.id) {
         const recentAssistants: MessageV2.WithParts[] = []
         for (let i = msgs.length - 1; i >= 0 && recentAssistants.length < 3; i--) {

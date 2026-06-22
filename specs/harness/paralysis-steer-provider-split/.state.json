@@ -50,6 +50,14 @@
       "by": "pkcs12",
       "mode": "promote",
       "reason": "user-confirmed graduation — paralysis steering provider-class split merged to main (cde612ebb), runtime-verified, RCA issue closed"
+    },
+    {
+      "from": "living",
+      "to": "living",
+      "at": "2026-06-22T17:46:28.227Z",
+      "by": "pkcs12",
+      "mode": "amend",
+      "reason": "DD-8: claude factory-compatible control mode — skip entire paralysis ladder for claude (supersedes DD-1 claude branch); codex unchanged"
     }
   ]
 }
