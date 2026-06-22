@@ -1,6 +1,12 @@
 # Full Repo Baseline Cleanup PR Scope
 
-Status: OPEN (re-measured 2026-06-22) — backlog **10 → 8 failing**。2 檔自綠（session-autonomous schema 已對齊、llm-cms-stream 已綠）。**structured-output 從「test-drift」反向重分類為真 runtime regression**（enforcement guard 不可達，見下方「Re-measure 2026-06-22」段）。餘 needs-decision 2 / needs-rewrite 4 / env 1 全卡 stop gate，無可安全 mop-up 的 test-drift。
+Status: OBSERVING (2026-06-22) — 核心真 bug 已全清，餘 6 項皆非產品正確性風險、排 backlog。本輪：structured-output 真 regression 已修（case 1 enforcement reachability + case 2 DD-7 compaction-round 守衛，commit `61603e1c0`，8 pass + 廣域回歸全綠）；前輪 pty security gap 亦已修。**剩餘 6 項（needs-decision 2 / needs-rewrite 4 / env 1）逐項定性後無一傷害產品正確性**，移入 observing 待排期：
+
+- **env(1)** `rateLimiter`（缺 `sst`）— 非 code bug，裝依賴或永久 skip。
+- **needs-decision(2)** `enablement-tool-keys`（pptx profile 廣告語意，設計選擇）/ `session-resume`（harness AsyncLocalStorage instance wiring，runtime 與測試期望皆正確）— 卡使用者設計決策，非技術 bug。
+- **needs-rewrite(4)** `llm` / `attachment-ownership` / `prompt-account-routing` / `oauth-browser` — 共同根因 freerun-bridge 架構遷移，test harness 未餵 baseURL/family；逐 assertion patch 無意義，待有人動 bridge harness 時整案重寫。
+
+重啟條件（任一）：(a) 追求 baseline 全綠（CI gate / release）；(b) 有人動 freerun-bridge test harness（順手重寫 needs-rewrite 4 項）；(c) 使用者就 enablement profile 語義 / session-resume harness 拍板。詳見下方「Re-measure 2026-06-22」段。
 
 ## Re-measure 2026-06-22 — backlog 10 → 8，structured-output 反向重分類
 
