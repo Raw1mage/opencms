@@ -1,3 +1,5 @@
+> **CLOSED 2026-06-23** — bulk-closed per resolved→close: fix committed + deployed; soak window elapsed with no recurrence noted. Folder location (closed/) is the authoritative lifecycle state; the in-body OBSERVING text below is the as-observed record. Reopen if recurrence appears.
+
 # BR: 舊上傳截圖被永久釘為 active attachment，跨 turn 反覆重注入導致 agent 跳針
 
 - **狀態**: Observing（已實作 + typecheck/unit 綠燈 + **2026-06-11 部署驗證通過**：重啟跨 reset 後該圖降級為純 inventory，跳針源消除）

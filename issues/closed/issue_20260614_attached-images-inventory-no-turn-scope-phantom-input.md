@@ -1,3 +1,5 @@
+> **CLOSED 2026-06-23** — bulk-closed per resolved→close: fix committed + deployed; soak window elapsed with no recurrence noted. Folder location (closed/) is the authoritative lifecycle state; the in-body OBSERVING text below is the as-observed record. Reopen if recurrence appears.
+
 # BR: `<attached_images>` inventory 無 turn 歸屬信號，被模型誤讀為本輪新上傳（幻影附件回歸）
 
 - **狀態**: OBSERVING — 修法走「方向 1+2+4 疊加」：inventory builder 由訊息位置+role 推得當前 turn（last user message），逐張標 `[THIS TURN]` 或 `— earlier, N turn(s) ago, not this turn`，並加頂層 `TURN SCOPE` 指令明示歷史附件清單非本輪輸入、未被本輪引用前不主動處理。無需 timestamp（純位置）。role 缺失的 legacy caller 維持原輸出（向後相容）。Fix commit `f8ff57395`（builder + 3 個新單元測試，共 12 pass）。已 `webctl.sh restart` 部署（binary 含新 TURN SCOPE/earlier 字串）。Observing since 2026-06-15。**Exit → closed/**：跨一次 compaction 後純文字 turn，真實 agent session 不再把歷史 `image.png` 誤判為本輪新上傳，soak 數日無復發。**Regress → open**：模型再次對非本輪附件自發「先看你貼的圖」。

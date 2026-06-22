@@ -1,3 +1,5 @@
+> **CLOSED 2026-06-23** — bulk-closed per resolved→close: fix committed + deployed; soak window elapsed with no recurrence noted. Folder location (closed/) is the authoritative lifecycle state; the in-body OBSERVING text below is the as-observed record. Reopen if recurrence appears.
+
 # BR: Compaction at 05:02 rolled the conversation anchor back one round, replaying an already-answered user message and dropping ~8 minutes of visible progress
 
 - **Date**: 2026-06-14

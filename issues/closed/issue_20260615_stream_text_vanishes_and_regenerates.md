@@ -1,3 +1,5 @@
+> **CLOSED 2026-06-23** — bulk-closed per resolved→close: fix committed + deployed; soak window elapsed with no recurrence noted. Folder location (closed/) is the authoritative lifecycle state; the in-body OBSERVING text below is the as-observed record. Reopen if recurrence appears.
+
 # Stream 文字在 runloop 中整段消失後重新生成
 
 Status: OBSERVING (2026-06-20 兩半修復完成、待 live 即時驗證) — 後端 + 前端兩半皆已落地。

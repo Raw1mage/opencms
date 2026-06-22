@@ -1,3 +1,5 @@
+> **CLOSED 2026-06-23** — bulk-closed per resolved→close: fix committed + deployed; soak window elapsed with no recurrence noted. Folder location (closed/) is the authoritative lifecycle state; the in-body OBSERVING text below is the as-observed record. Reopen if recurrence appears.
+
 # BR: 重啟 / session resume 不清既有 session 的 active image ref（drain 只綁 compaction boundary）
 
 - **狀態**: OBSERVING — fix 已隨 2026-06-11 3R 部署；母 BR（stale-attachment）部署驗證通過（重啟跨 reset 後 active image 降級為純 inventory）。soak 期間 restart/resume 後不再出現 stale active image 即可轉 closed/

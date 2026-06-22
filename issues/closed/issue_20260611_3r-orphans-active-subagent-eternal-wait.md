@@ -1,3 +1,5 @@
+> **CLOSED 2026-06-23** — bulk-closed per resolved→close: fix committed + deployed; soak window elapsed with no recurrence noted. Folder location (closed/) is the authoritative lifecycle state; the in-body OBSERVING text below is the as-observed record. Reopen if recurrence appears.
+
 # BR: 3R 重啟時若 subagent 仍在活動，parent session 永久等待且無「子代理已死」知覺
 
 - **Date**: 2026-06-11

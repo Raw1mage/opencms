@@ -1,3 +1,5 @@
+> **CLOSED 2026-06-23** — bulk-closed per resolved→close: fix committed + deployed; soak window elapsed with no recurrence noted. Folder location (closed/) is the authoritative lifecycle state; the in-body OBSERVING text below is the as-observed record. Reopen if recurrence appears.
+
 # BR: task() dispatch-first 契約被打破 — worker 在 dispatch 返回前猝死時回了同步「completed successfully」
 
 - **Date**: 2026-06-11

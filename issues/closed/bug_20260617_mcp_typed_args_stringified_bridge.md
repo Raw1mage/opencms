@@ -1,3 +1,5 @@
+> **CLOSED 2026-06-23** — bulk-closed per resolved→close: fix committed + deployed; soak window elapsed with no recurrence noted. Folder location (closed/) is the authoritative lifecycle state; the in-body OBSERVING text below is the as-observed record. Reopen if recurrence appears.
+
 # BR: MCP tool-call 的 object/number 參數被 stringify，導致下游 MCP server schema 驗證 reject
 
 - **Date**: 2026-06-17

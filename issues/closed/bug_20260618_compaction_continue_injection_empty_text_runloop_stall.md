@@ -1,3 +1,5 @@
+> **CLOSED 2026-06-23** — bulk-closed per resolved→close: fix committed + deployed; soak window elapsed with no recurrence noted. Folder location (closed/) is the authoritative lifecycle state; the in-body OBSERVING text below is the as-observed record. Reopen if recurrence appears.
+
 # BUG: 任何 auto-compaction 後 runloop 停住——synthetic Continue 注入因 `buildContinueText` 恆空而靜默 no-op
 
 - **日期**：2026-06-18

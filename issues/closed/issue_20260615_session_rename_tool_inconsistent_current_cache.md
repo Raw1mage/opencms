@@ -1,3 +1,5 @@
+> **CLOSED 2026-06-23** — bulk-closed per resolved→close: fix committed + deployed; soak window elapsed with no recurrence noted. Folder location (closed/) is the authoritative lifecycle state; the in-body OBSERVING text below is the as-observed record. Reopen if recurrence appears.
+
 # BR: session rename workflow is inconsistent across current-session resolution, list/search/get metadata, and cache invalidation
 
 Status: OBSERVING — RC1/RC2 (wrong `current` resolution, unverifiable readback, dataless list) fixed via shared `resolveTargetSessionID` + canonical same-path readback + structured `list`; commits `572e2e4cc` (fix + unit tests) and `c8f0635d6` (probe passthrough + measurement). Deployed via 3R (build-id `572e2e4cc`, gateway/daemon respawned). Live HTTP verification: write→read→search on the running daemon is fully coherent (probe pid 8655, cacheHit flips false→true, cached-GET == storage-search); E6/E7 did NOT reproduce. The cache-disagreement symptom is judged a multi-instance artifact (see `observing/20260612_local_mcp_child_per_instance_duplication`), not an invalidation-logic bug.

@@ -1,6 +1,6 @@
 # 跳針變體：preparation theater（同一 tool-call 反覆備料、從不發射）逃過 preface-paralysis detector
 
-Status: RESOLVED-BY-SUPERSEDE for claude / WON'T-FIX (accepted, low-pri) for codex（updated 2026-06-23）。
+Status: CLOSED 2026-06-23 — RESOLVED-BY-SUPERSEDE for claude / WON'T-FIX (accepted, low-pri) for codex。
 原始處置方向（新增 detector F + progress-credit gating，見下方「建議修法」）**已否決**：在追這個 BR 的過程中確認 autonomous runner 已退役（`config/tweaks.ts` `triggerPhrases:[]`），整個 paralysis detect→nudge→halt ladder 失去存在理由。改採反向修法：commit `6333a612a`（amends living spec `harness/paralysis-steer-provider-split` DD-8）對 **claude-class session 整塊跳過 paralysis ladder**，回歸原廠相容控制模式 —— claude 不再被 nudge / hard-halt，本 BR 的現場症狀（claude-cli session 被打斷）自此不可能發生。**codex (SS)** 仍跑偵測，所以「reformat 同一 artifact 拿假進度信用」這個偵測粒度 gap 對 codex 技術上仍在，但 codex 無認錯反射、halt 正是其解藥，故接受為 low-pri、不修。原 reported 內容保留於下供存查。
 ~~OPEN（reported 2026-06-23；現場 session 為 bodesign × GenAI Stars 提案，主 agent 在「產簡報」階段空轉 3 turn 後被 hard-halt。為既有 `bug_20260615_paralysis_guard_evaded_by_preface_perseveration` 的**新變體**：該 fix 的 halt 有效觸發了，但無法阻止模型**進入**這個新型態。）~~
 

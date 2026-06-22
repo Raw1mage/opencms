@@ -1,3 +1,5 @@
+> **CLOSED 2026-06-23** — bulk-closed per resolved→close: fix committed + deployed; soak window elapsed with no recurrence noted. Folder location (closed/) is the authoritative lifecycle state; the in-body OBSERVING text below is the as-observed record. Reopen if recurrence appears.
+
 # Bug Report: specbase `event_record` 工具在 opencms 環境的工具面缺席（stale local-MCP child；跨環境 surfacing drift）
 
 > **覆寫說明（2026-06-11）**：本 BR 曾被一個 **VSCode 環境**的 agent 以「stale child、daemon 重啟已修、非缺陷」結案並移進 `issues/closed/`。但該結論**只對它的環境成立**。出具本 BR 的 **opencms 環境**此刻仍複現缺陷（live evidence E8）。故重開、改寫成環境感知框架，並把根因從「可選後續」升回**主缺陷**。前一版的 §14 Resolution 保留於本檔末 §15 作為「VSCode 環境視角」存證。

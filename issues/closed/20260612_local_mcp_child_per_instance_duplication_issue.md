@@ -1,3 +1,5 @@
+> **CLOSED 2026-06-23** — bulk-closed per resolved→close: fix committed + deployed; soak window elapsed with no recurrence noted. Folder location (closed/) is the authoritative lifecycle state; the in-body OBSERVING text below is the as-observed record. Reopen if recurrence appears.
+
 # Bug Report: 同一 daemon 對每個 project 目錄各 spawn 一份 local MCP 子行程（per-Instance 重複；非洩漏但有界堆積）
 
 ## 1. Bug Identity

@@ -1,3 +1,5 @@
+> **CLOSED 2026-06-23** — bulk-closed per resolved→close: fix committed + deployed; soak window elapsed with no recurrence noted. Folder location (closed/) is the authoritative lifecycle state; the in-body OBSERVING text below is the as-observed record. Reopen if recurrence appears.
+
 # Full Repo Baseline Cleanup PR Scope
 
 Status: OBSERVING (2026-06-22) — 核心真 bug 已全清，餘 6 項皆非產品正確性風險、排 backlog。本輪：structured-output 真 regression 已修（case 1 enforcement reachability + case 2 DD-7 compaction-round 守衛，commit `61603e1c0`，8 pass + 廣域回歸全綠）；前輪 pty security gap 亦已修。**剩餘 6 項（needs-decision 2 / needs-rewrite 4 / env 1）逐項定性後無一傷害產品正確性**，移入 observing 待排期：

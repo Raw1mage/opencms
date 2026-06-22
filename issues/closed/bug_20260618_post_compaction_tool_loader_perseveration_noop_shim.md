@@ -1,3 +1,5 @@
+> **CLOSED 2026-06-23** — bulk-closed per resolved→close: fix committed + deployed; soak window elapsed with no recurrence noted. Folder location (closed/) is the authoritative lifecycle state; the in-body OBSERVING text below is the as-observed record. Reopen if recurrence appears.
+
 # BUG: auto-compaction 後在 no-op meta-tool（`tool_loader`）上 perseveration 迴圈——shim 結果語氣鼓勵性、反覆呼叫不收斂
 
 - **日期**：2026-06-18

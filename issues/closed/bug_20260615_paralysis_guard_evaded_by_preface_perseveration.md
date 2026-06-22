@@ -1,3 +1,5 @@
+> **CLOSED 2026-06-23** — bulk-closed per resolved→close: fix committed + deployed; soak window elapsed with no recurrence noted. Folder location (closed/) is the authoritative lifecycle state; the in-body OBSERVING text below is the as-observed record. Reopen if recurrence appears.
+
 # 跳針：固定開場白 + 變動微動作的零進度 loop，逃過 paralysis guard
 
 Status: OBSERVING (reported 2026-06-15；fix `49480bdbd` 已在 main、單測 `prompt.paralysis-preface.test.ts` 在 tree、已隨後續 3R 部署數週無復發。**待真實 session 自然觸發 preface-loop 情境的最後一次即時驗證**才轉 closed——無法強制重現。原 6-15 Status 行誤記「未部署」已修正。)

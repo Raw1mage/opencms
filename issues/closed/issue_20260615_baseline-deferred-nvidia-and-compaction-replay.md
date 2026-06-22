@@ -1,6 +1,8 @@
 # Baseline-deferred: nvidia provider + compaction-replay-integration
 
-Status: OPEN (2026-06-15) — two baseline failures deferred from `issue_20260614_full_repo_baseline_cleanup` because they are NOT mechanical test drift. Both are `test.skip`/`describe.skip` with inline reasons pointing here.
+Status: CLOSED 2026-06-23 — deferred backlog, closed as not-actively-pursued. Neither is a regression: (1) `nvidia` is a never-implemented runtime provider (a missing feature, not a bug), (2) compaction-replay-integration is a known test gap. Both tests remain `test.skip`/`describe.skip` with inline reasons; reopen via a fresh feature/spec when either is actually scheduled. Original analysis preserved below.
+
+~~OPEN (2026-06-15) — two baseline failures deferred from `issue_20260614_full_repo_baseline_cleanup` because they are NOT mechanical test drift. Both are `test.skip`/`describe.skip` with inline reasons pointing here.~~
 
 ## 1. `test/provider/provider-cms.test.ts` — "cms admin-like nvidia api account shows provider model list"
 

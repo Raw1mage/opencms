@@ -1,3 +1,5 @@
+> **CLOSED 2026-06-23** — bulk-closed per resolved→close: fix committed + deployed; soak window elapsed with no recurrence noted. Folder location (closed/) is the authoritative lifecycle state; the in-body OBSERVING text below is the as-observed record. Reopen if recurrence appears.
+
 # BR: enablement.json still tells agents the double-prefix `mcpapp-docxmcp_docxmcp_*` key after toolID() canonicalized to single-prefix → tool_loader misses
 
 Status: OBSERVING — root cause = bundled prompt advertised pre-canonicalization double-prefix `mcpapp-docxmcp_docxmcp_*` keys that `toolID()` (mcp/index.ts:918-929) collapses to single-prefix, so `tool_loader` missed the documented docxmcp call. Fixed across **all** surfaces (BR scoped only enablement.json; a full-repo sweep found a second site):
