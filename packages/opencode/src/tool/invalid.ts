@@ -20,7 +20,7 @@ export const InvalidTool = Tool.define("invalid", {
         title: "Invalid Tool",
         output:
           `Tool "${params.tool}" does not exist in this session — your call was redirected to the invalid sink. ${params.error}\n\n` +
-          `Do NOT retry this name: calling it again just lands back here. Use a tool name from your available tools / <deferred-tools> catalog, ` +
+          `Do NOT retry this name: calling it again just lands back here. Use a tool name from your available tools / <on-demand-tools> catalog, ` +
           `or if the capability is genuinely missing, stop and tell the user what you need instead of looping.`,
         metadata: {},
       }

@@ -214,6 +214,7 @@ export namespace ClaudeImport {
     "pinned_skills",
     "active_skills",
     "summarized_skills",
+    "on-demand-tools",
     "deferred-tools",
     "deferred_tools",
     "attached_images",

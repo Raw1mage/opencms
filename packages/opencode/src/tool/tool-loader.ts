@@ -164,8 +164,8 @@ export function resolveToolLoaderRequest(available: Set<string>, requested: stri
 // sits in the cached tools→system→messages prefix), or every lazy unlock would
 // churn the whole prefix → full rd=0 cold. This string never changes.
 export const TOOL_LOADER_STATIC_DESCRIPTION =
-  "Compatibility shim — usually unnecessary. The deferred tools listed in your context (the lazy-tool catalog) " +
-  "are ALREADY directly callable: just call one and it auto-loads on first use. " +
+  "Compatibility shim — usually unnecessary. The on-demand tools listed in your context (the <on-demand-tools> catalog) " +
+  "are ALREADY directly callable right now: just call one by name and it auto-loads on first use, even though it is not in your function list. " +
   "Use this only to confirm a name resolves (e.g. an app/namespace alias) before calling it; " +
   'pass tool names as an array: tool_loader({ tools: ["bash", "edit"] }). It does not gate callability.'
 
@@ -187,8 +187,8 @@ export function formatCatalogDescription(catalog: CatalogEntry[], totalAvailable
 
 /**
  * Build a compact system-prompt section (~2-4K tokens) that tells the AI
- * what deferred tools exist so it can call them directly.  The LLM runtime
- * will auto-load any deferred tool on first call via `experimental_repairToolCall`.
+ * what on-demand tools exist so it can call them directly.  The LLM runtime
+ * will auto-load any on-demand tool on first call via `experimental_repairToolCall`.
  */
 export function formatLazyCatalogPrompt(lazyTools: Map<string, { description?: string }>): string | undefined {
   if (!lazyTools || lazyTools.size === 0) return undefined
@@ -214,8 +214,8 @@ export function formatLazyCatalogPrompt(lazyTools: Map<string, { description?: s
   }
 
   const lines: string[] = [
-    "<deferred-tools>",
-    `The following ${lazyTools.size} tools are available on-demand. You can call any of them directly — they will be auto-loaded on first use. No need to call tool_loader first.`,
+    "<on-demand-tools>",
+    `The following ${lazyTools.size} tools are available on-demand and fully usable right now. Call any of them directly by name — even though they are NOT listed in your function/tool list, the runtime auto-loads the tool on first call. A missing entry in your tool list does NOT mean the tool is unavailable, and you do NOT need to call tool_loader first.`,
     "",
   ]
 
@@ -236,7 +236,7 @@ export function formatLazyCatalogPrompt(lazyTools: Map<string, { description?: s
     lines.push("")
   }
 
-  lines.push("</deferred-tools>")
+  lines.push("</on-demand-tools>")
   return lines.join("\n")
 }
 
@@ -247,7 +247,7 @@ export function formatLazyCatalogPrompt(lazyTools: Map<string, { description?: s
  * tools[] set — resolveTools keeps the cached prefix byte-immutable and the
  * real unlock happens request-locally via experimental_repairToolCall when the
  * model CALLS the tool. So tool_loader does not gate callability; the tools in
- * the <deferred-tools> catalog are already directly callable. This output must
+ * the <on-demand-tools> catalog are already directly callable. This output must
  * therefore NOT claim "available on your next action" (the old wording was a
  * lie that made agents wait a turn for a callable that never arrives — see
  * issues/issue_20260617_tool_loader_loaded_tool_not_callable.md). Pulled out as

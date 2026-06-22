@@ -31,7 +31,7 @@ import { createChildStoreManager } from "./global-sync/child-store"
 import { trimSessions } from "./global-sync/session-trim"
 import { estimateRootSessionTotal, loadRootSessionsWithFallback } from "./global-sync/session-load"
 import { applyDirectoryEvent, applyGlobalEvent } from "./global-sync/event-reducer"
-import { LLM_HISTORY_CAP, type LlmHistoryEntry } from "./global-sync/types"
+import { LLM_HISTORY_CAP, type LlmHistoryEntry, type StoreSessionStatusEntry } from "./global-sync/types"
 import {
   bootstrapDirectory,
   bootstrapGlobal,
@@ -40,7 +40,7 @@ import {
 } from "./global-sync/bootstrap"
 import { sanitizeProject } from "./global-sync/utils"
 import type { ProjectMeta } from "./global-sync/types"
-import { SESSION_RECENT_LIMIT } from "./global-sync/types"
+import { SESSION_RECENT_LIMIT, SESSION_STATUS_RECONCILE_MS } from "./global-sync/types"
 import { formatServerError } from "@/utils/server-errors"
 
 type GlobalStore = {
@@ -653,6 +653,34 @@ function createGlobalSync() {
 
   let hiddenAt = 0
 
+  // session_status is an edge-triggered cache fed by SSE `session.status` events.
+  // The sidebar runloop halo / per-session spinner read it directly. If a terminal
+  // (idle) event is dropped — SSE reconnect gap, daemon restart — a "busy" entry
+  // goes stale and the halo breathes forever, because nothing re-syncs against the
+  // daemon's authoritative state on a clock (only on visibility/online/pageshow).
+  //
+  // The daemon is self-correcting: idle deletes the entry, a restart clears the
+  // whole in-memory map. So poll `session.status()` per open directory on an
+  // interval (tab visible only) and full-replace — identical to bootstrap's
+  // stamping — so any client drift is reconciled within one interval.
+  const reconcileSessionStatus = async (directory: string) => {
+    try {
+      const [, setStore] = children.child(directory, { bootstrap: false })
+      const res = await sdkFor(directory).session.status()
+      const now = Date.now()
+      const stamped: Record<string, StoreSessionStatusEntry> = {}
+      for (const [sid, status] of Object.entries(res.data ?? {})) stamped[sid] = { ...status, receivedAt: now }
+      setStore("session_status", stamped)
+    } catch {
+      // Transient upstream failure — the next tick retries. Background poll, no toast.
+    }
+  }
+
+  const reconcileAllSessionStatus = () => {
+    if (typeof document !== "undefined" && document.hidden) return
+    for (const directory of Object.keys(children.children)) void reconcileSessionStatus(directory)
+  }
+
   const refreshVisibleState = async (reason: "resume" | "pageshow" | "online") => {
     if (reason === "online") {
       await bootstrap({ silent: true }).catch(() => {})
@@ -703,10 +731,16 @@ function createGlobalSync() {
     document.addEventListener("visibilitychange", onVisibility)
     window.addEventListener("pageshow", onPageShow)
     window.addEventListener("online", onOnline)
+
+    // Authoritative drift-correction clock: re-sync session_status against the
+    // daemon so a missed terminal event can't leave the halo / spinner stuck.
+    const statusTimer = setInterval(reconcileAllSessionStatus, SESSION_STATUS_RECONCILE_MS)
+
     onCleanup(() => {
       document.removeEventListener("visibilitychange", onVisibility)
       window.removeEventListener("pageshow", onPageShow)
       window.removeEventListener("online", onOnline)
+      clearInterval(statusTimer)
     })
   })
 

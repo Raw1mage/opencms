@@ -329,3 +329,8 @@ export const MAX_DIR_STORES = 30
 export const DIR_IDLE_TTL_MS = 20 * 60 * 1000
 export const SESSION_RECENT_WINDOW = 4 * 60 * 60 * 1000
 export const SESSION_RECENT_LIMIT = 50
+// Interval for the authoritative session_status drift-correction poll. The daemon
+// is the source of truth (idle deletes the entry; a restart clears the map); this
+// clock reconciles any client-side cache drift from a dropped terminal event so the
+// runloop halo / spinner can't get stuck. Tab-visible only — see global-sync onMount.
+export const SESSION_STATUS_RECONCILE_MS = 12_000

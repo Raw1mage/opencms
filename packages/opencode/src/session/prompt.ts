@@ -484,7 +484,7 @@ export function selectParalysisNudge(input: {
   // warroom-style loop (varying error strings) never gets the directional hint.
   // bug_20260622_invalid_sink_perseveration.
   if (repeatedToolName === "invalid") {
-    return "你連續打到 invalid — 所有無法解析的工具呼叫都會被導到這個萬用 sink，它一定「成功」但毫無效果。這代表你用的工具名在這個 session 不存在，或參數結構不對，不是「再試一次就會好」。停止用同一個名字重試：改用 context 裡 <deferred-tools> / 可用工具清單列出的正確名稱直接呼叫；如果你要的工具真的不存在，停下來告訴 user 你缺什麼能力。"
+    return "你連續打到 invalid — 所有無法解析的工具呼叫都會被導到這個萬用 sink，它一定「成功」但毫無效果。這代表你用的工具名在這個 session 不存在，或參數結構不對，不是「再試一次就會好」。停止用同一個名字重試：改用 context 裡 <on-demand-tools> / 可用工具清單列出的正確名稱直接呼叫；如果你要的工具真的不存在，停下來告訴 user 你缺什麼能力。"
   }
   // tool_loader: stable args → caught by the signature detector; keep it gated
   // there so an incidental narrative repeat that happens to include tool_loader
