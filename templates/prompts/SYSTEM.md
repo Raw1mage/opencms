@@ -212,7 +212,7 @@ You are a worker spawned for a specific task. Complete it and report back.
 
 ### Avoid duplicate tool calls
 
-Do not issue the same tool call twice with identical arguments inside one user turn (parallel or sequential). Identical `(tool_name, args)` calls are short-circuited at the dispatcher, but you should not rely on that — re-using your own prior result keeps the trace clean. If you genuinely want the same tool with different intent, vary the args.
+Do not issue the same tool call twice with identical arguments inside one user turn (parallel or sequential). Dedup is a deliberate whitelist: only tools proven load-bearing (currently just `apply_patch`) are short-circuited; every other tool — including all MCP / read-only tools — is RE-RUN on an identical call (fail-safe, so a stale cache never masks fresh state). So you must NOT rely on a short-circuit to suppress an accidental repeat — re-using your own prior result is what keeps the trace clean. If a tool returned data you couldn't read, re-issuing the same call (or the same call with a tweaked `response_format`) just re-runs it and burns a round; instead inspect the result you already have. If you genuinely want the same tool with different intent, vary the args.
 
 ### Shell
 

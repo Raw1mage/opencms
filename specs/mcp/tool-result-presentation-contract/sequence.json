@@ -1,0 +1,46 @@
+[
+  {
+    "id": "P1",
+    "name": "Empty-shell backfill (the BR trigger)",
+    "componentRef": "A0",
+    "messages": [
+      { "id": "MSG1", "from": "LLM", "to": "MCP wrapper", "label": "callTool(docxmcp_template_vault, action=list)" },
+      { "id": "MSG2", "from": "MCP wrapper", "to": "MCP server", "label": "rawExecute(args)" },
+      { "id": "MSG3", "from": "MCP server", "to": "MCP wrapper", "label": "result { content:[text 'see structuredContent'], structuredContent:{items} }" },
+      { "id": "MSG4", "from": "MCP wrapper", "to": "composeMcpToolOutput", "label": "McpToolResult" },
+      { "id": "MSG5", "from": "composeMcpToolOutput", "to": "composeMcpToolOutput", "label": "detect empty-shell + structuredContent present -> backfill (DD-2)" },
+      { "id": "MSG6", "from": "composeMcpToolOutput", "to": "Truncate.output", "label": "merged text (text + serialized structuredContent)" },
+      { "id": "MSG7", "from": "composeMcpToolOutput", "to": "LLM", "label": "envelope { output:items JSON, metadata.presentationBackfill } (INV-PRESENT)" }
+    ]
+  },
+  {
+    "id": "P2",
+    "name": "Normal text result (no backfill)",
+    "componentRef": "A0",
+    "messages": [
+      { "id": "MSG1", "from": "LLM", "to": "MCP wrapper", "label": "callTool(some_tool) -> content[].text has body" },
+      { "id": "MSG2", "from": "MCP wrapper", "to": "composeMcpToolOutput", "label": "McpToolResult (text non-empty)" },
+      { "id": "MSG3", "from": "composeMcpToolOutput", "to": "LLM", "label": "envelope { output:text, no backfill mark }" }
+    ]
+  },
+  {
+    "id": "P3",
+    "name": "isError result (no backfill)",
+    "componentRef": "A0",
+    "messages": [
+      { "id": "MSG1", "from": "MCP server", "to": "MCP wrapper", "label": "result { isError:true, structuredContent:{error} }" },
+      { "id": "MSG2", "from": "MCP wrapper", "to": "composeMcpToolOutput", "label": "McpToolResult (isError)" },
+      { "id": "MSG3", "from": "composeMcpToolOutput", "to": "LLM", "label": "envelope { output:error text, NO structuredContent backfill (DD-2 guard) }" }
+    ]
+  },
+  {
+    "id": "P4",
+    "name": "Behavioral guard - semantic-equivalent retry still shell",
+    "componentRef": "A0",
+    "messages": [
+      { "id": "MSG1", "from": "LLM", "to": "MCP wrapper", "label": "callTool(tool, response_format=json) -> still shell" },
+      { "id": "MSG2", "from": "LLM", "to": "MCP wrapper", "label": "callTool(tool, response_format=structured) -> still shell" },
+      { "id": "MSG3", "from": "paralysis guard", "to": "LLM", "label": "nudge: change read strategy / HTTP blob (DD-6)" }
+    ]
+  }
+]

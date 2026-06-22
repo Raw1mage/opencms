@@ -171,6 +171,40 @@ describe("ConfigMarkdown: frontmatter parsing", async () => {
   })
 })
 
+describe("ConfigMarkdown: repeated parse of colon-bearing frontmatter (gray-matter cache poisoning)", async () => {
+  // Regression: a description scalar with a mid-value colon makes strict js-yaml
+  // THROW. gray-matter writes a process-global cache entry (keyed by raw content)
+  // BEFORE parsing, so the throw leaves a poisoned empty-data entry. Pre-fix, the
+  // first ConfigMarkdown.parse recovered via fallbackSanitization, but every
+  // SUBSEQUENT parse of the same content hit the poisoned cache, returned
+  // `{ data: {} }` without throwing, and silently lost name/description — which in
+  // a long-lived daemon made such a skill (doc-workflow) intermittently invisible.
+  const dir = import.meta.dir + "/fixtures/colon-in-description.md"
+
+  test("first parse extracts name + description", async () => {
+    const first = await ConfigMarkdown.parse(dir)
+    expect(first.data.name).toBe("doc-workflow")
+    expect(first.data.description).toContain("decomposition package: markdown-first")
+  })
+
+  test("repeated parses stay deterministic (no cache poisoning)", async () => {
+    for (let i = 0; i < 5; i++) {
+      const again = await ConfigMarkdown.parse(dir)
+      expect(again.data.name).toBe("doc-workflow")
+      expect(typeof again.data.description).toBe("string")
+      expect((again.data.description as string).length).toBeGreaterThan(0)
+    }
+  })
+
+  test("concurrent parses all keep the description", async () => {
+    const results = await Promise.all(Array.from({ length: 12 }, () => ConfigMarkdown.parse(dir)))
+    for (const r of results) {
+      expect(r.data.name).toBe("doc-workflow")
+      expect((r.data.description as string)?.length ?? 0).toBeGreaterThan(0)
+    }
+  })
+})
+
 describe("ConfigMarkdown: frontmatter parsing w/ empty frontmatter", async () => {
   const result = await ConfigMarkdown.parse(import.meta.dir + "/fixtures/empty-frontmatter.md")
 

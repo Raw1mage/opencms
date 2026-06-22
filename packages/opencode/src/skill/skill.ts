@@ -113,7 +113,10 @@ export namespace Skill {
     }
   }
 
-  type StateGetter = (() => Promise<Awaited<ReturnType<typeof createState>>>) & { reset?: () => void }
+  type StateGetter = (() => Promise<Awaited<ReturnType<typeof createState>>>) & {
+    reset?: () => void
+    resetAll?: () => void
+  }
   let stateGetter: StateGetter | undefined
   let fallbackState: Promise<Awaited<ReturnType<typeof createState>>> | undefined
 
@@ -127,9 +130,22 @@ export namespace Skill {
     return fallbackState
   }
 
-  /** Drop the cached skill index so the next state() call rescans every source. */
+  /**
+   * Drop the cached skill index so the next state() call rescans <data>/skills.
+   *
+   * The skill index is a single on-disk scan shared process-wide, but
+   * Instance.state caches it per Instance.directory. A multi-cwd daemon
+   * therefore holds one bucket per directory; an MCP-bundled skill projected
+   * into <data>/skills after a directory's first scan stays invisible to that
+   * directory until ITS bucket is cleared. reset() runs in whatever
+   * AsyncLocalStorage context is active (capability-sync at MCP connect, a
+   * skill_loader reload route, or the skill() tool's self-heal), which is
+   * frequently NOT the directory the next reader will use. resetAll() drops the
+   * cached index across EVERY directory bucket so the projection becomes visible
+   * regardless of which instance reads next.
+   */
   export function reset() {
-    stateGetter?.reset?.()
+    stateGetter?.resetAll?.()
     fallbackState = undefined
     log.info("skill state reset")
   }

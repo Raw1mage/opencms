@@ -34,6 +34,23 @@ export namespace State {
     entries.delete(init)
   }
 
+  /**
+   * Drop the cached entry for `init` across EVERY key bucket.
+   *
+   * `reset(key, init)` only clears the bucket of the directory that happens to
+   * be the active AsyncLocalStorage context at call time. For process-wide
+   * caches (e.g. the Skill index, which is a single on-disk scan shared by all
+   * instances) that is wrong: a daemon serving multiple cwds keeps one bucket
+   * per `Instance.directory`, so a reset issued from instance A leaves instance
+   * B's stale bucket intact. This clears the same `init` from all of them so the
+   * next read in any instance re-runs `init()`.
+   */
+  export function resetAcrossKeys(init: any) {
+    for (const entries of recordsByKey.values()) {
+      entries.delete(init)
+    }
+  }
+
   export async function dispose(key: string) {
     const entries = recordsByKey.get(key)
     if (!entries) return

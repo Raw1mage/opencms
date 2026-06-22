@@ -67,15 +67,31 @@ export namespace ConfigMarkdown {
     return content.replace(frontmatter, () => processed)
   }
 
+  // gray-matter keeps a PROCESS-GLOBAL cache keyed by raw content
+  // (matter.cache[file.content]) that it only consults when no options object is
+  // passed (index.js: `if (!options) { if (cached) … ; cache[content] = file }`).
+  // Crucially it writes the cache entry BEFORE the YAML body is parsed, so a
+  // frontmatter that makes strict js-yaml THROW (e.g. a description scalar with a
+  // mid-value colon) poisons the cache with an empty-data entry: the first call
+  // throws and our fallback path recovers it, but every SUBSEQUENT call on the
+  // same content hits the poisoned cache, returns `{ data: {} }` WITHOUT
+  // throwing, so the fallback never runs and the skill silently loses its
+  // name/description. In a long-lived daemon that re-scans skills repeatedly this
+  // makes such a skill (doc-workflow) intermittently invisible while a fresh
+  // process — whose cache is empty — always sees it. Passing an options object on
+  // every call takes gray-matter's no-cache branch, so each parse is independent
+  // and deterministic. We sacrifice a micro-cache we never relied on.
+  const MATTER_OPTS: matter.GrayMatterOption<string, any> = {}
+
   export async function parse(filePath: string) {
     const template = await Bun.file(filePath).text()
 
     try {
-      const md = matter(template)
+      const md = matter(template, MATTER_OPTS)
       return md
     } catch {
       try {
-        return matter(fallbackSanitization(template))
+        return matter(fallbackSanitization(template), MATTER_OPTS)
       } catch (err) {
         throw new FrontmatterError(
           {

@@ -155,10 +155,58 @@ test("returns empty array when the central directory has no skills", async () =>
     directory: tmp.path,
     fn: async () => {
       const skills = await Skill.all()
-      const local = skills.filter((s) =>
-        s.location.startsWith(skillRoot + path.sep),
-      )
+      const local = skills.filter((s) => s.location.startsWith(skillRoot + path.sep))
       expect(local).toEqual([])
+    },
+  })
+})
+
+// Regression: a skill projected into <data>/skills AFTER one instance has
+// scanned must become visible to OTHER instances after Skill.reset(). The
+// skill index is cached per Instance.directory; the bug was that reset() only
+// cleared the active context's directory bucket, so a multi-cwd daemon left
+// every other instance's stale index in place (an MCP-bundled skill projected
+// at connect time stayed invisible to the session that later called skill()).
+test("reset() invalidates the skill index across ALL instance directories", async () => {
+  await cleanCentral()
+  await writeCentralSkill("base-skill", "Present before either instance scans.")
+  Skill.reset()
+
+  await using tmpA = await tmpdir({ git: true })
+  await using tmpB = await tmpdir({ git: true })
+
+  // Both instances scan once -> each directory bucket caches the index WITHOUT
+  // the not-yet-projected skill.
+  await Instance.provide({
+    directory: tmpA.path,
+    fn: async () => {
+      expect((await Skill.all()).find((s) => s.name === "base-skill")).toBeDefined()
+      expect((await Skill.all()).find((s) => s.name === "late-skill")).toBeUndefined()
+    },
+  })
+  await Instance.provide({
+    directory: tmpB.path,
+    fn: async () => {
+      expect((await Skill.all()).find((s) => s.name === "late-skill")).toBeUndefined()
+    },
+  })
+
+  // Project a new skill, then reset from WITHIN instance A's context only.
+  await writeCentralSkill("late-skill", "Projected after both instances scanned.")
+  await Instance.provide({
+    directory: tmpA.path,
+    fn: async () => {
+      Skill.reset()
+      expect((await Skill.all()).find((s) => s.name === "late-skill")).toBeDefined()
+    },
+  })
+
+  // Instance B — whose bucket was NEVER the active context during reset — must
+  // ALSO see the late skill. Pre-fix this failed: B kept its stale index.
+  await Instance.provide({
+    directory: tmpB.path,
+    fn: async () => {
+      expect((await Skill.all()).find((s) => s.name === "late-skill")).toBeDefined()
     },
   })
 })

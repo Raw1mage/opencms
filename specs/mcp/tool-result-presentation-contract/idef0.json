@@ -1,0 +1,26 @@
+{
+  "diagram_title": "Compose MCP Tool Result Into LLM-Visible Presentation",
+  "node_reference": "A0",
+  "activities": [
+    { "id": "A1", "title": "Normalize Raw Tool Result", "description": "raw MCP result → McpToolResult {content[], structuredContent?, metadata?, isError?}", "decomposition": null },
+    { "id": "A2", "title": "Partition Content Channels", "description": "split content[] into text parts vs media/resource attachments", "decomposition": null },
+    { "id": "A3", "title": "Detect Empty Shell Output", "description": "judge whether joined text is empty / placeholder while structuredContent holds substance", "decomposition": null },
+    { "id": "A4", "title": "Backfill Structured Content", "description": "serialize structuredContent into visible output when shell detected, stamp observability", "decomposition": null },
+    { "id": "A5", "title": "Truncate Visible Output", "description": "apply token budget to merged visible text, emit outputPath when truncated", "decomposition": null },
+    { "id": "A6", "title": "Emit Presentation Envelope", "description": "return {output, attachments, metadata} honoring INV-PRESENT", "decomposition": null }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "raw MCP callTool result", "type": "input" },
+    { "id": "AR2", "source": "A1:output", "target": "A2:input", "label": "McpToolResult", "type": "output" },
+    { "id": "AR3", "source": "A2:output", "target": "A3:input", "label": "text parts + attachments", "type": "output" },
+    { "id": "AR4", "source": "A3:output", "target": "A4:input", "label": "shell verdict + structuredContent", "type": "output" },
+    { "id": "AR5", "source": "A4:output", "target": "A5:input", "label": "merged visible text", "type": "output" },
+    { "id": "AR6", "source": "A5:output", "target": "A6:input", "label": "truncated output + meta", "type": "output" },
+    { "id": "AR7", "source": "A6:output", "target": "EXTERNAL", "label": "LLM-visible presentation envelope", "type": "output" },
+    { "id": "AR8", "source": "EXTERNAL", "target": "A3:control", "label": "empty-shell regex policy (DD-2)", "type": "control" },
+    { "id": "AR9", "source": "EXTERNAL", "target": "A4:control", "label": "no-silent-fallback rule + observability", "type": "control" },
+    { "id": "AR10", "source": "EXTERNAL", "target": "A5:control", "label": "truncation budget policy", "type": "control" },
+    { "id": "AR11", "source": "EXTERNAL", "target": "A1:mechanism", "label": "normalizeMcpToolResult()", "type": "mechanism" },
+    { "id": "AR12", "source": "EXTERNAL", "target": "A6:mechanism", "label": "resolve-tools MCP wrapper", "type": "mechanism" }
+  ]
+}

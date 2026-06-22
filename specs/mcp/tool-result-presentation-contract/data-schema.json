@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tool-result presentation contract data schema",
+  "$defs": {
+    "McpToolResult": {
+      "type": "object",
+      "description": "normalizeMcpToolResult() 的正規化輸出（resolve-tools.ts:46-51）",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ContentItem" }
+        },
+        "metadata": { "type": "object", "additionalProperties": true },
+        "isError": { "type": "boolean" },
+        "structuredContent": {
+          "description": "結構化主體；H1 真因＝此欄位在現行 wrapper 回傳時丟失"
+        }
+      },
+      "required": ["content"]
+    },
+    "ContentItem": {
+      "oneOf": [
+        { "type": "object", "properties": { "type": { "const": "text" }, "text": { "type": "string" } }, "required": ["type", "text"] },
+        { "type": "object", "properties": { "type": { "const": "image" }, "mimeType": { "type": "string" }, "data": { "type": "string" } }, "required": ["type"] },
+        { "type": "object", "properties": { "type": { "const": "resource" }, "resource": { "type": "object" } }, "required": ["type"] }
+      ]
+    },
+    "EmptyShellVerdict": {
+      "type": "object",
+      "description": "DD-2 空殼偵測結果（純函式內部）",
+      "properties": {
+        "isEmptyShell": { "type": "boolean" },
+        "reason": {
+          "type": "string",
+          "enum": ["empty", "whitespace_only", "see_structured_placeholder", "not_shell"]
+        },
+        "hasStructuredContent": { "type": "boolean" }
+      },
+      "required": ["isEmptyShell", "reason", "hasStructuredContent"]
+    },
+    "PresentationEnvelope": {
+      "type": "object",
+      "description": "composeMcpToolOutput() 的輸出（LLM 可見），INV-PRESENT 守此出口",
+      "properties": {
+        "output": { "type": "string", "description": "LLM 可見文字；成功且帶實體資料時非空殼" },
+        "attachments": { "type": "array", "items": { "type": "object" } },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "truncated": { "type": "boolean" },
+            "outputPath": { "type": "string" },
+            "presentationBackfill": { "$ref": "#/$defs/PresentationBackfill" }
+          },
+          "additionalProperties": true
+        }
+      },
+      "required": ["output", "attachments", "metadata"]
+    },
+    "PresentationBackfill": {
+      "type": "object",
+      "description": "DD-2 回填觀測標記；存在 ⟺ 發生 structuredContent 回填（非 silent）",
+      "properties": {
+        "reason": { "type": "string", "enum": ["empty", "whitespace_only", "see_structured_placeholder"] },
+        "bytes": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["reason", "bytes"]
+    }
+  }
+}

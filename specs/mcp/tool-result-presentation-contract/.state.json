@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-06-22T05:20:50.770Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-06-22T05:28:28.399Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "proposal + design(含 Risks/Trade-offs) + spec + idef0/grafcet(過 drawmiat validation) + sequence(array) + data-schema + DD-1~7 完成"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-06-22T05:31:54.679Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks/handoff(Stop Gates In Force)/test-vectors(array)/errors(Error Catalogue)/observability(Events+Metrics) heading 全補齊"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-06-22T05:40:58.888Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Admission Gate 通過、beta worktree 建立、plan artifact revise 反映 shapeMcpResult 既有收斂點；開始 Phase 1 實作"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-06-22T09:08:15.904Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "所有 task 收斂：Phase 1/2/4/5 全 [x]，Phase 3（paralysis guard 延伸）依使用者決策整體取消並移出 checklist。驗證證據齊全：17 測試綠、端到端 backfill log 計數 0→2 決定性、architecture.md 已同步、event log 已記、修復已 3R 部署上線。"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-06-22T09:08:49.338Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "使用者明確指示升格。state 已達 verified；H1 治本已部署上線，端到端驗證決定性（backfill log 計數 0→2），17 測試綠，event log 已記，architecture.md 已同步，BR issue 已進觀察期，Phase 3 依使用者決策取消。"
+    }
+  ]
+}

@@ -82,9 +82,20 @@ export const Instance = {
     if (Instance.worktree === "/") return false
     return Filesystem.contains(Instance.worktree, filepath)
   },
-  state<S>(init: () => S, dispose?: (state: Awaited<S>) => Promise<void>): (() => S) & { reset: () => void } {
-    const getter = State.create(() => Instance.directory, init, dispose) as (() => S) & { reset: () => void }
+  state<S>(
+    init: () => S,
+    dispose?: (state: Awaited<S>) => Promise<void>,
+  ): (() => S) & { reset: () => void; resetAll: () => void } {
+    const getter = State.create(() => Instance.directory, init, dispose) as (() => S) & {
+      reset: () => void
+      resetAll: () => void
+    }
     getter.reset = () => State.reset(Instance.directory, init)
+    // resetAll drops this init's cached entry in EVERY directory bucket, not
+    // just the active context's. Required for process-wide caches (e.g. the
+    // Skill index) that a multi-cwd daemon must invalidate across all instances
+    // when the underlying on-disk source changes.
+    getter.resetAll = () => State.resetAcrossKeys(init)
     return getter
   },
   async dispose() {
