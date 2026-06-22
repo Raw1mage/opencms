@@ -163,3 +163,75 @@ describe("resolve-tools MCP result normalization", () => {
     expect(result.metadata?.mcpNormalized).toEqual({ reason: "missing_result" })
   })
 })
+
+describe("presentation contract: empty-shell detection (DD-2)", () => {
+  test("detectEmptyShell classifies each shell category", () => {
+    expect(detectEmptyShell("")).toEqual({ isEmptyShell: true, reason: "empty" })
+    expect(detectEmptyShell("   \n  ")).toEqual({ isEmptyShell: true, reason: "whitespace_only" })
+    expect(detectEmptyShell("see structuredContent")).toEqual({
+      isEmptyShell: true,
+      reason: "see_structured_placeholder",
+    })
+    expect(detectEmptyShell("ok=True; see structuredContent")).toEqual({
+      isEmptyShell: true,
+      reason: "see_structured_placeholder",
+    })
+  })
+
+  test("detectEmptyShell does NOT flag substantive text (DD-2 strictness)", () => {
+    // real prose merely mentioning the phrase is NOT a shell (anchored regex)
+    expect(detectEmptyShell("Found 2 templates: see structuredContent for the rest")).toEqual({
+      isEmptyShell: false,
+      reason: "not_shell",
+    })
+    expect(detectEmptyShell("Found 2 templates")).toEqual({ isEmptyShell: false, reason: "not_shell" })
+  })
+})
+
+describe("presentation contract: composePresentation over test-vectors TV1..TV8", () => {
+  for (const tv of testVectors) {
+    test(`${tv.id} — ${tv.desc}`, () => {
+      const { output, presentationBackfill } = composePresentation(tv.input)
+
+      for (const needle of (tv.expect.output_contains as string[]) ?? []) {
+        expect(output).toContain(needle)
+      }
+
+      const expectedReason = tv.expect["metadata.presentationBackfill.reason"] as string | undefined
+      if (expectedReason) {
+        expect(presentationBackfill).toBeDefined()
+        expect(presentationBackfill!.reason).toBe(expectedReason)
+      }
+      if (tv.expect["metadata.presentationBackfill.bytes_gt"] !== undefined) {
+        expect(presentationBackfill!.bytes).toBeGreaterThan(
+          tv.expect["metadata.presentationBackfill.bytes_gt"] as number,
+        )
+      }
+      if (tv.expect["metadata.presentationBackfill_absent"] === true) {
+        expect(presentationBackfill).toBeUndefined()
+      }
+      if (tv.expect.output_is_empty_shell === false) {
+        // INV-PRESENT exit assertion: backfilled output is no longer an empty shell
+        expect(detectEmptyShell(output).isEmptyShell).toBe(false)
+      }
+    })
+  }
+})
+
+describe("INV-0 baseline (DD-5): native-shaped results pass through without backfill", () => {
+  // A native tool result (no structuredContent) NEVER triggers presentation
+  // backfill — the contract only acts when structuredContent carries the body.
+  // This guards the byte-identical native path (resolve-tools.ts: native tools
+  // route via ToolInvoker.execute and never reach shapeMcpResult).
+  test("native output without structuredContent is never backfilled", () => {
+    const result = composePresentation({ isError: false, content: [{ type: "text", text: "ready: true" }] })
+    expect(result.output).toBe("ready: true")
+    expect(result.presentationBackfill).toBeUndefined()
+  })
+
+  test("empty native output with no structuredContent stays empty (no fabrication)", () => {
+    const result = composePresentation({ isError: false, content: [{ type: "text", text: "" }] })
+    expect(result.output).toBe("")
+    expect(result.presentationBackfill).toBeUndefined()
+  })
+})
