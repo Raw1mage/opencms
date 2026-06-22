@@ -1,6 +1,65 @@
 # Full Repo Baseline Cleanup PR Scope
 
-Status: OPEN (re-measured 2026-06-20) — baseline **38 → 10 failing / 339 files**。舊清單 security 主嫌（killswitch-gate / path-traversal / storage-hardening / rate-limit-judge）+ skill-SSOT 群全數自綠。本輪修 3 檔（tweaks drift + **pty 真 security gap** + working-cache 退役 skip），餘 10 檔卡 stop gate（env 1 / needs-decision 2 / 行為契約 suspect 2 / needs-rewrite 5）。詳見「Re-measure 2026-06-20」段。
+Status: OBSERVING (2026-06-22) — 核心真 bug 已全清，餘 6 項皆非產品正確性風險、排 backlog。本輪：structured-output 真 regression 已修（case 1 enforcement reachability + case 2 DD-7 compaction-round 守衛，commit `61603e1c0`，8 pass + 廣域回歸全綠）；前輪 pty security gap 亦已修。**剩餘 6 項（needs-decision 2 / needs-rewrite 4 / env 1）逐項定性後無一傷害產品正確性**，移入 observing 待排期：
+
+- **env(1)** `rateLimiter`（缺 `sst`）— 非 code bug，裝依賴或永久 skip。
+- **needs-decision(2)** `enablement-tool-keys`（pptx profile 廣告語意，設計選擇）/ `session-resume`（harness AsyncLocalStorage instance wiring，runtime 與測試期望皆正確）— 卡使用者設計決策，非技術 bug。
+- **needs-rewrite(4)** `llm` / `attachment-ownership` / `prompt-account-routing` / `oauth-browser` — 共同根因 freerun-bridge 架構遷移，test harness 未餵 baseURL/family；逐 assertion patch 無意義，待有人動 bridge harness 時整案重寫。
+
+重啟條件（任一）：(a) 追求 baseline 全綠（CI gate / release）；(b) 有人動 freerun-bridge test harness（順手重寫 needs-rewrite 4 項）；(c) 使用者就 enablement profile 語義 / session-resume harness 拍板。詳見下方「Re-measure 2026-06-22」段。
+
+## Re-measure 2026-06-22 — backlog 10 → 8，structured-output 反向重分類
+
+隔離單跑全部 10 檔（HEAD d58f20a07，含 DD-8 等新 commit）。對照 2026-06-20：
+
+### ✅ 自綠 (2)，移出 backlog
+
+- `test/server/session-autonomous.test.ts` — 2026-06-20 為 3 fail（schema 擴張 drift）。autonomous-gate-enforcement / DD-8 工作把 response schema 與測試 `toMatchObject` 對齊，現 **7 pass / 0 fail**。
+- `test/session/llm-cms-stream.test.ts` — 2026-06-20 列 needs-rewrite（freerun stream 15s timeout）。現 **3 pass / 0 fail**，stream 契約已對齊。
+
+### 🔴 structured-output — 反向重分類：test-drift → **真 runtime regression**（mask 已避免）
+
+`test/session/structured-output.test.ts`（2 fail：`writes StructuredOutputError when model returns plain text` + `keeps json_schema flow after auto compaction`）。
+
+2026-06-20 的「safe drift，改 mock 即可」結論**錯誤**——它把 `[PHASE2] applied=false reason=no-anchor` 當成失敗主因，但那是 `prompt.ts:3833` 的 always-on `console.error` debug 噪音，與失敗無關。
+
+源碼層 RCA（green baseline `815cb4132`「fix(session): enforce structured output error」對照 HEAD）：
+
+- 實測 runtime：plain-text json_schema 回應 `finish="stop" structured=undefined error=undefined` → **runtime 沒設 StructuredOutputError**。
+- 兩條 enforcement 路徑都漏掉 clean-terminal-text 這格：
+  - guard A（`prompt.ts:3039`）在迴圈頂部，僅經 `continue` 可達；
+  - guard B（`prompt.ts:4159`）要求 `result==="stop"`，但 clean text 經 `processor.process` 回 `"continue"`（processor 此行為自 baseline 即如此，**未變**）；
+  - 新增的 `isCleanTerminal` break path（`prompt.ts:4297-4382`，content-filter + autonomous-continuation 機制，**baseline 沒有**）在抵達 guard A 前就 `break`。
+- 因果：loop 重構（新增 clean-terminal break path）時未把 structured-output enforcement 帶進該分支 → enforcement guard 變不可達 = **真 regression，非測試落後**。
+- 註：早先 subagent RCA 把機制誤判為「processor 回傳 stop→continue 退化」，經 `git show 815cb4132:processor.ts` 證偽（baseline 即 `return "continue"`）；結論（enforcement 不可達）不變。
+- **處置（2026-06-22 更新）**：拆成兩個 case 分別處理。
+
+#### Case 1 `writes StructuredOutputError when model returns plain text` — ✅ 已修（runtime fix）
+
+- 修法：`prompt.ts` 的 `isCleanTerminal` break path 內、所有 break 分支之前，補 json_schema enforcement（限 `isCleanTerminal`，鏡像頂部 guard A 條件：`format.type==="json_schema" && structured===undefined && !error` → 設 StructuredOutputError）。
+- runtime probe 坐實：plain-text json_schema 回應 `finish="stop"`、`result="continue"`、structured/error 皆 undefined → guard B（要求 `result==="stop"`）不可達，`isCleanTerminal` break 在回到 guard A 前退出。修法在 break 前補回 enforcement。
+- 廣域回歸驗證全綠：structured-output 7 pass（case 1 綠）、session-autonomous 7 pass、compaction 38 pass、post-anchor-transform 11 pass，無退化。
+
+#### Case 2 `keeps json_schema flow after auto compaction` — ✅ 已修（取向 Y，plan `runloop_structured-output-enforcement-ordering`）
+
+- 修法（DD-7，最小）：`prompt.ts` 的 `isCleanTerminal` / `isUnrecognizedTerminalWithOutput` 加 `result !== "compact"` 守衛——壓縮輪（`result==="compact"`）的 assistant message 可能帶 `finish="stop"`（plain-text overflow turn 觸發 compaction），原本會誤滿足 isCleanTerminal 進 terminal-decision block（設 error/break），殺掉壓縮後的 round。守衛後壓縮輪一律 fall-through 到 loop 底 `continue`，下一輪重送較小 prompt。`consecutiveCompactions>=3`（:4222）已 bound，不會無限迴圈。
+- 取向定案 = **取向 Y**（使用者拍板）。spike 證實非純 test-drift（取向 Z 排除）：即使把 mock 改成 runtime 真正消費的 `inspectBudget`，case-1 enforcement 仍在壓縮輪前 break。真正死結是 isCleanTerminal 缺 `result !== "compact"` 守衛——runtime processor 本來就在 `inspectBudget().overflow` 回 `"compact"`（`processor.ts:1206→2040`），不需動 processor 回傳語義。
+- 配套：測試 mock 目標從已搬家的 `SessionCompaction.isOverflow` 改為 runtime 真正消費的 `inspectBudget`（合法 test-drift 修正，測試 intent 不變）。
+- 驗證：structured-output **8 pass / 0 fail**；廣域回歸全綠（session-autonomous 7 / compaction 38 / post-anchor-transform 11 / compaction-hybrid 22）。
+
+#### （原待決策記錄，已由上方取向 Y 結案）
+
+- LOOP-PROBE 坐實：此 case **只跑 step 1**（`result="continue", finish="stop"`），mock 的 round-2 structuredStream 與 compaction **從未執行**。
+- 根因：`deriveObservedCondition` 的 `isOverflow()`（`prompt.ts:1211`）被包在 `if (input.lastFinished)`（:1210）內；iteration 1 無前一輪 assistant → `lastFinished=undefined` → mock `isOverflow=true` 永不被諮詢 → 不 compaction → plainText → `result="continue"` → `isCleanTerminal` break。baseline 時這個 `continue` 會讓 iteration 2 才有 `lastFinished`、才觸發 compaction + round 2。`isCleanTerminal` break **斬斷了 baseline 的多輪 compaction-retry 路徑**——與 case 1 同源，但修法方向**衝突**：case 1 要「立即 error + break」，case 2 要「不 break、再給 loop 一輪 compaction 機會」。
+- 正確調和需動 scarred-core 的 loop ordering（terminal-decision vs compaction-retry 優先序），屬高風險重構，**超出 baseline test cleanup 範圍**，需獨立 plan + 使用者決策。Case 1 的窄修法不影響此 case（修法前後皆紅）。
+
+### 維持原分類（重測確認不變，無可安全 mop-up）
+
+- env(1): `console/app/test/rateLimiter.test.ts` — 仍 `Cannot find package 'sst'`。
+- needs-decision(2): `src/mcp/enablement-tool-keys.test.ts`（2 fail，docxmcp pptx profile 廣告語意）、`test/server/session-resume.test.ts`（1 fail，harness instance-context wiring）。
+- needs-rewrite(4): `test/session/llm.test.ts`、`test/session/attachment-ownership.test.ts`、`test/session/prompt-account-routing.test.ts`、`test/mcp/oauth-browser.test.ts`（共同根因 freerun-bridge 遷移，test harness 未餵 baseURL/family）。
+
+---
 
 ## Re-measure 2026-06-20 — 13 failing / 339, 分類 + reclassify
 
