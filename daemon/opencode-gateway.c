@@ -2037,6 +2037,8 @@ static int ensure_daemon_running(DaemonInfo *d) {
             if (debug_log) setenv("OPENCODE_DEBUG_LOG", debug_log, 1);
             const char *log_level = getenv("OPENCODE_LOG_LEVEL");
             if (log_level) setenv("OPENCODE_LOG_LEVEL", log_level, 1);
+            const char *metrics_port = getenv("OPENCODE_METRICS_PORT");
+            if (metrics_port) setenv("OPENCODE_METRICS_PORT", metrics_port, 1);
 
             /* DD-9: dev mode (bun + source) needs project root as cwd
              * so bun can resolve node_modules/package.json/workspace.
