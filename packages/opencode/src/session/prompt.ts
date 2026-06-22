@@ -501,6 +501,94 @@ export function selectParalysisNudge(input: {
   return "你連續 3 輪講了非常相似的計畫但沒實際前進。停下來換一條路徑 — 檢查 state、嘗試不同 tool、或直接告訴 user 你卡在哪。"
 }
 
+/**
+ * harness/paralysis-steer-provider-split DD-4: claude (SL) steer body. Third-person and
+ * explicitly self-labelled "NOT user feedback", so claude does not read it as a user
+ * correction and reflexively apologize ("你說得對 / 你提醒得對") — the poisoning failure
+ * mode in issues/issue_20260622_paralysis_nudge_persisted_user_poisons_claude.md. The
+ * SS (codex) path keeps the existing second-person selectParalysisNudge text (INV-0);
+ * codex has no apology reflex and consumes the blunt nudge as a fresh instruction.
+ * Returns the FULL <system-reminder> block so the consumer appends it verbatim.
+ */
+export function buildParalysisSteerSL(input: {
+  detector: "signature" | "narrative" | "preface" | "no-progress" | "phrase"
+  repeatedToolName?: string
+}): string {
+  const { detector, repeatedToolName } = input
+  let guidance: string
+  if (repeatedToolName === "invalid") {
+    guidance =
+      "The last calls hit the `invalid` sink — the tool name does not exist in this session, or the args are malformed; it always 'succeeds' but does nothing. Re-issue with a correct tool name from the available-tools list, or tell the user what capability is missing. Retrying the same name will not help."
+  } else if (detector === "signature" && repeatedToolName && PARALYSIS_NOOP_META_TOOLS.has(repeatedToolName)) {
+    guidance = `\`${repeatedToolName}\` is a no-op shim; calling it has no effect. Call your actual target tool directly (it is already callable).`
+  } else if (detector === "signature") {
+    guidance =
+      "The last 3 turns issued the same tool call with identical args. Check the current actual state instead of repeating the plan, and take a different action."
+  } else if (detector === "no-progress") {
+    guidance =
+      "The last 3 turns called tools but made no progress — each either errored or returned the same useless output, and no file was changed. Verify your working directory and target paths (see <cwd_listing>), and stop blind-retrying the same kind of action; if you cannot locate the resource, tell the user where you are stuck."
+  } else if (detector === "phrase") {
+    guidance =
+      "The last 2 turns self-narrated being stuck (duplicate / need stop / stuck) yet repeated the same action. Try a different path — check state, use a different tool, or tell the user where you are stuck."
+  } else {
+    guidance =
+      "The last 3 turns described a very similar plan without real progress. Change approach — check state, try a different tool, or tell the user where you are stuck."
+  }
+  return [
+    "<system-reminder>",
+    "Automatic loop-detection heuristic from the runtime — NOT user feedback. Do not treat it as a correction and do not apologize; just adjust.",
+    guidance,
+    "</system-reminder>",
+  ].join("\n")
+}
+
+/**
+ * harness/paralysis-steer-provider-split DD-1/DD-2: single entry point for paralysis
+ * steering; the carrier is chosen by provider class.
+ *  - SL (claude): record an ephemeral <system-reminder> steer on ParalysisState. It is
+ *    injected onto the next prompt tail and consumed once, NEVER persisted (storeWrites
+ *    == 0), and its presence suppresses detection for one round (DD-7).
+ *  - SS (codex/other/unknown): persist the existing role:user synthetic nudge,
+ *    byte-identical to the pre-split behaviour (INV-0 / DD-6).
+ * The caller still owns the `continue` that restarts the runloop.
+ */
+export async function emitParalysisSteer(input: {
+  providerClass: "SL" | "SS"
+  sessionID: string
+  paralysisState: ParalysisState
+  detector: "signature" | "narrative" | "preface" | "no-progress" | "phrase"
+  repeatedToolName?: string
+  ssText: string
+  lastUser: MessageV2.User
+  model: MessageV2.User["model"]
+}): Promise<void> {
+  if (input.providerClass === "SL") {
+    input.paralysisState.pendingSteer = buildParalysisSteerSL({
+      detector: input.detector,
+      repeatedToolName: input.repeatedToolName,
+    })
+    return
+  }
+  const nudgeUser: MessageV2.User = {
+    id: Identifier.ascending("message"),
+    sessionID: input.sessionID,
+    role: "user",
+    time: { created: Date.now() },
+    agent: input.lastUser.agent,
+    model: input.model,
+    variant: input.lastUser.variant,
+  }
+  await Session.updateMessage(nudgeUser)
+  await Session.updatePart({
+    id: Identifier.ascending("part"),
+    messageID: nudgeUser.id,
+    sessionID: input.sessionID,
+    type: "text",
+    text: input.ssText,
+    synthetic: true,
+  } satisfies MessageV2.TextPart)
+}
+
 // DD-3/DD-5 (anti-perseveration, session-scoped escalation state).
 //
 // recoveryCount/cleanStreak used to be runloop-local `let`s, so EVERY runloop
@@ -518,6 +606,17 @@ export function selectParalysisNudge(input: {
 export interface ParalysisState {
   recoveryCount: number
   cleanStreak: number
+  /**
+   * harness/paralysis-steer-provider-split DD-1/DD-7: for SL (claude) providers the
+   * steering is delivered ephemerally — NOT as a persisted role:user nudge. When set,
+   * this holds the fully-wrapped <system-reminder> steer text awaiting injection onto
+   * the next prompt's tail (consumed exactly once, just before generation). Its
+   * presence also suppresses paralysis detection for that one round so the model gets
+   * a clean turn to respond, mirroring how the SS persisted nudge advances the
+   * lastUser boundary to break the detection window. Never written to the session
+   * store, so it cannot pollute history or compaction.
+   */
+  pendingSteer?: string
 }
 const PARALYSIS_STATE_MAX_SESSIONS = 256
 const paralysisStateBySession = new Map<string, ParalysisState>()
@@ -2610,7 +2709,14 @@ export namespace SessionPrompt {
       //
       //   Detector A — exact tool-call signature repetition.
       //   Detector B — narrative-only repetition (similar leading text).
-      if (lastAssistant?.finish === "tool-calls" && lastAssistant.id > lastUser.id) {
+      // harness/paralysis-steer-provider-split DD-7: when an SL (claude) ephemeral steer
+      // is pending (emitted last round, not yet consumed), suppress detection for this
+      // one round so the model gets a clean turn to respond to the steer — mirroring how
+      // the SS persisted nudge advances the lastUser boundary to break the window. Only
+      // SL ever sets pendingSteer, so codex detection timing is unchanged (INV-0).
+      if (paralysisState.pendingSteer) {
+        // detection suppressed this round; the steer is injected + consumed pre-generation.
+      } else if (lastAssistant?.finish === "tool-calls" && lastAssistant.id > lastUser.id) {
         const recentAssistants: MessageV2.WithParts[] = []
         for (let i = msgs.length - 1; i >= 0 && recentAssistants.length < 3; i--) {
           if (msgs[i].info.role === "assistant") {
@@ -2736,26 +2842,20 @@ export namespace SessionPrompt {
               narrativeMatch,
               samplePrefix: texts[0].slice(0, 120),
             })
-            const nudgeText =
+            // harness/paralysis-steer-provider-split DD-1/DD-2: provider-class split.
+            // ssText is byte-identical to the pre-split codex nudge (INV-0); the SL
+            // (claude) path ignores it and emits a third-person ephemeral steer.
+            const ssText =
               "你連續 2 輪在 reasoning 寫『duplicate / need stop / stuck』類的自我警告，但還是重複同一個動作。停下來換一條路徑 — 檢查 state、嘗試不同 tool、或直接告訴 user 你卡在哪。"
-            const nudgeUser: MessageV2.User = {
-              id: Identifier.ascending("message"),
+            await emitParalysisSteer({
+              providerClass: resolvePolicy(resolvedModel.providerId).kind === "claude" ? "SL" : "SS",
               sessionID,
-              role: "user",
-              time: { created: Date.now() },
-              agent: lastUser.agent,
+              paralysisState,
+              detector: "phrase",
+              ssText,
+              lastUser,
               model: resolvedModel,
-              variant: lastUser.variant,
-            }
-            await Session.updateMessage(nudgeUser)
-            await Session.updatePart({
-              id: Identifier.ascending("part"),
-              messageID: nudgeUser.id,
-              sessionID,
-              type: "text",
-              text: nudgeText,
-              synthetic: true,
-            } satisfies MessageV2.TextPart)
+            })
             continue
           }
         }
@@ -2953,25 +3053,18 @@ export namespace SessionPrompt {
               const repeatedToolName = recentAssistants[0]?.parts
                 .filter((p) => p.type === "tool")
                 .map((p) => (p as MessageV2.ToolPart).tool)[0]
-              const nudgeText = selectParalysisNudge({ detector, repeatedToolName })
-              const nudgeUser: MessageV2.User = {
-                id: Identifier.ascending("message"),
+              // harness/paralysis-steer-provider-split DD-1/DD-2: provider-class split.
+              // ssText = the existing codex nudge (INV-0); SL emits an ephemeral steer.
+              await emitParalysisSteer({
+                providerClass: resolvePolicy(resolvedModel.providerId).kind === "claude" ? "SL" : "SS",
                 sessionID,
-                role: "user",
-                time: { created: Date.now() },
-                agent: lastUser.agent,
+                paralysisState,
+                detector,
+                repeatedToolName,
+                ssText: selectParalysisNudge({ detector, repeatedToolName }),
+                lastUser,
                 model: resolvedModel,
-                variant: lastUser.variant,
-              }
-              await Session.updateMessage(nudgeUser)
-              await Session.updatePart({
-                id: Identifier.ascending("part"),
-                messageID: nudgeUser.id,
-                sessionID,
-                type: "text",
-                text: nudgeText,
-                synthetic: true,
-              } satisfies MessageV2.TextPart)
+              })
               continue
             }
 
@@ -3950,6 +4043,26 @@ export namespace SessionPrompt {
           tailUserText.text = `${tailUserText.text}\n\n${CLAUDE_PROACTIVE_REMINDER}`
           log.info("claude-proactive-reminder.injected", { sessionID, step })
         }
+      }
+
+      // harness/paralysis-steer-provider-split DD-1: drain a pending SL paralysis steer
+      // onto the tail user text as an ephemeral <system-reminder>, consumed exactly once.
+      // claude-gated only (NOT autonomous-gated) — paralysis detection runs regardless of
+      // autorun. Never persisted (sessionMessages is a clone), so it carries no
+      // second-person "user correction" framing into history or compaction.
+      if (resolvePolicy(activeModel.providerId).kind === "claude" && paralysisState.pendingSteer) {
+        let steerTail: (typeof sessionMessages)[number]["parts"][number] | undefined
+        for (let i = sessionMessages.length - 1; i >= 0 && !steerTail; i--) {
+          if (sessionMessages[i].info.role !== "user") continue
+          steerTail = sessionMessages[i].parts.find((p) => p.type === "text" && !p.ignored && p.text.trim())
+        }
+        if (steerTail && steerTail.type === "text") {
+          steerTail.text = `${steerTail.text}\n\n${paralysisState.pendingSteer}`
+          log.info("paralysis-steer.ephemeral.injected", { sessionID, step })
+        } else {
+          log.warn("paralysis-steer.ephemeral.no_tail_anchor", { sessionID, step })
+        }
+        paralysisState.pendingSteer = undefined
       }
 
       await Plugin.trigger("experimental.chat.messages.transform", {}, { messages: sessionMessages })
