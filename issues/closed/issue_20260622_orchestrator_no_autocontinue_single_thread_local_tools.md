@@ -1,7 +1,7 @@
 # Orchestrator: 單線自執行（無 subagent）時，工具序列後仍有 pending todo 卻 text-only 結束 turn 停住
 
 - **日期**：2026-06-22
-- **Status**：open — verified RCA（源碼定性完成；處置：純 AI 自律，不加 runtime 安全網，待真實再復現再議）
+- **Status**：CLOSED — WON'T-FIX by design（closed 2026-06-23）。處置確定為「純 AI 自律，不加 runtime 安全網」：唯一候選修法是 execution-mode turn-end 注入 continuation nudge，而那正是本批次（commit `6333a612a`，spec `harness/paralysis-steer-provider-split` DD-8）刻意撤除的 synthetic-injection 機制。autorun 已退役（`config/tweaks.ts` `triggerPhrases:[]`），continuation 在 execution mode 由 AI 自律 + SYSTEM.md §2.7（有 pending todo 不得 text-only 結束）承擔,不再回補 runtime 兜底。若日後出現「自律失效且自律規則本身無法覆蓋」的真實復現,再重開。原 RCA 內容保留於下供存查。
 - **嚴重度**：high（破壞 execution mode 的 turn-boundary 契約；使用者必須手動催「繼續」，autonomous 多步驟執行中途停擺）
 - **元件**：opencode orchestrator turn-boundary / continuation 機制（`packages/opencode/src/session/workflow-runner.ts` `planAutonomousNextAction`；execution-mode turn 結束判定）
 - **回報者**：pkcs12（live；於 docxmcp `mineru-inspired-content-list` Phase A 單線實作中觀察到）
