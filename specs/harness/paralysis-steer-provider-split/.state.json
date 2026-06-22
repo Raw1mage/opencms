@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-06-22T13:31:29.774Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-06-22T13:38:11.931Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "proposal + spec.md + design.md(Context/Goals/Decisions DD-1..6/Risks/Critical Files)+ idef0/grafcet/sequence/data-schema 齊備"
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-06-22T13:40:01.812Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks.md + handoff.md(Execution Contract/Required Reads/Stop Gates/Checklist)+ test-vectors.json + errors.md + observability.md 齊備"
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-06-22T13:58:37.986Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "helper + 兩處注入點 + 偵測 skip + 消費點實作完成於 beta worktree;新單元測試 5/5 綠,typecheck 我方檔零錯"
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-06-22T14:22:19.606Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "FF merged 進 main(cde612ebb);新測試 5/5、合併後 13/13、typecheck 乾淨;fetch-back runtime restart + 使用者手動驗證通過。deferred 項(M3-3 DD-5、M4-3/M4-5 整合測試)移至 Deferred 段並記明理由"
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-06-22T14:23:58.385Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "user-confirmed graduation — paralysis steering provider-class split merged to main (cde612ebb), runtime-verified, RCA issue closed"
+    }
+  ]
+}

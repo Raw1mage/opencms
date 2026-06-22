@@ -595,6 +595,28 @@ trigger falls through to the original code path. See
 [docs/events/event_20260509_gpt55_itemcount_truncation_rca.md](../docs/events/event_20260509_gpt55_itemcount_truncation_rca.md)
 for the gpt-5.5 root cause.
 
+Paralysis recovery steering — provider-class carrier split
+(specs/harness/paralysis-steer-provider-split, 2026-06-22): when the
+3-turn / 2-turn paralysis detector fires and input is NOT bloated (so
+trigger (1) above did not pre-empt it with overflow compaction), the
+recovery steer is no longer a single persisted `role:user` nudge for
+every provider. `emitParalysisSteer` in `prompt.ts` splits by provider
+class: **codex/SS** keeps the existing persisted second-person nudge
+byte-identical (INV-0) — it doubles as the `lastUser`-boundary advance
+that suppresses re-detection for one round; **claude/SL** gets an
+ephemeral third-person `<system-reminder>` (`buildParalysisSteerSL`,
+self-labelled "NOT user feedback") appended to the cloned prompt tail
+and consumed once, never persisted. Because paralysis detection is gated
+on `lastAssistant.id > lastUser.id` and the SL path no longer advances
+that boundary, `ParalysisState.pendingSteer` suppresses detection for the
+single round the steer is live, then the pre-generation consume point
+(claude-gated, not autonomous-gated) drains it (DD-7). Mirrors the
+`CLAUDE_PROACTIVE_REMINDER` claude-aware ephemeral pattern; closes the RCA
+where persisted second-person scolding triggered claude's apology reflex
+("你說得對") and few-shot tone pollution while leaving codex's effective
+remedy untouched. See
+[specs/harness/paralysis-steer-provider-split/](./harness/paralysis-steer-provider-split/).
+
 Phase D/E big-content boundary and telemetry (2026-05-01,
 specs/\_archive/compaction-improvements): oversized boundary payloads are routed by
 session-scoped reference instead of being injected raw into the next model

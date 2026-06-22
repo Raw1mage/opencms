@@ -1,0 +1,24 @@
+{
+  "diagram_title": "Paralysis Steering Provider-Class Split — A0 Context",
+  "node_reference": "A0",
+  "activities": [
+    { "id": "A1", "title": "Detect Paralysis", "description": "Runloop detectors (signature / narrative / preface / no-progress / self-stuck phrase) flag a repeated-no-progress window", "decomposition": null },
+    { "id": "A2", "title": "Classify Provider", "description": "Resolve provider class (claude/SL vs codex/SS) via resolvePolicy/classifyProvider", "decomposition": null },
+    { "id": "A3", "title": "Emit Steering (Carrier Split)", "description": "emitParalysisSteer dispatches: SL -> ephemeral system-reminder on clone tail; SS -> persisted role:user nudge", "decomposition": "A3" },
+    { "id": "A4", "title": "Advance Recovery Ladder", "description": "Update session-scoped recoveryCount/cleanStreak; first detection nudges, second hard-halts", "decomposition": null }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "Recent assistant turns + tool outcomes", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A2:input", "label": "Active model providerId", "type": "input" },
+    { "id": "AR3", "source": "EXTERNAL", "target": "A1:control", "label": "Paralysis detector thresholds", "type": "control" },
+    { "id": "AR4", "source": "EXTERNAL", "target": "A3:control", "label": "INV-0 codex byte-identical contract", "type": "control" },
+    { "id": "AR5", "source": "A1:output", "target": "A4:input", "label": "Paralysis verdict", "type": "input" },
+    { "id": "AR6", "source": "A4:output", "target": "A3:input", "label": "Steer-vs-halt decision", "type": "input" },
+    { "id": "AR7", "source": "A2:output", "target": "A3:input", "label": "Provider class (SL|SS)", "type": "input" },
+    { "id": "AR8", "source": "A3:output", "target": "EXTERNAL", "label": "Ephemeral system-reminder (SL, not persisted)", "type": "output" },
+    { "id": "AR9", "source": "A3:output", "target": "EXTERNAL", "label": "Persisted role:user nudge (SS)", "type": "output" },
+    { "id": "AR10", "source": "A4:output", "target": "EXTERNAL", "label": "ParalysisDetectedError (hard-halt)", "type": "output" },
+    { "id": "AR11", "source": "EXTERNAL", "target": "A3:mechanism", "label": "sessionMessages clone + Session store", "type": "mechanism" },
+    { "id": "AR12", "source": "EXTERNAL", "target": "A2:mechanism", "label": "resolvePolicy / classifyProvider", "type": "mechanism" }
+  ]
+}

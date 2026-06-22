@@ -1,0 +1,38 @@
+[
+  {
+    "id": "TV-1",
+    "requirement": "claude (SL) 首次偵測 → ephemeral,不落地",
+    "input": { "providerClass": "SL", "recoveryCount": 0, "detector": "signature" },
+    "expected": { "carrier": "ephemeral_system_reminder", "storeWrites": 0, "cloneTailHasSystemReminder": true, "recoveryCountAfter": 1 }
+  },
+  {
+    "id": "TV-2",
+    "requirement": "codex (SS) 首次偵測 → 持久化 role:user(INV-0)",
+    "input": { "providerClass": "SS", "recoveryCount": 0, "detector": "signature" },
+    "expected": { "carrier": "persisted_user_message", "storeWrites": 1, "nudgeTextEqualsSelectParalysisNudge": true, "recoveryCountAfter": 1 }
+  },
+  {
+    "id": "TV-3",
+    "requirement": "claude 第二次偵測(已 nudge)→ hard-halt,不再 nudge(R1)",
+    "input": { "providerClass": "SL", "recoveryCount": 1, "detector": "signature" },
+    "expected": { "raises": "ParalysisDetectedError", "additionalSteer": false }
+  },
+  {
+    "id": "TV-4",
+    "requirement": "codex 第二次偵測(已 nudge)→ hard-halt(階梯與 SL 對稱)",
+    "input": { "providerClass": "SS", "recoveryCount": 1, "detector": "signature" },
+    "expected": { "raises": "ParalysisDetectedError", "additionalSteer": false }
+  },
+  {
+    "id": "TV-5",
+    "requirement": "claude 變體文字契約:無第二人稱責備、含 not-user-feedback 標注(DD-4)",
+    "input": { "providerClass": "SL", "detector": "no-progress" },
+    "expected": { "containsNotUserFeedbackMarker": true, "containsSecondPersonScolding": false, "wrappedInSystemReminder": true }
+  },
+  {
+    "id": "TV-6",
+    "requirement": "invalid-sink detector 在兩 class 各自正確分流(DD-2 三點共用 helper)",
+    "input": { "providerClass": "SL", "recoveryCount": 0, "detector": "signature", "repeatedToolName": "invalid" },
+    "expected": { "carrier": "ephemeral_system_reminder", "storeWrites": 0 }
+  }
+]

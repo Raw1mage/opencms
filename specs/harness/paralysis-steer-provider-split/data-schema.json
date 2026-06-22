@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "harness_paralysis-steer-provider-split data contracts",
+  "definitions": {
+    "EmitParalysisSteerInput": {
+      "type": "object",
+      "description": "Input to the unified emitParalysisSteer helper (DD-2). Carrier is decided internally from providerClass.",
+      "properties": {
+        "providerClass": {
+          "type": "string",
+          "enum": ["SL", "SS"],
+          "description": "Resolved provider class. SL (claude et al.) → ephemeral system-reminder; SS (codex/other/unknown) → persisted role:user nudge. Derived via resolvePolicy(...).kind === 'claude' (DD-3), defaulting non-claude to SS."
+        },
+        "sessionID": { "type": "string" },
+        "text": {
+          "type": "string",
+          "description": "Steering body. For SL this is the 3rd-person not-user-feedback variant; for SS this is the existing selectParalysisNudge output (byte-identical, INV-0)."
+        },
+        "sessionMessages": {
+          "type": "array",
+          "description": "The cloned per-turn message array. SL path pushes an ephemeral system-reminder onto its tail; never persisted.",
+          "items": { "type": "object" }
+        },
+        "lastUser": {
+          "type": "object",
+          "description": "Last real user message (source of agent/variant fields for the SS persisted path).",
+          "properties": {
+            "agent": { "type": "string" },
+            "variant": { "type": "string" }
+          }
+        },
+        "model": {
+          "type": "object",
+          "description": "Resolved model (providerId used for class resolution; carried into the SS persisted message)."
+        }
+      },
+      "required": ["providerClass", "sessionID", "text", "sessionMessages"]
+    },
+    "EmitParalysisSteerOutcome": {
+      "type": "object",
+      "description": "Observable side-effect contract (not a return value; asserted by tests).",
+      "properties": {
+        "carrier": {
+          "type": "string",
+          "enum": ["ephemeral_system_reminder", "persisted_user_message"],
+          "description": "SL → ephemeral_system_reminder (clone tail only); SS → persisted_user_message (Session.updateMessage+updatePart)."
+        },
+        "storeWrites": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of Session store writes. MUST be 0 for SL, >=1 for SS."
+        },
+        "recoveryCountAfter": {
+          "type": "integer",
+          "description": "Always 1 after a first-detection steer, regardless of carrier (ladder is carrier-independent, R1)."
+        }
+      },
+      "required": ["carrier", "storeWrites"]
+    }
+  }
+}

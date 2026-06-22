@@ -1,0 +1,64 @@
+<svg width="1645.1" height="763.6" viewBox="-452.6 -171.8 1645.1 763.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-452.6" y="-171.8" width="1645.1" height="763.6" fill="white" />
+<rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="230.0" y="165.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="230.0" y="197.8" text-anchor="middle" font-size="18" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >DETECT PARALYSIS</text>
+<rect x="450.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="550.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="550.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >CLASSIFY</text>
+<text x="550.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >PROVIDER</text>
+<rect x="130.0" y="380.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="230.0" y="409.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
+<text x="230.0" y="441.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >EMIT STEERING</text>
+<text x="230.0" y="472.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >(CARRIER SPLIT)</text>
+<rect x="450.0" y="380.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="550.0" y="409.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
+<text x="550.0" y="441.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >ADVANCE</text>
+<text x="550.0" y="472.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >RECOVERY LADDER</text>
+<rect x="0.0" y="38.2" width="740.0" height="543.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="130.5" y="-161.8" width="479.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="370.0" y="-135.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
+<text x="370.0" y="-105.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >PARALYSIS STEERING PROVIDER-CLASS</text>
+<text x="370.0" y="-75.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >SPLIT — A0 CONTEXT</text>
+<line x1="130.5" y1="-161.8" x2="0.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="609.5" y1="-161.8" x2="740.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="130.5" y1="-51.8" x2="0.0" y2="581.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="609.5" y1="-51.8" x2="740.0" y2="581.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 330.0 180.0 L 400.0 180.0 Q 410.0 180.0 410.0 190.0 L 410.0 430.0 Q 410.0 440.0 420.0 440.0 L 450.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="330.0,180.0 410.0,180.0 410.0,440.0 450.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 650.0 180.0 L 680.0 180.0 Q 690.0 180.0 690.0 190.0 L 690.0 280.0 Q 690.0 290.0 680.0 290.0 L 60.0 290.0 Q 50.0 290.0 50.0 300.0 L 50.0 410.0 Q 50.0 420.0 60.0 420.0 L 130.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="650.0,180.0 690.0,180.0 690.0,290.0 50.0,290.0 50.0,420.0 130.0,420.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 650.0 420.0 L 680.0 420.0 Q 690.0 420.0 690.0 430.0 L 690.0 531.8 Q 690.0 541.8 680.0 541.8 L 100.0 541.8 Q 90.0 541.8 90.0 531.8 L 90.0 470.0 Q 90.0 460.0 100.0 460.0 L 130.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="650.0,420.0 690.0,420.0 690.0,541.8 90.0,541.8 90.0,460.0 130.0,460.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -50.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-50.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -50.0 78.2 L 360.0 78.2 Q 370.0 78.2 370.0 88.2 L 370.0 150.0 Q 370.0 160.0 380.0 160.0 L 450.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="-50.0,78.2 370.0,78.2 370.0,160.0 450.0,160.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 344.2 L 230.0 380.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="230.0,344.2 230.0,380.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 440.0 L 360.0 440.0 Q 370.0 440.0 370.0 430.0 L 370.0 340.0 Q 370.0 330.0 380.0 330.0 L 790.0 330.0" stroke="black" stroke-width="1.2" data-arrow-id="AR8" data-waypoints="330.0,440.0 370.0,440.0 370.0,330.0 790.0,330.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 650.0 460.0 L 790.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="AR10" data-waypoints="650.0,460.0 790.0,460.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 535.8 L 230.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="AR11" data-waypoints="230.0,535.8 230.0,500.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 550.0 275.8 L 550.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="AR12" data-waypoints="550.0,275.8 550.0,240.0" marker-end="url(#arrow)" fill="none" />
+<text x="224.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR3">Paralysis</text>
+<text x="236.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR3">detector thresholds</text>
+<text x="230.0" y="338.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR4">INV-0 codex byte-identical contract</text>
+<text x="224.0" y="516.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR11">sessionMessages</text>
+<text x="236.0" y="516.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR11">clone + Session store</text>
+<text x="544.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR12">resolvePolicy</text>
+<text x="556.0" y="256.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR12">classifyProvider</text>
+<text x="440.0" y="317.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR5" >Paralysis verdict</text>
+<text x="230.0" y="282.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR7" >Provider class (SL|SS)</text>
+<text x="550.0" y="559.8" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR6" >Steer-vs-halt decision</text>
+<text x="-54.0" y="158.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR1">Recent assistant</text>
+<text x="-54.0" y="184.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR1">turns + tool</text>
+<text x="-54.0" y="210.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR1">outcomes</text>
+<text x="-54.0" y="69.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR2">Active model</text>
+<text x="-54.0" y="95.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR2">providerId</text>
+<text x="794.0" y="282.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR8">Ephemeral</text>
+<text x="794.0" y="308.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR8">system-reminder</text>
+<text x="794.0" y="334.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR8">(SL) / Persisted</text>
+<text x="794.0" y="360.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR8">role:user nudge</text>
+<text x="794.0" y="386.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR8">(SS)</text>
+<text x="794.0" y="464.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR10">ParalysisDetectedError (hard-halt)</text>
+<path d="M 440.0,312.8 L 439.4,313.3 L 438.8,313.7 L 438.1,314.1 L 437.5,314.5 L 436.9,314.9 L 436.2,315.3 L 435.6,315.6 L 435.0,315.8 L 434.4,316.0 L 433.8,316.2 L 433.1,316.3 L 432.5,316.3 L 431.9,316.3 L 431.2,316.2 L 430.6,316.0 L 430.0,315.8 L 429.4,315.6 L 428.8,315.3 L 428.1,314.9 L 427.5,314.5 L 426.9,314.1 L 426.2,313.7 L 425.6,313.3 L 425.0,312.8 L 424.4,312.3 L 423.8,311.9 L 423.1,311.5 L 422.5,311.0 L 421.9,310.7 L 421.2,310.3 L 420.6,310.0 L 420.0,309.8 L 419.4,309.6 L 418.8,309.4 L 418.1,309.3 L 417.5,309.3 L 416.9,309.3 L 416.2,309.4 L 415.6,309.6 L 415.0,309.8 L 414.4,310.0 L 413.8,310.3 L 413.1,310.7 L 412.5,311.0 L 411.9,311.5 L 411.2,311.9 L 410.6,312.3 L 410.0,312.8" stroke="red" stroke-width="0.8" fill="none" opacity="0.5" />
+</svg>

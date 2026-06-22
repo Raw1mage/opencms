@@ -1,0 +1,51 @@
+[
+  {
+    "id": "SEQ1",
+    "name": "claude (SL): paralysis first detection → ephemeral steer, not persisted",
+    "participants": [
+      { "id": "P1", "name": "Runloop Detector", "componentRef": "A1" },
+      { "id": "P2", "name": "emitParalysisSteer", "componentRef": "A3" },
+      { "id": "P3", "name": "Provider Classifier", "componentRef": "A2" },
+      { "id": "P4", "name": "sessionMessages clone", "componentRef": "A3" },
+      { "id": "P5", "name": "Session store", "componentRef": "A3" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "detector fires (recoveryCount==0), text=claudeVariant" },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "resolvePolicy(providerId).kind" },
+      { "id": "MSG3", "from": "P3", "to": "P2", "label": "'claude' (SL)" },
+      { "id": "MSG4", "from": "P2", "to": "P4", "label": "push <system-reminder> 3rd-person not-user-feedback onto tail" },
+      { "id": "MSG5", "from": "P2", "to": "P5", "label": "NO write (skip updateMessage/updatePart)" },
+      { "id": "MSG6", "from": "P2", "to": "P1", "label": "recoveryCount=1; continue" }
+    ]
+  },
+  {
+    "id": "SEQ2",
+    "name": "codex (SS): paralysis first detection → persisted role:user nudge (INV-0)",
+    "participants": [
+      { "id": "P1", "name": "Runloop Detector", "componentRef": "A1" },
+      { "id": "P2", "name": "emitParalysisSteer", "componentRef": "A3" },
+      { "id": "P3", "name": "Provider Classifier", "componentRef": "A2" },
+      { "id": "P5", "name": "Session store", "componentRef": "A3" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "detector fires (recoveryCount==0), text=selectParalysisNudge(...)" },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "resolvePolicy(providerId).kind" },
+      { "id": "MSG3", "from": "P3", "to": "P2", "label": "'codex' / other (SS)" },
+      { "id": "MSG4", "from": "P2", "to": "P5", "label": "Session.updateMessage(role:user) + updatePart({synthetic:true}) — byte-identical" },
+      { "id": "MSG5", "from": "P2", "to": "P1", "label": "recoveryCount=1; continue" }
+    ]
+  },
+  {
+    "id": "SEQ3",
+    "name": "Either class: second detection after nudge → hard-halt (ladder unchanged)",
+    "participants": [
+      { "id": "P1", "name": "Runloop Detector", "componentRef": "A1" },
+      { "id": "P6", "name": "ParalysisState (session Map)", "componentRef": "A4" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P6", "label": "getParalysisState(sessionID).recoveryCount" },
+      { "id": "MSG2", "from": "P6", "to": "P1", "label": "1 (already nudged)" },
+      { "id": "MSG3", "from": "P1", "to": "P1", "label": "raise ParalysisDetectedError (no second nudge)" }
+    ]
+  }
+]
