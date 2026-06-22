@@ -116,6 +116,21 @@ const testVectors: Array<{
     input: { isError: false, content: [{ type: "text", text: "see structuredContent" }] },
     expect: { output_contains: ["see structuredContent"], "metadata.presentationBackfill_absent": true },
   },
+  {
+    id: "TV9-toolname-prefixed-shell-backfill",
+    desc: "真實 docxmcp 前綴空殼（<tool>: ok=True; see structuredContent）→ 回填（task 5.2 instrumented RCA）",
+    input: {
+      isError: false,
+      content: [{ type: "text", text: "docxmcp_template_vault: ok=True; see structuredContent" }],
+      structuredContent: { ok: true, data: { items: ["bo-foundation-isms"] }, warnings: [] },
+    },
+    expect: {
+      output_contains: ["bo-foundation-isms"],
+      output_is_empty_shell: false,
+      "metadata.presentationBackfill.reason": "see_structured_placeholder",
+      "metadata.presentationBackfill.bytes_gt": 0,
+    },
+  },
 ]
 
 describe("resolve-tools MCP result normalization", () => {

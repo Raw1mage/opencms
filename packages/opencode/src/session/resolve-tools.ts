@@ -85,9 +85,15 @@ export function detectEmptyShell(joinedText: string): { isEmptyShell: boolean; r
   if (joinedText.length === 0) return { isEmptyShell: true, reason: "empty" }
   if (joinedText.trim().length === 0) return { isEmptyShell: true, reason: "whitespace_only" }
   // Placeholder stub: the entire visible text is just a "see structuredContent"
-  // style pointer (optionally prefixed with an ok=... status). Anchored to the
-  // whole trimmed string so real prose merely mentioning the phrase is NOT a shell.
-  if (/^(?:ok\s*=\s*\w+\s*;?\s*)?see\s+structuredcontent\.?$/i.test(joinedText.trim())) {
+  // style pointer. Anchored to the whole trimmed string so real prose merely
+  // mentioning the phrase is NOT a shell. Tolerates two real-world prefixes that
+  // wrap the bare pointer:
+  //   - an optional "<tool_name>: " prefix (docxmcp default response_format emits
+  //     "docxmcp_template_vault: ok=True; see structuredContent" — the tool name +
+  //     colon precede the ok=…/see pointer). Without this the anchor never matched
+  //     the real payload (task 5.2 RCA, instrumented at mcp/index.ts).
+  //   - an optional "ok=<status>;" status token.
+  if (/^(?:[\w.-]+\s*:\s*)?(?:ok\s*=\s*\w+\s*;?\s*)?see\s+structuredcontent\.?$/i.test(joinedText.trim())) {
     return { isEmptyShell: true, reason: "see_structured_placeholder" }
   }
   return { isEmptyShell: false, reason: "not_shell" }
