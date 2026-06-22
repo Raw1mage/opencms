@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="910" height="840" viewBox="12.00 -2.00 45.50 42.00" role="img">
+<style>
+.step{fill:#fff;stroke:#111;stroke-width:.14}.step-inner{fill:none;stroke:#111;stroke-width:.08}
+.action{fill:#fff;stroke:#111;stroke-width:.14}.action-inner{fill:none;stroke:#111;stroke-width:.08}.gate{stroke:#111;stroke-width:.16}
+.edge{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round;stroke-linejoin:round}.edge-arrow{marker-end:url(#arrow)}
+.flyover-mask{stroke:#fff;stroke-width:.12;stroke-linecap:round}
+.flyover{fill:none;stroke:#111;stroke-width:.05;stroke-linecap:round}
+.junction{fill:#111;stroke:#111;stroke-width:0}.branch-junction{fill:#fff;stroke:#111;stroke-width:.08}
+.assoc{stroke:#111;stroke-width:.05}.label{font:bold .7px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}
+.action-label{font:.55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:middle;dominant-baseline:middle}.gate-label{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:start;dominant-baseline:middle}.gate-label-left{font:italic .55px 'Times New Roman', 'BiauKai', 'DFKai-SB', serif;text-anchor:end;dominant-baseline:middle}
+</style>
+<defs><marker id="arrow" markerWidth="0.4" markerHeight="0.4" refX="0.36" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.4 0.2 L 0 0.4 z" fill="#111"/></marker></defs>
+<rect x="12.00" y="-2.00" width="45.50" height="42.00" fill="white"/>
+<path class="edge edge-arrow" data-edge-id="edge:S0O1S1I1" data-segment-ids="S0O1S1I1:1S" d="M 20.00 7.00 L 20.00 11.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S1O1G1I1" data-segment-ids="S1O1G1I1:1S" d="M 20.00 14.00 L 20.00 16.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:G1O1S2I1" data-segment-ids="G1O1S2I1:1S" d="M 20.00 16.00 L 20.00 20.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:G1O2S3I1" data-segment-ids="G1O2S3I1:1S" d="M 38.25 16.00 L 38.25 20.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S2O1S4I1" data-segment-ids="S2O1S4I1:1S" d="M 20.00 23.00 L 20.00 27.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S3O1G2I1" data-segment-ids="S3O1G2I1:1S" d="M 38.25 23.00 L 38.25 34.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:G2O1S0I1" data-segment-ids="G2O1S0I1:1S G2O1S0I1:2W G2O1S0I1:3N G2O1S0I1:4E G2O1S0I1:5S" d="M 20.00 34.00 L 20.00 35.50 Q 20.00 36.00 19.50 36.00 L 16.50 36.00 Q 16.00 36.00 16.00 35.50 L 16.00 2.50 Q 16.00 2.00 16.50 2.00 L 19.50 2.00 Q 20.00 2.00 20.00 2.50 L 20.00 4.00"/>
+<path class="edge edge-arrow" data-edge-id="edge:S4O1G2I2" data-segment-ids="S4O1G2I2:1S" d="M 20.00 30.00 L 20.00 34.00"/>
+<rect class="step" x="18.00" y="4.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<rect class="step-inner" x="18.25" y="4.25" width="3.50" height="2.50" rx="0.22" ry="0.22"/>
+<text class="label" x="20.00" y="5.50">0</text>
+<rect class="step" x="18.00" y="11.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="12.50">1</text>
+<rect class="step" x="18.00" y="20.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="21.50">2</text>
+<rect class="step" x="36.25" y="20.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="38.25" y="21.50">3</text>
+<rect class="step" x="18.00" y="27.00" width="4.00" height="3.00" rx="0.35" ry="0.35"/>
+<text class="label" x="20.00" y="28.50">4</text>
+<line class="assoc" x1="22.00" y1="5.50" x2="23.00" y2="5.50"/>
+<rect class="action" x="23.00" y="4.07" width="12.25" height="2.86"/>
+<text class="action-label" x="29.12" y="4.68"><tspan x="29.12" dy="0">Turn-end: autonomous loop evaluates</tspan><tspan x="29.12" dy="0.82">whether to re-stimulate the model</tspan><tspan x="29.12" dy="0.82">into the next actionable todo</tspan></text>
+<line class="assoc" x1="22.00" y1="12.50" x2="23.00" y2="12.50"/>
+<rect class="action" x="23.00" y="11.07" width="12.25" height="2.86"/>
+<text class="action-label" x="29.12" y="11.68"><tspan x="29.12" dy="0">Gate check: is next todo action.kind</tspan><tspan x="29.12" dy="0.82">in requireApprovalFor, or did model</tspan><tspan x="29.12" dy="0.82">set status=awaiting_approval?</tspan></text>
+<line class="assoc" x1="22.00" y1="21.50" x2="23.00" y2="21.50"/>
+<rect class="action" x="23.00" y="20.07" width="12.25" height="2.86"/>
+<text class="action-label" x="29.12" y="20.68"><tspan x="29.12" dy="0">Suspend: set state=waiting_user,</tspan><tspan x="29.12" dy="0.82">stopReason=approval_required (non-resumable)</tspan><tspan x="29.12" dy="0.82">; emit approval prompt; paralysis detector defers</tspan></text>
+<line class="assoc" x1="40.25" y1="21.50" x2="41.25" y2="21.50"/>
+<rect class="action" x="41.25" y="20.07" width="12.25" height="2.86"/>
+<text class="action-label" x="47.38" y="20.68"><tspan x="47.38" dy="0">Ungated: re-stimulate the model</tspan><tspan x="47.38" dy="0.82">into the actionable todo (normal</tspan><tspan x="47.38" dy="0.82">autonomous continuation)</tspan></text>
+<line class="assoc" x1="22.00" y1="28.50" x2="23.00" y2="28.50"/>
+<rect class="action" x="23.00" y="27.07" width="12.25" height="2.86"/>
+<text class="action-label" x="29.12" y="28.09"><tspan x="29.12" dy="0">Resume: clear gate, return</tspan><tspan x="29.12" dy="0.82">to continuation evaluation</tspan></text>
+<line class="gate" x1="18.00" y1="16.00" x2="40.25" y2="16.00"/>
+<line class="gate" x1="18.00" y1="34.00" x2="40.25" y2="34.00"/>
+<line class="gate" x1="19.00" y1="9.00" x2="21.00" y2="9.00" data-label-kind="condition-stub" data-edge-id="edge:S0O1S1I1" data-arrow-id="condition_stub:T1" data-transition-id="T1" data-condition-stub-id="condition_stub:T1"/>
+<text class="gate-label" x="21.40" y="9.00" data-label-kind="condition-stub" data-edge-id="edge:S0O1S1I1" data-arrow-id="condition_stub:T1" data-transition-id="T1" data-condition-stub-id="condition_stub:T1"><tspan x="21.40" dy="0">has_actionable_todo AND autorun_armed</tspan></text>
+<line class="gate" x1="19.00" y1="18.00" x2="21.00" y2="18.00" data-label-kind="condition-stub" data-edge-id="edge:G1O1S2I1" data-arrow-id="condition_stub:T2" data-transition-id="T2" data-condition-stub-id="condition_stub:T2"/>
+<text class="gate-label-left" x="15.80" y="17.66" data-label-kind="condition-stub" data-edge-id="edge:G1O1S2I1" data-arrow-id="condition_stub:T2" data-transition-id="T2" data-condition-stub-id="condition_stub:T2"><tspan x="15.80" dy="0">action_kind_in_requireApprovalFor</tspan><tspan x="15.80" dy="0.68">OR todo_status_awaiting_approval</tspan></text>
+<line class="gate" x1="37.25" y1="18.00" x2="39.25" y2="18.00" data-label-kind="condition-stub" data-edge-id="edge:G1O2S3I1" data-arrow-id="condition_stub:T3" data-transition-id="T3" data-condition-stub-id="condition_stub:T3"/>
+<text class="gate-label" x="39.65" y="18.00" data-label-kind="condition-stub" data-edge-id="edge:G1O2S3I1" data-arrow-id="condition_stub:T3" data-transition-id="T3" data-condition-stub-id="condition_stub:T3"><tspan x="39.65" dy="0">NOT gated</tspan></text>
+<line class="gate" x1="19.00" y1="25.00" x2="21.00" y2="25.00" data-label-kind="condition-stub" data-edge-id="edge:S2O1S4I1" data-arrow-id="condition_stub:T4" data-transition-id="T4" data-condition-stub-id="condition_stub:T4"/>
+<text class="gate-label" x="21.40" y="25.00" data-label-kind="condition-stub" data-edge-id="edge:S2O1S4I1" data-arrow-id="condition_stub:T4" data-transition-id="T4" data-condition-stub-id="condition_stub:T4"><tspan x="21.40" dy="0">user_approval_received</tspan></text>
+<line class="gate" x1="37.25" y1="32.00" x2="39.25" y2="32.00" data-label-kind="condition-stub" data-edge-id="edge:S3O1G2I1" data-arrow-id="condition_stub:T5" data-transition-id="T5" data-condition-stub-id="condition_stub:T5"/>
+<text class="gate-label" x="39.65" y="32.00" data-label-kind="condition-stub" data-edge-id="edge:S3O1G2I1" data-arrow-id="condition_stub:T5" data-transition-id="T5" data-condition-stub-id="condition_stub:T5"><tspan x="39.65" dy="0">turn_completed</tspan></text>
+<line class="gate" x1="19.00" y1="32.00" x2="21.00" y2="32.00" data-label-kind="condition-stub" data-edge-id="edge:S4O1G2I2" data-arrow-id="condition_stub:T6" data-transition-id="T6" data-condition-stub-id="condition_stub:T6"/>
+<text class="gate-label-left" x="15.80" y="32.00" data-label-kind="condition-stub" data-edge-id="edge:S4O1G2I2" data-arrow-id="condition_stub:T6" data-transition-id="T6" data-condition-stub-id="condition_stub:T6"><tspan x="15.80" dy="0">gate_cleared</tspan></text>
+</svg>

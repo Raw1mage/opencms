@@ -164,18 +164,20 @@ Confidence: high
 
 ## Resolution (2026-06-22)
 
+> **⚠️ CORRECTION (2026-06-22, post-graduation review)** — 本 Resolution 早先寫的「DD-1/DD-2 為 inert 死碼」**結論錯誤,已作廢**。該判斷下在 DD-8(commit `2c4a830c2`)落地**之前**。DD-8 把 **subagent-completion 續跑路徑(orchestrator 自我派工,`task_completion`/`task_failure` trigger)重新導去走批准閘門,且該路徑 arm-independent**(不受 `autonomous.enabled=false` 影響)。DD-8 並加了測試 `"explicit awaiting_approval handback suspends even on a subagent-triggered unarmed turn"` 斷言閘門在此暫停。實證:把 DD-1/2 移除會讓該 DD-8 測試失敗(2026-06-22 驗證)。**∴ 四個 DD 全部 live、互相咬合,DD-1/2 不可移除(DD-8 依賴它們)。** 下方 §Final RCA / §Fix Implemented / §Follow-ups 中所有「inert/死碼/可清理」字樣均以本更正為準。
+
 ### Resolution Status
 **RESOLVED / CLOSED.** Fix merged to `main` 並部署上線（prod binary `/usr/local/bin/opencode` 重建於 2026-06-22 16:31）。beta worktree 已移除、beta 分支收尾完成。fetch-back/merge/cleanup 在本 BR 開立後由 Raw1mage 完成。
 
 ### Final RCA（確認版）
 - **H1（假門）確認**：`architecture_change` 關鍵字推斷是模型「看到過不去的鎖」的來源。DD-3 移除後，事故原文字串不再被標 needsApproval。
 - **H2（paralysis 對閘門無效且誤殺）確認**：DD-4 `isGateSuspended` 讓偵測器對合法閘門等待讓路；backstop（真正無門空轉仍 halt）保留。
-- **H3（DD-1/DD-2 非事故路徑）確認，且 Open Question #1 已被程式碼回答**：commit `2c4a830c2`（DD-8）訊息明載 **「verbal-autorun retirement (triggerPhrases:[] pinned autonomous.enabled permanently false)」** —— autorun arming **已退役**，`autonomous.enabled` 釘死為 false。因此 `planAutonomousNextAction` 永遠 early-return `not_armed`，**DD-1/DD-2 在 main 上但為 inert（死碼，永不觸發）**。事故的有效修復是 **DD-3 + DD-4**（與 autonomous 無關，non-autonomous session 同樣受惠）。
+- **H3（DD-1/DD-2 非「事故」路徑）部分確認，但「inert」推論已被 §CORRECTION 推翻**：原始事故(`ses_115cfbcf`)確為 non-autonomous,有效修復是 **DD-3 + DD-4**。但 **DD-1/DD-2 並非死碼**——commit `2c4a830c2`(DD-8)雖確認 verbal arming 退役(`triggerPhrases:[]` → `autonomous.enabled` 釘死 false),卻同時把 **subagent-completion 續跑(arm-independent)導去走 DD-1/2 的閘門並依賴 `awaiting_approval`**。故 `planAutonomousNextAction` 的 early-return `not_armed` 只擋「plain user prompt」這一路;orchestrator 自我派工那一路照樣到閘門。**DD-1/2 在 main 上是 live 且 load-bearing。**
 
 ### Fix Implemented（main 上的相關 commit）
 - `f7741cb2e` — DD-3 移除 `architecture_change` 關鍵字假門（保留 push/destructive）。**事故有效修復。**
 - `a96b203ad` — DD-4 paralysis 對閘門讓路（`isGateSuspended`）+ 2.4 idempotency + `awaiting_approval` 可發現性。**事故有效修復。**
-- `86b0c58de` — DD-1/DD-2 runtime 守門 + `awaiting_approval` 鑰匙。**目前 inert（arming 退役）**，無害；若 arming 未來復活則即生效（與 runtime-owned 方向一致）。
+- `86b0c58de` — DD-1/DD-2 runtime 守門 + `awaiting_approval` 鑰匙。**live 且 load-bearing**:DD-8(`2c4a830c2`)的 orchestrator 自我派工續跑(arm-independent)正站在此閘門上,依賴 `awaiting_approval` 暫停。**不可移除。**
 - `e81845f69` — 2.7 整合測試。
 - **平行加碼（非本 plan，Raw1mage 另修）**：`22d5e3a81` fix(paralysis) — 修**另一類**卡死（hallucinated/dropped tool name → 'invalid' sink 假成功 → 幽靈名字無限重試；來自 `ses_115c28b4`，與本 BR 的 `ses_115cfbcf` 不同）；同改 `prompt.ts` paralysis 區，與 DD-4 共存（測試綠）。`2c4a830c2` DD-8 — autorun 退役導致 subagent-completion 續跑被 `not_armed` 卡死的回歸修復。
 
@@ -186,7 +188,7 @@ Confidence: high
 - **驗證缺口（誠實標註）**：未對 live daemon 跑行為級 e2e（且 arming 已退役，自治路徑本就不易現場觸發）。確認層級＝**code-on-main + 單元/整合測試綠 + binary 部署**，非 live 行為 e2e。
 
 ### Follow-ups / Residual Risk
-1. **DD-1/DD-2 為 inert 死碼**：可選擇清理（或保留作 runtime-owned 守門的休眠實作）。非阻塞——決策權留給維護者。
+1. **DD-1/DD-2 不可移除（live, DD-8 依賴）**：2026-06-22 曾嘗試「清掉 inert DD-1/2」,移除後 DD-8 測試立刻失敗,已全數還原。任何後續若想精簡此區,必須先處理 DD-8 對 `awaiting_approval` 閘門的依賴。
 2. **DD-4 × `22d5e3a81` 的組合**：兩者同改 paralysis runloop / `selectParalysisNudge`，測試綠但建議 reviewer 確認兩縫組合無互蝕。
-3. **plan `harness/autonomous-gate-enforcement` 生命週期**：仍在 `implementing`；若要正式收尾應 graduate 至 `/specs/`（或標註「DD-1/2 inert」後 amend）。非阻塞。
+3. **plan `harness/autonomous-gate-enforcement` 生命週期**：2026-06-22 更正「inert」結論後 graduate 至 `/specs/harness/autonomous-gate-enforcement`（四 DD 皆 live、DD-8 依賴 DD-1/2 的事實已寫入 design.md）。
 4. 相關平行 issue（同日新開）：`issues/issue_20260622_orchestrator_no_autocontinue_*`、`issues/closed/issue_20260622_execution_mode_subagent_continuation_arm_gated.md` 等——皆 arming 退役後的續跑回歸線，與本 BR 同源脈絡，已各自處理。

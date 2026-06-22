@@ -1,0 +1,39 @@
+{
+  "title": "autonomous approval gate data contract",
+  "definitions": {
+    "TodoAction": {
+      "description": "Server-inferred (or model-declared via status) action metadata on a todo. DD-3 removes the architecture_change keyword rule.",
+      "fields": {
+        "kind": "'push' | 'destructive' | 'approval' (architecture_change REMOVED — DD-3)",
+        "risk": "'high' | 'medium' | 'low'",
+        "needsApproval": "boolean — true gates the step; set by push/destructive inference or by awaiting_approval status",
+        "waitingOn": "optional 'approval' marker"
+      }
+    },
+    "TodoStatus": {
+      "description": "Todo lifecycle status. DD-2 adds the reserved awaiting_approval value as the model's explicit handback key.",
+      "values": "'pending' | 'in_progress' | 'completed' | 'awaiting_approval' (NEW — DD-2)"
+    },
+    "AutonomousPolicy.requireApprovalFor": {
+      "description": "List of action.kind values that must suspend before the model enters them. DD-1 makes this ENFORCED (previously dead config).",
+      "type": "string[]",
+      "default": "['push','destructive']  (architecture_change dropped per DD-3)",
+      "enforcedAt": "planAutonomousNextAction (workflow-runner.ts:568-646)"
+    },
+    "WorkflowSuspend": {
+      "description": "Deterministic suspend state set when the gate fires (DD-1) or the model requests handback (DD-2).",
+      "fields": {
+        "state": "'waiting_user'",
+        "stopReason": "'approval_required:<kind>' — added to NON_RESUMABLE_WAITING_REASONS so the loop does not auto-resume",
+        "idempotency": "skip if the step is already blocked/waiting (no double-suspend vs tool-permission gate)"
+      }
+    },
+    "ParalysisGateGuard": {
+      "description": "DD-4 input to the paralysis runloop: whether the current non-progress is gate-induced and must be exempted from the paralysis ladder.",
+      "fields": {
+        "gateInduced": "boolean — head todo awaiting_approval/needsApproval-blocked OR session in non-resumable waiting_user",
+        "effect": "when true: do not increment recoveryCount, do not raise ParalysisDetectedError"
+      }
+    }
+  }
+}

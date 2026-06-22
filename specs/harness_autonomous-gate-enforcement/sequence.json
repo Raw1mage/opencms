@@ -1,0 +1,16 @@
+[
+  {
+    "title": "autonomous approval gate — suspend and resume (runtime sequence)",
+    "participants": ["TodoWrite", "Todo.enrich", "planAutonomousNextAction", "WorkflowState", "User", "Model"],
+    "messages": [
+      { "id": "MSG1", "from": "Model", "to": "TodoWrite", "label": "writes todos (may set status=awaiting_approval as explicit handback — DD-2)" },
+      { "id": "MSG2", "from": "TodoWrite", "to": "Todo.enrich", "label": "inferActionFromContent: push/destructive only; NO architecture_change keyword (DD-3)" },
+      { "id": "MSG3", "from": "planAutonomousNextAction", "to": "WorkflowState", "label": "head todo: action.kind ∈ requireApprovalFor OR status=awaiting_approval? (DD-1)" },
+      { "id": "MSG4", "from": "planAutonomousNextAction", "to": "WorkflowState", "label": "gate hit → set state=waiting_user, stopReason=approval_required:<kind>, add to NON_RESUMABLE_WAITING_REASONS (idempotent vs existing block)" },
+      { "id": "MSG5", "from": "WorkflowState", "to": "User", "label": "emit approval prompt on existing question/permission surface (no new transport)" },
+      { "id": "MSG6", "from": "WorkflowState", "to": "planAutonomousNextAction", "label": "loop does NOT re-stimulate model; paralysis detector defers on active gate (DD-4)" },
+      { "id": "MSG7", "from": "User", "to": "WorkflowState", "label": "approval decision (may take any duration)" },
+      { "id": "MSG8", "from": "WorkflowState", "to": "planAutonomousNextAction", "label": "on approval: clear gate (needsApproval=false / grant recorded), resume continuation into the step" }
+    ]
+  }
+]

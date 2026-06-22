@@ -1,0 +1,80 @@
+<svg width="1616.6" height="883.6" viewBox="-258.3 -171.8 1616.6 883.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-258.3" y="-171.8" width="1616.6" height="883.6" fill="white" />
+<rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="230.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >A1</text>
+<text x="230.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >INFER TODO</text>
+<text x="230.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A1" >ACTION</text>
+<rect x="450.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="550.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >A2</text>
+<text x="550.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >EVALUATE GATE</text>
+<text x="550.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A2" >AT CONTINUATION</text>
+<rect x="810.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="910.0" y="149.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >A3</text>
+<text x="910.0" y="181.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >ACCEPT MODEL</text>
+<text x="910.0" y="212.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A3" >HANDBACK REQUEST</text>
+<rect x="130.0" y="500.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="230.0" y="529.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >A4</text>
+<text x="230.0" y="561.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >SUSPEND INTO</text>
+<text x="230.0" y="592.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A4" >WAITING-USER</text>
+<rect x="450.0" y="500.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
+<text x="550.0" y="529.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >A5</text>
+<text x="550.0" y="561.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >RESUME ON</text>
+<text x="550.0" y="592.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A5" >USER APPROVAL</text>
+<rect x="810.0" y="500.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A6" />
+<text x="910.0" y="529.6" text-anchor="middle" font-size="15" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >A6</text>
+<text x="910.0" y="561.0" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >DEFER PARALYSIS</text>
+<text x="910.0" y="592.9" text-anchor="middle" font-size="17" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A6" >ON ACTIVE GATE</text>
+<rect x="0.0" y="38.2" width="1100.0" height="663.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="394.0" y="-161.8" width="312.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="550.0" y="-135.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >A0</text>
+<text x="550.0" y="-105.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >ENFORCE AUTONOMOUS</text>
+<text x="550.0" y="-75.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-id="A0" >APPROVAL GATE</text>
+<line x1="394.0" y1="-161.8" x2="0.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="706.0" y1="-161.8" x2="1100.0" y2="38.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="394.0" y1="-51.8" x2="0.0" y2="701.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="706.0" y1="-51.8" x2="1100.0" y2="701.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 330.0 160.0 L 450.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="330.0,160.0 450.0,160.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1010.0 180.0 L 1040.0 180.0 Q 1050.0 180.0 1050.0 190.0 L 1050.0 360.0 Q 1050.0 370.0 1040.0 370.0 L 100.0 370.0 Q 90.0 370.0 90.0 380.0 L 90.0 530.0 Q 90.0 540.0 100.0 540.0 L 130.0 540.0" stroke="black" stroke-width="1.2" data-arrow-id="AR9" data-waypoints="1010.0,180.0 1050.0,180.0 1050.0,370.0 90.0,370.0 90.0,540.0 130.0,540.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 650.0 180.0 L 680.0 180.0 Q 690.0 180.0 690.0 190.0 L 690.0 320.0 Q 690.0 330.0 680.0 330.0 L 60.0 330.0 Q 50.0 330.0 50.0 340.0 L 50.0 570.0 Q 50.0 580.0 60.0 580.0 L 130.0 580.0" stroke="black" stroke-width="1.2" data-arrow-id="AR8" data-waypoints="650.0,180.0 690.0,180.0 690.0,330.0 50.0,330.0 50.0,580.0 130.0,580.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 540.0 L 360.0 540.0 Q 370.0 540.0 370.0 530.0 L 370.0 460.0 Q 370.0 450.0 380.0 450.0 L 720.0 450.0 Q 730.0 450.0 730.0 460.0 L 730.0 570.0 Q 730.0 580.0 740.0 580.0 L 810.0 580.0" stroke="black" stroke-width="1.2" data-arrow-id="AR10" data-waypoints="330.0,540.0 370.0,540.0 370.0,450.0 730.0,450.0 730.0,580.0 810.0,580.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 650.0 560.0 L 760.0 560.0 Q 770.0 560.0 770.0 550.0 L 770.0 300.0 Q 770.0 290.0 760.0 290.0 L 380.0 290.0 Q 370.0 290.0 370.0 280.0 L 370.0 210.0 Q 370.0 200.0 380.0 200.0 L 450.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR12" data-waypoints="650.0,560.0 770.0,560.0 770.0,290.0 370.0,290.0 370.0,200.0 450.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -50.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-50.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -50.0 78.2 L 720.0 78.2 Q 730.0 78.2 730.0 88.2 L 730.0 170.0 Q 730.0 180.0 740.0 180.0 L 810.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="-50.0,78.2 730.0,78.2 730.0,180.0 810.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -50.0 410.0 L 400.0 410.0 Q 410.0 410.0 410.0 420.0 L 410.0 550.0 Q 410.0 560.0 420.0 560.0 L 450.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="-50.0,410.0 410.0,410.0 410.0,560.0 450.0,560.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 550.0 84.2 L 550.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="550.0,84.2 550.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 464.2 L 230.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="230.0,464.2 230.0,500.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 910.0 464.2 L 910.0 500.0" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="910.0,464.2 910.0,500.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 580.0 L 360.0 580.0 Q 370.0 580.0 370.0 590.0 L 370.0 651.8 Q 370.0 661.8 380.0 661.8 L 1150.0 661.8" stroke="black" stroke-width="1.2" data-arrow-id="AR11" data-waypoints="330.0,580.0 370.0,580.0 370.0,661.8 1150.0,661.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 1010.0 560.0 L 1150.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="AR13" data-waypoints="1010.0,560.0 1150.0,560.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 550.0 275.8 L 550.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="AR14" data-waypoints="550.0,275.8 550.0,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 655.8 L 230.0 620.0" stroke="black" stroke-width="1.2" data-arrow-id="AR15" data-waypoints="230.0,655.8 230.0,620.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 910.0 655.8 L 910.0 620.0" stroke="black" stroke-width="1.2" data-arrow-id="AR16" data-waypoints="910.0,655.8 910.0,620.0" marker-end="url(#arrow)" fill="none" />
+<text x="544.0" y="114.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR4">requireApprovalFor</text>
+<text x="556.0" y="114.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR4">policy</text>
+<text x="230.0" y="458.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR5">NON_RESUMABLE_WAITING_REASONS</text>
+<text x="910.0" y="458.2" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR6">autonomous-opt-in R5 invariant</text>
+<text x="546.0" y="256.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR14">planAutonomousNextAction</text>
+<text x="230.0" y="671.8" font-size="14" text-anchor="middle" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR15">workflow-runner suspend path</text>
+<text x="904.0" y="636.0" font-size="14" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR16">prompt.ts</text>
+<text x="916.0" y="636.0" font-size="14" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR16">paralysis runloop</text>
+<text x="390.0" y="155.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR7">enriched</text>
+<text x="390.0" y="172.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR7">todo action</text>
+<text x="550.0" y="362.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR9" >explicit handback request</text>
+<text x="230.0" y="322.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR8" >gate-hit on policy match</text>
+<text x="550.0" y="442.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR10" >active-gate suspend marker</text>
+<text x="550.0" y="308.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR12" >cleared gate resumable step</text>
+<text x="-54.0" y="184.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR1">TodoWrite items</text>
+<text x="-54.0" y="56.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR2">model</text>
+<text x="-54.0" y="82.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR2">awaiting_approval</text>
+<text x="-54.0" y="108.2" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR2">status</text>
+<text x="-54.0" y="401.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR3">user approval</text>
+<text x="-54.0" y="427.0" font-size="20" text-anchor="end" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR3">decision</text>
+<text x="1154.0" y="652.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR11">waiting_user +</text>
+<text x="1154.0" y="678.8" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR11">approval prompt</text>
+<text x="1154.0" y="551.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR13">clean suspend</text>
+<text x="1154.0" y="577.0" font-size="20" text-anchor="start" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '標楷體', 'KaiTi', serif" data-arrow-id="AR13">(no false halt)</text>
+</svg>

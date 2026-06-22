@@ -1,0 +1,60 @@
+{
+  "diagram_title": "Enforce Autonomous Approval Gate",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Infer Todo Action",
+      "description": "Classify each TodoWrite item into action.kind/needsApproval WITHOUT the architecture_change keyword rule; keep push/destructive inference (DD-3)",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Evaluate Gate At Continuation",
+      "description": "Before re-stimulating the model into an actionable todo, check whether action.kind is in requireApprovalFor (DD-1)",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Accept Model Handback Request",
+      "description": "When the model sets todo status awaiting_approval, treat it as an explicit suspend request (DD-2, the key)",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Suspend Into Waiting-User",
+      "description": "Deterministically set workflow state=waiting_user with stopReason=approval_required:<kind>, reusing NON_RESUMABLE_WAITING_REASONS; idempotent with tool-permission gate",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Resume On User Approval",
+      "description": "On user approval, clear the gate (needsApproval=false / grant recorded) and allow continuation back into the gated step",
+      "decomposition": null
+    },
+    {
+      "id": "A6",
+      "title": "Defer Paralysis On Active Gate",
+      "description": "When non-progress is gate-induced (awaiting_approval head todo or non-resumable waiting_user), the paralysis detector must not nudge/halt (DD-4)",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "TodoWrite items", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A3:input", "label": "model awaiting_approval status", "type": "input" },
+    { "id": "AR3", "source": "EXTERNAL", "target": "A5:input", "label": "user approval decision", "type": "input" },
+    { "id": "AR4", "source": "EXTERNAL", "target": "A2:control", "label": "requireApprovalFor policy", "type": "control" },
+    { "id": "AR5", "source": "EXTERNAL", "target": "A4:control", "label": "NON_RESUMABLE_WAITING_REASONS", "type": "control" },
+    { "id": "AR6", "source": "EXTERNAL", "target": "A6:control", "label": "autonomous-opt-in R5 invariant", "type": "control" },
+    { "id": "AR7", "source": "A1:output", "target": "A2:input", "label": "enriched todo action", "type": "output" },
+    { "id": "AR8", "source": "A2:output", "target": "A4:input", "label": "gate-hit on policy match", "type": "output" },
+    { "id": "AR9", "source": "A3:output", "target": "A4:input", "label": "explicit handback request", "type": "output" },
+    { "id": "AR10", "source": "A4:output", "target": "A6:control", "label": "active-gate suspend marker", "type": "control" },
+    { "id": "AR11", "source": "A4:output", "target": "EXTERNAL", "label": "waiting_user + approval prompt", "type": "output" },
+    { "id": "AR12", "source": "A5:output", "target": "A2:input", "label": "cleared gate → resumable step", "type": "output" },
+    { "id": "AR13", "source": "A6:output", "target": "EXTERNAL", "label": "clean suspend (no false halt)", "type": "output" },
+    { "id": "AR14", "source": "EXTERNAL", "target": "A2:mechanism", "label": "planAutonomousNextAction", "type": "mechanism" },
+    { "id": "AR15", "source": "EXTERNAL", "target": "A4:mechanism", "label": "workflow-runner suspend path", "type": "mechanism" },
+    { "id": "AR16", "source": "EXTERNAL", "target": "A6:mechanism", "label": "prompt.ts paralysis runloop", "type": "mechanism" }
+  ]
+}

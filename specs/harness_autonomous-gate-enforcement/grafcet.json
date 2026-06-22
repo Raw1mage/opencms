@@ -1,0 +1,65 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A2",
+    "StepType": "initial",
+    "StepAction": "Turn-end: autonomous loop evaluates whether to re-stimulate the model into the next actionable todo",
+    "LinkInputType": "convergence_or",
+    "LinkInputNumber": [3, 4],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["has_actionable_todo AND autorun_armed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Gate check: is next todo action.kind in requireApprovalFor, or did model set status=awaiting_approval?",
+    "LinkInputType": "track",
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 3],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "action_kind_in_requireApprovalFor OR todo_status_awaiting_approval",
+      "NOT gated"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Suspend: set state=waiting_user, stopReason=approval_required:<kind> (non-resumable); emit approval prompt; paralysis detector defers (no nudge/halt)",
+    "LinkInputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["user_approval_received"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Ungated: re-stimulate the model into the actionable todo (normal autonomous continuation)",
+    "LinkInputType": "track",
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["turn_completed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Resume: clear gate (needsApproval=false / grant recorded), return to continuation evaluation",
+    "LinkInputType": "track",
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["gate_cleared"],
+    "SubGrafcet": []
+  }
+]

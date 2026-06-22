@@ -1,0 +1,66 @@
+[
+  {
+    "id": "TV-1",
+    "requirement": "runtime enforces the approval gate",
+    "scenario": "actionable gated todo suspends instead of resuming",
+    "given": { "requireApprovalFor": ["push", "destructive"], "headTodo": { "actionable": true, "action": { "kind": "destructive", "needsApproval": true } } },
+    "when": "planAutonomousNextAction evaluates continuation",
+    "then": { "state": "waiting_user", "stopReason": "approval_required:destructive", "modelResumed": false, "paralysisHalt": false }
+  },
+  {
+    "id": "TV-2",
+    "requirement": "enforcement is idempotent with the tool-permission gate",
+    "scenario": "step already blocked by a tool-permission gate",
+    "given": { "state": "blocked", "headTodo": { "action": { "kind": "push", "needsApproval": true } } },
+    "when": "planAutonomousNextAction evaluates continuation",
+    "then": { "doubleSuspend": false }
+  },
+  {
+    "id": "TV-3",
+    "requirement": "empty policy is genuinely live",
+    "scenario": "requireApprovalFor empty",
+    "given": { "requireApprovalFor": [], "headTodo": { "action": { "kind": "destructive", "needsApproval": true } } },
+    "when": "planAutonomousNextAction evaluates continuation",
+    "then": { "state": "running", "suspended": false }
+  },
+  {
+    "id": "TV-4",
+    "requirement": "model has a key to request approval",
+    "scenario": "awaiting_approval status routes to suspend",
+    "given": { "headTodo": { "status": "awaiting_approval" } },
+    "when": "planAutonomousNextAction evaluates continuation",
+    "then": { "state": "waiting_user", "stopReason": "approval_required:handback", "modelResumed": false }
+  },
+  {
+    "id": "TV-5",
+    "requirement": "user approval resumes continuation",
+    "scenario": "user approves a suspended gate",
+    "given": { "state": "waiting_user", "stopReason": "approval_required:destructive" },
+    "when": "user submits approval",
+    "then": { "gateCleared": true, "modelResumed": true }
+  },
+  {
+    "id": "TV-6",
+    "requirement": "doc/bookkeeping work is not falsely gated",
+    "scenario": "todo text mentions architecture but is not a gated action",
+    "given": { "todoContent": "驗證合併 + architecture 同步 + 結 issue + event 收尾" },
+    "when": "inferActionFromContent runs",
+    "then": { "kind": null, "needsApproval": false }
+  },
+  {
+    "id": "TV-7",
+    "requirement": "paralysis defers to legitimate gates",
+    "scenario": "gate-induced non-progress is not paralysis",
+    "given": { "headTodo": { "status": "awaiting_approval" }, "sessionState": "waiting_user_non_resumable", "repeatedNarrative": true },
+    "when": "paralysis runloop evaluates the turn",
+    "then": { "paralysisHalt": false, "recoveryCountIncremented": false }
+  },
+  {
+    "id": "TV-8",
+    "requirement": "genuine no-gate spin still halts (backstop preserved)",
+    "scenario": "identical failing tool calls, no active gate",
+    "given": { "activeGate": false, "threeConsecutiveIdenticalToolSigs": true, "afterNudge": true },
+    "when": "paralysis runloop evaluates the turn",
+    "then": { "paralysisHalt": true, "error": "ParalysisDetectedError" }
+  }
+]

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "state": "living",
+  "profile": [],
+  "history": [
+    {
+      "from": null,
+      "to": "proposed",
+      "at": "2026-06-21T13:31:41.408Z",
+      "by": "pkcs12",
+      "mode": "new",
+      "reason": "initial spec created via plan-init.ts"
+    },
+    {
+      "from": "proposed",
+      "to": "designed",
+      "at": "2026-06-21T13:42:05.139Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "RCA-grounded design complete: 4 DDs, verified code anchors, idef0+grafcet validated+rendered, spec.md (scenarios) / sequence.json / data-schema.json authored. Implements autonomous-opt-in R5 (spec-vs-code divergence)."
+    },
+    {
+      "from": "designed",
+      "to": "planned",
+      "at": "2026-06-21T13:43:30.680Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "tasks.md (4 phases) + handoff.md + test-vectors.json (TV-1..8, 1:1 with scenarios) + errors.md + observability.md authored. Ready for implementation."
+    },
+    {
+      "from": "planned",
+      "to": "implementing",
+      "at": "2026-06-21T13:45:34.590Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "Phase 1 (DD-3) landed: removed architecture_change keyword false-gate in todo.ts; tests flipped to assert non-gating; 17 todo + 43 autonomous tests green, zero regressions."
+    },
+    {
+      "from": "implementing",
+      "to": "verified",
+      "at": "2026-06-22T04:16:33.902Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "DD-8 (subagent-completion continuation regression fix) implemented, reviewed, regression-tested (workflow-runner 50 pass incl 9 new, session-autonomous 7, todo 17, pending-notice-appender 4), cherry-picked to main (2c4a830c2), and live-verified after restart_self (binary 11:51:28). DD-1/2/3/4/6 confirmed already merged to main. tasks.md Phase 8+9 green (9.5 graduate deferred as user-only gate). architecture.md lines 341-342 already document the continuation contract (Verified, no doc changes). BR#1 + new BR both closed."
+    },
+    {
+      "from": "verified",
+      "to": "living",
+      "at": "2026-06-22T04:19:19.546Z",
+      "by": "pkcs12",
+      "mode": "promote",
+      "reason": "User explicitly instructed graduation. Plan is verified: DD-8 subagent-completion continuation regression fix implemented, reviewed, regression-tested (workflow-runner 50 pass, session-autonomous 7, todo 17, pending-notice-appender 4), cherry-picked to main (2c4a830c2), live-verified after restart_self. DD-1/2/3/4/6 confirmed already merged. Both BRs closed. architecture.md lines 341-342 already document the continuation contract."
+    }
+  ]
+}
