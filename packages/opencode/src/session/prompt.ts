@@ -4294,11 +4294,44 @@ export namespace SessionPrompt {
       // ses_14eeefee…: 150+ output=2/finish=other rounds at 213K). Treat it as
       // terminal. The raw stop_reason is preserved on the assistant message's
       // provider metadata (provider-claude rawStopReason) for inspection.
+      // DD-7 (runloop_structured-output-enforcement-ordering): a compaction
+      // round (result==="compact") is NOT a terminal turn — its assistant
+      // message can carry finish="stop" (e.g. a plain-text overflow turn that
+      // triggered compaction), which would otherwise satisfy isCleanTerminal and
+      // wrongly enter the terminal-decision block (set StructuredOutputError /
+      // break), killing the post-compaction round. A compaction round must
+      // always fall through to the loop bottom `continue` so the next iteration
+      // re-sends the now-smaller prompt. Bounded by consecutiveCompactions>=3
+      // (line ~4222) so this cannot loop forever.
       const isCleanTerminal =
-        processor.message.finish && !["tool-calls", "unknown", "other"].includes(processor.message.finish)
+        result !== "compact" &&
+        processor.message.finish &&
+        !["tool-calls", "unknown", "other"].includes(processor.message.finish)
       const isUnrecognizedTerminalWithOutput =
-        processor.message.finish === "other" && (processor.message.tokens.output ?? 0) > 0
+        result !== "compact" && processor.message.finish === "other" && (processor.message.tokens.output ?? 0) > 0
       if (isCleanTerminal || isUnrecognizedTerminalWithOutput) {
+        // structured-output enforcement (regression fix, issue_20260614 backlog):
+        // a clean terminal *text* turn returns result="continue" (not "stop"), so
+        // it bypasses guard B above. Pre-regression it then fell through to the
+        // loop bottom `continue` and re-entered the top-of-loop guard (line ~3045)
+        // which set StructuredOutputError. The isCleanTerminal break path added
+        // later short-circuits that `continue`, making BOTH enforcement guards
+        // unreachable for plain-text json_schema responses. Mirror the top guard
+        // here so a json_schema turn that produced no structured output still
+        // records the error. Limited to isCleanTerminal (not the "other"-with-
+        // output branch, which guard A also excludes).
+        if (
+          isCleanTerminal &&
+          format.type === "json_schema" &&
+          processor.message.structured === undefined &&
+          !processor.message.error
+        ) {
+          processor.message.error = new MessageV2.StructuredOutputError({
+            message: "Model did not produce structured output",
+            retries: 0,
+          }).toObject()
+          await Session.updateMessage(processor.message)
+        }
         if (session.parentID) {
           log.info("loop: subagent terminal finish", {
             sessionID,

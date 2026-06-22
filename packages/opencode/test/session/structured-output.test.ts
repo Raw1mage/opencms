@@ -332,13 +332,24 @@ describe("session.structured-output", () => {
   }, 10_000)
 
   test("keeps json_schema flow after auto compaction", async () => {
-    let overflowChecks = 0
-    spyOn(SessionCompaction, "isOverflow").mockImplementation(async () => {
-      overflowChecks++
-      return overflowChecks === 1
+    let normalCalls = 0
+    // The runtime's compaction trigger inside processor.process consumes
+    // SessionCompaction.inspectBudget().overflow (processor.ts:1205-1206 →
+    // return "compact"), NOT isOverflow (which only the pre-send
+    // deriveObservedCondition path calls). Mock the real trigger: force overflow
+    // exactly once, on the round-1 finish-step, so round 1 returns
+    // result="compact" → compaction runs → round 2 emits the structured output.
+    const realInspectBudget = SessionCompaction.inspectBudget
+    let firstOverflowFired = false
+    spyOn(SessionCompaction, "inspectBudget").mockImplementation(async (input: any) => {
+      const real = await realInspectBudget(input)
+      if (!firstOverflowFired && normalCalls === 1) {
+        firstOverflowFired = true
+        return { ...real, overflow: true }
+      }
+      return { ...real, overflow: false }
     })
 
-    let normalCalls = 0
     spyOn(LLM, "stream").mockImplementation(async (input) => {
       if (input.agent.name === "compaction") {
         return {
