@@ -63,6 +63,36 @@ function stringifyForToolContent(value: unknown): string {
   }
 }
 
+export type EmptyShellReason = "empty" | "whitespace_only" | "see_structured_placeholder" | "not_shell"
+
+/**
+ * DD-2 empty-shell detection (pure, unit-testable). Judges whether the joined
+ * visible text of a successful MCP tool result is an empty shell — i.e. carries
+ * no real payload while the actual data lives in structuredContent.
+ *
+ * Returns `not_shell` for any text that has substantive content (the common
+ * case), so a normal text result NEVER triggers backfill (DD-2 strictness;
+ * see test-vectors TV4/TV7). The placeholder regex matches only the known
+ * "see structuredContent" stub MCP servers emit when they route the body to
+ * the structured channel.
+ *
+ * INPUT  joinedText: the textParts.join("\n\n") of the result's content[].
+ * OUTPUT { isEmptyShell, reason }.
+ * NOT:   it must NOT treat short-but-real text as a shell — only empty,
+ *        whitespace-only, or a bare "see structuredContent" placeholder.
+ */
+export function detectEmptyShell(joinedText: string): { isEmptyShell: boolean; reason: EmptyShellReason } {
+  if (joinedText.length === 0) return { isEmptyShell: true, reason: "empty" }
+  if (joinedText.trim().length === 0) return { isEmptyShell: true, reason: "whitespace_only" }
+  // Placeholder stub: the entire visible text is just a "see structuredContent"
+  // style pointer (optionally prefixed with an ok=... status). Anchored to the
+  // whole trimmed string so real prose merely mentioning the phrase is NOT a shell.
+  if (/^(?:ok\s*=\s*\w+\s*;?\s*)?see\s+structuredcontent\.?$/i.test(joinedText.trim())) {
+    return { isEmptyShell: true, reason: "see_structured_placeholder" }
+  }
+  return { isEmptyShell: false, reason: "not_shell" }
+}
+
 export function normalizeMcpToolResult(toolID: string, result: unknown): McpToolResult {
   if (isRecord(result) && Array.isArray(result.content)) return result as McpToolResult
 
@@ -321,6 +351,14 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
   // shape leaks output/title/metadata=undefined into Session.updatePart, whose
   // ToolStateCompleted zod schema then throws invalid_union and aborts the
   // whole stream step into a retry loop. See the store-app lazy path below.
+  //
+  // Presentation contract (plans/mcp_tool-result-presentation-contract, DD-1..4):
+  // INV-PRESENT — a successful (!isError) tool call carrying substantive data
+  // must NOT render an empty-shell output to the LLM. When a server puts the
+  // real payload in structuredContent and leaves content[] as a placeholder
+  // ("see structuredContent"), backfill the serialized structuredContent into
+  // the visible output and stamp metadata.presentationBackfill (explicit,
+  // observable — NOT a silent fallback). H1 root cause of the BR.
   const shapeMcpResult = async (toolID: string, raw: unknown) => {
     const result = normalizeMcpToolResult(toolID, raw)
     const textParts: string[] = []
@@ -349,11 +387,51 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
         }
       }
     }
+
+    // DD-2/DD-3: empty-shell detection + structuredContent backfill. Runs BEFORE
+    // truncation so the backfilled payload is subject to the same token budget
+    // (DD-3). isError results are NOT backfilled — the error path keeps its
+    // existing behaviour (DD-2 guard).
+    let presentationBackfill: { reason: EmptyShellReason; bytes: number } | undefined
+    const joined = textParts.join("\n\n")
+    if (!result.isError && result.structuredContent !== undefined) {
+      const shell = detectEmptyShell(joined)
+      if (shell.isEmptyShell) {
+        let serialized: string
+        try {
+          serialized =
+            typeof result.structuredContent === "string"
+              ? result.structuredContent
+              : JSON.stringify(result.structuredContent, null, 2)
+        } catch {
+          // E-PRESENT-1: serialize failed (circular ref etc.) → keep raw text,
+          // but stamp the failure explicitly (fail-soft, not silent).
+          serialized = ""
+          presentationBackfill = { reason: shell.reason, bytes: 0 }
+        }
+        if (serialized) {
+          // Replace the shell text with the serialized structured payload so the
+          // LLM sees the real data instead of a "see structuredContent" stub.
+          textParts.length = 0
+          textParts.push(serialized)
+          presentationBackfill = { reason: shell.reason, bytes: new TextEncoder().encode(serialized).length }
+        }
+      }
+    }
+
     const truncated = await Truncate.output(textParts.join("\n\n"), {}, input.agent, input.session.id)
     const metadata = {
       ...(result.metadata ?? {}),
       truncated: truncated.truncated,
       ...(truncated.truncated && { outputPath: truncated.outputPath }),
+      ...(presentationBackfill && { presentationBackfill }),
+    }
+    if (presentationBackfill) {
+      log.info("presentation: structuredContent backfilled", {
+        tool: toolID,
+        reason: presentationBackfill.reason,
+        bytes: presentationBackfill.bytes,
+      })
     }
     return {
       title: "",
@@ -378,54 +456,54 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
     const wrappedItem = { ...item }
     wrappedItem.execute = async (args: any, opts: any) => {
       const rawResult = await ToolInvoker.execute(
-          {
-            execute: async (_args: unknown, ctx: Tool.Context) => {
-              await ctx.ask({
-                permission: key,
-                metadata: {},
-                patterns: ["*"],
-                always: ["*"],
-              })
-              // Race the MCP call against the abort signal so a stuck server
-              // doesn't block the runloop indefinitely (liveness invariant).
-              const abortSignal = opts.abortSignal
-              if (!abortSignal) return rawExecute(args, opts)
-              const abortPromise = new Promise<never>((_, reject) => {
-                if (abortSignal.aborted) {
-                  reject(new DOMException("MCP tool call aborted", "AbortError"))
-                  return
-                }
-                abortSignal.addEventListener(
-                  "abort",
-                  () => reject(new DOMException("MCP tool call aborted", "AbortError")),
-                  { once: true },
-                )
-              })
-              return Promise.race([rawExecute(args, opts), abortPromise])
-            },
+        {
+          execute: async (_args: unknown, ctx: Tool.Context) => {
+            await ctx.ask({
+              permission: key,
+              metadata: {},
+              patterns: ["*"],
+              always: ["*"],
+            })
+            // Race the MCP call against the abort signal so a stuck server
+            // doesn't block the runloop indefinitely (liveness invariant).
+            const abortSignal = opts.abortSignal
+            if (!abortSignal) return rawExecute(args, opts)
+            const abortPromise = new Promise<never>((_, reject) => {
+              if (abortSignal.aborted) {
+                reject(new DOMException("MCP tool call aborted", "AbortError"))
+                return
+              }
+              abortSignal.addEventListener(
+                "abort",
+                () => reject(new DOMException("MCP tool call aborted", "AbortError")),
+                { once: true },
+              )
+            })
+            return Promise.race([rawExecute(args, opts), abortPromise])
           },
-          {
-            sessionID: input.session.id,
-            messageID: input.processor.message.id,
-            toolID: key,
-            args,
-            agent: input.agent.name,
-            abort: opts.abortSignal!,
-            messages: input.messages,
-            extra: { model: input.model, bypassAgentCheck: input.bypassAgentCheck },
-            callID: opts.toolCallId,
-            // Lazy read; see native-tools wrapper above for rationale.
-            pauseIdleWatchdog: input.idleWatchdogBox?.pause,
-            onAsk: async (req) => {
-              await PermissionNext.ask({
-                ...req,
-                sessionID: input.session.id,
-                tool: { messageID: input.processor.message.id, callID: opts.toolCallId },
-                ruleset,
-              })
-            },
+        },
+        {
+          sessionID: input.session.id,
+          messageID: input.processor.message.id,
+          toolID: key,
+          args,
+          agent: input.agent.name,
+          abort: opts.abortSignal!,
+          messages: input.messages,
+          extra: { model: input.model, bypassAgentCheck: input.bypassAgentCheck },
+          callID: opts.toolCallId,
+          // Lazy read; see native-tools wrapper above for rationale.
+          pauseIdleWatchdog: input.idleWatchdogBox?.pause,
+          onAsk: async (req) => {
+            await PermissionNext.ask({
+              ...req,
+              sessionID: input.session.id,
+              tool: { messageID: input.processor.message.id, callID: opts.toolCallId },
+              ruleset,
+            })
           },
-        )
+        },
+      )
 
       return shapeMcpResult(key, rawResult)
     }
