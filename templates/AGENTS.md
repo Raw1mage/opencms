@@ -223,6 +223,7 @@ Next after reply:
 - **不得把「目前未載入」說成「系統沒有」**：回覆使用者前必須區分 `not currently loaded`、`loader alias missing`、`load failed`、`tool unavailable` 四種狀態，並保留實際 tool call 證據。
 - **Office 文件優先路由**：遇到 `.docx` / `.pptx` / `.xlsx` / PDF 合併、轉換、抽取、格式保留等需求時，先嘗試 lazy load `docxmcp` 或對應 Office/文件 MCP；只有載入失敗或能力不符時，才退回 LibreOffice / Python / zip 結構處理。
 - **禁止徒手替代專門工具**：若已有專用 MCP 可載入，優先使用專用 MCP；不得因初始工具列沒顯示就直接用 bash/Python 自製流程。
+- **docx 走 docxmcp，不載任何通用 docx skill / 不用 python-docx**（比照 pptx）：`.docx` 的讀取、拆解、手術、重建、驗證一律走 `docxmcp_*` toolchain（`docxmcp_document` 的 Mode A/B + companion skill `doc-workflow`）。通用 `docx` skill（Anthropic authoring skill）與 host 的 `python-docx` pip 套件**已從本環境移除**——它的原生 idiom（`pandoc`／`unpack.py`／`docx-js`／unzip 改 XML 再 repack／`import docx`）正是 docxmcp byte-preserving 契約的反面，反射載入是 docxmcp 回歸的提示層根因。不得假設 `import docx` 可用，不得自寫 Python 腳本改 .docx。
 - **Office RCA 禁令：禁止手工 OOXML 合併 / 改包當成正式成果**：`.pptx` / `.docx` / `.xlsx` 是關聯圖、content types、rels、master/layout/media/theme 共同組成的封裝；除非任務明確是 OOXML repair 並且有 XSD / 原生應用 roundtrip 證據，Main Agent 不得用 Python zip/XML 腳本自行拼接正式檔案。需要合併投影片時，優先使用 `docxmcp_pptx_revise` / `docxmcp_pptx_extract` / `docxmcp_pptx_render` / LibreOffice 原生另存等能重建封裝一致性的路徑。
 - **Office 驗證門檻：可讀不等於可交付**：`python-pptx` 能讀、`docxmcp probe` 成功、或 PDF 能轉出，都只能算輔助檢查；交付 Office 檔前至少需通過「專用工具 probe/抽取」與「原生應用 headless 開啟後另存 roundtrip」兩類檢查。若使用者回報 PowerPoint / Word / Excel 修復警告，必須視為阻塞，不得宣稱完成。
 - **Office 修復輸出規則**：修復或正規化後必須輸出新檔名（例如 `_修正版` / `_normalized`），不得覆蓋原始檔； final 回覆必須明確標示可用檔與棄用檔。

@@ -130,7 +130,6 @@
       "flask-api",
       "indexeddb-spa",
       "playwright-python",
-      "docx",
       "pdf",
       "pptx",
       "internal-comms",
@@ -349,6 +348,7 @@
           "skill:doc-workflow with docxmcp backend script as last resort (bypasses MCP layer, no schema validation)"
         ],
         "notes": [
+          "TOOLCHAIN DISCIPLINE (highest priority): docx/pdf read/inspect/surgery/rebuild/validate ALWAYS go through docxmcp_* toolcalls. NEVER reflexively reach for python-docx / pandoc / unzip+XML-edit+repack to mutate OOXML — that python-docx idiom is the exact opposite of docxmcp's byte-preserving contract and is the #1 recurring failure. The generic `docx` authoring skill (Anthropic) and the host `python-docx` pip package have BOTH been removed from this environment for that reason; do not assume `import docx` is available, and do not author or run a Python script to edit a .docx. The doc-workflow skill is the only retained companion and it routes to docxmcp tools.",
           "Mode A — build from markdown: docxmcp_document(action=decompose, …) → edit chapter md → docxmcp_document(action=assemble, doc_dir=…). Use for full content rewrites and structural reorganisation.",
           "Mode B — surgery on docx (byte-preserving): docxmcp_document(action=open_for_revise, path=…) → docxmcp_document(action=scout, path=…) → docxmcp_document(action=apply_chapter_md, path=…, section_id=…, md_content=…). Use when only specific paragraphs change and the rest must remain byte-identical.",
           "ALWAYS prefer the MCP tool keys (`docxmcp_document`, `docxmcp_stage`) over running docxmcp's backend Python script via bash.",
@@ -377,9 +377,7 @@
           "改簡報",
           "新增投影片"
         ],
-        "requires_mcp": [
-          "docxmcp"
-        ],
+        "requires_mcp": ["docxmcp"],
         "prefer": [
           "skill:pptx",
           "docxmcp_pptx_read",
