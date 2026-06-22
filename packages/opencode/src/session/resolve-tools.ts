@@ -314,6 +314,56 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
     tools[item.id] = toolDef
   }
 
+  // Shape a (raw) MCP tool result into the {output,title,metadata,attachments}
+  // contract the processor expects (processor.ts tool-result reads
+  // value.output.{output,title,metadata}). MUST be applied to EVERY MCP result
+  // before it leaves an execute() — a raw {content,isError,structuredContent}
+  // shape leaks output/title/metadata=undefined into Session.updatePart, whose
+  // ToolStateCompleted zod schema then throws invalid_union and aborts the
+  // whole stream step into a retry loop. See the store-app lazy path below.
+  const shapeMcpResult = async (toolID: string, raw: unknown) => {
+    const result = normalizeMcpToolResult(toolID, raw)
+    const textParts: string[] = []
+    const attachments: Omit<MessageV2.FilePart, "id" | "messageID" | "sessionID">[] = []
+    for (const contentItem of result.content) {
+      if (contentItem.type === "text") {
+        textParts.push(contentItem.text)
+      } else if (contentItem.type === "image") {
+        attachments.push({
+          type: "file",
+          mime: contentItem.mimeType,
+          url: `data:${contentItem.mimeType};base64,${contentItem.data}`,
+        })
+      } else if (contentItem.type === "resource") {
+        const { resource } = contentItem
+        if (resource.text) {
+          textParts.push(resource.text)
+        }
+        if (resource.blob) {
+          attachments.push({
+            type: "file",
+            mime: resource.mimeType ?? "application/octet-stream",
+            url: `data:${resource.mimeType ?? "application/octet-stream"};base64,${resource.blob}`,
+            filename: resource.uri,
+          })
+        }
+      }
+    }
+    const truncated = await Truncate.output(textParts.join("\n\n"), {}, input.agent, input.session.id)
+    const metadata = {
+      ...(result.metadata ?? {}),
+      truncated: truncated.truncated,
+      ...(truncated.truncated && { outputPath: truncated.outputPath }),
+    }
+    return {
+      title: "",
+      metadata,
+      output: truncated.content,
+      attachments,
+      content: result.content,
+    }
+  }
+
   for (const [key, item] of Object.entries(await MCP.tools())) {
     if (key.startsWith("system-manager_") && tools[key]) continue
     if (!toolAllowed(key)) continue
@@ -327,9 +377,7 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
     // inflight promise which awaits inner's completion — circular).
     const wrappedItem = { ...item }
     wrappedItem.execute = async (args: any, opts: any) => {
-      const result = normalizeMcpToolResult(
-        key,
-        await ToolInvoker.execute(
+      const rawResult = await ToolInvoker.execute(
           {
             execute: async (_args: unknown, ctx: Tool.Context) => {
               await ctx.ask({
@@ -377,51 +425,9 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
               })
             },
           },
-        ),
-      )
+        )
 
-      const textParts: string[] = []
-      const attachments: Omit<MessageV2.FilePart, "id" | "messageID" | "sessionID">[] = []
-
-      for (const contentItem of result.content) {
-        if (contentItem.type === "text") {
-          textParts.push(contentItem.text)
-        } else if (contentItem.type === "image") {
-          attachments.push({
-            type: "file",
-            mime: contentItem.mimeType,
-            url: `data:${contentItem.mimeType};base64,${contentItem.data}`,
-          })
-        } else if (contentItem.type === "resource") {
-          const { resource } = contentItem
-          if (resource.text) {
-            textParts.push(resource.text)
-          }
-          if (resource.blob) {
-            attachments.push({
-              type: "file",
-              mime: resource.mimeType ?? "application/octet-stream",
-              url: `data:${resource.mimeType ?? "application/octet-stream"};base64,${resource.blob}`,
-              filename: resource.uri,
-            })
-          }
-        }
-      }
-
-      const truncated = await Truncate.output(textParts.join("\n\n"), {}, input.agent, input.session.id)
-      const metadata = {
-        ...(result.metadata ?? {}),
-        truncated: truncated.truncated,
-        ...(truncated.truncated && { outputPath: truncated.outputPath }),
-      }
-
-      return {
-        title: "",
-        metadata,
-        output: truncated.content,
-        attachments,
-        content: result.content,
-      }
+      return shapeMcpResult(key, rawResult)
     }
 
     tools[key] = wrappedItem
@@ -530,13 +536,20 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
               const clients = await MCP.clients()
               const client = clients[`mcpapp-${appId}`]
               if (!client) {
-                return { content: [{ type: "text" as const, text: `Failed to connect App: ${appId}` }] }
+                return shapeMcpResult(toolKey, {
+                  content: [{ type: "text" as const, text: `Failed to connect App: ${appId}` }],
+                  isError: true,
+                })
               }
               const result = await client.callTool({
                 name: appTool.name,
                 arguments: (args ?? {}) as Record<string, unknown>,
               })
-              return result as any
+              // Shape the raw MCP result into {output,title,metadata}; returning
+              // the raw {content,...} shape here leaks output=undefined into the
+              // processor's ToolStateCompleted and trips an invalid_union retry
+              // loop (the store-app first-call regression this guards against).
+              return shapeMcpResult(toolKey, result)
             },
           })
           lazyTools.set(toolKey, storeAppTool as AITool)
