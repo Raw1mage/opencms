@@ -98,7 +98,13 @@ describe("autonomous approval gate (harness/autonomous-gate-enforcement DD-1/DD-
     const action = planAutonomousNextAction({
       session: armedSession(),
       todos: [
-        { id: "a", content: "implement the parser", status: "in_progress", priority: "high", action: { kind: "implement" } },
+        {
+          id: "a",
+          content: "implement the parser",
+          status: "in_progress",
+          priority: "high",
+          action: { kind: "implement" },
+        },
       ],
     })
     expect(action.type).toBe("continue")
@@ -238,7 +244,11 @@ describe("planAutonomousNextAction", () => {
       todos: [],
       freerunState: "active",
     })
-    expect(action).toEqual({ type: "continue", reason: "freerun_active", text: "Drive the freerun ContextNode engine." })
+    expect(action).toEqual({
+      type: "continue",
+      reason: "freerun_active",
+      text: "Drive the freerun ContextNode engine.",
+    })
   })
 
   it("stops instead of inventing a freerun goal when no root exists", () => {
@@ -248,6 +258,107 @@ describe("planAutonomousNextAction", () => {
       freerunState: "no_root",
     })
     expect(action).toEqual({ type: "stop", reason: "freerun_no_root" })
+  })
+})
+
+describe("DD-8 subagent-completion continuation (subagent-continuation-regression)", () => {
+  // Verbal autorun retired → autonomous.enabled is permanently false. A turn
+  // woken by a subagent completion must continue on todolist residue, NOT stall
+  // at the not_armed gate. A plain user-prompt turn (subagentTriggered absent)
+  // must keep the original not_armed behaviour.
+
+  it("subagent-triggered + pending todo residue (unarmed) → continues self-dispatch", () => {
+    const action = planAutonomousNextAction({
+      session: baseSession(), // enabled: false
+      todos: [{ id: "a", content: "next step", status: "pending", priority: "high" }],
+      subagentTriggered: true,
+    })
+    expect(action.type).toBe("continue")
+    if (action.type === "continue") {
+      expect(action.reason).toBe("todo_pending")
+      expect(action.todo.id).toBe("a")
+    }
+  })
+
+  it("subagent-triggered + in_progress residue (unarmed) → continues", () => {
+    const action = planAutonomousNextAction({
+      session: baseSession(),
+      todos: [{ id: "b", content: "working", status: "in_progress", priority: "high" }],
+      subagentTriggered: true,
+    })
+    expect(action.type).toBe("continue")
+    if (action.type === "continue") expect(action.reason).toBe("todo_in_progress")
+  })
+
+  it("subagent-triggered + drained todolist (unarmed) → clean stop todo_complete", () => {
+    const action = planAutonomousNextAction({
+      session: baseSession(),
+      todos: [{ id: "a", content: "done", status: "completed", priority: "high" }],
+      subagentTriggered: true,
+    })
+    expect(action).toEqual({ type: "stop", reason: "todo_complete" })
+  })
+
+  it("subagent-triggered + no todos at all (unarmed) → todo_complete", () => {
+    const action = planAutonomousNextAction({
+      session: baseSession(),
+      todos: [],
+      subagentTriggered: true,
+    })
+    expect(action).toEqual({ type: "stop", reason: "todo_complete" })
+  })
+
+  it("NARROW SCOPE: a plain (non-subagent) turn while unarmed STILL stops not_armed", () => {
+    const action = planAutonomousNextAction({
+      session: baseSession(),
+      todos: [{ id: "a", content: "next step", status: "pending", priority: "high" }],
+      // subagentTriggered omitted → plain user-prompt turn
+    })
+    expect(action).toEqual({ type: "stop", reason: "not_armed" })
+  })
+
+  it("approval gate fires BEFORE the todolist-continue branch even when subagent-triggered", () => {
+    const action = planAutonomousNextAction({
+      session: baseSession(), // unarmed
+      todos: [
+        {
+          id: "g",
+          content: "delete old snapshots",
+          status: "pending",
+          priority: "high",
+          action: { kind: "destructive", risk: "high", needsApproval: true },
+        },
+      ],
+      subagentTriggered: true,
+    })
+    expect(action).toEqual({ type: "stop", reason: "approval_required" })
+  })
+
+  it("explicit awaiting_approval handback suspends even on a subagent-triggered unarmed turn", () => {
+    const action = planAutonomousNextAction({
+      session: baseSession(),
+      todos: [{ id: "h", content: "ship it", status: "awaiting_approval", priority: "high" }],
+      subagentTriggered: true,
+    })
+    expect(action).toEqual({ type: "stop", reason: "approval_required" })
+  })
+
+  it("BOUNDARY: subagent session (parentID) is parent-driven even if subagent-triggered", () => {
+    const action = planAutonomousNextAction({
+      session: { ...baseSession(), parentID: "parent_1" as any },
+      todos: [{ id: "a", content: "x", status: "pending", priority: "high" }],
+      subagentTriggered: true,
+    })
+    expect(action).toEqual({ type: "stop", reason: "subagent_session" })
+  })
+
+  it("BOUNDARY: dormant scheduled blocks even a subagent-triggered turn", () => {
+    const action = planAutonomousNextAction({
+      session: baseSession({ scheduled: { jobId: "cron_1", fireAtMs: 9_999_999_999_999, createdAtMs: 1 } }),
+      todos: [{ id: "a", content: "do it", status: "pending", priority: "high" }],
+      subagentTriggered: true,
+    })
+    expect(action).toEqual({ type: "stop", reason: "dormant_scheduled" })
   })
 })
 

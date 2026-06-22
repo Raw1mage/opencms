@@ -567,10 +567,11 @@ async function resolvePendingContinuationBudget(item: PendingContinuationInfo) {
 }
 
 export function evaluateAutonomousContinuation(input: {
-  session: Pick<Session.Info, "parentID" | "workflow" | "time">
+  session: Pick<Session.Info, "parentID" | "workflow" | "time" | "scheduled">
   todos: Todo.Info[]
   lastDecisionReason?: ContinuationDecisionReason
   freerunState?: "active" | "no_root" | "paused" | "blocked" | "settled" | "none"
+  subagentTriggered?: boolean
 }) {
   const next = planAutonomousNextAction(input)
   return next.type === "continue"
@@ -592,6 +593,15 @@ export function planAutonomousNextAction(input: {
   todos: Todo.Info[]
   lastDecisionReason?: ContinuationDecisionReason
   freerunState?: "active" | "no_root" | "paused" | "blocked" | "settled" | "none"
+  // DD-8 (subagent-continuation-regression): true when THIS continuation turn was
+  // woken by a subagent completion (pending continuation triggerType ===
+  // "task_completion" | "task_failure"). On that narrow path the continuation
+  // signal is the todolist residue, NOT the verbal-autorun arm flag — verbal
+  // autorun was retired (config triggerPhrases:[]), pinning autonomous.enabled
+  // permanently false, which silently killed the previously-working "subagent
+  // finishes → orchestrator self-dispatches next step" loop. Plain user-prompt
+  // turns are NOT subagent-triggered and keep the existing not_armed behaviour.
+  subagentTriggered?: boolean
 }): AutonomousNextAction {
   // harness/scheduled-subsession DD-2: a dormant scheduled session is inert to the autonomous
   // engine until the cron heartbeat releases it. Robust even for a future self-target where the
@@ -607,7 +617,13 @@ export function planAutonomousNextAction(input: {
   }
 
   const workflow = input.session.workflow ?? Session.defaultWorkflow()
-  if (workflow.autonomous.enabled === false) {
+  // DD-8 (subagent-continuation-regression): the arm flag is no longer the
+  // continuation predicate for subagent-completion-triggered turns. If this turn
+  // was woken by a subagent finishing, fall through to the approval-gate +
+  // todolist-residue evaluation below regardless of the (now permanently-false)
+  // arm flag. For every other entry (plain user prompt), keep the original gate:
+  // an unarmed session does not self-continue.
+  if (workflow.autonomous.enabled === false && !input.subagentTriggered) {
     return { type: "stop", reason: "not_armed" }
   }
 
@@ -775,12 +791,23 @@ export async function decideAutonomousContinuation(input: {
                 : "none"
   }
 
+  // DD-8 (subagent-continuation-regression): is THIS continuation turn woken by a
+  // subagent completion? The pending continuation carries the durable trigger
+  // signal (task_completion / task_failure), set by the pending-notice-appender
+  // when it auto-resumes the parent after a subagent finishes. On that narrow
+  // path the todolist residue — not the (retired) verbal-autorun arm flag — is
+  // the continuation predicate, so a plan that still has actionable todos keeps
+  // self-dispatching the next step instead of stalling after draining one notice.
+  const pendingTrigger = (await RunQueue.peek(input.sessionID).catch(() => undefined))?.triggerType
+  const subagentTriggered = pendingTrigger === "task_completion" || pendingTrigger === "task_failure"
+
   let todos = await Todo.get(input.sessionID)
   let decision = evaluateAutonomousContinuation({
     session,
     todos,
     lastDecisionReason: input.lastDecisionReason,
     freerunState,
+    subagentTriggered,
   })
 
   // 2026-05-03: removed auto-refill from tasks.md. Plan-builder skill owns
@@ -813,11 +840,7 @@ export async function decideAutonomousContinuation(input: {
   // re-stimulating the model into a step it must not enter unattended. Autonomous
   // stays ARMED (unlike todo_complete): clearing the gate (user approval, which
   // disarms via R5, or the model dropping awaiting_approval) lets work proceed.
-  if (
-    !decision.continue &&
-    decision.reason === "approval_required" &&
-    session.workflow?.autonomous.enabled === true
-  ) {
+  if (!decision.continue && decision.reason === "approval_required" && session.workflow?.autonomous.enabled === true) {
     // DD-1 task 2.4 — idempotency: do not overwrite an already-suspended state.
     // If a tool-permission gate already moved the session to `blocked`, or it is
     // already parked in a non-resumable `waiting_user`, leave it as-is so the
