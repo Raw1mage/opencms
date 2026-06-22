@@ -191,6 +191,16 @@
         "ops_note": "If tool calls fail with connection / 404 errors, the underlying Docker container or Unix socket may be down. Check `docker ps` for the docxmcp container and the host socket at `/run/user/$UID/opencode/sockets/docxmcp/docxmcp.sock`."
       },
       {
+        "name": "bodesign",
+        "enabled": true,
+        "registry_layer": "mcp.json",
+        "transport": "streamable-http (Unix domain socket) + TCP :8077",
+        "capability": "AI PCB / hardware design copilot exposed as bodesign_* tools spanning the C00–C07 lifecycle — ingests a project folder, plans requirements (PRD), sources reference evidence, generates KiCad symbols/schematics, lays out + exports fab files, runs deterministic verification (KiCad/SPICE/EMC/thermal), and tracks readiness. Pairs with the companion `bodesign` skill (the C00–C07 workflow brain + kicad/kidoc engines). Runs as an isolated Docker container, managed ONLY via ./mcpctl.sh.",
+        "container_boundary_note": "The bodesign container mounts ONLY .run / sessions / vault. A host path passed to any bodesign_* tool resolves ONLY if it is inside that mount namespace; an unmounted path (Google-Drive/FUSE mount, or a typo) is INVISIBLE to the container. Before passing a host path, confirm it is under a container mount; otherwise upload via the file model (POST /files, or bodesign_stage_dir → {token, doc_dir}) and call the tool with the doc_dir path. The readiness family FAILS LOUD on an invisible root (returns root_visible:false + a warning + a boundary next_step, not a misleading readiness_pct:0) — never read a 0% / all-missing result as deliverables-missing without checking root_visible first.",
+        "analyzer_engines_note": "C06 verification runs out of the box: the container image SELF-BUNDLES the kicad/spice/emc analyzer engines (under /opt/bodesign-engines) and sets BODESIGN_KICAD_SKILL / BODESIGN_SPICE_SKILL / BODESIGN_EMC_SKILL, so bodesign_simulate / analyze_emc / analyze_thermal produce real verdicts — never `skipped-no-skills` — without any host skill install. Call bodesign_analyzer_selfcheck to confirm per-engine readiness (engine_resolvable + binary_present + can_run); it distinguishes a missing engine script (skipped-no-skills) from a missing simulator binary (skipped-no-simulator, e.g. ngspice absent).",
+        "ops_note": "If bodesign_* calls fail with connection / 404 errors, the Docker container or Unix socket may be down — check `./mcpctl.sh status` and the host socket at <repo>/.run/bodesign.sock; surface the error rather than falling back to bash."
+      },
+      {
         "name": "gmail",
         "enabled": false,
         "registry_layer": "mcp-apps.json",
