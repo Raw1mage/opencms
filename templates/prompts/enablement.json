@@ -123,6 +123,7 @@
       "docker-compose",
       "webapp-testing",
       "doc-workflow",
+      "specbase-kb",
       "xlsx",
       "canvas-design",
       "algorithmic-art",
@@ -389,7 +390,7 @@
         ],
         "requires_mcp": ["docxmcp"],
         "prefer": [
-          "skill:pptx",
+          "skill:doc-workflow",
           "docxmcp_pptx_read",
           "docxmcp_pptx_revise",
           "docxmcp_pptx_edit",
