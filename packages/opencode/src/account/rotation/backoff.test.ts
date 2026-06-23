@@ -12,14 +12,31 @@ describe("rotation backoff guardrails", () => {
     expect(calculateBackoffMs("UNKNOWN", 0, undefined, 2)).toBeGreaterThanOrEqual(18_000_000)
   })
 
-  it("sidelines transient Anthropic overload (MODEL_CAPACITY_EXHAUSTED) for ~90s, not 5min", () => {
-    // base 90s ± 15s jitter — the in-place capacity retry already absorbs blips,
-    // so this short sideline lets a healthy Opus account recover once the
-    // overload clears instead of being locked for 5 minutes.
-    const backoff = calculateBackoffMs("MODEL_CAPACITY_EXHAUSTED", 0)
-    expect(backoff).toBeGreaterThanOrEqual(75_000)
-    expect(backoff).toBeLessThanOrEqual(105_000)
-    expect(backoff).toBeLessThan(300_000)
+  it("tiers transient Anthropic overload (MODEL_CAPACITY_EXHAUSTED): short first, escalating to a 90s cap", () => {
+    // The in-place capacity retry already absorbs momentary blips, so a lone
+    // overload (consecutiveFailures 0) sidelines the vector only ~15s and it
+    // rejoins the (often 2-account) pool fast. Each tier carries ±10% jitter to
+    // desync sibling accounts.
+    const first = calculateBackoffMs("MODEL_CAPACITY_EXHAUSTED", 0)
+    expect(first).toBeGreaterThanOrEqual(13_500)
+    expect(first).toBeLessThanOrEqual(16_500)
+
+    const second = calculateBackoffMs("MODEL_CAPACITY_EXHAUSTED", 1)
+    expect(second).toBeGreaterThanOrEqual(27_000)
+    expect(second).toBeLessThanOrEqual(33_000)
+
+    const third = calculateBackoffMs("MODEL_CAPACITY_EXHAUSTED", 2)
+    expect(third).toBeGreaterThanOrEqual(54_000)
+    expect(third).toBeLessThanOrEqual(66_000)
+
+    // Sustained overload caps at 90s (never the old flat 5min), and stays
+    // capped no matter how high the consecutive-failure count climbs.
+    for (const cf of [3, 7, 50]) {
+      const capped = calculateBackoffMs("MODEL_CAPACITY_EXHAUSTED", cf)
+      expect(capped).toBeGreaterThanOrEqual(81_000)
+      expect(capped).toBeLessThanOrEqual(99_000)
+      expect(capped).toBeLessThan(300_000)
+    }
   })
 
   it("treats OpenAI usage_limit_reached as quota exhaustion", () => {

@@ -177,11 +177,16 @@ export const isAuthError = _isAuthError
 
 // Floor for transient-capacity sidelines (503/529/overloaded). 503/529 carry
 // their own 300s base so this floor never reduces them; it only bounds the
-// MODEL_CAPACITY_EXHAUSTED (Anthropic overload) path, which we deliberately
-// keep short so a sidelined Opus account recovers ~90s after the overload
-// clears rather than staying locked for 5 minutes.
+// MODEL_CAPACITY_EXHAUSTED (Anthropic overload) path. This floor is now only a
+// thrash-guard: it stops an absurdly small retryAfter (e.g. 2s) from cycling a
+// vector, but it must NOT outrank the tiered overload backoff (backoff.ts
+// MODEL_CAPACITY_EXHAUSTED_BACKOFFS, first tier 15s). A 90s floor here silently
+// pinned EVERY overload to 90s and defeated the tiering — with a ~2-account
+// claude pool that benched both siblings on a single transient blip. Set to the
+// first tier so a lone overload recovers fast while sustained overload still
+// escalates (via consecutiveFailures) to the 90s cap.
 // @event_20260606_claude-cli-phantom-accounts-529-and-login-label
-const MODEL_CAPACITY_MIN_BACKOFF_MS = 90_000 // 90 seconds
+const MODEL_CAPACITY_MIN_BACKOFF_MS = 15_000 // 15 seconds — matches the first overload tier
 
 // ============================================================================
 // Judge Result
@@ -279,7 +284,7 @@ export namespace RateLimitJudge {
       }
     }
 
-    // Step 5: Apply guardrails (503/529/capacity minimum 5 minutes)
+    // Step 5: Apply guardrails (503/529/capacity thrash-guard floor; see MODEL_CAPACITY_MIN_BACKOFF_MS)
     if (
       (reason === "SERVICE_UNAVAILABLE_503" ||
         reason === "SITE_OVERLOADED_529" ||

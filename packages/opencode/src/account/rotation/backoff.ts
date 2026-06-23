@@ -17,15 +17,20 @@ const RATE_LIMIT_LONG_BACKOFF = 86_400_000 // 24 hours for RPD
 const RATE_LIMIT_EXCEEDED_BACKOFF = 300_000 // 5 minutes default
 const SERVICE_UNAVAILABLE_503_BACKOFF = 300_000 // 5 minutes
 const SITE_OVERLOADED_529_BACKOFF = 300_000 // 5 minutes
-// Transient Anthropic overload (overloaded_error → MODEL_CAPACITY_EXHAUSTED).
-// The in-place capacity retry (processor.isTransientCapacityError, 3×1-4s)
-// already absorbs momentary blips; this sideline only fires on SUSTAINED
-// overload. 5 minutes long outlived a typical overload, needlessly keeping a
-// healthy Opus account sidelined after the overload had cleared. 90s lets the
-// account come back on the overload's real timescale while still backing off.
+// Transient Anthropic overload (overloaded_error → MODEL_CAPACITY_EXHAUSTED),
+// tiered by consecutive failures. The in-place capacity retry
+// (processor.isTransientCapacityError, 3×1-4s) already absorbs momentary blips,
+// so the FIRST sideline is short — a lone overload usually clears in seconds and
+// the account (often 1 of only ~2 in the claude pool) should rejoin fast instead
+// of being benched 90s while its sibling is also overloaded, which collapsed the
+// pool and tripped the preflight rate-limit circuit breaker. Only SUSTAINED
+// overload climbs toward the 90s cap, so a real capacity outage still backs off
+// hard. (NB: the rate-limit-judge thrash-guard floor MODEL_CAPACITY_MIN_BACKOFF_MS
+// must stay ≤ the first tier, or it pins every overload back to the floor and
+// defeats the tiering.)
 // @event_20260606_claude-cli-phantom-accounts-529-and-login-label
-const MODEL_CAPACITY_EXHAUSTED_BASE_BACKOFF = 90_000 // 90 seconds
-const MODEL_CAPACITY_EXHAUSTED_JITTER_MAX = 30_000
+const MODEL_CAPACITY_EXHAUSTED_BACKOFFS = [15_000, 30_000, 60_000, 90_000] as const
+const MODEL_CAPACITY_EXHAUSTED_JITTER_FRACTION = 0.2 // ±10% of the tier, desyncs sibling accounts
 const SERVER_ERROR_BACKOFF = 20_000
 const AUTH_FAILED_BACKOFF = 3_600_000 // 1 hour
 const TOKEN_REFRESH_FAILED_BACKOFF = FIVE_HOUR_BACKOFF // 5 hours
@@ -198,8 +203,11 @@ export function calculateBackoffMs(
       return SERVICE_UNAVAILABLE_503_BACKOFF
     case "SITE_OVERLOADED_529":
       return SITE_OVERLOADED_529_BACKOFF
-    case "MODEL_CAPACITY_EXHAUSTED":
-      return MODEL_CAPACITY_EXHAUSTED_BASE_BACKOFF + generateJitter(MODEL_CAPACITY_EXHAUSTED_JITTER_MAX)
+    case "MODEL_CAPACITY_EXHAUSTED": {
+      const index = Math.min(consecutiveFailures, MODEL_CAPACITY_EXHAUSTED_BACKOFFS.length - 1)
+      const base = MODEL_CAPACITY_EXHAUSTED_BACKOFFS[index] ?? MODEL_CAPACITY_EXHAUSTED_BACKOFFS.at(-1)!
+      return base + generateJitter(base * MODEL_CAPACITY_EXHAUSTED_JITTER_FRACTION)
+    }
     case "SERVER_ERROR":
       return SERVER_ERROR_BACKOFF
     case "AUTH_FAILED":
