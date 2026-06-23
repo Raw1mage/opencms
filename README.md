@@ -206,6 +206,11 @@ graph BT
 - **Dialog Trigger Framework**：確定性、rule-first 觸發偵測，非 AI-based
 - **Planning Agent**：透過 `plan-builder` skill 規劃，結構化 todo + IDEF0/Grafcet companion artifacts
 
+### Skill 與知識庫模板
+
+- 內建 `templates/skills/specbase-kb/`，用於建立 specbase-backed 的雙層知識庫：specwiki 前台頁面 + media-backed asset repository
+- 知識物件保留 source → asset → extract → concept/control/workflow → view lineage，支援法規、流程、表單、資料欄位與 AI-assist candidate 的可追溯整理
+
 ### MCP 整合
 
 - 內建 MCP managed apps（Gmail、Google Calendar）

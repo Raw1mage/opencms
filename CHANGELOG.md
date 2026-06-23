@@ -3,6 +3,16 @@
 OpenCMS 採日期分段的變更紀錄（無 semver release；建置版本形如 `0.0.0-main-<timestamp>`）。
 詳細的根因／決策留痕見 [`docs/events/`](docs/events/)，issue 生命週期見 [`issues/`](issues/)。
 
+## 2026-06-23
+
+### Added
+
+- **specbase-kb skill**：新增 `templates/skills/specbase-kb/`，定義 specbase-backed 知識庫建置流程，區分 specwiki 前台與 media-backed asset repository，並規範 source / asset / extract / concept / control / workflow / view 的 lineage 與最低 metadata schema。（`43d57f2ed`）
+
+### Documented
+
+- **specbase repo pin issue**：記錄全域 `specbase.repo` 釘死單一 repo 導致跨 cwd plan/event 寫入 opencode 的 local issue，保留 root cause、建議方案與連動 specbase 側 BR。（`21ddf3291`）
+
 ## 2026-06-17
 
 ### Fixed
