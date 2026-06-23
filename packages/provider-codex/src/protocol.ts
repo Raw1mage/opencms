@@ -25,8 +25,14 @@ export const CODEX_WS_URL = "wss://chatgpt.com/backend-api/codex/responses"
  */
 export const ORIGINATOR = "codex_cli_rs"
 
-/** Pinned codex-cli version we impersonate. Aligned with refs/codex tag. */
-export const CODEX_CLI_VERSION = "0.125.0-alpha.1"
+/**
+ * Pinned codex-cli version we impersonate. Tracks the official `@openai/codex`
+ * npm `latest` release (the Rust binary injects this as `CARGO_PKG_VERSION`
+ * into the UA `codex_cli_rs/{version}`; the refs/codex workspace Cargo.toml
+ * carries a `0.0.0` placeholder, so the npm release tag is the source of truth).
+ * 2026-06-24: 0.125.0-alpha.1 → 0.142.0 (alpha → official stable).
+ */
+export const CODEX_CLI_VERSION = "0.142.0"
 
 /** Beta features header for WebSocket v2 protocol */
 export const WS_BETA_HEADER = "responses_websockets=2026-02-06"

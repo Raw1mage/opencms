@@ -29,13 +29,13 @@ describe("buildHeaders({ isWebSocket: true }) fingerprint", () => {
   })
 
   test("includes User-Agent when provided", () => {
-    const ua = "codex_cli_rs/0.125.0-alpha.1 (Linux 5.15.0; x86_64) terminal"
+    const ua = "codex_cli_rs/0.142.0 (Linux 5.15.0; x86_64) terminal"
     const h = buildHeaders({ ...base, userAgent: ua })
     expect(h["User-Agent"]).toBe(ua)
   })
 
   test("UA prefix matches originator (first-party classifier contract)", () => {
-    const ua = "codex_cli_rs/0.125.0-alpha.1 (Linux 5.15.0; x86_64) terminal"
+    const ua = "codex_cli_rs/0.142.0 (Linux 5.15.0; x86_64) terminal"
     const h = buildHeaders({ ...base, userAgent: ua })
     expect(h["originator"]).toBe("codex_cli_rs")
     expect(h["User-Agent"]?.startsWith(h["originator"] + "/")).toBe(true)
