@@ -48,7 +48,7 @@ import { MODEL_CATALOG, getOutputLimit, normalizeModelId } from "../src/models.j
 import { OAUTH_USER_AGENT } from "../src/auth.js"
 
 /** The CLI version this provider is currently aligned to. Bump deliberately. */
-const PINNED_VERSION = "2.1.178"
+const PINNED_VERSION = "2.1.186"
 
 const args = process.argv.slice(2)
 const versionArg = args.includes("--version") ? args[args.indexOf("--version") + 1] : undefined
@@ -162,10 +162,14 @@ const missing = binModels.filter(
 const noteModels = missing.length ? `NOTE: binary has uncatalogued 4.x IDs: ${missing.join(", ")}` : ""
 
 // ── 3. LMH() max-output table ─────────────────────────────────────────────────
-// upstream form:  if(K==="claude-opus-4-8")$=64000,q=128000; else if ...
-const lmh = bin.match(/K==="(claude-[a-z0-9-]+)"\)\$=(\d+)/g) || []
+// upstream form:  if(<v>==="claude-opus-4-8")<a>=64000,<b>=128000; else if ...
+// The minifier renames the comparison var and both assignment targets every
+// build (2.1.170: K/$/q → 2.1.186: r/t/n), so match structurally, not by name:
+// a strict-equals on a claude-* id followed by the default,upper number pair.
+const lmhRe = /==="(claude-[a-z0-9-]+)"\)[A-Za-z_$]\w*=(\d+),[A-Za-z_$]\w*=(\d+)/g
+const lmh = bin.match(lmhRe) || []
 const lmhPairs = lmh.map((s) => {
-  const m = s.match(/K==="(claude-[a-z0-9-]+)"\)\$=(\d+)/)!
+  const m = s.match(/==="(claude-[a-z0-9-]+)"\)[A-Za-z_$]\w*=(\d+),[A-Za-z_$]\w*=(\d+)/)!
   return [m[1], Number(m[2])] as const
 })
 for (const [model, upstreamDefault] of lmhPairs) {

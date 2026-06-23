@@ -1,9 +1,12 @@
-# Protocol Datasheets — Claude Code CLI 2.1.170
+# Protocol Datasheets — Claude Code CLI 2.1.186
 
-> Source: native binary `@anthropic-ai/claude-code-linux-x64@2.1.170`
-> (`BUILD_TIME 2026-06-09T15:09:09Z`, `GIT_SHA 1cda84def004ef3a8f569f8e8284a153a6b98c3a`),
-> re-verified 2026-06-10 via `bun packages/provider-claude/scripts/sync-from-cli.ts`.
-> Delta-from-2.1.144 notes are retained inline where the registry/constants moved.
+> Source: native binary `@anthropic-ai/claude-code-linux-x64@2.1.186`
+> (`BUILD_TIME 2026-06-22T16:43:00Z`, `GIT_SHA 6a56aff51d9e9faf62f26f2748501c2e32eec5e8`),
+> extracted 2026-06-24 via `strings` over the Bun-compiled ELF (224 MB, not stripped,
+> BuildID `a1550bc4ade7d8b420623aedad9d9401d7ef8773`). The beta registry array
+> (`EUu`, formerly `U31`) and the per-model max-output tiers were read directly
+> from the embedded minified JS. **Delta from 2.1.170 is small — see §13.**
+> Delta-from-2.1.144 / 2.1.126 notes are retained inline where constants moved.
 >
 > **2.1.170 (Mythos-class launch — Fable 5 / Mythos 5):** new model IDs
 > `claude-fable-5` (public) and `claude-mythos-5` (access-restricted), both in the
@@ -17,7 +20,7 @@
 
 | Constant | Value | Notes |
 |----------|-------|-------|
-| VERSION | `2.1.170` | Build time `2026-06-09T15:09:09Z`, SHA `1cda84def004ef3a8f569f8e8284a153a6b98c3a` |
+| VERSION | `2.1.186` | Build time `2026-06-22T16:43:00Z`, SHA `6a56aff51d9e9faf62f26f2748501c2e32eec5e8` |
 | API_VERSION | `2023-06-01` | Unchanged since initial release |
 | CLIENT_ID | `9d1c250a-e61b-44d9-88ed-5944d1962f5e` | Unchanged |
 | ATTRIBUTION_SALT | `59cf53e54c78` | Present but `cch` now hardcoded `00000` |
@@ -177,7 +180,12 @@ just `Content-Type: application/json`; the profile call adds
 
 ## §4 Beta Flags
 
-### §4.1 Complete Registry (U31 array, 2.1.169)
+### §4.1 Complete Registry (`EUu` array, 2.1.186 — was `U31` in 2.1.169)
+
+> In 2.1.186 the registry is built as `EUu=Object.freeze([…].filter(e=>e!==null))`
+> via `NS(internalName, header)` constructors, indexed by header into `s5s` (a
+> `Map`). Membership and order are **identical to 2.1.170** (still 28 entries);
+> the only drift is row 28's header date (see §4.1 note + §13).
 
 | # | Internal Name | Beta Header | Status vs 2.1.144 |
 |---|---------------|-------------|-------------------|
@@ -207,10 +215,17 @@ just `Content-Type: application/json`; the profile call adds
 | 24 | `environments` | `environments-2025-11-01` | Same |
 | 25 | `ccr_byoc` | `ccr-byoc-2025-07-29` | Same |
 | 26 | `mid_conversation_system` | `mid-conversation-system-2026-04-07` | Same |
-| 27 | `server_side_fallback` | `server-side-fallback-2026-06-01` | **NEW (2.1.169)** |
-| 28 | `fallback_credit` | `fallback-credit-2026-06-09` | **NEW (2.1.169)** |
+| 27 | `server_side_fallback` | `server-side-fallback-2026-06-01` | NEW (2.1.169) |
+| 28 | `fallback_credit` | `fallback-credit-2026-06-01` | **DATE DRIFT in 2.1.186** (was `…-2026-06-09` in 2.1.169) |
 
-**Expansion**: 7 flags in 2.1.126 → 24 in 2.1.144 → 28 in 2.1.169.
+**Expansion**: 7 flags in 2.1.126 → 24 in 2.1.144 → 28 in 2.1.169 → **28 (stable) in 2.1.186**.
+
+> **2.1.186 row-28 drift.** `fallback_credit`'s header date moved `2026-06-09` →
+> `2026-06-01` (now same day as `server_side_fallback`). The `…-06-09` string
+> still exists elsewhere in the binary as a `server-side-fallback-2026-06-09`
+> variant in prompt/doc text, but the **registry** (`EUu`) binds
+> `fallback_credit → fallback-credit-2026-06-01`. Provider impact: none —
+> `fallback_credit` was never in `assembleBetas`.
 
 > **Gating ≠ registry.** Presence in this table is *not* "sent on every request".
 > The actual per-request assembly (`WW6`/`QU`/`cH`/`GW6`) and the exact gate for
@@ -242,6 +257,8 @@ just `Content-Type: application/json`; the profile call adds
 | `ccr-triggers-2026-01-30` | Trigger/schedule endpoints |
 | `managed-agents-2026-04-01` | `/v1/environments/` |
 | `user-profiles-2026-03-24` | `/v1/user_profiles/` |
+| `oidc-federation-2026-04-01` | OIDC federation auth (NEW in 2.1.186, not in `EUu`) |
+| `mcp-client-2025-11-20` | MCP client beta surface (NEW in 2.1.186, not in `EUu`) |
 
 ---
 
@@ -395,7 +412,14 @@ On error from SDK:
 | claude-3-haiku | 4096 | 4096 |
 | claude-3-5-sonnet/haiku | 8192 | 8192 |
 | claude-3-7-sonnet | 32000 | 64000 |
-| All others (opus etc.) | 32000 | 128000 |
+| claude-sonnet-4-6 | 32000 | 128000 |
+| claude-opus-4-6 / -4-7 / **-4-8** | 64000 | 128000 |
+| claude-fable-5 / claude-mythos-5 | 64000 | 128000 |
+
+> **2.1.186**: read directly from the per-model branch
+> (`m==="claude-opus-4-8")t=64000,n=128000; …`). `claude-opus-4-8` lands in the
+> **64000/128000** tier (same as opus-4-6/4-7 and fable-5/mythos-5), not the
+> generic 32000 default the older simplified table implied.
 
 Override: `CLAUDE_CODE_MAX_OUTPUT_TOKENS` env var.
 
@@ -552,3 +576,44 @@ All beta API calls append `?beta=true`:
 - Core retry architecture (2-layer, same constants)
 - SSE parser logic
 - Tool prefix format (`mcp__`)
+
+---
+
+## §13 Delta from 2.1.170 → 2.1.186
+
+Extracted 2026-06-24 from `@anthropic-ai/claude-code-linux-x64@2.1.186`
+(`BUILD_TIME 2026-06-22T16:43:00Z`, `GIT_SHA 6a56aff51d9e9faf62f26f2748501c2e32eec5e8`).
+This is a **maintenance bump** — the wire protocol is essentially stable.
+
+### Changed
+
+1. **Build metadata** — VERSION `2.1.170 → 2.1.186`; new build time + SHA (§1).
+2. **`claude-opus-4-8` ships** — present in the model registry with display
+   names `"Opus 4.8 (1M context)"` / `"Opus 4.8"`; 1M-context capability; lands
+   in the **64000/128000** max-output tier (§6.2). Also seen: `claude-opus-4-6-fast`
+   and `claude-mythos-preview` string constants.
+3. **Beta registry row 28 date drift** — `fallback_credit`'s header moved
+   `fallback-credit-2026-06-09 → fallback-credit-2026-06-01` (§4.1). Registry
+   membership and order otherwise **identical** (28 entries, var renamed
+   `U31 → EUu`).
+4. **Two new non-registry beta surfaces** — `oidc-federation-2026-04-01`,
+   `mcp-client-2025-11-20` (§4.2). Both API-specific, **not** in `EUu`.
+
+### Unchanged (re-verified against the 2.1.186 binary)
+
+- `CLIENT_ID` `9d1c250a-e61b-44d9-88ed-5944d1962f5e`; `ATTRIBUTION_SALT`
+  `59cf53e54c78`; `anthropic-version` `2023-06-01`.
+- OAuth UA `axios/1.15.2` (`"axios/"+oOe`, `oOe="1.15.2"` — minified var drifted
+  `TvH → oOe`, value unchanged).
+- Billing header shape: `cc_version=` / `cc_entrypoint=` / `cch=00000` (still
+  hardcoded) / `cc_workload=`.
+- `anthropic-client-platform` map (8 values), OAuth endpoints, OAuth scopes (6).
+
+### Provider impact (`packages/provider-claude`)
+
+- **VERSION bump only** for fingerprint fidelity (UA, `cc_version=`, attribution
+  hash). `OAUTH_USER_AGENT` stays `axios/1.15.2` — **no change**.
+- The fallback betas / new non-registry surfaces are statsig-/feature-gated in
+  the real CLI and stay **out** of `assembleBetas` (provider stance per §4.1).
+- `claude-opus-4-8` 64000/128000 tier is already covered by the provider's
+  max-output table (re-verify on next `sync-from-cli.ts` run).

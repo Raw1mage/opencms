@@ -1,8 +1,8 @@
 /**
- * Protocol constants extracted from @anthropic-ai/claude-code@2.1.178
+ * Protocol constants extracted from @anthropic-ai/claude-code@2.1.186
  *
  * Single file to update when official CLI upgrades.
- * Source of truth: plans/claude-provider/protocol-datasheet.md
+ * Source of truth: specs/claude-cli/cli-reversed-spec/chapters/protocol-datasheets.md
  * Verify with: bun packages/provider-claude/scripts/sync-from-cli.ts
  *
  * 2026-06-10: realigned 2.1.169 → 2.1.170 for the Mythos-class launch
@@ -15,6 +15,14 @@
  * all scopes / OAuth hosts / UA / betas / model catalog / max-output unchanged.
  * Confirmed claude-opus-4-8 is officially "Opus 4.8 (1M context)" — our 1M
  * treatment matches upstream.
+ *
+ * 2026-06-24: bumped 2.1.178 → 2.1.186 (fingerprint only). Re-extracted from
+ * the 2.1.186 native ELF (BUILD_TIME 2026-06-22T16:43:00Z, GIT_SHA 6a56aff5).
+ * All wire constants identical: CLIENT_ID, ATTRIBUTION_SALT, scopes, OAuth
+ * hosts, OAUTH_USER_AGENT (axios/1.15.2), beta registry (28, stable), billing
+ * shape, client-platform map, opus-4-8 64000/128000 tier. Upstream's only
+ * registry drift (fallback_credit -06-09 → -06-01) is statsig-gated and not in
+ * assembleBetas. See specs/claude-cli/cli-reversed-spec §13.
  */
 import { createHash } from "node:crypto"
 import { normalizeModelId } from "./models.js"
@@ -23,7 +31,7 @@ import { normalizeModelId } from "./models.js"
 // § 0.2  Core Constants
 // ---------------------------------------------------------------------------
 
-export const VERSION = "2.1.178"
+export const VERSION = "2.1.186"
 export const CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 export const ATTRIBUTION_SALT = "59cf53e54c78"
 export const API_VERSION = "2023-06-01"
