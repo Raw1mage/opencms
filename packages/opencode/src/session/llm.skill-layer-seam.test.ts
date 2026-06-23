@@ -83,46 +83,23 @@ describe("LLM skill layer registry seam", () => {
     })
   })
 
-  it("unknown billing mode triggers fail-closed keep-full behavior", () => {
-    const sessionID = "seam-test-unknown-billing"
+  it("fades a loaded skill purely on idle, with no billing input", () => {
+    // The seam carries whatever listForInjection decides. Decay is billing-
+    // independent now: a loaded skill is kept full while recent, then fades
+    // (summary→unload) on idle alone — no billing mode is consulted.
+    const sessionID = "seam-test-idle-fade"
     const now = Date.now()
     SkillLayerRegistry.recordLoaded(sessionID, "test-skill", { content: "content", now })
 
-    // Simulate idle time that would normally trigger unload under 'token' billing
-    const later = now + 1000 * 60 * 60 * 2 // 2 hours later
+    const freshEntry = SkillLayerRegistry.listForInjection(sessionID, { now }).find((e) => e.name === "test-skill")
+    expect(freshEntry?.runtimeState).toBe("active")
+    expect(freshEntry?.lastReason).toBe("recently_used")
 
-    // Process with 'unknown' billing mode
-    const injected = SkillLayerRegistry.listForInjection(sessionID, {
-      billingMode: "unknown",
-      latestUserText: "hello",
-      now: later,
-    })
-
-    const entry = injected.find((e) => e.name === "test-skill")
-    expect(entry?.desiredState).toBe("full")
-    expect(entry?.runtimeState).toBe("active")
-    expect(entry?.lastReason).toBe("billing_unknown_fail_closed_keep_full")
-  })
-
-  it("request billing mode triggers request-billed keep-full behavior", () => {
-    const sessionID = "seam-test-request-billing"
-    const now = Date.now()
-    SkillLayerRegistry.recordLoaded(sessionID, "test-skill", { content: "content", now })
-
-    // Simulate idle time
-    const later = now + 1000 * 60 * 60 * 2
-
-    // Process with 'request' billing mode
-    const injected = SkillLayerRegistry.listForInjection(sessionID, {
-      billingMode: "request",
-      latestUserText: "hello",
-      now: later,
-    })
-
-    const entry = injected.find((e) => e.name === "test-skill")
-    expect(entry?.desiredState).toBe("full")
-    expect(entry?.runtimeState).toBe("active")
-    expect(entry?.lastReason).toBe("request_billed_keep_full")
+    const later = now + 1000 * 60 * 60 * 2 // 2 hours idle
+    const agedEntry = SkillLayerRegistry.listForInjection(sessionID, { now: later }).find((e) => e.name === "test-skill")
+    expect(agedEntry?.desiredState).toBe("absent")
+    expect(agedEntry?.runtimeState).toBe("unloaded")
+    expect(agedEntry?.lastReason).toBe("idle_unload")
 
     SkillLayerRegistry.clear(sessionID)
   })

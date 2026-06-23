@@ -485,6 +485,8 @@ export namespace LLM {
     intent: string
     prefer: string[]
     notes: string[]
+    /** Skill names referenced in `prefer` via the `skill:<name>` convention. */
+    skillRefs: string[]
   }
 
   function getMatchedRoutes(messages: ModelMessage[]): MatchedRoute[] {
@@ -493,16 +495,100 @@ export namespace LLM {
     return ((data?.routing?.intent_to_capability ?? []) as any[])
       .filter((route) => (route?.keywords ?? []).some((kw: string) => text.includes(String(kw).toLowerCase())))
       .slice(0, 4)
-      .map((route) => ({
-        intent: route.intent,
-        prefer: route.prefer ?? [],
-        notes: route.notes ?? [],
-      }))
+      .map((route) => {
+        const prefer: string[] = route.prefer ?? []
+        return {
+          intent: route.intent,
+          prefer,
+          notes: route.notes ?? [],
+          skillRefs: prefer
+            .map((p) => /^skill:(.+)$/.exec(String(p))?.[1])
+            .filter((x): x is string => !!x),
+        }
+      })
   }
 
-  function shouldInjectEnablementSnapshot(messages: ModelMessage[]) {
+  /**
+   * A matched route is "satisfied" when every companion skill it nudges to load
+   * is ALREADY present in context (gate #1 — state-aware routing nudge). The
+   * model is already on that toolchain, so re-pasting the full routing block +
+   * discipline notes every turn is noise + prompt-cache churn. Routes with no
+   * skill ref (pure tool routes) are never skill-satisfied and stay verbatim.
+   */
+  function isRouteSatisfied(route: MatchedRoute, presentSkills: Set<string>): boolean {
+    return route.skillRefs.length > 0 && route.skillRefs.every((name) => presentSkills.has(name))
+  }
+
+  /**
+   * Skill→toolchain bindings derived from the route table: each route pairs a
+   * companion `skill:<name>` with the concrete tools that skill drives (e.g.
+   * doc-workflow ↔ docxmcp_*). This is the binding gate-A keep-alive keys on —
+   * NOT user keywords. Built once from ENABLEMENT; only routes that bind at
+   * least one skill to at least one tool are returned.
+   */
+  function getSkillToolchainBindings(): Array<{ tools: string[]; skills: string[] }> {
+    const data = ENABLEMENT as any
+    return ((data?.routing?.intent_to_capability ?? []) as any[])
+      .map((route) => {
+        const prefer: string[] = route.prefer ?? []
+        const skills = prefer.map((p) => /^skill:(.+)$/.exec(String(p))?.[1]).filter((x): x is string => !!x)
+        const tools = prefer.filter((p) => !/^skill:/.test(String(p))).map((p) => String(p).toLowerCase())
+        return { tools, skills }
+      })
+      .filter((b) => b.skills.length > 0 && b.tools.length > 0)
+  }
+
+  /**
+   * Tool names the model actually invoked in the current agentic burst (since
+   * the last user message). This is the GROUND-TRUTH "skill is in use" signal —
+   * what the model did, not what the user typed — that drives keep-alive.
+   */
+  function extractRecentToolNames(messages: ModelMessage[]): Set<string> {
+    const names = new Set<string>()
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]
+      if (m.role === "user") break
+      if (m.role !== "assistant" || !Array.isArray(m.content)) continue
+      for (const part of m.content as any[]) {
+        if (part?.type === "tool-call" && typeof part.toolName === "string") {
+          names.add(part.toolName.toLowerCase())
+        }
+      }
+    }
+    return names
+  }
+
+  /**
+   * Gate-A keep-alive on the CORRECT signal. A skill is kept resident because
+   * its toolchain is being actively invoked — observable runtime fact — not
+   * because the user's text happened to contain a hardcoded keyword. Refreshes
+   * lastUsedAt for each skill whose bound tools appear in the recent tool-call
+   * stream; tool-name matching is containment-based to survive prefix wrapping
+   * (e.g. an App-Store `mcpapp-docxmcp_document` still matches `docxmcp_document`).
+   * When the model stops calling that toolchain, touches stop and the skill
+   * decays normally.
+   */
+  function keepAliveSkillsByToolUse(sessionID: string, messages: ModelMessage[], now: number) {
+    const recentTools = extractRecentToolNames(messages)
+    if (recentTools.size === 0) return
+    for (const binding of getSkillToolchainBindings()) {
+      const used = binding.tools.some((t) => {
+        for (const rt of recentTools) if (rt === t || rt.includes(t)) return true
+        return false
+      })
+      if (!used) continue
+      for (const skill of binding.skills) SkillLayerRegistry.touch(sessionID, skill, now)
+    }
+  }
+
+  function shouldInjectEnablementSnapshot(messages: ModelMessage[], presentSkills: Set<string>) {
     if (messages.length <= 1) return true
-    return getMatchedRoutes(messages).length > 0
+    // Inject only when there is something NEW to say: a matched route whose
+    // companion skill isn't already loaded. Once every matched route is
+    // satisfied, the snapshot would just re-nudge an already-loaded toolchain,
+    // so suppress it entirely (this is the engine behind the "每回持續注入"
+    // symptom in keyword-dense domain sessions, e.g. document work).
+    return getMatchedRoutes(messages).some((route) => !isRouteSatisfied(route, presentSkills))
   }
 
   function getMessageShapeSummary(message: ModelMessage) {
@@ -585,7 +671,7 @@ export namespace LLM {
     })
   }
 
-  function buildEnablementSnapshot(messages: ModelMessage[]): string {
+  function buildEnablementSnapshot(messages: ModelMessage[], presentSkills: Set<string>): string {
     const data = ENABLEMENT as any
     const coreTools = (data?.tools?.core ?? []).map((x: any) => x.name).slice(0, 12)
     const skills = (data?.skills?.bundled_templates ?? []).slice(0, 20)
@@ -605,6 +691,13 @@ export namespace LLM {
     if (matchedRoutes.length) {
       lines.push(`- matched routing:`)
       for (const r of matchedRoutes) {
+        // Gate #1: once the companion skill is already loaded, compress the
+        // route to a one-line reminder and drop the discipline-notes wall — the
+        // model already has those instructions in the loaded skill's content.
+        if (isRouteSatisfied(r, presentSkills)) {
+          lines.push(`  * ${r.intent} → already loaded (${r.skillRefs.join(", ")}); stay on toolchain — routing notes suppressed`)
+          continue
+        }
         lines.push(`  * ${r.intent} → use tool_loader to load: [${r.prefer.join(", ")}]`)
         for (const note of r.notes) lines.push(`    - ${note}`)
       }
@@ -758,7 +851,6 @@ export namespace LLM {
     const skillLayerEntries = isLiteProvider
       ? []
       : SkillLayerRegistry.listForInjection(input.sessionID, {
-          billingMode,
           latestUserText: extractLatestUserText(input.messages),
         })
 
@@ -781,7 +873,18 @@ export namespace LLM {
     // @plans/provider-hotfix Phase 2 — parent session id feeds the
     // x-codex-parent-thread-id header on codex Responses API calls.
     const parentSessionID = subagentSession ? await resolveParentSessionID(input.sessionID) : undefined
-    const injectEnablementSnapshot = shouldInjectEnablementSnapshot(input.messages)
+    // Skills already present in context this turn — computed AFTER
+    // listForInjection (above) so runtimeState is fresh. Drives the state-aware
+    // routing nudge (gate #1): a route is suppressed/compressed once its
+    // companion skill is loaded.
+    const presentSkills = SkillLayerRegistry.presentSkillNames(input.sessionID)
+    // Gate-A keep-alive on the ground-truth signal: a skill stays resident
+    // because its toolchain is being actively invoked (what the model DID), not
+    // because the user's text contained a keyword (what the user SAID). This
+    // prevents the idle clock from unloading an in-use skill mid-task without
+    // reintroducing the brittle keyword heuristic that caused the original bug.
+    keepAliveSkillsByToolUse(input.sessionID, input.messages, Date.now())
+    const injectEnablementSnapshot = shouldInjectEnablementSnapshot(input.messages, presentSkills)
     const system: string[] = []
     let preface: ContextPrefaceMessageOutput | undefined
     // DD-22 Part B: T1 (low-freq per-session context) is hoisted out of the tail
@@ -996,7 +1099,7 @@ export namespace LLM {
         // takes the upstream-aligned wire (driver-only instructions + fragment
         // bundles in input[]); preface is skipped on that path. The fragment
         // assembly + bundle injection runs after this block.
-        const enablementText = injectEnablementSnapshot ? buildEnablementSnapshot(input.messages) : ""
+        const enablementText = injectEnablementSnapshot ? buildEnablementSnapshot(input.messages, presentSkills) : ""
         const partitioned = SkillLayerRegistry.partitionForPreface(skillLayerEntries)
 
         // attachment-lifecycle v4/v5 (DD-19/DD-20/DD-22): assemble

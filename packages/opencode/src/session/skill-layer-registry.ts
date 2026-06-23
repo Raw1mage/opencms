@@ -2,7 +2,6 @@ import z from "zod"
 import { Bus } from "@/bus"
 import { BusEvent } from "@/bus/bus-event"
 import { Identifier } from "@/id/id"
-import type { ProviderBillingMode } from "@/provider/billing-mode"
 
 export type SkillLayerEntry = {
   name: string
@@ -238,7 +237,6 @@ export namespace SkillLayerRegistry {
   export function listForInjection(
     sessionID: string,
     input: {
-      billingMode: ProviderBillingMode
       latestUserText?: string
       now?: number
     },
@@ -272,16 +270,18 @@ export namespace SkillLayerRegistry {
         continue
       }
 
-      if (input.billingMode !== "token") {
-        entry.runtimeState = "active"
-        entry.desiredState = "full"
-        entry.lastReason =
-          input.billingMode === "unknown" ? "billing_unknown_fail_closed_keep_full" : "request_billed_keep_full"
-        entry.residue = undefined
-        continue
-      }
-
       const idleMs = now - entry.lastUsedAt
+
+      // Decay is purely idle-based and billing-INDEPENDENT: a capability fades
+      // out a while after it was last actually used. "Used" = refreshed via
+      // touch() (the tool-use keep-alive in llm.ts) or a user-text relevance
+      // hit above — NOT who pays. Billing mode used to gate this whole block
+      // (`billingMode === "token"`), so request/unknown providers (the OAuth
+      // Claude path resolves to "unknown") never decayed and held loaded skills
+      // full forever. Presence/attention is a context-hygiene concern, not a
+      // token-cost one, so the gate is gone and the fade is uniform:
+      //   idle ≥ IDLE_SUMMARY_MS  → summarize (fade)
+      //   idle ≥ IDLE_UNLOAD_MS   → unload (gone)
       if (idleMs >= IDLE_UNLOAD_MS) {
         entry.runtimeState = "unloaded"
         entry.desiredState = "absent"
@@ -309,6 +309,53 @@ export namespace SkillLayerRegistry {
 
   export function list(sessionID: string) {
     return Array.from(registry.get(sessionID)?.values() ?? []).sort((a, b) => a.name.localeCompare(b.name))
+  }
+
+  /**
+   * Names of skills currently PRESENT in the model's context — full content is
+   * visible because the entry is pinned/sticky or active. Summarized and
+   * unloaded skills are NOT present.
+   *
+   * Consumed by the enablement routing nudge (llm.ts) to make injection
+   * state-aware: once a route's companion skill is already present, re-pasting
+   * the full "load skill:X" routing block + discipline notes every turn is pure
+   * noise (the model is already on that toolchain). A skill that has decayed to
+   * summary/unloaded is NOT present, so a nudge to (re)load it is still useful.
+   *
+   * Reflects the runtimeState computed by the most recent listForInjection()
+   * for this turn, so callers must run it AFTER listForInjection in the same
+   * stream pass. `pinned` is authoritative regardless of when it runs.
+   */
+  export function presentSkillNames(sessionID: string): Set<string> {
+    const out = new Set<string>()
+    for (const entry of registry.get(sessionID)?.values() ?? []) {
+      if (entry.pinned || entry.runtimeState === "active" || entry.runtimeState === "sticky") {
+        out.add(entry.name)
+      }
+    }
+    return out
+  }
+
+  /**
+   * Refresh an entry's idle clock (`lastUsedAt`); no-op if the entry is absent.
+   * Returns whether an entry was touched.
+   *
+   * This is the keep-alive seam that prevents gate A (idle-unload) from evicting
+   * a skill the user is ACTIVELY working with. Gate A's own relevance check only
+   * fires when the user's text contains the skill's literal name/purpose — but
+   * in real sessions users type domain words ("docx", "標案"), not skill names,
+   * so an in-use skill would otherwise look idle and get unloaded mid-task. The
+   * enablement routing layer (llm.ts) calls touch() for the companion skills of
+   * every matched route, feeding that richer keyword-relevance signal back into
+   * the idle clock. runtimeState is left untouched; the next listForInjection
+   * re-derives it from the refreshed clock. When the task (and its keywords)
+   * move on, touches stop and the skill decays normally.
+   */
+  export function touch(sessionID: string, name: string, now = Date.now()): boolean {
+    const entry = registry.get(sessionID)?.get(name)
+    if (!entry) return false
+    entry.lastUsedAt = now
+    return true
   }
 
   /**

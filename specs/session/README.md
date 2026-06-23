@@ -121,6 +121,46 @@ capability lookup. The reinject reply carries
 `{layers, pinnedSkills, missingSkills, failures}` so dashboards can
 update without a roundtrip to LLM.
 
+### Skill-layer presence lifecycle: load → keep → fade
+
+`session/skill-layer-registry.ts` holds, per session, the skills currently
+injected into context, and `session/context-preface.ts` renders them
+(T1 pinned, T2 active/summarized). A loaded capability follows one
+lifecycle driven by four orthogonal signals, each answering a different
+question with the signal that actually means it:
+
+- **load** (fade in) — the enablement routing nudge in `session/llm.ts`
+  (`getMatchedRoutes` / `buildEnablementSnapshot`) detects intent from the
+  latest *user text* keywords (`prompt/enablement.json`
+  `routing.intent_to_capability`) and tells the model to load the route's
+  companion `skill:<name>`.
+- **dedup** (don't re-inject) — once a route's companion skill is already
+  present (`SkillLayerRegistry.presentSkillNames`), `isRouteSatisfied`
+  suppresses the routing block / compresses it to a one-liner. Without this
+  the nudge re-pastes every keyword-matching turn — the "每回持續注入"
+  failure.
+- **keep-alive** (stay while used) — a skill's idle clock (`lastUsedAt`) is
+  refreshed by `SkillLayerRegistry.touch`, driven from `llm.ts`
+  `keepAliveSkillsByToolUse`: the model actually *invoking the skill's
+  toolchain* (route `prefer` tools, matched against the tool-call stream)
+  is the ground-truth "in use" signal — NOT user keywords.
+- **fade** (idle eviction) — `listForInjection` decays purely on idle:
+  ≥10min → summarize, ≥30min → unload. Pinned/mandatory skills
+  (AGENTS.md sentinel: plan-builder, code-thinker) bypass decay entirely.
+
+**Invariant (do not violate): billing is a money fact; presence is an
+attention fact — they must never be wired together.** Decay takes no
+`billingMode` input. A prior version gated the entire decay block behind
+`billingMode === "token"`, so request/unknown providers (the OAuth Claude
+path resolves to `"unknown"`) never decayed and held loaded skills full
+for the life of the session — the root cause of
+`docs/events/fix_20260624_skill_layer_idle_unload_all_billing.md`.
+`billingMode` (`provider/billing-mode.ts`) is now purely informational
+(config schema + `routes/provider.ts` display + telemetry); it drives no
+context-presence behavior. Equally, keep-alive must key on tool-use, not
+keywords — keyword-based keep-alive reintroduces the same brittle guess
+that the load-nudge already owns.
+
 ### Session HTTP cache + ETag/304
 
 `server/session-cache.ts` is an in-process LRU plus a per-session
